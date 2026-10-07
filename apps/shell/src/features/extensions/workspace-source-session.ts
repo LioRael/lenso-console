@@ -247,8 +247,16 @@ export async function readWorkspaceSourceSession(
   }
   return withIdentityRead(async () => {
     // A queued account switch must not readmit the preceding operator session.
-    const liveSubject = await binding(source, account, signal);
-    const liveScope = await operatorSession(source, subject, signal);
+    const cached = sessions.get(source.id);
+    const [liveSubject, liveScope, csrf] = await Promise.all([
+      binding(source, account, signal),
+      operatorSession(source, subject, signal),
+      cached?.subject === subject &&
+      cached.readScope === readScope &&
+      !cached.signal.aborted
+        ? cached.csrf
+        : policy(source, signal),
+    ]);
     if (generation !== generations.get(source.id)) {
       throw new WorkspaceSourceChangedError();
     }
@@ -263,10 +271,6 @@ export async function readWorkspaceSourceSession(
       !previous.signal.aborted
     ) {
       return previous;
-    }
-    const csrf = await policy(source, signal);
-    if (generation !== generations.get(source.id)) {
-      throw new WorkspaceSourceChangedError();
     }
     // Shared readers may finish methods concurrently. Publication has no await:
     // reuse the latest transport instead of leaving an overwritten one alive.

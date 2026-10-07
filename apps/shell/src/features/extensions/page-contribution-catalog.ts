@@ -426,10 +426,29 @@ function isMountAssetUrl(value: string, mountId: string): boolean {
   );
 }
 
+// Stop waiting in the UI without releasing an in-progress cookie-write lock.
+// The identity transition itself still owns that lock until its request settles.
+function waitForDiscovery<T>(
+  work: Promise<T>,
+  signal: AbortSignal
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) {
+      abort();
+    }
+    void work.then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", abort);
+    });
+  });
+}
+
 async function readPageCatalog(
   signal: AbortSignal,
   account: string,
-  report: (message: string) => void
+  report: (message: string) => void,
+  publishOrdinary: (mounts: readonly PageMount[]) => void
 ) {
   if (!isApiMode()) {
     return demoCatalog;
@@ -437,22 +456,29 @@ async function readPageCatalog(
   const ordinary = parsePageCatalog(
     await httpClient.get("api/console/v1/pages", { signal }).json()
   );
+  signal.throwIfAborted();
+  if (ordinary.length) {
+    publishOrdinary(ordinary);
+  }
   const mounts = [...ordinary];
   const failures: string[] = [];
   for (const source of consoleHttpPaths.workspace_sources ?? []) {
     let transportSignal: AbortSignal | undefined;
+    const discoverySignal = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(30_000),
+    ]);
     try {
-      const transport = await readWorkspaceSourceSession(
-        source,
-        account,
-        signal
+      const transport = await waitForDiscovery(
+        readWorkspaceSourceSession(source, account, discoverySignal),
+        discoverySignal
       );
       if (!transport) {
         continue;
       }
       transportSignal = transport.signal;
       await withIdentityRead(async () => {
-        const lifetime = AbortSignal.any([signal, transport.signal]);
+        const lifetime = AbortSignal.any([discoverySignal, transport.signal]);
         const response = await fetch(
           `${source.api_base_path}/console/v1/pages`,
           {
@@ -509,38 +535,56 @@ async function readPageCatalog(
             transport.subject
           );
           const allowed = new Set<string>();
+          const probes = new Map<string, Promise<Record<string, unknown>>>();
+          const probeKey = (
+            check: (typeof configured.navigation_checks)[number]
+          ) => JSON.stringify([check.service_id, check.operation]);
           for (const check of configured.navigation_checks) {
-            try {
-              const result = await services.invoke<
-                unknown,
-                Record<string, unknown>
-              >(check.service_id, check.operation, {}, { signal: lifetime });
-              if (
-                result &&
-                check.fields.some((field) => result[field] === true)
-              ) {
-                allowed.add(check.path.join("/"));
-              }
-            } catch (error) {
-              lifetime.throwIfAborted();
-              if (
-                !(
-                  error instanceof WorkspaceServiceError && error.status === 403
-                ) &&
-                !(
-                  error instanceof WorkspaceServiceDomainError &&
-                  error.payload &&
-                  typeof error.payload === "object" &&
-                  "error" in error.payload &&
-                  error.payload.error === "denied"
+            const key = probeKey(check);
+            if (!probes.has(key)) {
+              probes.set(
+                key,
+                services.invoke<unknown, Record<string, unknown>>(
+                  check.service_id,
+                  check.operation,
+                  {},
+                  { signal: lifetime }
                 )
-              ) {
-                failures.push(
-                  "Some workspaces could not be checked. Retry workspace access."
-                );
-              }
+              );
             }
           }
+          await Promise.all(
+            configured.navigation_checks.map(async (check) => {
+              try {
+                const result = await probes.get(probeKey(check))!;
+                if (
+                  result &&
+                  check.fields.some((field) => result[field] === true)
+                ) {
+                  allowed.add(check.path.join("/"));
+                }
+              } catch (error) {
+                lifetime.throwIfAborted();
+                if (
+                  !(
+                    error instanceof WorkspaceServiceError &&
+                    error.status === 403
+                  ) &&
+                  !(
+                    error instanceof WorkspaceServiceDomainError &&
+                    error.payload &&
+                    typeof error.payload === "object" &&
+                    "error" in error.payload &&
+                    error.payload.error === "denied"
+                  )
+                ) {
+                  failures.push(
+                    "Some workspaces could not be checked. Retry workspace access."
+                  );
+                }
+              }
+            })
+          );
           const items = mount.navigation.items.filter((item) =>
             allowed.has(item.path.join("/"))
           );
@@ -553,7 +597,7 @@ async function readPageCatalog(
           }
         }
         lifetime.throwIfAborted();
-      }, signal);
+      }, discoverySignal);
     } catch (error) {
       signal.throwIfAborted();
       if (
@@ -611,7 +655,14 @@ export function usePageCatalog() {
   }, [configured, queryClient]);
   const query = useQuery({
     queryKey: ["console-page-catalog"],
-    queryFn: ({ signal }) => readPageCatalog(signal, subject, setSourceError),
+    queryFn: ({ signal }) =>
+      readPageCatalog(signal, subject, setSourceError, (ordinary) => {
+        // The current account's admitted catalog is usable while optional
+        // identities are discovered. Keep an existing catalog during refresh.
+        if (!queryClient.getQueryData(["console-page-catalog"])) {
+          queryClient.setQueryData(["console-page-catalog"], ordinary);
+        }
+      }),
     // A retired read is not an empty authorized catalog. Retry it once after
     // the identity lock settles; ordinary denial/transport failures do not loop.
     retry: (count, error) =>

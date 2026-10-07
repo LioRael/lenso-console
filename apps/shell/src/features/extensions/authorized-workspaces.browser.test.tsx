@@ -173,6 +173,12 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
                   operation: "describe_channels",
                   fields: ["can_manage"],
                 },
+                {
+                  path: ["extra"],
+                  service_id: "actions",
+                  operation: "describe",
+                  fields: ["can_read"],
+                },
               ],
             },
           ],
@@ -183,6 +189,24 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
   let unavailable = false;
   let exchangeUnavailable = false;
   let exchanges = 0;
+  let describeReads = 0;
+  let channelReads = 0;
+  let releasePermissions!: () => void;
+  let permissionsStarted!: () => void;
+  const firstPermissions = new Promise<void>((resolve) => {
+    permissionsStarted = resolve;
+  });
+  const permissionRead = new Promise<void>((resolve) => {
+    releasePermissions = resolve;
+  });
+  const deadlines: AbortController[] = [];
+  const nativeTimeout = AbortSignal.timeout.bind(AbortSignal);
+  const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+    if (ms !== 30_000) return nativeTimeout(ms);
+    const controller = new AbortController();
+    deadlines.push(controller);
+    return controller.signal;
+  });
   let bindingRead: Promise<void> | undefined;
   let bindingStarted: (() => void) | undefined;
   const fetch = vi
@@ -240,9 +264,13 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
         "operator-a"
       );
       if (path.endsWith("/invoke/describe")) {
+        describeReads += 1;
+        permissionsStarted();
+        await permissionRead;
         return Response.json({ can_read: true });
       }
       if (path.endsWith("/invoke/describe_channels")) {
+        channelReads += 1;
         if (unavailable) {
           return Response.json({}, { status: 503 });
         }
@@ -273,12 +301,49 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
         <Navigation theme={theme} />
       </QueryClientProvider>
     );
+  // A slow optional identity must not hide an already admitted account catalog.
+  let releaseInitialBinding!: () => void;
+  const initialBindingStarted = new Promise<void>((resolve) => {
+    bindingStarted = resolve;
+  });
+  bindingRead = new Promise<void>((resolve) => {
+    releaseInitialBinding = resolve;
+  });
   try {
     render("light");
     const access = page.getByRole("button", {
       name: "Account access",
       exact: true,
     });
+    await initialBindingStarted;
+    await expect
+      .element(page.getByRole("button", { name: "Your account" }))
+      .toBeVisible();
+    expect(client.getQueryState(["console-page-catalog"])?.fetchStatus).toBe(
+      "fetching"
+    );
+    await expect.element(access).not.toBeInTheDocument();
+    deadlines[0]!.abort(
+      new DOMException("Discovery timed out", "TimeoutError")
+    );
+    await expect
+      .element(
+        page.getByText(
+          "Some workspaces could not be checked. Retry workspace access."
+        )
+      )
+      .toBeVisible();
+    await expect
+      .poll(() => client.isFetching({ queryKey: ["console-page-catalog"] }))
+      .toBe(0);
+    releaseInitialBinding();
+    const retry = client.refetchQueries({ queryKey: ["console-page-catalog"] });
+    await firstPermissions;
+    expect(describeReads).toBe(1);
+    expect(channelReads).toBe(1);
+    await expect.element(access).not.toBeInTheDocument();
+    releasePermissions();
+    await retry;
     await expect.element(access).toBeVisible();
     await expect
       .element(page.getByRole("button", { name: "Your account" }))
@@ -401,6 +466,9 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
     expect(exchanges).toBe(1);
     expect(client.isFetching({ queryKey: ["console-page-catalog"] })).toBe(0);
   } finally {
+    releaseInitialBinding();
+    releasePermissions();
+    timeout.mockRestore();
     root.unmount();
     client.clear();
     node.remove();

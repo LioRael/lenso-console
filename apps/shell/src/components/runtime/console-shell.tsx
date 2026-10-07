@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { consolePathFromLocation } from "../../app/console-router-config";
 import { useConsoleSession } from "../../app/console-session";
 import { sessionStyles } from "../../app/console-session.stylex";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
@@ -115,6 +116,8 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
       currentArea !== "settings" &&
       currentArea !== "workspace" &&
       currentArea !== "management" &&
+      (!pageCatalog.isFetching ||
+        consolePathFromLocation(currentPath) === "/") &&
       visibleWorkspaces[0]
     ) {
       navigateToWorkspace(navigate, visibleWorkspaces[0], []);
@@ -124,7 +127,9 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     assistantArea,
     managementEnabled,
     currentArea,
+    currentPath,
     navigate,
+    pageCatalog.isFetching,
     visibleWorkspaces,
   ]);
   if (
