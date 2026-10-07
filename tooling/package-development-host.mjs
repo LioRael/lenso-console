@@ -1,7 +1,13 @@
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
+
+import {
+  prepareShell,
+  validateShell,
+} from "./distribution/prepare-sdk-shell.mjs";
 
 const repo = path.resolve(import.meta.dirname, "..");
 const args = process.argv.slice(2);
@@ -128,6 +134,10 @@ const supportDigest = inputDigest(support);
 if (sources.source_digests["lenso.console.web"] !== supportDigest) {
   throw new Error("Console support changed since the Host was built");
 }
+prepareShell(
+  path.join(repo, "apps/shell/dist/client"),
+  path.join(repo, "packages/console-authoring/shell")
+);
 fs.mkdirSync(path.join(out, "bin"), { recursive: true });
 for (const [source, target] of [
   [engine, "bin/lenso-engine-host"],
@@ -158,6 +168,13 @@ execFileSync(
     authoring,
   ],
   { cwd: repo, stdio: "inherit" }
+);
+validateShell(
+  path.dirname(
+    createRequire(path.join(authoring, "package.json")).resolve(
+      "@lenso/console-sdk/shell"
+    )
+  )
 );
 fs.copyFileSync(
   path.join(repo, "packages/console-authoring/create-app.mjs"),
