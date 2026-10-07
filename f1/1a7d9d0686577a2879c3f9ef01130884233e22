@@ -1,0 +1,52 @@
+.changeset/optional-console-runtimes.md
+  h_9d56aba080c170 1-5
+docs/architecture/optional-assistant-boundary.md
+  h_9d56aba080c170 1-126
+packages/agent/README.md
+  h_9d56aba080c170 29-44
+packages/agent/bin/lenso-agent.mjs
+  h_9d56aba080c170 37-41,72-74,91,94-96,99,109-119,122-124,271-280,285-288
+packages/console/README.md
+  h_9d56aba080c170 1-22
+packages/console/bin/lenso-console.mjs
+  h_9d56aba080c170 1-208
+packages/console/package.json
+  h_9d56aba080c170 1-30
+scripts/distribution/optional-runtimes.test.mjs
+  h_9d56aba080c170 1-214
+scripts/distribution/package-agent.mjs
+  h_9d56aba080c170 16-21,28,41,46-53,56-65,103-108,110,129,131,137-142,144,152
+scripts/distribution/package-console.mjs
+  h_9d56aba080c170 1-72
+scripts/distribution/smoke-console.mjs
+  h_9d56aba080c170 1-115
+service/src/lib.rs
+  h_9d56aba080c170 942
+src/components/runtime/console-shell.tsx
+  h_9d56aba080c170 278-289
+src/features/agent/agent-history-menu.tsx
+  h_9d56aba080c170 36,44,99,115,122,150-156,175,187,218,225,238-244
+src/features/agent/agent-quick-conversation.tsx
+  h_9d56aba080c170 42,63,67,74,78,84-90,133,156-157,244-248
+src/features/agent/agent-quick-panel.browser.test.tsx
+  h_9d56aba080c170 12,30,54-91,151-154,166-324,504-506,526-528,553-555,571-573,592-594,619-621,636-684,688-690,716-748,775-776,810,828,839-853,931-932,979-991,1212-1231
+src/features/agent/agent-quick-panel.stylex.ts
+  h_9d56aba080c170 320-325,327-330,353,356
+src/features/agent/agent-quick-panel.tsx
+  h_9d56aba080c170 4-6,9,21-23,33,35-40,44-45,55-135,142-179,181-187,204-205,210-218,245,247-249,265-276,278-339,355,370,378-379,385-398,400-405,412-414
+src/features/agent/use-agent-conversation.ts
+  h_9d56aba080c170 3,53,135-137,160,168,353,367-369,395,621,741,811,902-907,1048,1055
+src/features/agent/use-agent-draft.ts
+  h_9d56aba080c170 1-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f11a7d9d0686577a2879c3f9ef01130884233e22",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

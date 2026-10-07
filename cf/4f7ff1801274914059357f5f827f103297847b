@@ -1,0 +1,22 @@
+.github/workflows/agent-npm.yml
+  s_f24ec9a17597d4::t_0cbe62e0072e1d 80
+  s_f24ec9a17597d4::t_df4c166fe43638 25-30,36,79,86,92-104,109-110,117-118,121-125
+docs/agent-npm-distribution.md
+  s_f24ec9a17597d4::t_f0e42830603454 120-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf4f7ff1801274914059357f5f827f103297847b",
+  "prompts": {},
+  "sessions": {
+    "s_f24ec9a17597d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f748-4186-76d3-a2d5-51e6339d7793",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

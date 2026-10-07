@@ -1,0 +1,20 @@
+oxfmt.config.ts
+  h_9d56aba080c170 10-11
+oxlint.config.ts
+  h_9d56aba080c170 9-14
+package.json
+  h_9d56aba080c170 36
+tooling/check-frozen-stream-fixture.mjs
+  h_9d56aba080c170 1-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "498a78fe9cf6281ee02c06a94f1b9b8f6f4a2f29",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

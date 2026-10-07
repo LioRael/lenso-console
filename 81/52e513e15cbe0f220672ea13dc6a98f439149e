@@ -1,0 +1,21 @@
+package.json
+  s_f24ec9a17597d4::t_b5099fb49edc60 3
+CHANGELOG.md
+  s_f24ec9a17597d4::t_b5099fb49edc60 3-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8152e513e15cbe0f220672ea13dc6a98f439149e",
+  "prompts": {},
+  "sessions": {
+    "s_f24ec9a17597d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f748-4186-76d3-a2d5-51e6339d7793",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

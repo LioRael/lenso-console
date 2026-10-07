@@ -1,0 +1,47 @@
+plugins/marketplace/workers/docs/g5-rollout.md
+  s_b4ef4420977247::t_1144fddca58f51 45
+plugins/marketplace/workers/docs/registry-adoption.md
+  s_21258fca71be0b::t_1859a3c9dd9ccd 9,19-36
+plugins/marketplace/workers/operator/promote-runtime.test.mjs
+  s_b4ef4420977247::t_b80d0e1e4729c8 46
+plugins/marketplace/workers/package.json
+  s_21258fca71be0b::t_3d6cb1f58787e4 11
+plugins/marketplace/workers/pnpm-lock.yaml
+  s_21258fca71be0b::t_40586b0f922182 12-13,396-397,732
+plugins/marketplace/workers/pnpm-workspace.yaml
+  s_21258fca71be0b::t_a4e5d63c77bc8a 8
+plugins/marketplace/workers/proof/deployment-config.mjs
+  s_b4ef4420977247::t_31bc8659d6c218 77
+plugins/marketplace/workers/recovery/recovery.py
+  s_b4ef4420977247::t_c2fd76f225edd4 113
+plugins/marketplace/workers/recovery/wrangler.jsonc
+  s_b4ef4420977247::t_80d930c9d11778 29
+plugins/marketplace/workers/worker.mjs
+  s_21258fca71be0b::t_30675d8c061d93 1,3-4,9-18,20-31,33,35-41,43-64
+plugins/marketplace/workers/wrangler.jsonc
+  s_b4ef4420977247::t_d5b91174e4fb66 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8adaa203de69af8602f04dfe55db075a9f564cdf",
+  "prompts": {},
+  "sessions": {
+    "s_21258fca71be0b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a45b-2d5b-75d1-bc5a-2923a5486851",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    },
+    "s_b4ef4420977247": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a46d-f66f-7aa2-a04d-613964d63efb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
