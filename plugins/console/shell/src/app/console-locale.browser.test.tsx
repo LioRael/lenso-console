@@ -19,6 +19,7 @@ afterEach(() => {
   flushSync(() => root?.unmount());
   container?.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   root = undefined;
 });
 function Probe() {
@@ -49,6 +50,7 @@ function Probe() {
 // The former provider gate serialized an extra locale read before session and
 // methods. A held session now proves methods start without admitting content.
 test("anonymous startup reads session and methods together and language once", async () => {
+  vi.spyOn(navigator, "languages", "get").mockReturnValue(["en-US"]);
   let completeSession: ((value: Response) => void) | undefined;
   let completeMethods: ((value: Response) => void) | undefined;
   const session = new Promise<Response>((resolve) => {
@@ -90,11 +92,9 @@ test("anonymous startup reads session and methods together and language once", a
     )
   );
   await expect.element(page.getByText("Checking your session…")).toBeVisible();
-  await expect.poll(() => requests.length).toBe(2);
-  expect(requests.toSorted()).toEqual([
-    "/api/console/v1/session",
-    "/auth/methods",
-  ]);
+  await expect
+    .poll(() => requests.toSorted())
+    .toEqual(["/api/console/v1/session", "/auth/methods"]);
   await expect
     .element(page.getByText("Private workspace"))
     .not.toBeInTheDocument();
