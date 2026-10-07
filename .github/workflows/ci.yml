@@ -34,10 +34,13 @@ jobs:
           node-version-file: .node-version
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Read the pinned Rust channel
+        id: rust-channel
+        run: echo "channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
         with:
-          toolchain: 1.94.0
+          toolchain: ${{ steps.rust-channel.outputs.channel }}
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
       - name: Install owner contract projection generator
@@ -105,9 +108,12 @@ jobs:
           node-version-file: lenso-console/.node-version
       - name: Install exact browser compiler
         run: npm install --global bun@1.4.2
+      - name: Read the pinned Rust channel
+        id: rust-channel
+        run: echo "channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
         with:
-          toolchain: 1.94.0
+          toolchain: ${{ steps.rust-channel.outputs.channel }}
       - name: Build optional owner assets
         run: |
           for owner in ../lenso-access-control-plugin/console ../lenso-audit-log-plugin/console ../lenso-auth-plugin/console; do

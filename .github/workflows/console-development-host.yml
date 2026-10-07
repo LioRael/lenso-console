@@ -55,9 +55,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: console/.node-version
+      - name: Read the pinned Rust channel
+        id: rust-channel
+        run: echo "channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' console/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
         with:
-          toolchain: 1.94.0
+          toolchain: ${{ steps.rust-channel.outputs.channel }}
       - name: Install Bun producer tool
         run: |
           npm install --global bun@1.4.2

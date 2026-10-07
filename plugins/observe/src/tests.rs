@@ -428,7 +428,7 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
         .unwrap()
         .unwrap();
     assert_eq!(logs.logs[0].body, "order loaded");
-    assert!(logs.logs[0].attributes.is_empty());
+    assert_eq!(logs.logs[0].attributes, []);
     reopened_worker.shutdown().await.unwrap();
 }
 

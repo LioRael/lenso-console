@@ -58,7 +58,9 @@ receive focused syntax/configuration checks and the upstream candidate gate.
 
 Install Node from `.node-version`, pnpm from `packageManager`, and the checked-in
 Rust toolchain, then run `pnpm install --frozen-lockfile` and `pnpm check`.
-Remove conflicting Rust overrides or use `RUSTUP_TOOLCHAIN=1.94.0 pnpm check`.
+Remove conflicting Rust overrides or use
+`RUSTUP_TOOLCHAIN=nightly-2026-10-04 pnpm check`. Dated nightly builds are checked
+against the installed Rust manifest; an alias is accepted only for that same build.
 The gate logs the SHA and tool versions, then runs app typechecking and the
 independent Console Descriptor/default-tool assertions before installing
 Chromium. Playwright's exact version pins the browser revision. CI calls this

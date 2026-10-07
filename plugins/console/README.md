@@ -111,7 +111,7 @@ Relative paths resolve from the App Host working directory. Activation binds the
 
 Console publishes `GET /health/live` and `GET /health/ready` by default, including for existing configurations that omit `liveness_readiness_routes`. When the App owns those routes (for example, readiness checks its database), set `liveness_readiness_routes = false` in the ordinary Console Plugin configuration. Console then omits both routes and rejects their dedicated route IDs; its Shell wildcard returns 404 for those paths. `GET /health/startup` remains available.
 
-For a Git dependency with the `embedded-shell` feature, build the Shell in a separate checkout of the same full Console source revision, using Node 24.18.0 and pnpm 11.5.0:
+For a Git dependency with the `embedded-shell` feature, build the Shell in a separate checkout of the same full Console source revision, using the Node version in `.node-version` and pnpm version in `package.json#packageManager`:
 
 ```sh
 git clone https://github.com/LioRael/lenso-console console-source

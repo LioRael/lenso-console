@@ -2492,12 +2492,12 @@ mod tests {
             configured_console_agent_tools(None),
             default_console_agent_tools()
         );
-        assert!(configured_console_agent_tools(Some("")).is_empty());
+        assert_eq!(configured_console_agent_tools(Some("")), [] as [String; 0]);
         assert_eq!(
             configured_console_agent_tools(Some(" inspect_app, check_plugin_change ")),
             ["inspect_app", "check_plugin_change"]
         );
-        assert!(defaults.console_agent_url.is_empty());
+        assert_eq!(defaults.console_agent_url, "");
     }
 
     #[test]

@@ -35,7 +35,7 @@ jobs:
           node-version-file: .node-version
       - name: Install the pinned publisher and compiler runtime
         run: |
-          npm install --global npm@11.5.1 --ignore-scripts
+          npm install --global npm@12.2.0 --ignore-scripts
           npm install --global bun@1.4.2
           test "$(bun --version)" = 1.4.2
       - name: Pack the owner SDK and record integrity
@@ -90,7 +90,7 @@ jobs:
         with:
           node-version-file: .node-version
           registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@11.5.1 --ignore-scripts
+      - run: npm install --global npm@12.2.0 --ignore-scripts
       - name: Verify and publish only the tested archive
         run: |
           node --input-type=module <<'NODE'

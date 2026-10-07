@@ -130,7 +130,7 @@ async fn verify_browser_session(native_projects: bool) {
         let revoke_port = app.handle::<lenso_capability_credential_issuer::CredentialIssuerRevokeCredential>(caller).unwrap();
         revoke_port.invoke(lenso_capability_credential_issuer::REVOKE_CREDENTIAL_OPERATION, lenso_capability_credential_issuer::RevokeCredentialRequest {credential,scheme:"session".into()}).await.unwrap().unwrap();
         assert_eq!(client.get(format!("{origin}/api/console/v1/session")).header("cookie", &cookie).send().await.unwrap().status(), 401);
-        assert!(!registered.subject.is_empty());
+        assert_ne!(registered.subject, "");
         assert_eq!(app.shutdown(std::time::Duration::from_secs(3)).await, lenso_kernel::ShutdownOutcome::Clean);
         let pool = PgPool::connect(&url).await.unwrap();
         let mut schemas = vec![accounts, passwords];

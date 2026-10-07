@@ -51,11 +51,14 @@ jobs:
           run_install: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
+      - name: Read the pinned Rust channel
+        id: rust-channel
+        run: echo "channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
         with:
-          toolchain: "1.94"
+          toolchain: ${{ steps.rust-channel.outputs.channel }}
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with:
           workspaces: .
@@ -111,9 +114,9 @@ jobs:
           github-token: ${{ github.token }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version: 24
+          node-version-file: .node-version
           registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@11.5.1 --ignore-scripts
+      - run: npm install --global npm@12.2.0 --ignore-scripts
       - name: Publish platform packages before the launcher
         env:
           RESUME_RUN_ID: ${{ inputs.resume_run_id }}

@@ -139,7 +139,10 @@ impl ManagementMcp {
                 })?;
             let response = tokio::select! {
                 () = cancellation.cancelled() => return Err(http_stream::StreamEndpointHandleInvocationError::Runtime(failure("request cancelled"))),
-                response = router.oneshot(incoming) => response.map_err(|error| http_stream::StreamEndpointHandleInvocationError::Runtime(failure(error)))?,
+                response = router.oneshot(incoming) => match response {
+                    Ok(response) => response,
+                    Err(infallible) => match infallible {},
+                },
             };
             let head = http_stream::HandleResponse {
                 kind: http_stream::HandleResponseKind::Head,
