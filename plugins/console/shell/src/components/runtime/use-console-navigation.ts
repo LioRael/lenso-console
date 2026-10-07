@@ -38,11 +38,11 @@ export function useConsoleNavigation(path: string) {
       ).filter((element) => element.getClientRects().length > 0);
     const frame = requestAnimationFrame(() => controls()[0]?.focus());
     const keydown = (event: KeyboardEvent) => {
-      if (document.activeElement?.closest('[role="menu"]')) {
+      if (
+        event.defaultPrevented ||
+        document.activeElement?.closest('[role="menu"]')
+      ) {
         return;
-      }
-      if (event.key === "Escape") {
-        close();
       }
       if (event.key !== "Tab") {
         return;
@@ -63,7 +63,7 @@ export function useConsoleNavigation(path: string) {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", keydown);
     };
-  }, [mobileOpen, close]);
+  }, [mobileOpen]);
 
   return {
     mobileOpen,
@@ -72,15 +72,11 @@ export function useConsoleNavigation(path: string) {
     triggerRef,
     regionRef,
     close,
-    toggle: () => {
+    handleOpenChange: (open: boolean) => {
       if (window.matchMedia("(max-width: 720px)").matches) {
-        if (mobileOpen) {
-          close();
-        } else {
-          setMobileOpen(true);
-        }
+        setMobileOpen(open);
       } else {
-        setCollapsed((value) => !value);
+        setCollapsed(!open);
       }
     },
   };

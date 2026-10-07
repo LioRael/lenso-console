@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 const styles = stylex.create({
   header: {
     display: "flex",
+    minWidth: 0,
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
@@ -14,7 +15,6 @@ const styles = stylex.create({
     gap: 8,
     minWidth: 0,
     flex: "1 1 240px",
-    paddingInline: 16,
   },
   title: {
     fontSize: "24px",
@@ -31,20 +31,29 @@ const styles = stylex.create({
     color: "var(--muted)",
     overflowWrap: "anywhere",
   },
-  actions: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  actions: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
+    maxWidth: "100%",
+  },
 });
 
 export function ConsolePageHeader({
   title,
   description,
   actions,
+  xstyle,
 }: {
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
+  xstyle?: stylex.StyleXStyles;
 }) {
   return (
-    <header {...stylex.props(styles.header)}>
+    <header {...stylex.props(styles.header, xstyle)}>
       <div {...stylex.props(styles.copy)}>
         <h1 {...stylex.props(styles.title)}>{title}</h1>
         {description ? (

@@ -12,15 +12,6 @@ const styles = stylex.create({
   trigger: {
     minWidth: 0,
     maxWidth: "100%",
-    height: 30,
-    fontSize: 12,
-    backgroundColor: {
-      default: "transparent",
-      ":hover": "var(--default-hover)",
-    },
-    borderColor: "transparent",
-    boxShadow: "none",
-    paddingInline: 8,
   },
   value: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
 });

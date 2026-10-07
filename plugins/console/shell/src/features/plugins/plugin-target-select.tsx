@@ -7,7 +7,7 @@ import { pluginScopes, useAppManagement } from "../apps/app-management-context";
 const styles = stylex.create({
   context: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
   label: { fontSize: 12, color: "var(--muted)" },
-  trigger: { maxWidth: 280, minWidth: 0, height: 32, fontSize: 12 },
+  trigger: { maxWidth: 280, minWidth: 0 },
   value: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   popup: {
     height: "auto",

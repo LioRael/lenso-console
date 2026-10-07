@@ -41,6 +41,7 @@ export function SettingsPage() {
     <main {...stylex.props(styles.page)}>
       <div {...stylex.props(styles.column)}>
         <ConsolePageHeader
+          xstyle={styles.headerInset}
           title={zh ? "偏好设置" : "Preferences"}
           description={
             zh

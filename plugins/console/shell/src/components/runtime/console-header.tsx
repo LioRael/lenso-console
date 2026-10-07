@@ -1,12 +1,7 @@
+import { Sidebar } from "@lenso/primitives/sidebar";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
-import { useRouter } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  ArrowRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
@@ -34,7 +29,6 @@ export function ConsoleHeader({
   actions?: ReactNode;
 }) {
   const t = useConsoleTranslation();
-  const router = useRouter();
   const navigationOpen = navigation.narrow
     ? navigation.mobileOpen
     : !navigation.collapsed;
@@ -46,27 +40,29 @@ export function ConsoleHeader({
     >
       <div {...stylex.props(styles.toolbarLeading)}>
         <span {...stylex.props(styles.toolbarBrand)}>Lenso</span>
-        <Button
-          isIconOnly
-          variant="ghost"
-          size="md"
+        <Sidebar.Trigger
+          targetId="console-sidebar"
+          render={
+            <Button
+              isIconOnly
+              variant="ghost"
+              size="md"
+              xstyle={[styles.mobileNavTrigger, styles.toolbarNavigationAction]}
+            />
+          }
           ref={navigation.triggerRef}
-          aria-controls="console-sidebar"
-          aria-expanded={navigationOpen}
           aria-label={t(
             navigationOpen
               ? "Close workspace navigation"
               : "Open workspace navigation"
           )}
-          onClick={() => navigation.toggle()}
-          xstyle={[styles.mobileNavTrigger, styles.toolbarNavigationAction]}
         >
           {navigationOpen ? (
             <PanelLeftClose aria-hidden="true" size={16} />
           ) : (
             <PanelLeftOpen aria-hidden="true" size={16} />
           )}
-        </Button>
+        </Sidebar.Trigger>
       </div>
       <div {...stylex.props(styles.toolbarCenter)}>
         <ConsoleSearch
@@ -75,34 +71,7 @@ export function ConsoleHeader({
           label={`${contextLabel} / ${title}`}
         />
       </div>
-      <div {...stylex.props(styles.toolbarActions)}>
-        <Button
-          isIconOnly
-          variant="ghost"
-          size="md"
-          aria-label={t("Back")}
-          xstyle={styles.toolbarNavigationAction}
-          disabled={!router.history.canGoBack()}
-          onClick={() => router.history.back()}
-        >
-          <ArrowLeft aria-hidden="true" size={16} />
-        </Button>
-        <Button
-          isIconOnly
-          variant="ghost"
-          size="md"
-          aria-label={t("Forward")}
-          xstyle={styles.toolbarNavigationAction}
-          disabled={
-            (router.history.location.state.__TSR_index ?? 0) >=
-            router.history.length - 1
-          }
-          onClick={() => router.history.forward()}
-        >
-          <ArrowRight aria-hidden="true" size={16} />
-        </Button>
-        {actions}
-      </div>
+      <div {...stylex.props(styles.toolbarActions)}>{actions}</div>
     </header>
   );
 }

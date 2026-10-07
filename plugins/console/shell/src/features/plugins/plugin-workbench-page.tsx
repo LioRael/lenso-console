@@ -1,9 +1,12 @@
 import { Button } from "@lenso/ui/button";
-import { Input } from "@lenso/ui/input";
-import { TextField } from "@lenso/ui/textfield";
+import { EmptyState } from "@lenso/ui/empty-state";
+import { useMediaQuery } from "@lenso/ui/hooks";
+import { Link } from "@lenso/ui/link";
+import { SearchField } from "@lenso/ui/search-field";
+import { Table } from "@lenso/ui/table";
 import * as stylex from "@stylexjs/stylex";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link as RouterLink, useNavigate } from "@tanstack/react-router";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { ConsolePageHeader } from "../../components/runtime/console-page-header";
@@ -12,7 +15,6 @@ import {
   useAppManagement,
   type ManagedApp,
 } from "../apps/app-management-context";
-import { settingsPageStyles as pageStyles } from "../settings/settings-page.stylex";
 import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
 import {
@@ -25,8 +27,10 @@ import {
 import { pluginDisplayName } from "./plugin-display-name";
 import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import { PluginFilterSelect } from "./plugin-filter-select";
-import { pluginPurpose } from "./plugin-purpose";
-import { pluginStatusPresentation } from "./plugin-runtime-state";
+import {
+  pluginStatusPresentation,
+  type PluginStatusPresentation,
+} from "./plugin-runtime-state";
 import { PluginStatus } from "./plugin-status";
 import { PluginTargetSelect } from "./plugin-target-select";
 import { InstallPluginDialog } from "./plugin-workbench-dialogs";
@@ -40,37 +44,30 @@ import {
 const EMPTY_PLUGIN_ITEMS: readonly PluginWorkbenchItem[] = [];
 
 const styles = stylex.create({
-  targetRow: {
-    paddingBlockEnd: 16,
-    borderBottom: "1px solid var(--separator)",
-  },
-  body: { display: "grid", gap: 4 },
+  body: { display: "grid", gap: 16, minWidth: 0 },
   filterOptions: {
     display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    paddingBlock: "8px 4px",
-  },
-  scopeTabs: {
-    display: "flex",
-    gap: 24,
-    padding: 0,
-    boxShadow: "none",
-    borderRadius: 0,
-    backgroundColor: "transparent",
-    overflowX: "auto",
-    borderBottom: "1px solid var(--separator)",
-  },
-  workbench: {
-    maxWidth: 800,
-    width: "min(800px, calc(100% - 48px))",
-    display: "grid",
     gap: 16,
-    "@media (max-width: 560px)": { width: "calc(100% - 32px)" },
+    flexWrap: "wrap",
+    borderWidth: 0,
+    margin: 0,
+    padding: 0,
+    minWidth: 0,
   },
-  breadcrumbParent: {
-    display: "inline-flex",
-    overflow: "hidden",
+  filterField: { display: "grid", gap: 8, minWidth: 0 },
+  filterLabel: { color: tokens.colorContentSecondary, fontSize: 12 },
+  workbench: {
+    marginInline: { default: 26, "@media (max-width: 760px)": 16 },
+    paddingBlock: {
+      default: "30px 64px",
+      "@media (max-width: 560px)": "24px 48px",
+    },
+    width: {
+      default: "min(1120px, calc(100% - 52px))",
+      "@media (max-width: 760px)": "calc(100% - 32px)",
+    },
+    display: "grid",
+    gap: 24,
     minWidth: 0,
   },
   toolbar: {
@@ -80,155 +77,63 @@ const styles = stylex.create({
     minWidth: 0,
     width: "100%",
     flexWrap: "wrap",
-    paddingBlock: 0,
   },
-  tabs: { minWidth: 0, flex: "1 1 540px", overflowX: "auto", paddingBlock: 2 },
-  tab: {
-    borderRadius: 0,
-    boxShadow: "none",
-    fontSize: 12,
-    minHeight: 36,
-    paddingInline: 0,
-    flexShrink: 0,
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    borderBottomWidth: 2,
-    borderStyle: "solid",
-    borderColor: "transparent",
-  },
-  tabActive: {
-    backgroundColor: "transparent",
-    borderBottomWidth: 2,
-    borderBottomColor: tokens.colorContentPrimary,
-    color: tokens.colorContentPrimary,
-  },
-  count: {
-    color: tokens.colorContentTertiary,
-    fontSize: 11,
-    marginInlineStart: 6,
-    fontVariantNumeric: "tabular-nums",
-  },
-  controls: {
-    display: "flex",
-    gap: 8,
-    alignItems: "center",
-    flexWrap: "wrap",
-    width: "100%",
-    justifyContent: "flex-start",
-  },
-  search: { width: 240, minWidth: 140, maxWidth: "100%", flex: "0 1 280px" },
-  columns: {
-    alignItems: "center",
-    color: tokens.colorContentTertiary,
-    display: "grid",
-    fontSize: 11,
-    fontWeight: 500,
-    gap: 16,
-    gridTemplateColumns: "minmax(0, 1fr) 144px",
-    minHeight: 34,
-    paddingInline: 0,
-    "@media (max-width: 720px)": {
-      gridTemplateColumns: "minmax(0, 1fr) 132px",
-    },
-  },
-  header: {
-    height: "auto",
-    minWidth: 0,
-    borderBottomColor: tokens.colorBorderTertiary,
-    borderBottomStyle: "solid",
-    borderBottomWidth: 1,
-  },
-  filterButton: { marginInlineStart: "auto" },
   headerActions: {
     alignItems: "center",
     display: "flex",
-    flexShrink: 0,
-    gap: tokens.space3,
-    marginInlineStart: 8,
+    flexWrap: "wrap",
+    gap: 8,
+    marginInlineStart: "auto",
   },
-  headerSubrow: {
-    height: "auto",
-    minHeight: 32,
-    paddingInline: 0,
+  search: {
+    minWidth: 0,
+    maxWidth: "100%",
+    flex: "0 1 320px",
+    "@media (max-width: 560px)": { flex: "1 1 100%" },
   },
-  identity: { display: "grid", gap: 2, minWidth: 0 },
-  mono: {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+  inventory: {
+    minWidth: 0,
   },
-  packageColumn: {
-    "@media (max-width: 720px)": {
-      display: "none",
-    },
+  summary: {
+    display: "block",
+    color: tokens.colorContentSecondary,
+    fontSize: 12,
+    fontVariantNumeric: "tabular-nums",
+    paddingBlock: "4px 12px",
+    borderBottom: "1px solid var(--separator)",
   },
+  table: { tableLayout: "fixed" },
+  identity: { display: "grid", gap: 4, minWidth: 0 },
   page: {
     backgroundColor: tokens.colorSurfaceCanvas,
     color: tokens.colorContentPrimary,
-    boxSizing: "border-box",
-    display: "block",
-    overflowY: "auto",
     minWidth: 0,
-    height: "100%",
-    minHeight: 0,
+    minHeight: "100%",
     width: "100%",
   },
   primary: {
     color: tokens.colorContentPrimary,
-    fontSize: 13,
-    fontWeight: 500,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: "20px",
+    overflowWrap: "anywhere",
   },
   row: {
-    alignItems: "center",
-    backgroundColor: {
-      default: "transparent",
-      ":hover": tokens.colorSurfaceInteractiveHover,
-    },
-    borderRadius: 0,
-    borderStyle: "none",
-    color: tokens.colorContentSecondary,
     cursor: "pointer",
-    display: "grid",
-    fontFamily: tokens.fontSans,
-    fontSize: 12,
-    gap: tokens.space4,
-    gridTemplateColumns: "minmax(0, 1fr) 144px",
-    marginInline: 0,
-    minHeight: 64,
-    paddingBlock: 12,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: tokens.colorBorderTertiary,
-    ":last-child": { borderBottomWidth: 0 },
     outline: {
       default: "none",
       ":focus-visible": `2px solid ${tokens.colorFocusRing}`,
     },
     outlineOffset: -2,
-    paddingInline: 0,
-    textAlign: "left",
-    textDecoration: "none",
-    width: "100%",
-    boxSizing: "border-box",
-    "@media (max-width: 720px)": {
-      gridTemplateColumns: "minmax(0, 1fr) 132px",
-    },
   },
-  purpose: {
-    color: tokens.colorContentTertiary,
-    fontSize: 12,
-    lineHeight: "18px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
+  status: { textAlign: "right" },
+  identifier: { overflowWrap: "anywhere" },
   secondary: {
     color: tokens.colorContentTertiary,
     fontSize: 11,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+    fontWeight: 400,
+    lineHeight: "16px",
+    overflowWrap: "anywhere",
   },
   state: {
     alignContent: "center",
@@ -236,39 +141,20 @@ const styles = stylex.create({
     display: "grid",
     gap: tokens.space3,
     justifyItems: "start",
-    minHeight: 160,
-    padding: 24,
+    minHeight: 200,
+    padding: "32px 0",
   },
   stateDescription: {
-    fontSize: 12,
-    lineHeight: "18px",
+    fontSize: 13,
+    lineHeight: "20px",
     margin: 0,
     maxWidth: 420,
   },
   stateTitle: {
     color: tokens.colorContentPrimary,
-    fontSize: 13,
-    fontWeight: 500,
+    fontSize: 15,
+    fontWeight: 600,
     margin: 0,
-  },
-  tableRegion: {
-    minWidth: 0,
-    overflow: "auto",
-  },
-  inventoryList: {
-    borderWidth: 0,
-    borderRadius: 0,
-    backgroundColor: "transparent",
-    paddingBlock: 0,
-  },
-  visuallyHidden: {
-    clip: "rect(0 0 0 0)",
-    clipPath: "inset(50%)",
-    height: 1,
-    overflow: "hidden",
-    position: "absolute",
-    whiteSpace: "nowrap",
-    width: 1,
   },
 });
 
@@ -287,16 +173,14 @@ export function PluginWorkbenchPage() {
     }
   }, [apps, request, selectApp, selectedApp?.id]);
   return (
-    <main data-page="plugin-workbench" {...stylex.props(styles.page)}>
-      <div {...stylex.props(pageStyles.column, styles.workbench)}>
+    <div data-page="plugin-workbench" {...stylex.props(styles.page)}>
+      <div {...stylex.props(styles.workbench)}>
         <ConsolePageHeader
           title={t("Plugins")}
           description={t("Manage the plugins installed in your Apps.")}
+          actions={<PluginTargetSelect />}
         />
-        <div {...stylex.props(styles.targetRow)}>
-          <PluginTargetSelect />
-        </div>
-        <div {...stylex.props(styles.tableRegion)}>
+        <div>
           {catalog.isPending ? (
             <WorkbenchState
               title={t("Loading Apps")}
@@ -329,7 +213,7 @@ export function PluginWorkbenchPage() {
           )}
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -345,6 +229,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
   const setSelection = (nextSelection: PluginSelectionFilter) =>
     updatePluginFilters(selectedApp.id, { selection: nextSelection });
   const [showFilters, setShowFilters] = useState(false);
+  const filtersId = useId();
   const configurationAvailable = selectedApp.pluginConfiguration;
   const workbench = usePluginWorkbench(selectedApp.id, configurationAvailable);
   const plugins = workbench.data?.items ?? EMPTY_PLUGIN_ITEMS;
@@ -410,90 +295,99 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
     <div {...stylex.props(styles.body)}>
       <PluginDraftNavigationGuard store={configurationDraftStore} />
       {configurationAvailable ? (
-        <div
-          aria-label={t("Plugin filters")}
-          {...stylex.props(styles.headerSubrow)}
-        >
+        <>
           <div {...stylex.props(styles.toolbar)}>
-            <div {...stylex.props(styles.controls)}>
-              <TextField.Root xstyle={styles.search}>
-                <Input
-                  type="search"
+            <SearchField.Root xstyle={styles.search}>
+              <SearchField.Group>
+                <SearchField.SearchIcon />
+                <SearchField.Input
                   aria-label={t("Search plugins")}
                   placeholder={t("Search plugins…")}
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onValueChange={setQuery}
                 />
-              </TextField.Root>
-              <Button
-                variant="ghost"
-                size="sm"
-                xstyle={styles.filterButton}
-                aria-expanded={showFilters}
-                onClick={() => setShowFilters((value) => !value)}
-              >
-                {t("Filters")}
-                {category !== "all" || selection !== "all"
-                  ? ` · ${Number(category !== "all") + Number(selection !== "all")}`
-                  : ""}
-              </Button>
-              {selectedApp.localBundleInstall ? (
-                <div {...stylex.props(styles.headerActions)}>
-                  <InstallPluginDialog
-                    disabled={!workbench.authoringEnabled}
-                    error={
-                      mutation.variables?.type === "install" &&
-                      mutation.error instanceof Error
-                        ? mutation.error
-                        : null
+                <SearchField.ClearButton aria-label={t("Clear search")} />
+              </SearchField.Group>
+            </SearchField.Root>
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-expanded={showFilters}
+              aria-controls={filtersId}
+              onClick={() => setShowFilters((value) => !value)}
+            >
+              {t("Filters")}
+              {category !== "all" || selection !== "all"
+                ? ` · ${Number(category !== "all") + Number(selection !== "all")}`
+                : ""}
+            </Button>
+            {selectedApp.localBundleInstall ? (
+              <div {...stylex.props(styles.headerActions)}>
+                <InstallPluginDialog
+                  disabled={!workbench.authoringEnabled}
+                  error={
+                    mutation.variables?.type === "install" &&
+                    mutation.error instanceof Error
+                      ? mutation.error
+                      : null
+                  }
+                  isPending={mutation.isPending}
+                  onInstall={async (bundlePath) => {
+                    if (!inventory) {
+                      throw new TypeError(
+                        "The Console cannot install a Plugin before Host inventory is available"
+                      );
                     }
-                    isPending={mutation.isPending}
-                    onInstall={async (bundlePath) => {
-                      if (!inventory) {
-                        throw new TypeError(
-                          "The Console cannot install a Plugin before Host inventory is available"
-                        );
-                      }
-                      await mutation.mutateAsync({
-                        bundlePath,
-                        expectedStreamId: inventory.streamId,
-                        type: "install",
-                      });
-                    }}
-                  />
-                </div>
-              ) : null}
-            </div>
+                    await mutation.mutateAsync({
+                      bundlePath,
+                      expectedStreamId: inventory.streamId,
+                      type: "install",
+                    });
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
           {showFilters ? (
-            <div {...stylex.props(styles.filterOptions)}>
-              <PluginFilterSelect
-                label={t("Plugin category")}
-                value={category}
-                onValueChange={onCategoryChange}
-                options={pluginCategories.map((item) => ({
-                  value: item.id,
-                  label: `${t(item.label)}${workbench.data ? ` (${item.id === "all" ? plugins.length : plugins.filter((plugin) => categoriesForPlugin(plugin).includes(item.id)).length})` : ""}`,
-                }))}
-              />
-              <PluginFilterSelect<PluginSelectionFilter>
-                label={t("Plugin selection")}
-                value={selection}
-                onValueChange={setSelection}
-                options={[
-                  { value: "all", label: "All states" },
-                  { value: "enabled", label: "Enabled" },
-                  { value: "disabled", label: "Disabled" },
-                ]}
-              />
-            </div>
+            <fieldset
+              id={filtersId}
+              aria-label={t("Plugin filters")}
+              {...stylex.props(styles.filterOptions)}
+            >
+              <div {...stylex.props(styles.filterField)}>
+                <span {...stylex.props(styles.filterLabel)}>
+                  {t("Plugin category")}
+                </span>
+                <PluginFilterSelect
+                  label={t("Plugin category")}
+                  value={category}
+                  onValueChange={onCategoryChange}
+                  options={pluginCategories.map((item) => ({
+                    value: item.id,
+                    label: `${t(item.label)}${workbench.data ? ` (${item.id === "all" ? plugins.length : plugins.filter((plugin) => categoriesForPlugin(plugin).includes(item.id)).length})` : ""}`,
+                  }))}
+                />
+              </div>
+              <div {...stylex.props(styles.filterField)}>
+                <span {...stylex.props(styles.filterLabel)}>
+                  {t("Plugin selection")}
+                </span>
+                <PluginFilterSelect<PluginSelectionFilter>
+                  label={t("Plugin selection")}
+                  value={selection}
+                  onValueChange={setSelection}
+                  options={[
+                    { value: "all", label: "All states" },
+                    { value: "enabled", label: "Enabled" },
+                    { value: "disabled", label: "Disabled" },
+                  ]}
+                />
+              </div>
+            </fieldset>
           ) : null}
-        </div>
+        </>
       ) : null}
-      <h1 id="plugins-heading" {...stylex.props(styles.visuallyHidden)}>
-        {t("Plugins")}
-      </h1>
-      <div {...stylex.props(styles.tableRegion)}>
+      <div {...stylex.props(styles.inventory)}>
         {configurationAvailable === false ? (
           <WorkbenchState
             title={t("Plugin management unavailable")}
@@ -566,58 +460,174 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
             }
           />
         ) : (
-          <section
-            aria-labelledby="plugins-heading"
-            {...stylex.props(styles.tableRegion, styles.inventoryList)}
-          >
-            <div aria-hidden="true" {...stylex.props(styles.columns)}>
-              <span>{t("Plugin")}</span>
-              <span>{t("Status")}</span>
-            </div>
-            {visiblePlugins.map((plugin) => {
-              const state = pluginStatusPresentation({
+          <PluginInventoryList
+            plugins={visiblePlugins}
+            total={plugins.length}
+            statusFor={(plugin) =>
+              pluginStatusPresentation({
                 inventory,
                 item: plugin,
                 mutation: mutation.variables,
                 operation: mutation.operation,
-              });
-              return (
-                <Link
-                  key={pluginKey(plugin)}
-                  params={{
-                    agentId: selectedApp.id,
-                    instanceKey: plugin.instanceKey,
-                    packageId: plugin.packageId,
-                  }}
-                  title={`${plugin.packageId}/${plugin.instanceKey}`}
-                  to="/plugins/$agentId/$packageId/$instanceKey"
-                  {...stylex.props(styles.row)}
-                >
-                  <span {...stylex.props(styles.identity)}>
-                    <span {...stylex.props(styles.primary)}>
-                      {pluginDisplayName(plugin)}
-                      {plugins.some(
-                        (other) =>
-                          other.packageId === plugin.packageId &&
-                          other.instanceKey !== plugin.instanceKey
-                      ) ? (
-                        <span {...stylex.props(styles.secondary)}>
-                          · {plugin.instanceKey}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span {...stylex.props(styles.purpose)}>
-                      {t(pluginPurpose(plugin))}
-                    </span>
-                  </span>
-                  <PluginStatus state={state} />
-                </Link>
-              );
-            })}
-          </section>
+              })
+            }
+            appId={selectedApp.id}
+          />
         )}
       </div>
     </div>
+  );
+}
+
+function PluginInventoryList({
+  appId,
+  plugins,
+  statusFor,
+  total,
+}: {
+  appId: string;
+  plugins: readonly PluginWorkbenchItem[];
+  statusFor: (plugin: PluginWorkbenchItem) => PluginStatusPresentation;
+  total: number;
+}) {
+  const t = useConsoleTranslation();
+  const navigate = useNavigate();
+  const compact = useMediaQuery("(max-width: 760px)");
+  return (
+    <>
+      <output {...stylex.props(styles.summary)}>
+        {plugins.length === total ? total : `${plugins.length} / ${total}`}{" "}
+        {t(plugins.length === 1 ? "Plugin" : "Plugins")}
+      </output>
+      <Table.Root variant="secondary">
+        <Table.Content
+          aria-label={t("Plugins")}
+          selectionMode="none"
+          xstyle={styles.table}
+        >
+          <Table.Header>
+            <Table.Column columnKey="plugin" width="2fr" tabIndex={-1}>
+              {t("Plugin")}
+            </Table.Column>
+            {compact ? null : (
+              <>
+                <Table.Column columnKey="package" width="3fr" tabIndex={-1}>
+                  {t("Package")}
+                </Table.Column>
+                <Table.Column
+                  columnKey="instance"
+                  width="1fr"
+                  maxWidth={180}
+                  tabIndex={-1}
+                >
+                  {t("Instance")}
+                </Table.Column>
+              </>
+            )}
+            <Table.Column
+              columnKey="status"
+              width="30%"
+              minWidth={96}
+              maxWidth={144}
+              tabIndex={-1}
+              xstyle={styles.status}
+            >
+              {t("Status")}
+            </Table.Column>
+          </Table.Header>
+          <Table.Body>
+            {plugins.map((plugin) => {
+              const route = {
+                params: {
+                  agentId: appId,
+                  instanceKey: plugin.instanceKey,
+                  packageId: plugin.packageId,
+                },
+                to: "/plugins/$agentId/$packageId/$instanceKey" as const,
+              };
+              return (
+                <Table.Row
+                  key={pluginKey(plugin)}
+                  itemKey={pluginKey(plugin)}
+                  textValue={pluginDisplayName(plugin)}
+                  tabIndex={0}
+                  xstyle={styles.row}
+                  onClick={(event) => {
+                    if (
+                      event.defaultPrevented ||
+                      event.button !== 0 ||
+                      event.metaKey ||
+                      event.ctrlKey ||
+                      event.shiftKey ||
+                      event.altKey ||
+                      (event.target instanceof Element &&
+                        event.target.closest("a,button,input,select,textarea"))
+                    ) {
+                      return;
+                    }
+                    void navigate(route);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.defaultPrevented ||
+                      event.key !== "Enter" ||
+                      (event.target instanceof Element &&
+                        event.target.closest("a,button,input,select,textarea"))
+                    ) {
+                      return;
+                    }
+                    event.preventDefault();
+                    void navigate(route);
+                  }}
+                >
+                  <Table.Cell columnKey="plugin" tabIndex={-1}>
+                    <div {...stylex.props(styles.identity)}>
+                      <Link
+                        title={`${plugin.packageId}/${plugin.instanceKey}`}
+                        render={<RouterLink {...route} />}
+                        xstyle={styles.primary}
+                      >
+                        {pluginDisplayName(plugin)}
+                      </Link>
+                      {compact ? (
+                        <span {...stylex.props(styles.secondary)}>
+                          {plugin.packageId} / {plugin.instanceKey}
+                        </span>
+                      ) : null}
+                    </div>
+                  </Table.Cell>
+                  {compact ? null : (
+                    <>
+                      <Table.Cell
+                        columnKey="package"
+                        tabIndex={-1}
+                        xstyle={styles.identifier}
+                      >
+                        {plugin.packageId}
+                      </Table.Cell>
+                      <Table.Cell
+                        columnKey="instance"
+                        tabIndex={-1}
+                        xstyle={styles.identifier}
+                      >
+                        {plugin.instanceKey}
+                      </Table.Cell>
+                    </>
+                  )}
+                  <Table.Cell
+                    columnKey="status"
+                    tabIndex={-1}
+                    xstyle={styles.status}
+                  >
+                    <PluginStatus state={statusFor(plugin)} />
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
+          </Table.Body>
+        </Table.Content>
+      </Table.Root>
+    </>
   );
 }
 
@@ -631,10 +641,10 @@ function WorkbenchState({
   title: string;
 }) {
   return (
-    <section aria-live="polite" {...stylex.props(styles.state)}>
+    <EmptyState aria-live="polite" xstyle={styles.state}>
       <h2 {...stylex.props(styles.stateTitle)}>{title}</h2>
       <p {...stylex.props(styles.stateDescription)}>{description}</p>
       {action}
-    </section>
+    </EmptyState>
   );
 }

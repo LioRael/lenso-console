@@ -1,9 +1,11 @@
+import { Tooltip } from "@lenso/ui/tooltip";
 import {
   HeadContent,
   Outlet,
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router";
+import { Agentation } from "agentation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ConsoleAppearanceProvider } from "../app/console-appearance";
@@ -44,6 +46,7 @@ const RootComponent = () => {
           </Providers>
         </ConsoleSession>
         <ConsoleDevOverlay config={consoleDevConfig} />
+        {import.meta.env.DEV ? <Agentation /> : null}
       </ConsoleAppearanceProvider>
     </HostConsoleLocaleProvider>
   );
@@ -68,7 +71,9 @@ const RootDocument = ({ children }: { children: ReactNode }) => (
       ) : null}
     </head>
     <body>
-      <div id="root">{children}</div>
+      <Tooltip.Provider delay={150}>
+        <div id="root">{children}</div>
+      </Tooltip.Provider>
       <Scripts />
     </body>
   </html>
