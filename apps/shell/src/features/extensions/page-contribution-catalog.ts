@@ -19,6 +19,7 @@ import {
   readWorkspaceSourceSession,
   retireWorkspaceSources,
   workspaceSourceRetiredEvent,
+  WorkspaceSourceChangedError,
   type WorkspaceSourceTransport,
 } from "./workspace-source-session";
 
@@ -439,6 +440,7 @@ async function readPageCatalog(
   const mounts = [...ordinary];
   const failures: string[] = [];
   for (const source of consoleHttpPaths.workspace_sources ?? []) {
+    let transportSignal: AbortSignal | undefined;
     try {
       const transport = await readWorkspaceSourceSession(
         source,
@@ -448,6 +450,7 @@ async function readPageCatalog(
       if (!transport) {
         continue;
       }
+      transportSignal = transport.signal;
       await withIdentityRead(async () => {
         const lifetime = AbortSignal.any([signal, transport.signal]);
         const response = await fetch(
@@ -551,16 +554,25 @@ async function readPageCatalog(
         }
         lifetime.throwIfAborted();
       }, signal);
-    } catch {
+    } catch (error) {
       signal.throwIfAborted();
+      if (
+        error instanceof WorkspaceSourceChangedError ||
+        transportSignal?.aborted
+      ) {
+        throw new WorkspaceSourceChangedError();
+      }
       failures.push(
         "Some workspaces could not be checked. Retry workspace access."
       );
     }
   }
   signal.throwIfAborted();
+  if (mounts.some((mount) => mount.transport?.signal.aborted)) {
+    throw new WorkspaceSourceChangedError();
+  }
   report(failures[0] ?? "");
-  return mounts.filter((mount) => !mount.transport?.signal.aborted);
+  return mounts;
 }
 
 export function usePageCatalog() {
@@ -600,7 +612,11 @@ export function usePageCatalog() {
   const query = useQuery({
     queryKey: ["console-page-catalog"],
     queryFn: ({ signal }) => readPageCatalog(signal, subject, setSourceError),
-    retry: false,
+    // A retired read is not an empty authorized catalog. Retry it once after
+    // the identity lock settles; ordinary denial/transport failures do not loop.
+    retry: (count, error) =>
+      count === 0 && error instanceof WorkspaceSourceChangedError,
+    retryDelay: 0,
     staleTime: configured ? 10_000 : Number.POSITIVE_INFINITY,
     refetchInterval: configured ? 30_000 : false,
     ...(configured ? { refetchOnWindowFocus: "always" as const } : {}),

@@ -1,10 +1,14 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import type { WorkspaceSource } from "../../lib/console-http-paths";
-import { withIdentityTransition } from "../../lib/identity-transition";
+import {
+  subscribeWorkspaceIdentityTransitions,
+  withIdentityTransition,
+} from "../../lib/identity-transition";
 import {
   readWorkspaceSourceSession,
   retireWorkspaceSources,
+  WorkspaceSourceChangedError,
 } from "./workspace-source-session";
 
 const source: WorkspaceSource = {
@@ -23,6 +27,89 @@ const csrfConfiguration = () =>
 afterEach(() => {
   retireWorkspaceSources();
   vi.restoreAllMocks();
+});
+
+// Two readers observe no cookie before either owns the exclusive lock. Reusing
+// the first exchange must not retire its result through a second notification.
+test("concurrent discovery exchanges once and admits both readers", async () => {
+  let authenticated = false;
+  let initialReads = 0;
+  let release!: () => void;
+  const bothReading = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const phases: string[] = [];
+  const unsubscribe = subscribeWorkspaceIdentityTransitions((phase) => {
+    phases.push(phase);
+    if (phase === "begin") {
+      retireWorkspaceSources([source.id]);
+    }
+  });
+  let exchanges = 0;
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input);
+    if (path === "/auth/operator/session") {
+      return Response.json({
+        eligible: true,
+        source_issuer: source.account_issuer,
+        source_subject: "account-a",
+        operator_subject: "operator-a",
+      });
+    }
+    if (path === "/api/console/v1/session") {
+      return Response.json({ subject: "account-a" });
+    }
+    if (path === "/admin/api/console/v1/session") {
+      initialReads += 1;
+      if (initialReads <= 2) {
+        if (initialReads === 2) {
+          release();
+        }
+        await bothReading;
+        return Response.json({}, { status: 401 });
+      }
+      return authenticated
+        ? Response.json(
+            { mode: "required", authenticated: true, subject: "operator-a" },
+            {
+              headers: { "x-lenso-read-scope": "a".repeat(64) },
+            }
+          )
+        : Response.json({}, { status: 401 });
+    }
+    if (path === "/auth/operator/methods") {
+      return csrfConfiguration();
+    }
+    if (path === "/auth/operator/logout") {
+      authenticated = false;
+      return Response.json({ signed_out: true });
+    }
+    if (path === "/auth/operator/exchange") {
+      exchanges += 1;
+      authenticated = true;
+      return Response.json({ authenticated: true, redirect: "/admin/" });
+    }
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  try {
+    const results = await Promise.all(
+      [1, 2].map(() =>
+        readWorkspaceSourceSession(
+          source,
+          "account-a",
+          new AbortController().signal
+        )
+      )
+    );
+    expect(exchanges).toBe(1);
+    expect(phases).toEqual(["begin", "complete"]);
+    for (const result of results) {
+      expect(result?.subject).toBe("operator-a");
+      expect(result?.signal.aborted).toBe(false);
+    }
+  } finally {
+    unsubscribe();
+  }
 });
 
 // A real Web Lock proves cookie-write serialization. Unit service lifetime
@@ -201,8 +288,11 @@ test("concurrent admissions publish one tracked transport and retirement rejects
     "account-a",
     new AbortController().signal
   );
+  const retired = expect(pending).rejects.toBeInstanceOf(
+    WorkspaceSourceChangedError
+  );
   await vi.waitFor(() => expect(methods).toHaveLength(1));
   retireWorkspaceSources([source.id]);
   methods[0]!(csrfConfiguration());
-  expect(await pending).toBeNull();
+  await retired;
 });

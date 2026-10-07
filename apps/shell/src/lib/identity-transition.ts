@@ -29,13 +29,31 @@ export async function withIdentityTransition<T>(
 // Same cookie-write lock, separate notification: exchanging an operator cookie
 // must retire operator providers without signing the ordinary account out.
 export function withWorkspaceIdentityTransition<T>(
-  work: () => Promise<T>,
+  work: (begin: () => void) => Promise<T>,
   sourceId: string
 ) {
-  return transition(work, (phase) => {
+  const publish = (phase: Phase) => {
     const detail = { phase, sourceId };
     window.dispatchEvent(new CustomEvent(workspaceEventName, { detail }));
     workspaceBroadcast?.(detail);
+  };
+  if (!navigator.locks || !workspaceChannel) {
+    throw new Error("This browser cannot safely switch identities.");
+  }
+  return navigator.locks.request(identityTransitionLock, async () => {
+    let writing = false;
+    try {
+      return await work(() => {
+        if (!writing) {
+          writing = true;
+          publish("begin");
+        }
+      });
+    } finally {
+      if (writing) {
+        publish("complete");
+      }
+    }
   });
 }
 

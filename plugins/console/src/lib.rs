@@ -771,7 +771,10 @@ impl ConsoleApplication {
         if request.method != Method::GET && request.method != Method::HEAD {
             return StatusCode::METHOD_NOT_ALLOWED.into_response();
         }
-        let page = self.pages.canonical_page_path(&request.path);
+        let page = self
+            .pages
+            .canonical_page_path(&request.path)
+            .or_else(|| self.http_paths.source_page_path(&request.path));
         if let Some(canonical) = &page
             && canonical != &request.path
         {
@@ -2413,6 +2416,15 @@ mod tests {
         std::fs::write(root.path().join("favicon.svg"), "<svg/>").unwrap();
         let mut config = ConsolePluginConfig::defaults();
         config.web_root = root.path().to_str().unwrap().into();
+        config.http_paths = serde_json::from_value(serde_json::json!({
+            "workspace_sources":[{
+                "id":"operations","account_issuer":"fixture.accounts",
+                "shell_base_path":"/admin","api_base_path":"/admin/api","auth_base_path":"/auth/operator",
+                "mounts":[{"id":"operations","base_path":"/operations/","navigation_checks":[{
+                    "path":["channels"],"service_id":"actions","operation":"describe","fields":["can_read"]
+                }]}]
+            }]
+        })).unwrap();
         let pages =
             page_contributions::PageCatalog::discover(root.path(), &BTreeSet::new()).unwrap();
         let application = console_application(ConsoleConfig::from_plugin(&config).unwrap(), pages);
@@ -2421,6 +2433,8 @@ mod tests {
             "/settings",
             "/settings/ai/agent/",
             "/plugins/plugin.id/package.id/instance",
+            "/operations/",
+            "/operations/channels/",
         ] {
             for method in [Method::GET, Method::HEAD] {
                 let response = application.handle(Request::new(method.clone(), path)).await;
@@ -2438,6 +2452,11 @@ mod tests {
             "/missing.js",
             "/assets/missing.js",
             "/settings/unknown",
+            "/operations/missing.js",
+            "/operations/unknown/",
+            "/operations//",
+            "/operations/%2f/",
+            "/operations/channels//",
         ] {
             assert_eq!(
                 application
@@ -2455,6 +2474,14 @@ mod tests {
         assert_eq!(
             asset.into_body().collect(4096).await.unwrap().as_ref(),
             b"<svg/>"
+        );
+        let mut request = Request::new(Method::GET, "/operations/channels");
+        request.query = Some("view=active".into());
+        let redirect = application.handle(request).await;
+        assert_eq!(redirect.status(), StatusCode::PERMANENT_REDIRECT);
+        assert_eq!(
+            redirect.headers()[header::LOCATION],
+            "/operations/channels/?view=active"
         );
     }
 

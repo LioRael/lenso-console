@@ -89,6 +89,29 @@ impl ConsoleHttpPaths {
         format!("{}{}", self.shell_base_path.trim_end_matches('/'), path)
     }
 
+    // Fixed source navigation admits only the public Shell document. Source
+    // catalogs, assets and services still require their independent session.
+    pub(crate) fn source_page_path(&self, path: &str) -> Option<String> {
+        let normalized = path.strip_suffix('/').unwrap_or(path);
+        for source in &self.workspace_sources {
+            for mount in &source.mounts {
+                if normalized == mount.base_path.trim_end_matches('/') {
+                    return Some(mount.base_path.clone());
+                }
+                for check in &mount.navigation_checks {
+                    if check.path.is_empty() {
+                        continue;
+                    }
+                    let candidate = format!("{}{}", mount.base_path, check.path.join("/"));
+                    if normalized == candidate {
+                        return Some(format!("{candidate}/"));
+                    }
+                }
+            }
+        }
+        None
+    }
+
     pub(crate) fn canonical_path(&self, path: &str) -> Option<String> {
         if let Some(tail) = within(path, &self.api_base_path) {
             return Some(format!("/api{tail}"));

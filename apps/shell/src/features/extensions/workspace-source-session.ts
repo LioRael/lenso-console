@@ -22,6 +22,12 @@ export type WorkspaceSourceTransport = SessionFetchScope & {
 const sessions = new Map<string, WorkspaceSourceTransport>();
 const generations = new Map<string, number>();
 export const workspaceSourceRetiredEvent = "lenso-workspace-source-retired";
+export class WorkspaceSourceChangedError extends Error {
+  constructor() {
+    super("Workspace identity changed during discovery");
+    this.name = "WorkspaceSourceChangedError";
+  }
+}
 
 export function retireWorkspaceSources(sourceIds?: readonly string[]) {
   for (const id of sourceIds ?? generations.keys()) {
@@ -161,7 +167,7 @@ export async function readWorkspaceSourceSession(
       : null;
   }, signal);
   if (generation !== generations.get(source.id)) {
-    return null;
+    throw new WorkspaceSourceChangedError();
   }
   if (!admitted) {
     sessions.get(source.id)?.retire();
@@ -169,7 +175,7 @@ export async function readWorkspaceSourceSession(
   }
   let { subject, readScope } = admitted;
   if (!readScope) {
-    readScope = await withWorkspaceIdentityTransition(async () => {
+    readScope = await withWorkspaceIdentityTransition(async (begin) => {
       signal.throwIfAborted();
       generation = generations.get(source.id) ?? 0;
       const accountResponse = await fetch(
@@ -194,6 +200,9 @@ export async function readWorkspaceSourceSession(
       if (existing) {
         return existing;
       }
+      // Reusing a peer's exchange under this lock changes no cookie and must
+      // not retire that peer's just-admitted transport.
+      begin();
       await signOutWorkspaceSources([source]);
       generation = generations.get(source.id) ?? 0;
       const response = await sessionFetch(`${source.auth_base_path}/exchange`, {
@@ -230,7 +239,7 @@ export async function readWorkspaceSourceSession(
   }
   signal.throwIfAborted();
   if (generation !== generations.get(source.id)) {
-    return null;
+    throw new WorkspaceSourceChangedError();
   }
   if (!readScope) {
     sessions.get(source.id)?.retire();
@@ -241,7 +250,7 @@ export async function readWorkspaceSourceSession(
     const liveSubject = await binding(source, account, signal);
     const liveScope = await operatorSession(source, subject, signal);
     if (generation !== generations.get(source.id)) {
-      return null;
+      throw new WorkspaceSourceChangedError();
     }
     if (liveSubject !== subject || liveScope !== readScope) {
       sessions.get(source.id)?.retire();
@@ -257,7 +266,7 @@ export async function readWorkspaceSourceSession(
     }
     const csrf = await policy(source, signal);
     if (generation !== generations.get(source.id)) {
-      return null;
+      throw new WorkspaceSourceChangedError();
     }
     // Shared readers may finish methods concurrently. Publication has no await:
     // reuse the latest transport instead of leaving an overwritten one alive.

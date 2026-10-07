@@ -181,11 +181,21 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
     }).workspace_sources ?? [];
   let denied = false;
   let unavailable = false;
+  let exchangeUnavailable = false;
+  let exchanges = 0;
+  let bindingRead: Promise<void> | undefined;
+  let bindingStarted: (() => void) | undefined;
   const fetch = vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async (input, init) => {
       const path = String(input);
       if (path === "/auth/operator/session") {
+        const pending = bindingRead;
+        bindingRead = undefined;
+        if (pending) {
+          bindingStarted?.();
+          await pending;
+        }
         return Response.json({
           eligible: !denied,
           source_issuer: "relay.accounts.local",
@@ -194,6 +204,9 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
         });
       }
       if (path === "/admin/api/console/v1/session") {
+        if (exchangeUnavailable) {
+          return Response.json({}, { status: 401 });
+        }
         return Response.json(
           { mode: "required", authenticated: true, subject: "operator-a" },
           { headers: { "x-lenso-read-scope": "a".repeat(64) } }
@@ -206,6 +219,16 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
             header_name: "x-csrf-token",
           },
         });
+      }
+      if (path === "/api/console/v1/session") {
+        return Response.json({ subject: "account-a" });
+      }
+      if (path === "/auth/operator/logout") {
+        return Response.json({ signed_out: true });
+      }
+      if (path === "/auth/operator/exchange") {
+        exchanges += 1;
+        return Response.json({}, { status: 503 });
       }
       if (path === "/admin/api/console/v1/pages") {
         return Response.json({
@@ -327,6 +350,30 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
     fixture.ordinary = { schema: "console.page-catalog/1", mounts: [ordinary] };
     await client.invalidateQueries({ queryKey: ["console-page-catalog"] });
     await expect.element(access).toBeVisible();
+    // A peer exchanges while this catalog is in flight. Its stale generation
+    // must retire immediately, then refresh without waiting for the 30s poll.
+    let releaseBinding!: () => void;
+    bindingRead = new Promise<void>((resolve) => {
+      releaseBinding = resolve;
+    });
+    const reading = new Promise<void>((resolve) => {
+      bindingStarted = resolve;
+    });
+    const refreshing = client.invalidateQueries({
+      queryKey: ["console-page-catalog"],
+    });
+    await reading;
+    for (const phase of ["begin", "complete"]) {
+      window.dispatchEvent(
+        new CustomEvent("lenso-workspace-identity-transition", {
+          detail: { phase, sourceId: "operations" },
+        })
+      );
+    }
+    await expect.element(access).not.toBeInTheDocument();
+    releaseBinding();
+    await refreshing;
+    await expect.element(access).toBeVisible();
     denied = true;
     await access.click();
     await expect.element(access).not.toBeInTheDocument();
@@ -338,6 +385,21 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
         String(input).startsWith("/api/console/v1/pages/operations/")
       )
     ).toBe(false);
+    // A failed exchange completes its cookie-write lock but must not trigger
+    // another exchange through its own completion notification.
+    denied = false;
+    exchangeUnavailable = true;
+    await client.invalidateQueries({ queryKey: ["console-page-catalog"] });
+    await expect
+      .element(
+        page.getByText(
+          "Some workspaces could not be checked. Retry workspace access."
+        )
+      )
+      .toBeVisible();
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    expect(exchanges).toBe(1);
+    expect(client.isFetching({ queryKey: ["console-page-catalog"] })).toBe(0);
   } finally {
     root.unmount();
     client.clear();
