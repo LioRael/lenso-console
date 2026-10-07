@@ -1,0 +1,27 @@
+.changeset/explicit-marketplace-publisher.md
+  s_3724267b9ee00e::t_a283467a61ad1a 1-5
+plugins/marketplace/catalog/Cargo.toml
+  s_3724267b9ee00e::t_0595b44248bd03 39-43
+plugins/marketplace/catalog/docs/operator.md
+  s_3724267b9ee00e::t_41cbdf73816f28 1-59
+plugins/marketplace/catalog/src/bin/publisher.rs
+  s_3724267b9ee00e::t_177ecb9f2f7e14 1-127
+plugins/marketplace/catalog/tests/publisher.rs
+  s_3724267b9ee00e::t_15a8c3f144b35d 1-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ced44fa461643ef5c4004e24ac345d413d99643",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

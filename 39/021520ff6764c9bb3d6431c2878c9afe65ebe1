@@ -1,0 +1,27 @@
+.github/workflows/marketplace-workers.yml
+  s_3724267b9ee00e::t_6f71254df773d8 37
+plugins/marketplace/workers/operator/README.md
+  s_3724267b9ee00e::t_029761e0144a7b 44-50
+plugins/marketplace/workers/operator/promote-runtime.test.mjs
+  s_3724267b9ee00e::t_a109ed162e8d1b 1-120
+plugins/marketplace/workers/package.json
+  s_3724267b9ee00e::t_a9c39e07550a49 14
+plugins/marketplace/workers/pnpm-lock.yaml
+  s_3724267b9ee00e::t_274650f5387f53 15-17,393-397,726-727
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "39021520ff6764c9bb3d6431c2878c9afe65ebe1",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

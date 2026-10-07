@@ -1,0 +1,20 @@
+packages/console-authoring/README.md
+  h_9d56aba080c170 35-41
+packages/console-authoring/development-host.md
+  h_9d56aba080c170 53-58
+packages/console-support/Cargo.lock
+  h_9d56aba080c170 700-715,738,753-762,771,785-786,800-801,820-822,850-851,865-866,881-883,898-900,914-916,929-931,944-946,963,976,978,1071-1080,1103-1122,1140-1152,1159-1163,1172-1188
+packages/console-support/Cargo.toml
+  h_9d56aba080c170 19-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d06ae48a52359e066395dac0fdf62b29a1fe4a5a",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
