@@ -146,7 +146,9 @@ try {
       { cwd: join(output, name), encoding: "utf-8", env: npmEnvironment }
     );
     assert.equal(packed.status, 0, packed.stderr);
-    archives.push(join(root, JSON.parse(packed.stdout)[0].filename));
+    archives.push(
+      join(root, Object.values(JSON.parse(packed.stdout))[0].filename)
+    );
   }
   const installed = spawnSync(
     "npm",

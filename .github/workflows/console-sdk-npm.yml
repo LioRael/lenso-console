@@ -47,7 +47,7 @@ jobs:
           import fs from "node:fs";
           import { createHash } from "node:crypto";
           import { execFileSync } from "node:child_process";
-          const [pack] = JSON.parse(fs.readFileSync(".artifacts/console-sdk/pack.json", "utf8"));
+          const [pack] = Object.values(JSON.parse(fs.readFileSync(".artifacts/console-sdk/pack.json", "utf8")));
           const pkg = JSON.parse(fs.readFileSync("packages/console-authoring/package.json", "utf8"));
           assert.equal(pack.name, "@lenso/console-sdk");
           assert.equal(pack.version, pkg.version);
