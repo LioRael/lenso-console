@@ -246,27 +246,24 @@
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                "minLength": 1,
+                "maxLength": 64
               },
               "account_issuer": {
                 "type": "string",
-                "maxLength": 256,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+                "maxLength": 256
               },
               "shell_base_path": {
                 "type": "string",
-                "maxLength": 128,
-                "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+                "maxLength": 128
               },
               "api_base_path": {
                 "type": "string",
-                "maxLength": 128,
-                "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+                "maxLength": 128
               },
               "auth_base_path": {
                 "type": "string",
-                "maxLength": 128,
-                "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+                "maxLength": 128
               },
               "mounts": {
                 "type": "array",
@@ -279,12 +276,12 @@
                   "properties": {
                     "id": {
                       "type": "string",
-                      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                      "minLength": 1,
+                      "maxLength": 64
                     },
                     "base_path": {
                       "type": "string",
-                      "maxLength": 129,
-                      "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*/$"
+                      "maxLength": 129
                     },
                     "navigation_checks": {
                       "type": "array",
@@ -305,16 +302,19 @@
                             "maxItems": 8,
                             "items": {
                               "type": "string",
-                              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                              "minLength": 1,
+                              "maxLength": 64
                             }
                           },
                           "service_id": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                            "minLength": 1,
+                            "maxLength": 64
                           },
                           "operation": {
                             "type": "string",
-                            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                            "minLength": 1,
+                            "maxLength": 64
                           },
                           "fields": {
                             "type": "array",
@@ -322,7 +322,8 @@
                             "maxItems": 16,
                             "items": {
                               "type": "string",
-                              "pattern": "^can_[a-z_]{1,63}$"
+                              "minLength": 5,
+                              "maxLength": 67
                             }
                           }
                         }
@@ -333,7 +334,7 @@
               }
             }
           },
-          "description": "Fixed server-owned workspace sources. Existing Auth exchange and live service admission remain required; this configuration grants no permission."
+          "description": "Fixed server-owned workspace sources. ConsoleHttpPaths validates canonical identifiers, issuers, routes and permission fields before activation; the portable configuration schema checks shape and bounds. Existing Auth exchange and live service admission remain required; this configuration grants no permission."
         }
       },
       "description": "Fixed instance-owned same-origin Shell/API/Auth path prefixes. Defaults preserve root Shell, /api and /auth."

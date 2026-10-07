@@ -49,6 +49,9 @@ export default defineConfig({
     },
   },
   build: {
+    // StyleX atomic rules are shared across components. A lazy page must not
+    // own rules used by the initial session/Shell, so ship one public stylesheet.
+    cssCodeSplit: false,
     rolldownOptions: {
       output: {
         manualChunks(id) {

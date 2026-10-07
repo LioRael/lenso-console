@@ -151,6 +151,57 @@ test(
       run(["app", "start", "--from", path.join(app, "dist"), "--check"]);
       await verifyApp(cli, app, env, services);
       assert.ok(!fs.existsSync(path.join(app, ".lenso/host-cache")));
+      // Schema shape is portable; Console's own canonical-path validation must
+      // still reject an invalid source before serving any HTTP content.
+      const instance = path.join(app, "plugins/lenso.console.web/default.toml");
+      const validInstance = fs.readFileSync(instance, "utf-8");
+      fs.writeFileSync(
+        instance,
+        `${validInstance}
+[[http_paths.workspace_sources]]
+id = "invalid/id"
+account_issuer = "fixture.accounts"
+shell_base_path = "/admin"
+api_base_path = "/admin/api"
+auth_base_path = "/auth/operator"
+[[http_paths.workspace_sources.mounts]]
+id = "operations"
+base_path = "/operations/"
+[[http_paths.workspace_sources.mounts.navigation_checks]]
+path = []
+service_id = "operations"
+operation = "read"
+fields = ["can_read"]
+`
+      );
+      const invalidConfiguration = path.join(temp, "invalid-configuration");
+      let rejected = spawnSync(
+        cli,
+        ["app", "build", "--root", app, "--out", invalidConfiguration],
+        {
+          encoding: "utf-8",
+          env,
+          timeout: FIRST_CONVENTION_BUILD_TIMEOUT_MS,
+        }
+      );
+      if (rejected.status === 0) {
+        rejected = spawnSync(
+          cli,
+          ["app", "start", "--from", invalidConfiguration],
+          {
+            encoding: "utf-8",
+            env,
+            timeout: 10_000,
+          }
+        );
+      }
+      assert.notEqual(rejected.status, 0);
+      assert.match(
+        rejected.stderr,
+        /Workspace source configuration is invalid or ambiguous/u
+      );
+      assert.doesNotMatch(rejected.stderr, /http:\/\/127\.0\.0\.1:[0-9]+/u);
+      fs.writeFileSync(instance, validInstance);
       fs.writeFileSync(
         path.join(app, "plugins/lenso.console.web/default.disabled"),
         ""
