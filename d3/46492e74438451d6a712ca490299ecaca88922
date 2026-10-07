@@ -1,0 +1,44 @@
+plugins/management/crates/lenso-management-core/Cargo.toml
+  s_f4202e28c6b5b1::t_1e174442092058 12
+  s_f4202e28c6b5b1::t_29d1bc9c3cc66a 16,20
+plugins/management/crates/lenso-management-core/src/tests.rs
+  s_f4202e28c6b5b1::t_c1d8448410be7f 12-15,19-38,44,63-65,80,104-106,160-163,180-192,199-200,242-243,271-272
+  s_f4202e28c6b5b1::t_97f7d21163e44f 193-198,201-241,244-270,273-283,456-465,467,469-544
+contracts/crates/lenso-capability-management/src/contract.rs
+  s_f4202e28c6b5b1::t_1e174442092058 114-115
+  s_f4202e28c6b5b1::t_1da597827599c4 100
+plugins/management/crates/lenso-management-core/src/lib.rs
+  s_f4202e28c6b5b1::t_1e174442092058 10-13,24-25,41,48,55-57,63,65-69,79-87,133,174-175,192-194,206,213,226,230-231,252,259,327,333-339,346,351,371,375,377,404,411,416,420,425-438,459-461,463-465,467-468
+  s_f4202e28c6b5b1::t_ccf171391b52cb 577,581,590,598,601,606-615,617-619,625,638-729,735-750
+  s_f4202e28c6b5b1::t_e6e4363306d29f 469-473,478-482,485-490,492-496,502-505,513,518,526,528,530-534,541-543,549,553,555-556,775,779-822,829,831
+contracts/crates/lenso-capability-management/generated/bindings.ts
+  s_f4202e28c6b5b1::t_10e443476b9a1b 6,68,82,100
+contracts/crates/lenso-capability-management/schemas/invoke-error.schema.json
+  s_f4202e28c6b5b1::t_5321721e2ecdb0 8-10
+contracts/crates/lenso-capability-management/schemas/invoke-response.schema.json
+  s_f4202e28c6b5b1::t_679caec76aeca3 4,12-14
+contracts/crates/lenso-capability-management/schemas/status-response.schema.json
+  s_f4202e28c6b5b1::t_ce3b5e88c63cf2 4,12-14
+contracts/crates/lenso-capability-management/src/generated.rs
+  s_f4202e28c6b5b1::t_67640bd5af555f 9,133-135,170,172,321,323,351,353
+plugins/management/Cargo.lock
+  s_f4202e28c6b5b1::t_34d8f3d5853521 141-149,264-273,419,421,423,720,730,764,766,845-850,952-957,1075,1077,1333-1362,1490-1511
+plugins/management/README.md
+  s_f4202e28c6b5b1::t_cfa6f6fc81c5ad 19-21,27-29,38-39,42-46,61-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d346492e74438451d6a712ca490299ecaca88922",
+  "prompts": {},
+  "sessions": {
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

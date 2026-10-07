@@ -1,0 +1,28 @@
+apps/reference-host/src/tests.rs
+  h_9d56aba080c170 10-161
+plugins/console/Cargo.toml
+  h_9d56aba080c170 32
+plugins/console/README.md
+  h_9d56aba080c170 3,112-127,162
+plugins/console/build.rs
+  h_9d56aba080c170 1-6,8,11-22,25,27
+plugins/console/config.defaults.json
+  h_9d56aba080c170 2
+plugins/console/config.schema.json
+  h_9d56aba080c170 5-9
+plugins/console/src/lib.rs
+  h_9d56aba080c170 94-96,139-146,391-393,411-418,534,551,564-566,665,906,996,1075,1725-1852
+tooling/distribution/embedded-shell.test.mjs
+  h_9d56aba080c170 1-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a6b44f598a3534f367c8012876722dd76215f030",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

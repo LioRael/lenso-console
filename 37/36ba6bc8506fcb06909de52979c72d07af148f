@@ -1,0 +1,23 @@
+package.json
+  s_f24ec9a17597d4::t_fcb4b78e9d50ed 17-18
+.github/workflows/agent-npm.yml
+  s_f24ec9a17597d4::t_fcb4b78e9d50ed 57
+docs/agent-npm-distribution.md
+  s_f24ec9a17597d4::t_fcb4b78e9d50ed 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3736ba6bc8506fcb06909de52979c72d07af148f",
+  "prompts": {},
+  "sessions": {
+    "s_f24ec9a17597d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f748-4186-76d3-a2d5-51e6339d7793",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
