@@ -42,3 +42,56 @@ test("fixed instance paths preserve query bytes and reject ambiguous bootstrap a
     expect(() => parseConsoleHttpPaths(invalid)).toThrow(TypeError);
   }
 });
+
+test("workspace sources cannot select external or conflicting authority", () => {
+  const source = {
+    id: "operations",
+    account_issuer: "relay.accounts.local",
+    shell_base_path: "/admin",
+    api_base_path: "/admin/api",
+    auth_base_path: "/auth/operator",
+    mounts: [
+      {
+        id: "relay.operations",
+        base_path: "/operations/",
+        navigation_checks: [
+          {
+            path: [],
+            service_id: "relay-operator-actions",
+            operation: "describe_permissions",
+            fields: ["can_list_requests"],
+          },
+        ],
+      },
+    ],
+  };
+  expect(
+    parseWorkspaceSourceBootstrap([source]).workspace_sources?.[0]
+      ?.api_base_path
+  ).toBe("/admin/api");
+  for (const override of [
+    { api_base_path: "https://other/admin/api" },
+    { api_base_path: "/console/api/private" },
+    { auth_base_path: "/admin/api/auth" },
+    { shell_base_path: "/admin/api/shell" },
+    { account_issuer: "<script>" },
+    { mounts: [{ ...source.mounts[0], base_path: "/settings/" }] },
+    { mounts: [{ ...source.mounts[0], base_path: "/operations/%2f/" }] },
+    { mounts: [{ ...source.mounts[0], navigation_checks: [] }] },
+  ]) {
+    expect(() =>
+      parseWorkspaceSourceBootstrap([{ ...source, ...override }])
+    ).toThrow(TypeError);
+  }
+  expect(() => parseWorkspaceSourceBootstrap([source, source])).toThrow(
+    TypeError
+  );
+});
+
+const parseWorkspaceSourceBootstrap = (workspace_sources: unknown) =>
+  parseConsoleHttpPaths({
+    shell_base_path: "/console",
+    api_base_path: "/console/api",
+    auth_base_path: "/auth",
+    workspace_sources,
+  });

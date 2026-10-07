@@ -34,6 +34,51 @@ const mount: PageMount = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Workspace service client", () => {
+  it("isolates the operator endpoint, expected actor, CSRF and retired lifetime", async () => {
+    const controller = new AbortController();
+    const retire = vi.fn(() => controller.abort());
+    const transport = {
+      sourceId: "operations",
+      apiBasePath: "/admin/api",
+      subject: "operator-a",
+      readScope: "operators-scope",
+      csrf: {
+        cookie_name: "__Host-operator-csrf",
+        header_name: "x-csrf-token",
+      },
+      signal: controller.signal,
+      retire,
+    };
+    vi.stubGlobal("window", {
+      location: { origin: "https://console.test" },
+      dispatchEvent: vi.fn(),
+    });
+    vi.stubGlobal("document", {
+      cookie: "__Host-account-csrf=account; __Host-operator-csrf=operator",
+    });
+    const fetch = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetch);
+    const services = createWorkspaceServices(
+      { ...mount, transport },
+      undefined,
+      "account-a"
+    );
+    await services.invoke("welcome", "greet", {});
+    const [url, options] = fetch.mock.calls[0]!;
+    expect(url).toBe(
+      "/admin/api/console/v1/pages/welcome/services/welcome/invoke/greet"
+    );
+    expect(new Headers(options.headers).get("x-lenso-expected-subject")).toBe(
+      "operator-a"
+    );
+    expect(new Headers(options.headers).get("x-csrf-token")).toBe("operator");
+    fetch.mockResolvedValue(Response.json({}, { status: 403 }));
+    await expect(services.invoke("welcome", "greet", {})).rejects.toBeDefined();
+    expect(retire).toHaveBeenCalledOnce();
+    fetch.mockClear();
+    await expect(services.invoke("welcome", "greet", {})).rejects.toBeDefined();
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("invokes only a service declared by its mount", async () => {
     const fetch = vi.fn().mockResolvedValue(
       Response.json(

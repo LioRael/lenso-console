@@ -1,4 +1,4 @@
-import { consoleApiPath } from "../../lib/console-http-paths";
+import { consoleApiPath, consoleHttpPaths } from "../../lib/console-http-paths";
 
 // A document may have successfully imported an empty response before the server
 // recovered. Retry needs one fresh ESM identity, not another same-URL import.
@@ -8,7 +8,14 @@ const recoveredAssets = new Set<string>();
 export function contributionAssetUrl(href: string, recover: boolean): string {
   if (
     !(recover || recoveredAssets.has(href)) ||
-    !consoleApiPath(href).startsWith(consoleApiPath("/api/console/v1/pages/"))
+    ![
+      consoleHttpPaths.api_base_path,
+      ...(consoleHttpPaths.workspace_sources ?? []).map(
+        (source) => source.api_base_path
+      ),
+    ].some((base) =>
+      consoleApiPath(href).startsWith(`${base}/console/v1/pages/`)
+    )
   ) {
     return consoleApiPath(href);
   }

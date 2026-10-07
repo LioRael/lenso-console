@@ -17,7 +17,9 @@ mod session;
 mod workspace_paths;
 mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
-pub use http_paths::ConsoleHttpPaths;
+pub use http_paths::{
+    ConsoleHttpPaths, WorkspaceNavigationCheck, WorkspaceSource, WorkspaceSourceMount,
+};
 #[cfg(not(target_arch = "wasm32"))]
 pub use projects::LocalProjects;
 pub use session::{AssistantAccessPolicy, AssistantPermission};
@@ -2233,6 +2235,7 @@ mod tests {
                 shell_base_path: shell.into(),
                 api_base_path: api.into(),
                 auth_base_path: auth.into(),
+                workspace_sources: Vec::new(),
             };
             let console = inactive_console(config.clone());
             let routes = console

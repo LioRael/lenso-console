@@ -1,9 +1,50 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
+import { useConsoleSession } from "../../app/console-session";
+import { consoleHttpPaths } from "../../lib/console-http-paths";
 import { httpClient, isApiMode } from "../../lib/http-client";
-import { validWorkspaceBasePath } from "./workspace-paths";
+import {
+  withIdentityRead,
+  subscribeIdentityTransitions,
+  subscribeWorkspaceIdentityTransitions,
+} from "../../lib/identity-transition";
+import { validWorkspaceBasePath, workspaceBasePath } from "./workspace-paths";
+import {
+  createWorkspaceServices,
+  WorkspaceServiceDomainError,
+  WorkspaceServiceError,
+} from "./workspace-service-client";
+import {
+  readWorkspaceSourceSession,
+  retireWorkspaceSources,
+  workspaceSourceRetiredEvent,
+  type WorkspaceSourceTransport,
+} from "./workspace-source-session";
+
+function workspaceRouteConflicts(mount: PageMount, basePath: string): boolean {
+  const existing = workspaceBasePath(mount);
+  if (existing !== "/") {
+    return basePath.startsWith(existing) || existing.startsWith(basePath);
+  }
+  const prefix = basePath.split("/").filter(Boolean);
+  if (!mount.routes) {
+    return true;
+  }
+  const { routes } = mount;
+  return routes.some((route) => {
+    if (!route.length) {
+      return false;
+    }
+    return prefix.slice(0, route.length).every((segment, index) => {
+      const part = route[index];
+      return part === segment || part?.startsWith("[");
+    });
+  });
+}
 
 export type PageMount = {
+  transport?: WorkspaceSourceTransport;
   apiMajor: 1;
   id: string;
   basePath?: string;
@@ -384,20 +425,185 @@ function isMountAssetUrl(value: string, mountId: string): boolean {
   );
 }
 
-async function readPageCatalog(signal: AbortSignal) {
+async function readPageCatalog(
+  signal: AbortSignal,
+  account: string,
+  report: (message: string) => void
+) {
   if (!isApiMode()) {
     return demoCatalog;
   }
-  return parsePageCatalog(
+  const ordinary = parsePageCatalog(
     await httpClient.get("api/console/v1/pages", { signal }).json()
   );
+  const mounts = [...ordinary];
+  const failures: string[] = [];
+  for (const source of consoleHttpPaths.workspace_sources ?? []) {
+    try {
+      const transport = await readWorkspaceSourceSession(
+        source,
+        account,
+        signal
+      );
+      if (!transport) {
+        continue;
+      }
+      await withIdentityRead(async () => {
+        const lifetime = AbortSignal.any([signal, transport.signal]);
+        const response = await fetch(
+          `${source.api_base_path}/console/v1/pages`,
+          {
+            credentials: "same-origin",
+            cache: "no-store",
+            signal: lifetime,
+            headers: { "x-lenso-expected-subject": transport.subject },
+          }
+        );
+        if ([401, 403, 412].includes(response.status)) {
+          transport.retire();
+          return;
+        }
+        if (!response.ok) {
+          throw new Error("Workspace catalog is unavailable");
+        }
+        const foreign = parsePageCatalog(await response.json());
+        lifetime.throwIfAborted();
+        for (const mount of foreign) {
+          const configured = source.mounts.find(
+            (allowed) => allowed.id === mount.id
+          );
+          if (!configured) {
+            continue;
+          }
+          if (
+            mounts.some(
+              (existing) =>
+                existing.id === mount.id ||
+                workspaceRouteConflicts(existing, configured.base_path)
+            )
+          ) {
+            throw new Error(
+              "Workspace route conflicts with an existing workspace"
+            );
+          }
+          const scoped: PageMount = {
+            ...mount,
+            basePath: configured.base_path,
+            transport,
+            module: `${source.api_base_path}${mount.module.slice(4)}`,
+            styles: mount.styles.map(
+              (href) => `${source.api_base_path}${href.slice(4)}`
+            ),
+          };
+          // Permission probes may deny individual projects for a partially
+          // authorized actor. They cannot retire the whole admitted session.
+          const services = createWorkspaceServices(
+            {
+              ...scoped,
+              transport: { ...transport, retireForbidden: false },
+            },
+            lifetime,
+            transport.subject
+          );
+          const allowed = new Set<string>();
+          for (const check of configured.navigation_checks) {
+            try {
+              const result = await services.invoke<
+                unknown,
+                Record<string, unknown>
+              >(check.service_id, check.operation, {}, { signal: lifetime });
+              if (
+                result &&
+                check.fields.some((field) => result[field] === true)
+              ) {
+                allowed.add(check.path.join("/"));
+              }
+            } catch (error) {
+              lifetime.throwIfAborted();
+              if (
+                !(
+                  error instanceof WorkspaceServiceError && error.status === 403
+                ) &&
+                !(
+                  error instanceof WorkspaceServiceDomainError &&
+                  error.payload &&
+                  typeof error.payload === "object" &&
+                  "error" in error.payload &&
+                  error.payload.error === "denied"
+                )
+              ) {
+                failures.push(
+                  "Some workspaces could not be checked. Retry workspace access."
+                );
+              }
+            }
+          }
+          const items = mount.navigation.items.filter((item) =>
+            allowed.has(item.path.join("/"))
+          );
+          if (items.length) {
+            mounts.push({
+              ...scoped,
+              index: items[0]!.path,
+              navigation: { ...mount.navigation, items },
+            });
+          }
+        }
+        lifetime.throwIfAborted();
+      }, signal);
+    } catch {
+      signal.throwIfAborted();
+      failures.push(
+        "Some workspaces could not be checked. Retry workspace access."
+      );
+    }
+  }
+  signal.throwIfAborted();
+  report(failures[0] ?? "");
+  return mounts.filter((mount) => !mount.transport?.signal.aborted);
 }
 
 export function usePageCatalog() {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const { subject } = useConsoleSession();
+  const [sourceError, setSourceError] = useState("");
+  const configured = !!consoleHttpPaths.workspace_sources?.length;
+  useEffect(() => {
+    if (!configured) {
+      return;
+    }
+    const prune = () =>
+      queryClient.setQueriesData<readonly PageMount[]>(
+        { queryKey: ["console-page-catalog"] },
+        (mounts) => mounts?.filter((mount) => !mount.transport?.signal.aborted)
+      );
+    const changed = (phase: "begin" | "complete", sourceId?: string) => {
+      if (phase === "begin") {
+        retireWorkspaceSources(sourceId ? [sourceId] : undefined);
+        prune();
+      } else {
+        void queryClient.invalidateQueries(
+          { queryKey: ["console-page-catalog"] },
+          { cancelRefetch: false }
+        );
+      }
+    };
+    const ordinary = subscribeIdentityTransitions(changed);
+    const workspace = subscribeWorkspaceIdentityTransitions(changed);
+    window.addEventListener(workspaceSourceRetiredEvent, prune);
+    return () => {
+      ordinary();
+      workspace();
+      window.removeEventListener(workspaceSourceRetiredEvent, prune);
+    };
+  }, [configured, queryClient]);
+  const query = useQuery({
     queryKey: ["console-page-catalog"],
-    queryFn: ({ signal }) => readPageCatalog(signal),
+    queryFn: ({ signal }) => readPageCatalog(signal, subject, setSourceError),
     retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: configured ? 10_000 : Number.POSITIVE_INFINITY,
+    refetchInterval: configured ? 30_000 : false,
+    ...(configured ? { refetchOnWindowFocus: "always" as const } : {}),
   });
+  return { ...query, sourceError };
 }

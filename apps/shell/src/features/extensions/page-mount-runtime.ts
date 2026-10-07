@@ -69,6 +69,9 @@ export function pageMountScopeKey(
     mount.revision,
     mount.implementationId ?? mount.module,
     mount.requirements,
+    mount.transport?.sourceId,
+    mount.transport?.subject,
+    mount.transport?.readScope,
     expectedSubject,
   ]);
 }

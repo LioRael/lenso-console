@@ -4,11 +4,20 @@ import {
   mapConsoleApiRequest,
 } from "./console-http-paths";
 
-type CsrfPolicy = { cookie_name: string; header_name: string };
+export type CsrfPolicy = { cookie_name: string; header_name: string };
+export type SessionFetchScope = {
+  apiBasePath: string;
+  csrf: CsrfPolicy;
+  retire: () => void;
+  retireForbidden?: boolean;
+};
 let csrfPolicy: CsrfPolicy | undefined;
 
 export function configureSessionCsrf(value: unknown) {
-  csrfPolicy = undefined;
+  csrfPolicy = parseSessionCsrf(value);
+}
+
+export function parseSessionCsrf(value: unknown): CsrfPolicy | undefined {
   if (!value || typeof value !== "object" || !("csrf" in value)) {
     return;
   }
@@ -29,7 +38,7 @@ export function configureSessionCsrf(value: unknown) {
   ) {
     return;
   }
-  csrfPolicy = {
+  return {
     cookie_name: policy.cookie_name,
     header_name: policy.header_name,
   };
@@ -37,9 +46,10 @@ export function configureSessionCsrf(value: unknown) {
 
 export async function sessionFetch(
   input: RequestInfo | URL,
-  init?: RequestInit
+  init?: RequestInit,
+  scope?: SessionFetchScope
 ): Promise<Response> {
-  const mappedInput = mapConsoleApiRequest(input);
+  const mappedInput = scope ? input : mapConsoleApiRequest(input);
   let options = init;
   const browser = typeof window !== "undefined";
   const url = browser
@@ -53,8 +63,9 @@ export async function sessionFetch(
     init?.method ??
     (mappedInput instanceof Request ? mappedInput.method : "GET")
   ).toUpperCase();
-  if (local && csrfPolicy && !["GET", "HEAD", "OPTIONS"].includes(method)) {
-    const prefix = `${csrfPolicy.cookie_name}=`;
+  const policy = scope ? scope.csrf : csrfPolicy;
+  if (local && policy && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const prefix = `${policy.cookie_name}=`;
     const cookie = document.cookie
       .split(";")
       .map((value) => value.trim())
@@ -65,7 +76,7 @@ export async function sessionFetch(
         init?.headers ??
           (mappedInput instanceof Request ? mappedInput.headers : undefined)
       );
-      headers.set(csrfPolicy.header_name, token);
+      headers.set(policy.header_name, token);
       options = { ...init, headers };
     }
   }
@@ -77,6 +88,17 @@ export async function sessionFetch(
       ? mappedInput.signal
       : init?.signal;
   signal?.throwIfAborted();
+  if (
+    local &&
+    scope &&
+    url &&
+    url.pathname.startsWith(`${scope.apiBasePath}/`) &&
+    ([401, 412].includes(response.status) ||
+      (response.status === 403 && scope.retireForbidden !== false))
+  ) {
+    scope.retire();
+    return response;
+  }
   if (
     local &&
     (response.status === 401 || response.status === 412) &&

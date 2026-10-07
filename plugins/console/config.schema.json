@@ -227,6 +227,113 @@
           "type": "string",
           "default": "/auth",
           "maxLength": 128
+        },
+        "workspace_sources": {
+          "type": "array",
+          "default": [],
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "account_issuer",
+              "shell_base_path",
+              "api_base_path",
+              "auth_base_path",
+              "mounts"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+              },
+              "account_issuer": {
+                "type": "string",
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+              },
+              "shell_base_path": {
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+              },
+              "api_base_path": {
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+              },
+              "auth_base_path": {
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+              },
+              "mounts": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "base_path", "navigation_checks"],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                    },
+                    "base_path": {
+                      "type": "string",
+                      "maxLength": 129,
+                      "pattern": "^/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*/$"
+                    },
+                    "navigation_checks": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 32,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "path",
+                          "service_id",
+                          "operation",
+                          "fields"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "array",
+                            "maxItems": 8,
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+                            }
+                          },
+                          "service_id": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                          },
+                          "operation": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                          },
+                          "fields": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 16,
+                            "items": {
+                              "type": "string",
+                              "pattern": "^can_[a-z_]{1,63}$"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Fixed server-owned workspace sources. Existing Auth exchange and live service admission remain required; this configuration grants no permission."
         }
       },
       "description": "Fixed instance-owned same-origin Shell/API/Auth path prefixes. Defaults preserve root Shell, /api and /auth."

@@ -297,6 +297,19 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
           </>
         }
       >
+        {pageCatalog.sourceError && (
+          <output>
+            <p>{t(pageCatalog.sourceError)}</p>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void pageCatalog.refetch();
+              }}
+            >
+              {t("Retry")}
+            </Button>
+          </output>
+        )}
         {assistantArea && !assistantEnabled ? (
           <output {...stylex.props(sessionStyles.root)}>
             <p {...stylex.props(sessionStyles.muted)}>

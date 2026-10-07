@@ -14,6 +14,10 @@ import {
 
 import { consoleDevConfig } from "../dev/console-dev-config";
 import {
+  retireWorkspaceSources,
+  signOutWorkspaceSources,
+} from "../features/extensions/workspace-source-session";
+import {
   consoleApiPath,
   consoleAuthPath,
   consoleHttpPaths,
@@ -24,6 +28,7 @@ import {
   withIdentityTransition,
   withIdentityRead,
   subscribeIdentityTransitions,
+  subscribeWorkspaceIdentityTransitions,
 } from "../lib/identity-transition";
 import { queryClient } from "../lib/query-client";
 import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
@@ -103,6 +108,7 @@ export function ConsoleSession({
     workspaceIds: [] as string[],
   });
   const invalidate = useCallback((preserveLogin = false) => {
+    retireWorkspaceSources();
     generation.current += 1;
     inFlight.current?.controller.abort();
     inFlight.current = undefined;
@@ -160,6 +166,7 @@ export function ConsoleSession({
             return;
           }
           if (response.status === 401 || response.status === 403) {
+            retireWorkspaceSources();
             // Confirmed invalid/denied access retires admitted content before fetching
             // login options. An already-open login form keeps its entered values.
             if (ready.current) {
@@ -268,6 +275,7 @@ export function ConsoleSession({
               response.headers.get("x-lenso-read-scope"),
             ]);
             if (ready.current && scope.current !== nextScope) {
+              retireWorkspaceSources();
               ready.current = false;
               scope.current = undefined;
               lastSuccess.current = undefined;
@@ -375,6 +383,14 @@ export function ConsoleSession({
         void refresh();
       }
     });
+    const unsubscribeWorkspace = consoleHttpPaths.workspace_sources?.length
+      ? undefined
+      : subscribeWorkspaceIdentityTransitions((phase) => {
+          invalidate(true);
+          if (phase === "complete") {
+            void refresh();
+          }
+        });
     window.addEventListener("focus", focus);
     window.addEventListener("lenso-session-expired", expired);
     return () => {
@@ -383,6 +399,7 @@ export function ConsoleSession({
       inFlight.current = undefined;
       clearTimeout(retryTimer.current);
       unsubscribe();
+      unsubscribeWorkspace?.();
       window.removeEventListener("focus", focus);
       window.removeEventListener("lenso-session-expired", expired);
     };
@@ -396,6 +413,7 @@ export function ConsoleSession({
     let completed = false;
     try {
       completed = await withIdentityTransition(async () => {
+        await signOutWorkspaceSources(consoleHttpPaths.workspace_sources ?? []);
         const response = await sessionFetch(consoleAuthPath("logout"), {
           method: "POST",
           credentials: "same-origin",
@@ -530,7 +548,25 @@ function LoginMethods({
                 "return_to",
                 `${window.location.pathname}${window.location.search}`
               );
-              window.location.assign(url.href);
+              setBusy(true);
+              setError("");
+              void (async () => {
+                try {
+                  await withIdentityTransition(async () => {
+                    await signOutWorkspaceSources(
+                      consoleHttpPaths.workspace_sources ?? []
+                    );
+                    window.location.assign(url.href);
+                  });
+                } catch {
+                  setBusy(false);
+                  setError(
+                    zh
+                      ? "无法退出工作区，请重试。"
+                      : "Unable to sign out of workspaces. Try again."
+                  );
+                }
+              })();
             }}
           >
             {zh && method.id === "sso" ? "通过企业 SSO 登录" : method.label}
@@ -551,6 +587,9 @@ function LoginMethods({
               void (async () => {
                 try {
                   const signedIn = await withIdentityTransition(async () => {
+                    await signOutWorkspaceSources(
+                      consoleHttpPaths.workspace_sources ?? []
+                    );
                     const response = await sessionFetch(method.action, {
                       method: "POST",
                       credentials: "same-origin",

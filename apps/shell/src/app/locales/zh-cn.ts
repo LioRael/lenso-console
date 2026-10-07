@@ -5,6 +5,8 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   "Console areas": "Console 区域",
   "Console navigation": "Console 导航",
   "Could not load workspaces": "无法加载工作区",
+  "Some workspaces could not be checked. Retry workspace access.":
+    "部分工作区暂时无法验证，请重试。",
   "Loading workspace…": "正在加载工作区…",
   "No workspaces are available for this account": "此账号暂无可用工作区",
   "Add Projects App": "添加 Projects 应用",

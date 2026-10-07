@@ -40,18 +40,19 @@ export function createWorkspaceServices(
   expectedSubject?: string
 ): WorkspaceServices {
   const requestSignal = (signal?: AbortSignal) => {
-    const signals = [lifetime, signal].filter(
+    const signals = [lifetime, mount.transport?.signal, signal].filter(
       (value): value is AbortSignal => !!value
     );
     const combined = signals.length ? AbortSignal.any(signals) : undefined;
     combined?.throwIfAborted();
     return combined;
   };
+  const actor = mount.transport?.subject ?? expectedSubject;
   const headers = {
     "content-type": "application/json",
     "x-lenso-page-owner": mount.owner.instance,
     "x-lenso-page-revision": mount.revision,
-    ...(expectedSubject ? { "x-lenso-expected-subject": expectedSubject } : {}),
+    ...(actor ? { "x-lenso-expected-subject": actor } : {}),
     ...(mount.implementationId
       ? { "x-lenso-page-implementation": mount.implementationId }
       : {}),
@@ -62,7 +63,7 @@ export function createWorkspaceServices(
     operation: string
   ) => {
     requireOperation(mount, service, operation);
-    return `/api/console/v1/pages/${encodeURIComponent(mount.id)}/services/${encodeURIComponent(service)}/${kind}/${encodeURIComponent(operation)}`;
+    return `${mount.transport?.apiBasePath ?? "/api"}/console/v1/pages/${encodeURIComponent(mount.id)}/services/${encodeURIComponent(service)}/${kind}/${encodeURIComponent(operation)}`;
   };
   return {
     async invoke<Request, Response>(
@@ -81,7 +82,8 @@ export function createWorkspaceServices(
           method: "POST",
           signal: signal ?? null,
           cache: "no-store",
-        }
+        },
+        mount.transport
       );
       signal?.throwIfAborted();
       if (!response.ok) {
@@ -125,7 +127,8 @@ export function createWorkspaceServices(
           method: "POST",
           signal: signal ?? null,
           cache: "no-store",
-        }
+        },
+        mount.transport
       );
       signal?.throwIfAborted();
       if (!response.ok) {

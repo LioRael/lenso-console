@@ -297,10 +297,10 @@ function MountedContribution({
       }),
     [client, scopeKey, signal, readRefreshPolicy]
   );
-  const scopedMount = useMemo(
-    () => ({ ...mount, scopeKey }),
-    [mount, scopeKey]
-  );
+  const scopedMount = useMemo(() => {
+    const { transport: _transport, ...metadata } = mount;
+    return { ...metadata, scopeKey };
+  }, [mount, scopeKey]);
   const guardedNavigation = useMemo<ContributionProps["navigation"]>(
     () => ({
       ...navigation,
@@ -377,7 +377,8 @@ export function useContributionModule<Props = ContributionProps>(
   attempt: number,
   modules: Readonly<Record<string, unknown>> = workspaceLocaleModules
 ) {
-  const { subject: expectedSubject } = useConsoleSession();
+  const { subject: accountSubject } = useConsoleSession();
+  const expectedSubject = mount?.transport?.subject ?? accountSubject;
   const [state, setState] = useState<
     | {
         mount: PageMount;
@@ -395,7 +396,9 @@ export function useContributionModule<Props = ContributionProps>(
     }
     // Allocate per effect setup, including StrictMode cleanup/setup replay.
     const controller = new AbortController();
-    const { signal } = controller;
+    const signal = mount.transport
+      ? AbortSignal.any([controller.signal, mount.transport.signal])
+      : controller.signal;
     const services = createWorkspaceServices(mount, signal, expectedSubject);
     const scopeKey = pageMountScopeKey(mount, expectedSubject);
     const stylesReady = mount.styles.map((href) => {
