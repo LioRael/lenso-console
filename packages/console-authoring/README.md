@@ -14,6 +14,11 @@ registry access on first installation; application source compilation uses the
 installed authoring tools. No Console checkout, Cargo or Git patches are needed
 for this page compilation path.
 
+Both npm and Bun's isolated installation layout are supported. The compiler
+resolves its own declared tools; it never installs dependencies or creates a
+second tool cache in the application's generated output. Install the App's
+locked dependencies once before compilation.
+
 ```sh
 bun install --ignore-scripts /tmp/console-sdk.tgz
 bun run lenso-console-author init console
@@ -33,7 +38,7 @@ Page compilation alone does not prove compatibility with a released Engine Host.
 ## Compiler package entry
 
 After the owner publishes this candidate, ordinary Apps can pin
-`@lenso/console-sdk` at `0.1.0` in their normal dependency manifest and lockfile.
+the new `@lenso/console-sdk` release in their normal dependency manifest and lockfile.
 The public `@lenso/console-sdk/compiler` entry resolves to the existing Bun
 compiler; it is an executable stdin/stdout protocol, not an importable function:
 

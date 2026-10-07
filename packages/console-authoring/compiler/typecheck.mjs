@@ -4,56 +4,27 @@ import path from "node:path";
 
 import { generateClient } from "./client-generation.mjs";
 
-export async function typecheck({
-  root,
-  out,
-  authored,
-  imports,
-  checks,
-  sdk,
-  env = process.env,
-}) {
+export async function typecheck({ root, out, authored, imports, checks, sdk }) {
   const directory = path.join(out, "typecheck");
   fs.mkdirSync(directory, { recursive: true });
   const require = createRequire(import.meta.url);
-  let modules;
+  let checker;
+  let reactTypes;
+  let bunTypes;
   try {
-    const local = path.resolve(import.meta.dir, "../node_modules");
-    modules = fs.existsSync(path.join(local, "typescript/package.json"))
-      ? local
-      : path.dirname(path.dirname(require.resolve("typescript/package.json")));
-    if (
-      ![
-        "typescript/bin/tsc",
-        "@types/react/index.d.ts",
-        "@types/bun/index.d.ts",
-      ].every((file) => fs.existsSync(path.join(modules, file)))
-    ) {
-      throw new Error("No complete installed authoring tool closure");
-    }
-  } catch {
-    // Tool installation is source-local scratch, never a Plugin artifact:
-    // Engine correctly rejects node_modules' executable symlinks in output.
-    const tools = path.join(root, ".lenso", "console-authoring-tools");
-    fs.mkdirSync(tools, { recursive: true });
-    fs.copyFileSync(
-      path.resolve(import.meta.dir, "../package.json"),
-      path.join(tools, "package.json")
+    // Resolve each declared dependency through this package. Their physical
+    // parents differ in ordinary Bun/pnpm installations; no shared root exists.
+    const manifest = require.resolve("typescript/package.json");
+    const typescript = JSON.parse(fs.readFileSync(manifest, "utf-8"));
+    checker = path.resolve(path.dirname(manifest), typescript.bin.tsc);
+    fs.accessSync(checker, fs.constants.R_OK);
+    reactTypes = path.dirname(require.resolve("@types/react/package.json"));
+    bunTypes = path.dirname(require.resolve("@types/bun/package.json"));
+  } catch (error) {
+    throw new Error(
+      "Console SDK dependencies are missing. Install the application's locked dependencies before building, or reinstall the complete Console development kit.",
+      { cause: error }
     );
-    const install = Bun.spawnSync(
-      [process.execPath, "install", "--ignore-scripts"],
-      {
-        cwd: tools,
-        env,
-        stdout: "pipe",
-        stderr: "inherit",
-      }
-    );
-    process.stderr.write(install.stdout);
-    if (install.exitCode !== 0) {
-      throw new Error("Console authoring tools installation failed");
-    }
-    modules = path.join(tools, "node_modules");
   }
   const bindings = path.join(directory, "entries.ts");
   fs.writeFileSync(
@@ -74,10 +45,10 @@ export async function typecheck({
         allowImportingTsExtensions: true,
         skipLibCheck: true,
         types: ["react", "bun"],
-        typeRoots: [path.join(modules, "@types")],
+        typeRoots: [path.dirname(reactTypes), path.dirname(bunTypes)],
         paths: {
-          react: [path.join(modules, "@types/react/index.d.ts")],
-          "react/*": [path.join(modules, "@types/react/*")],
+          react: [path.join(reactTypes, "index.d.ts")],
+          "react/*": [path.join(reactTypes, "*")],
           "@lenso/console-sdk": [sdk],
           "@lenso/console-sdk/locale": [
             path.join(path.dirname(sdk), "locale.ts"),
@@ -90,9 +61,6 @@ export async function typecheck({
           "@lenso/console-sdk/server": [
             path.join(path.dirname(sdk), "server.ts"),
           ],
-          "@lenso/contract-runtime": [
-            path.join(modules, "@lenso/contract-runtime"),
-          ],
         },
       },
       files: [...authored, bindings, path.join(import.meta.dir, "router.ts")],
@@ -102,15 +70,10 @@ export async function typecheck({
     root,
     out,
     config: JSON.parse(fs.readFileSync(config, "utf-8")),
-    checker: path.join(modules, "typescript/bin/tsc"),
+    checker,
   });
   const result = Bun.spawnSync(
-    [
-      process.execPath,
-      path.join(modules, "typescript/bin/tsc"),
-      "--project",
-      config,
-    ],
+    [process.execPath, checker, "--project", config],
     { stdout: "pipe", stderr: "inherit" }
   );
   process.stderr.write(result.stdout);

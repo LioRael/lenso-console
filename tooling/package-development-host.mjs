@@ -137,16 +137,32 @@ for (const [source, target] of [
   fs.copyFileSync(source, path.join(out, target));
   fs.chmodSync(path.join(out, target), 0o755);
 }
-for (const name of ["console-support", "console-authoring"]) {
-  fs.cpSync(
-    path.join(repo, "packages", name),
-    path.join(out, "packages", name),
-    {
-      filter: (source) => !excluded.has(path.basename(source)),
-      recursive: true,
-    }
-  );
-}
+fs.cpSync(support, path.join(out, "packages/console-support"), {
+  filter: (source) => !excluded.has(path.basename(source)),
+  recursive: true,
+});
+// The installed kit owns its compiler closure. App builds need neither a
+// package-manager download nor copied SDK sources to typecheck ordinary pages.
+// pnpm deploy derives a dedicated frozen lock from this repository's lockfile
+// and installs a portable isolated node_modules inside the release artifact.
+const authoring = path.join(out, "packages/console-authoring");
+execFileSync(
+  "pnpm",
+  [
+    "--config.inject-workspace-packages=true",
+    "--filter",
+    "@lenso/console-sdk",
+    "deploy",
+    "--prod",
+    "--ignore-scripts",
+    authoring,
+  ],
+  { cwd: repo, stdio: "inherit" }
+);
+fs.copyFileSync(
+  path.join(repo, "packages/console-authoring/create-app.mjs"),
+  path.join(authoring, "create-app.mjs")
+);
 fs.writeFileSync(
   path.join(out, "host.json"),
   JSON.stringify(

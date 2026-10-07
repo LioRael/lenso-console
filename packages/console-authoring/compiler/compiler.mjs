@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 import { typecheck } from "./typecheck.mjs";
@@ -15,25 +14,6 @@ if (!fs.lstatSync(root).isDirectory()) {
   throw new Error("Console entry must be a directory");
 }
 const out = request.output;
-// Do not let an interrupted build poison Bun's shared user cache. A caller may
-// still opt into an explicit cache, while the normal convention path receives
-// one isolated temporary cache for its two package-manager invocations.
-const configuredInstallCache = process.env.BUN_INSTALL_CACHE_DIR;
-let installCache;
-const installEnvironment = () => {
-  installCache ??=
-    configuredInstallCache ||
-    fs.mkdtempSync(path.join(os.tmpdir(), "lenso-console-bun-"));
-  return {
-    ...process.env,
-    BUN_INSTALL_CACHE_DIR: installCache,
-  };
-};
-const cleanInstallCache = () => {
-  if (!configuredInstallCache && installCache) {
-    fs.rmSync(installCache, { recursive: true, force: true });
-  }
-};
 const pages = [];
 const authored = [];
 const workspaceId = request.plugin_id.replace(/\.surface-[a-f0-9]+$/, "");
@@ -205,22 +185,9 @@ fs.writeFileSync(
   `${imports.join("\n")}\nimport {createPageRouter} from ${JSON.stringify(path.join(import.meta.dir, "router.ts"))};\nexport function createWorkspace(runtime) { const pages={${workspaceRouters.join(",")}}; return {Page(props) { const Page=pages[props.mount?.pageId ?? ${JSON.stringify(workspaces[0].id)}]; if(!Page) throw new Error("Workspace implementation is not available"); return runtime.createElement(Page,{...props,services:runtime.services}); }}; }`
 );
 const sdk = path.resolve(import.meta.dir, "../src/index.ts");
-try {
-  const env = installEnvironment();
-  if (fs.existsSync(path.join(root, "package.json"))) {
-    const installed = Bun.spawnSync(
-      [process.execPath, "install", "--ignore-scripts", "--no-save"],
-      { cwd: root, env, stdout: "pipe", stderr: "inherit" }
-    );
-    process.stderr.write(installed.stdout);
-    if (installed.exitCode !== 0) {
-      throw new Error("Console dependency installation failed");
-    }
-  }
-  await typecheck({ root, out, authored, imports, checks, sdk, env });
-} finally {
-  cleanInstallCache();
-}
+// Dependency installation belongs to the App/kit package manager. Compilation
+// consumes that locked graph and never creates a second installation in source.
+await typecheck({ root, out, authored, imports, checks, sdk });
 const result = await Bun.build({
   entrypoints: [entry],
   target: "browser",
