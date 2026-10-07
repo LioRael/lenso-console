@@ -75,6 +75,7 @@ jobs:
         run: |
           while IFS= read -r package; do
             cargo publish --locked --dry-run -p "$package"
+            cargo package --locked -p "$package"
           done < <(jq -r '.[].package_name' <<<"$RELEASE_SET")
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -110,8 +111,9 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
           while IFS=$'\t' read -r package version; do
-            cargo publish --locked -p "$package"
+            cargo package --locked -p "$package"
             checksum=$(sha256sum "target/package/$package-$version.crate" | cut -d ' ' -f 1)
+            cargo publish --locked -p "$package"
             curl --user-agent 'LensoConsoleRoleRelease/1.0 (https://github.com/LioRael/lenso-console)' --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 10 \
               "https://crates.io/api/v1/crates/$package/$version" \
               | jq -e --arg version "$version" --arg checksum "$checksum" '.version.num == $version and .version.yanked == false and .version.checksum == $checksum'
