@@ -51,7 +51,7 @@ export function consoleNavigationModel({
               ? "Management"
               : area === "settings"
                 ? "Settings"
-                : "System"
+                : "Plugins"
           );
   const destination = (
     id: string,

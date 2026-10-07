@@ -12,7 +12,7 @@ import {
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { AgentIdentityProvider } from "./agent-identity-context";
 import type { EditableProfile } from "./agent-profile-model";
@@ -24,7 +24,8 @@ import {
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
 let client: QueryClient | undefined;
-afterEach(() => {
+afterEach(async () => {
+  await page.viewport(1280, 800);
   flushSync(() => root?.unmount());
   container?.remove();
   client?.clear();
@@ -46,7 +47,7 @@ test("Profiles routes guard unsaved navigation and activate only from the list",
               ? "Explore options and plan the next steps."
               : "Build and verify changes in your workspace.",
         instructions: "",
-        model: null,
+        model: name === "code" ? `provider${"x".repeat(120)}` : null,
         include_enabled: true,
         instances: [],
         excluded_instances: [],
@@ -57,10 +58,14 @@ test("Profiles routes guard unsaved navigation and activate only from the list",
   const activations: unknown[] = [];
   let activeProfile: string | null = null;
   let activeRevision: string | null = null;
+  const nativeFetch = globalThis.fetch.bind(globalThis);
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.startsWith("/virtual:stylex.css")) {
+        return nativeFetch(input, init);
+      }
       if (url.endsWith("/agents")) {
         return Response.json({
           agents: [
@@ -158,13 +163,37 @@ test("Profiles routes guard unsaved navigation and activate only from the list",
   await expect
     .element(page.getByRole("button", { name: "Actions for default" }))
     .toBeVisible();
+  expect(
+    page.getByRole("link", { name: "New Profile" }).element().tagName
+  ).toBe("A");
+  const nameBounds = page
+    .getByText("default", { exact: true })
+    .element()
+    .getBoundingClientRect();
+  const descriptionBounds = page
+    .getByText("General-purpose assistance.", { exact: true })
+    .element()
+    .getBoundingClientRect();
+  expect(
+    Math.abs(nameBounds.left - descriptionBounds.left)
+  ).toBeLessThanOrEqual(1);
+  expect(descriptionBounds.top).toBeGreaterThanOrEqual(nameBounds.bottom);
+  await page.viewport(320, 800);
+  await expect
+    .poll(() => document.documentElement.scrollWidth)
+    .toBeLessThanOrEqual(320);
+  await page.viewport(1280, 800);
+  const actions = page.getByRole("button", { name: "Actions for default" });
+  await actions.click();
+  await userEvent.keyboard("{ArrowDown}{Escape}");
+  await expect.element(actions).toHaveFocus();
   await page
     .getByRole("searchbox", { name: "Search profiles" })
     .fill("missing");
   await expect
     .element(page.getByText("No matching profiles", { exact: true }))
     .toBeVisible();
-  await page.getByRole("button", { name: "Clear search" }).click();
+  await page.getByText("Clear search", { exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Actions for default" }))
     .toBeVisible();

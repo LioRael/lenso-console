@@ -1,5 +1,16 @@
 # Console frontend with App dev
 
+## Visual feedback
+
+`pnpm dev` loads the Agentation toolbar in the browser. Use it to select a UI
+element, annotate it, and copy the feedback into the agent conversation.
+Annotations stay local; no MCP endpoint or webhook is configured.
+The root route renders Agentation after hydration only in Vite development
+mode, so it is excluded from production builds. Restart Vite after installing the
+dependency if the toolbar does not appear.
+
+## App dev integration
+
 Keep the existing Vite development loop. To embed this Shell in an App's
 explicit `frontend/lenso.dev.toml` process, start Vite with the Shell as its
 root and this repository's `apps/shell/vite.config.ts`. The App controller

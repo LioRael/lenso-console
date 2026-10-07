@@ -1,6 +1,12 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const profilesPageStyles = stylex.create({
+  page: {
+    minHeight: "100%",
+    width: "100%",
+    backgroundColor: "var(--background)",
+    color: "var(--foreground)",
+  },
   activeContext: {
     display: "flex",
     flexWrap: "wrap",
@@ -14,6 +20,8 @@ export const profilesPageStyles = stylex.create({
     fontSize: 11,
     lineHeight: "18px",
     color: "var(--muted)",
+    overflowWrap: "anywhere",
+    minWidth: 0,
   },
   description: {
     margin: 0,
@@ -22,21 +30,28 @@ export const profilesPageStyles = stylex.create({
     lineHeight: "19px",
     overflowWrap: "anywhere",
   },
-  createButton: { textDecoration: "none", borderRadius: 6 },
+  createButton: { textDecoration: "none" },
   toolbar: {
     marginBlockStart: 24,
     display: "flex",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
     gap: 12,
     marginBlockEnd: 8,
   },
   list: {
+    padding: 12,
+    marginInline: -12,
+    overflow: "visible",
+    borderRadius: "calc(var(--radius) * 2)",
+  },
+  rows: {
     padding: 0,
-    margin: 0,
+    marginBlock: 0,
+    marginInline: -12,
     listStyle: "none",
     display: "grid",
-    backgroundColor: "transparent",
   },
   row: {
     display: "flex",
@@ -47,7 +62,7 @@ export const profilesPageStyles = stylex.create({
       default: "transparent",
       ":hover": "var(--default-hover)",
     },
-    paddingInline: 16,
+    paddingInline: 12,
     paddingBlock: 12,
     borderBottomWidth: 1,
     borderBottomStyle: "solid",
@@ -56,19 +71,19 @@ export const profilesPageStyles = stylex.create({
   },
   profileLink: {
     display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr)",
     gap: 2,
     flex: "1 1 180px",
     minWidth: 0,
     color: "inherit",
-    textDecoration: "none",
-    borderRadius: 8,
-    outline: {
-      default: "none",
-      ":focus-visible": "2px solid var(--focus)",
-    },
-    outlineOffset: 4,
+    textDecorationLine: { default: "none", ":hover": "none" },
   },
-  search: { width: 240, maxWidth: "100%", flex: "0 1 280px" },
+  search: {
+    minWidth: 0,
+    maxWidth: "100%",
+    flex: "0 1 320px",
+    "@media (max-width: 560px)": { flex: "1 1 100%" },
+  },
   empty: {
     display: "grid",
     justifyItems: "start",
@@ -111,9 +126,6 @@ export const profilesPageStyles = stylex.create({
     marginInlineStart: "auto",
     alignItems: "center",
   },
-  current: { fontSize: 12, color: "var(--muted)" },
-  type: { fontSize: 12, color: "var(--muted)", width: 52 },
-  duplicate: { paddingInline: 8 },
   resultCount: {
     fontSize: 12,
     color: "var(--muted)",

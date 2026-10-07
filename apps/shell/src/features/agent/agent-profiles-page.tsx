@@ -1,7 +1,10 @@
 import { Button } from "@lenso/ui/button";
-import { Input } from "@lenso/ui/input";
+import { Chip } from "@lenso/ui/chip";
+import { EmptyState } from "@lenso/ui/empty-state";
+import { Link as LensoLink } from "@lenso/ui/link";
 import { Menu } from "@lenso/ui/menu";
-import { TextField } from "@lenso/ui/textfield";
+import { SearchField } from "@lenso/ui/search-field";
+import { Surface } from "@lenso/ui/surface";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
@@ -31,7 +34,7 @@ export function AgentProfilesPage() {
 
   const { selectedAgent: agent } = useAgentIdentity();
   return (
-    <main {...stylex.props(pageStyles.page)}>
+    <div {...stylex.props(styles.page)}>
       <div {...stylex.props(pageStyles.column)}>
         <ConsolePageHeader
           title={t("Profiles")}
@@ -42,7 +45,7 @@ export function AgentProfilesPage() {
         />
         <ProfileList key={agent.id} agent={agent} />
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -100,21 +103,26 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
   return (
     <>
       <div {...stylex.props(styles.toolbar)}>
-        <TextField.Root xstyle={styles.search}>
-          <Input
-            type="search"
-            aria-label={t("Search profiles")}
-            placeholder={t("Search profiles…")}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </TextField.Root>
+        <SearchField.Root xstyle={styles.search}>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              aria-label={t("Search profiles")}
+              placeholder={t("Search profiles…")}
+              value={search}
+              onValueChange={setSearch}
+            />
+            <SearchField.ClearButton aria-label={t("Clear search")} />
+          </SearchField.Group>
+        </SearchField.Root>
         <Button
           size="sm"
-          variant="secondary"
+          variant="primary"
           xstyle={styles.createButton}
           disabled={!query.data || apply.isPending}
           nativeButton={false}
+          // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- Button renders a router anchor but otherwise forces button semantics.
+          role="link"
           render={
             <Link
               to="/settings/profiles/$agentId/$profileName"
@@ -143,7 +151,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
         </output>
       ) : null}
       {query.error ? (
-        <div role="alert" {...stylex.props(styles.empty)}>
+        <EmptyState role="alert" xstyle={styles.empty}>
           <strong>{t("Profiles unavailable")}</strong>
           <span>{query.error.message}</span>
           <Button
@@ -153,7 +161,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
           >
             {t("Try again")}
           </Button>
-        </div>
+        </EmptyState>
       ) : null}
       {apply.error ? (
         <p role="alert" {...stylex.props(styles.description)}>
@@ -178,7 +186,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
         </p>
       ) : null}
       {query.data && visibleProfiles.length === 0 ? (
-        <div {...stylex.props(styles.empty)}>
+        <EmptyState aria-live="polite" xstyle={styles.empty}>
           <strong>
             {t(search.trim() ? "No matching profiles" : "No profiles yet")}
           </strong>
@@ -192,109 +200,122 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
               {t("Clear search")}
             </Button>
           ) : null}
-        </div>
+        </EmptyState>
       ) : null}
       {visibleProfiles.length > 0 ? (
-        <ul {...stylex.props(styles.list)}>
-          {visibleProfiles.map((profile) => {
-            const current =
-              profile.name === (query.data?.activeProfile ?? "default");
-            const applied =
-              current &&
-              (profile.name === "default" ||
-                profile.revision === query.data?.activeRevision);
-            return (
-              <li key={profile.name} {...stylex.props(styles.row)}>
-                <Link
-                  {...stylex.props(styles.profileLink)}
-                  title={t(
-                    profile.readOnly ? "Built-in Profile" : "Custom Profile"
-                  )}
-                  to="/settings/profiles/$agentId/$profileName"
-                  params={{ agentId: agent.id, profileName: profile.name }}
-                  search={{ copy: false }}
-                >
-                  <span {...stylex.props(styles.nameRow)}>
-                    <strong {...stylex.props(styles.name)}>
-                      {profile.name}
-                    </strong>
-                    <span {...stylex.props(styles.metadata)}>
-                      {t(profile.readOnly ? "Built-in" : "Custom")}
-                      {profile.document.model
-                        ? ` · ${profile.document.model}`
-                        : ""}
+        <Surface xstyle={styles.list}>
+          <ul {...stylex.props(styles.rows)}>
+            {visibleProfiles.map((profile) => {
+              const current =
+                profile.name === (query.data?.activeProfile ?? "default");
+              const applied =
+                current &&
+                (profile.name === "default" ||
+                  profile.revision === query.data?.activeRevision);
+              return (
+                <li key={profile.name} {...stylex.props(styles.row)}>
+                  <LensoLink
+                    xstyle={styles.profileLink}
+                    title={t(
+                      profile.readOnly ? "Built-in Profile" : "Custom Profile"
+                    )}
+                    render={
+                      <Link
+                        to="/settings/profiles/$agentId/$profileName"
+                        params={{
+                          agentId: agent.id,
+                          profileName: profile.name,
+                        }}
+                        search={{ copy: false }}
+                      />
+                    }
+                  >
+                    <span {...stylex.props(styles.nameRow)}>
+                      <strong {...stylex.props(styles.name)}>
+                        {profile.name}
+                      </strong>
+                      <span {...stylex.props(styles.metadata)}>
+                        {t(profile.readOnly ? "Built-in" : "Custom")}
+                        {profile.document.model
+                          ? ` · ${profile.document.model}`
+                          : ""}
+                      </span>
                     </span>
-                  </span>
-                  <span {...stylex.props(styles.description)}>
-                    {profile.document.description ||
-                      (profile.readOnly
-                        ? t("Built-in instructions and capabilities.")
-                        : t("Custom instructions and capabilities."))}
-                  </span>
-                </Link>
-                <div {...stylex.props(styles.actions)}>
-                  {current ? (
-                    <span {...stylex.props(styles.current)}>
-                      {t(applied ? "In use" : "Update available")}
+                    <span {...stylex.props(styles.description)}>
+                      {profile.document.description ||
+                        (profile.readOnly
+                          ? t("Built-in instructions and capabilities.")
+                          : t("Custom instructions and capabilities."))}
                     </span>
-                  ) : null}
-                  {apply.isPending && apply.variables.name === profile.name ? (
-                    <span {...stylex.props(styles.current)}>
-                      {t("Preparing…")}
-                    </span>
-                  ) : null}
-                  <Menu.Root>
-                    <Menu.Trigger
-                      render={
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          aria-label={t("Actions for {profile}", {
-                            profile: profile.name,
-                          })}
-                        >
-                          <Ellipsis size={14} aria-hidden="true" />
-                        </Button>
-                      }
-                    />
-                    <Menu.Portal>
-                      <Menu.Positioner align="end" sideOffset={4}>
-                        <Menu.Popup>
-                          <Menu.Item
-                            aria-label={t("Duplicate {profile}", {
+                  </LensoLink>
+                  <div {...stylex.props(styles.actions)}>
+                    {current ? (
+                      <Chip size="sm" variant="soft" color="accent">
+                        {t(applied ? "In use" : "Update available")}
+                      </Chip>
+                    ) : null}
+                    {apply.isPending &&
+                    apply.variables.name === profile.name ? (
+                      <Chip size="sm" variant="soft" color="default">
+                        {t("Preparing…")}
+                      </Chip>
+                    ) : null}
+                    <Menu.Root>
+                      <Menu.Trigger
+                        render={
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            isIconOnly
+                            aria-label={t("Actions for {profile}", {
                               profile: profile.name,
                             })}
-                            onClick={() =>
-                              void navigate({
-                                to: "/settings/profiles/$agentId/$profileName",
-                                params: {
-                                  agentId: agent.id,
-                                  profileName: profile.name,
-                                },
-                                search: { copy: true },
-                              })
-                            }
                           >
-                            {t("Duplicate")}
-                          </Menu.Item>
-                          <Menu.Item
-                            disabled={applied || apply.isPending}
-                            aria-label={t("Use {profile}", {
-                              profile: profile.name,
-                            })}
-                            onClick={() => apply.mutate(profile)}
-                          >
-                            {t("Use for {agent}", { agent: agent.label })}
-                          </Menu.Item>
-                        </Menu.Popup>
-                      </Menu.Positioner>
-                    </Menu.Portal>
-                  </Menu.Root>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                            <Button.Icon>
+                              <Ellipsis size={14} aria-hidden="true" />
+                            </Button.Icon>
+                          </Button>
+                        }
+                      />
+                      <Menu.Portal>
+                        <Menu.Positioner align="end" sideOffset={4}>
+                          <Menu.Popup>
+                            <Menu.Item
+                              aria-label={t("Duplicate {profile}", {
+                                profile: profile.name,
+                              })}
+                              onClick={() =>
+                                void navigate({
+                                  to: "/settings/profiles/$agentId/$profileName",
+                                  params: {
+                                    agentId: agent.id,
+                                    profileName: profile.name,
+                                  },
+                                  search: { copy: true },
+                                })
+                              }
+                            >
+                              {t("Duplicate")}
+                            </Menu.Item>
+                            <Menu.Item
+                              disabled={applied || apply.isPending}
+                              aria-label={t("Use {profile}", {
+                                profile: profile.name,
+                              })}
+                              onClick={() => apply.mutate(profile)}
+                            >
+                              {t("Use for {agent}", { agent: agent.label })}
+                            </Menu.Item>
+                          </Menu.Popup>
+                        </Menu.Positioner>
+                      </Menu.Portal>
+                    </Menu.Root>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Surface>
       ) : null}
     </>
   );

@@ -114,6 +114,7 @@ function AgentSettingsContent({
         </Link>
       ) : null}
       <ConsolePageHeader
+        xstyle={preferences.headerInset}
         title={advanced ? t("Global tool restrictions") : "Connections"}
         description={
           advanced

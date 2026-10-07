@@ -39,6 +39,7 @@ export function AssistantSettingsPage() {
     <main {...stylex.props(preferences.page)}>
       <div {...stylex.props(preferences.column)}>
         <ConsolePageHeader
+          xstyle={preferences.headerInset}
           title={zh ? "助手" : "Assistant"}
           description={
             zh

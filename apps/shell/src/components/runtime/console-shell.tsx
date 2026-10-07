@@ -41,7 +41,6 @@ import {
 import { ConsoleNavigationRail } from "./console-navigation-rail";
 import type { ConsoleSearchHandle } from "./console-search";
 import { shellStyles } from "./console-shell.stylex";
-import { ConsoleWorkspaceHeader } from "./console-workspace-header";
 import {
   ContextNavigationContent,
   ContextNavigationItem,
@@ -201,15 +200,17 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     <ThemeScope theme={appearance.theme} xstyle={shellStyles.theme}>
       <ConsoleFrame
         navigation={navigation}
+        title={title}
         rail={
           <ConsoleNavigationRail
             destinations={destinations}
             onSignOut={signOut}
+            onClose={navigation.narrow ? navigation.close : undefined}
           />
         }
         toolbar={
           <ConsoleHeader
-            title={currentArea === "system" ? t("Plugins") : title}
+            title={title}
             contextLabel={
               currentArea === "settings"
                 ? t("Console")
@@ -218,24 +219,6 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
             navigation={navigation}
             searchItems={searchItems}
             searchRef={searchRef}
-          />
-        }
-        sidebarHeader={
-          <ConsoleWorkspaceHeader
-            title={title}
-            subtitle={
-              currentArea === "settings"
-                ? t("Console")
-                : (selectedApp?.label ?? t("Console"))
-            }
-            destinations={destinations}
-            onClose={closeMobileNavigation}
-            onSearch={() => {
-              if (mobileNavigationOpen) {
-                closeMobileNavigation();
-              }
-              requestAnimationFrame(() => searchRef.current?.open());
-            }}
           />
         }
         sidebar={

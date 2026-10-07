@@ -32,6 +32,7 @@ export const settingsPageStyles = stylex.create({
     borderWidth: "0.5px",
     boxShadow: "none",
   },
+  headerInset: { paddingInline: 16 },
   page: {
     backgroundColor: "var(--background)",
     color: "var(--foreground)",

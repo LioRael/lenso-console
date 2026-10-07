@@ -36,12 +36,21 @@ Failure C: applying padding only on hover moves the content under the pointer.
 
 Acceptance: the text anchor stays fixed in default, hover, focus, and selected states; the background extends beyond both content ends; the focus ring is visible; narrow viewports have no horizontal overflow. Apply padding in the resting state.
 
+## Focus clearance and scrolling
+
+Console's main region owns page scrolling. Add another scroll container only for an independently bounded list, editor or table, not around an entire search/filter composition.
+
+Failure: Plugins wrapped its search and results in `overflow: auto` with the field touching the top and inline edges. The field accepted focus, but its outer ring was clipped on several sides. Reducing or moving the ring inward hides the symptom rather than correcting ownership.
+
+Acceptance: the focused control's ring fits within every clipping ancestor at desktop and narrow widths. Leave at least 4px clearance for the current Lenso ring; retain the component's focus style. A surface around interactive rows must not clip their focus or hover outsets merely to round its corners.
+
 ## Borders, hierarchy, and density
 
 - Assign one owner to each shared boundary. When a header already separates itself, inspect the next container's top border and shadow before adding another line.
 - A table header can have a bottom separator; framing it with both top and bottom borders is an explicit hierarchy decision, not a default.
 - Match the reference's semantic border token and width. Inspect at normal browser zoom; do not stack translucent borders or shadows to approximate a line.
 - Reuse the existing spacing scale and control variants. Compact means less unnecessary container space, not unreadable type or clipped hit areas.
+- Keep page headers layout-only. The page composition owns its gutter; when a preferences panel needs an inner text inset, apply it to the whole header so copy and actions do not use competing anchors.
 - Keep related controls close and sections farther apart. Align content edges across header, toolbar, table, and empty state according to their declared anchors.
 - Use cards only when the content is a distinct object/group that benefits from containment. Nesting borders, repeated page titles, oversized empty panels, and repeated action bars need a concrete purpose.
 

@@ -18,6 +18,7 @@ import { page, userEvent } from "vitest/browser";
 
 import { Providers } from "../../app/providers";
 import { agentContextNavigationStyles } from "../../features/agent/agent-context-navigation.stylex";
+import type { PageMount } from "../../features/extensions/page-contribution-catalog";
 import { queryClient } from "../../lib/query-client";
 import { Sidebar } from "../lenso/recipes/console-navigation";
 import { ConsoleFrame } from "./console-frame";
@@ -28,6 +29,7 @@ import {
   ContextNavigationContent,
   ContextNavigationItem,
   ContextNavigationSearch,
+  ContextNavigationSection,
 } from "./context-navigation";
 import { useConsoleNavigation } from "./use-console-navigation";
 
@@ -40,18 +42,18 @@ function FrameFixture() {
     <ThemeScope>
       <ConsoleFrame
         navigation={navigation}
+        title="Research workspace"
         toolbar={
           <header
             aria-label="Workspace header"
             {...stylex.props(shellStyles.header)}
           >
-            <button
+            <Sidebar.Trigger
+              targetId="console-sidebar"
               ref={navigation.triggerRef}
-              type="button"
-              onClick={() => navigation.toggle()}
             >
               Toggle sidebar
-            </button>
+            </Sidebar.Trigger>
           </header>
         }
         rail={
@@ -60,9 +62,12 @@ function FrameFixture() {
             {...stylex.props(shellStyles.rail)}
           />
         }
-        sidebarHeader={<Sidebar.Header>Settings</Sidebar.Header>}
         sidebar={
-          <ContextNavigationContent>Preferences</ContextNavigationContent>
+          <ContextNavigationContent>
+            <ContextNavigationSection label="Sections">
+              <ContextNavigationItem>Preferences</ContextNavigationItem>
+            </ContextNavigationSection>
+          </ContextNavigationContent>
         }
       >
         Page content
@@ -130,11 +135,55 @@ describe("Context navigation", () => {
       path: "/agent/$agentId/$chatId",
       component: () => <div>Conversation</div>,
     });
+    const workspaceRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/research",
+      component: () => <div>Workspace content</div>,
+    });
+    const settingsRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/settings",
+      component: () => <div>Settings content</div>,
+    });
+    const pluginsRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/plugins",
+      component: () => <div>Plugins content</div>,
+    });
+    queryClient.setQueryData<readonly PageMount[]>(
+      ["console-page-catalog"],
+      [
+        {
+          apiMajor: 1,
+          id: "research",
+          title: "Research lab",
+          module: "",
+          navigation: {
+            label: "Research lab",
+            items: [{ label: "Overview", path: [] }],
+          },
+          owner: {
+            instance: "test.research",
+            source: "development-filesystem",
+            trusted: false,
+          },
+          requirements: [],
+          revision: "test",
+          styles: [],
+          subject: { kind: "console" },
+        },
+      ]
+    );
     const router = createRouter({
       history: createMemoryHistory({
         initialEntries: ["/agent/console/saved-conversation?project=retained"],
       }),
-      routeTree: rootRoute.addChildren([agentRoute]),
+      routeTree: rootRoute.addChildren([
+        agentRoute,
+        workspaceRoute,
+        settingsRoute,
+        pluginsRoute,
+      ]),
     });
     root = createRoot(container);
     await page.viewport(375, 800);
@@ -169,11 +218,22 @@ describe("Context navigation", () => {
           "href",
           "/agent/console/saved-conversation?project=retained"
         );
-      await page
-        .getByRole("button", { name: "Workspace: Console Agent" })
-        .click();
       await expect
-        .element(page.getByRole("menu", { name: "Workspace: Console Agent" }))
+        .element(activeAgentLink)
+        .toHaveAttribute("aria-current", "page");
+      activeAgentLink.element().focus();
+      await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+      expect(
+        page
+          .getByRole("dialog", { name: "Console navigation" })
+          .element()
+          .contains(document.activeElement)
+      ).toBe(true);
+      await userEvent.keyboard("{Tab}");
+      await expect.element(activeAgentLink).toHaveFocus();
+      await page.getByRole("button", { name: "Color mode" }).click();
+      await expect
+        .element(page.getByRole("menu", { name: "Color mode" }))
         .toBeVisible();
       await userEvent.keyboard("{ArrowDown}");
       await expect
@@ -181,12 +241,59 @@ describe("Context navigation", () => {
         .toBe("menuitem");
       await userEvent.keyboard("{Escape}");
       await expect
-        .element(page.getByRole("menu", { name: "Workspace: Console Agent" }))
+        .element(page.getByRole("menu", { name: "Color mode" }))
         .not.toBeInTheDocument();
       await expect
-        .element(page.getByRole("button", { name: "Workspace: Console Agent" }))
+        .element(page.getByRole("button", { name: "Color mode" }))
         .toHaveFocus();
       expect(main.inert).toBe(true);
+
+      await page
+        .getByRole("dialog", { name: "Console navigation" })
+        .getByRole("button", {
+          name: "Close workspace navigation",
+          exact: true,
+        })
+        .click();
+      await expect.poll(() => main.inert).toBe(false);
+      await expect
+        .element(
+          page.getByRole("button", { name: "Open workspace navigation" })
+        )
+        .toHaveFocus();
+      await page
+        .getByRole("button", { name: "Open workspace navigation" })
+        .click();
+      await expect.poll(() => main.inert).toBe(true);
+      activeAgentLink.element().focus();
+      await userEvent.keyboard("{Escape}");
+      await expect.poll(() => main.inert).toBe(false);
+      await expect
+        .element(
+          page.getByRole("button", { name: "Open workspace navigation" })
+        )
+        .toHaveFocus();
+      await page
+        .getByRole("button", { name: "Open workspace navigation" })
+        .click();
+      page
+        .getByRole("dialog", { name: "Console navigation" })
+        .getByRole("button", {
+          name: "Close workspace navigation",
+          exact: true,
+        })
+        .element()
+        .focus();
+      await userEvent.keyboard("{Escape}");
+      await expect.poll(() => main.inert).toBe(false);
+      await expect
+        .element(
+          page.getByRole("button", { name: "Open workspace navigation" })
+        )
+        .toHaveFocus();
+      await page
+        .getByRole("button", { name: "Open workspace navigation" })
+        .click();
 
       await page.viewport(1280, 800);
       await expect.poll(() => main.inert).toBe(false);
@@ -203,12 +310,27 @@ describe("Context navigation", () => {
       expect(toolbarSearch.left + toolbarSearch.width / 2).toBe(
         toolbarBounds.left + toolbarBounds.width / 2
       );
-      expect(
-        page
-          .getByRole("button", { name: "Back", exact: true })
-          .element()
-          .getBoundingClientRect().height
-      ).toBe(32);
+      await expect
+        .element(page.getByRole("button", { name: "Back", exact: true }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(page.getByRole("button", { name: "Forward", exact: true }))
+        .not.toBeInTheDocument();
+      router.history.push("/research");
+      await router.load();
+      await expect
+        .element(
+          page.getByRole("heading", { name: "Research lab", exact: true })
+        )
+        .toBeVisible();
+      await router.navigate({ to: "/settings" });
+      await expect
+        .element(page.getByRole("heading", { name: "Settings", exact: true }))
+        .toBeVisible();
+      await router.navigate({ to: "/plugins" });
+      await expect
+        .element(page.getByRole("heading", { name: "Plugins", exact: true }))
+        .toBeVisible();
     } finally {
       await page.viewport(1280, 800);
     }
@@ -328,6 +450,17 @@ describe("Context navigation", () => {
     );
     expect(header.getBoundingClientRect().height).toBe(56);
     expect(
+      page
+        .getByRole("heading", { name: "Research workspace" })
+        .element()
+        .getBoundingClientRect().left
+    ).toBe(
+      page
+        .getByText("Sections", { exact: true })
+        .element()
+        .getBoundingClientRect().left
+    );
+    expect(
       main.getBoundingClientRect().bottom -
         sidebar.getBoundingClientRect().bottom
     ).toBe(16);
@@ -353,7 +486,8 @@ describe("Context navigation", () => {
     flushSync(() => {
       root?.render(
         <ThemeScope>
-          <Sidebar.Root defaultOpen>
+          <Sidebar.Root defaultOpen={false}>
+            <Sidebar.Trigger>Show context navigation</Sidebar.Trigger>
             <Sidebar.Panel>
               <Sidebar.Content>
                 <Sidebar.Menu>
@@ -370,10 +504,14 @@ describe("Context navigation", () => {
     await nextFrame();
 
     const item = page.getByRole("button", { name: "Plugins" });
-    const itemElement = container.querySelector<HTMLButtonElement>("button");
-    if (!itemElement) {
-      throw new Error("Sidebar item was not rendered");
-    }
+    await expect
+      .element(
+        page.getByRole("button", { name: "Plugins", includeHidden: true })
+      )
+      .not.toBeVisible();
+    await page.getByRole("button", { name: "Show context navigation" }).click();
+    await expect.element(item).toBeVisible();
+    const itemElement = item.element();
     await userEvent.unhover(item);
     await nextFrame();
     await Promise.all(
