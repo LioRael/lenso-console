@@ -11,6 +11,18 @@ binaries; only producers need the Rust and frontend build toolchains.
 
 ## Produce a package locally
 
+The current CI producer is Core
+`eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551`: facade 0.5.29,
+Kernel 0.3.12, native macros 0.2.9 and Console role codec 0.4.4.
+Console's normal Cargo dependencies require these exact versions. A Git producer
+pin alone does not constrain a broad registry requirement: Cargo can select a
+newer registry Kernel beside the pinned Git Kernel, splitting public Rust types.
+The facility guard checks these owner requirements before compilation; the runtime
+guard still verifies the actual generated lock, source identities and packaged
+assets. A newer Core producer requires a coordinated Console/Auth cohort update.
+
+The following local producer/consumer example describes the earlier candidate:
+
 Build a producer from a cohort matching Console's pinned SDK dependencies.
 For this local candidate that producer is core `119b9af7` (SDK 0.5.28).
 Current core `29b01e47` supplies Engine 0.2.5 as the precompiled consumer;

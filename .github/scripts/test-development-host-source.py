@@ -32,6 +32,12 @@ class SourceGuard(unittest.TestCase):
         self.facility.joinpath("Cargo.toml").write_text(
             f'[dependencies]\nlenso = {{ version = "=0.5.29", git = "https://github.com/LioRael/lenso", rev = "{REVISION}" }}\n')
         self.facility.joinpath("Cargo.lock").write_text(self.package("lenso", "0.5.29", SOURCE))
+        plugin = self.root / "plugins/console/Cargo.toml"
+        plugin.parent.mkdir(parents=True)
+        plugin.write_text('[dependencies]\nlenso = "=0.5.29"\nlenso-kernel = "=0.3.12"\nlenso-native-adapter-macros = "=0.2.9"\n')
+        contract = self.root / "contracts/crates/workspace-service/Cargo.toml"
+        contract.parent.mkdir(parents=True)
+        contract.write_text('[dependencies]\nlenso-kernel = "=0.3.12"\nlenso-runtime-codec = "=0.4.4"\n')
         self.generated = self.root / "seed/.lenso/generated-host"
         self.generated.mkdir(parents=True)
         self.lock = "".join(self.package(n, v, SOURCE) for n, v in VERSIONS.items())
@@ -108,6 +114,18 @@ class SourceGuard(unittest.TestCase):
     def test_optional_anchor_fails(self):
         path = self.facility / "Cargo.toml"
         path.write_text(path.read_text().replace('version = "=0.5.29",', 'optional = true, version = "=0.5.29",'))
+        self.run_guard("facility")
+
+    def test_broad_owner_kernel_requirement_fails_before_compile(self):
+        path = self.root / "contracts/crates/workspace-service/Cargo.toml"
+        path.write_text(path.read_text().replace('"=0.3.12"', '"0.3.12"'))
+        result = self.run_guard("facility")
+        self.assertIn("must require =0.3.12", result.stderr)
+        self.assertIn("workspace-service/Cargo.toml", result.stderr)
+
+    def test_owner_requirement_from_another_cohort_fails(self):
+        path = self.root / "plugins/console/Cargo.toml"
+        path.write_text(path.read_text().replace('"=0.3.12"', '"=0.3.13"'))
         self.run_guard("facility")
 
     def test_registry_runtime_fails_even_when_version_matches(self):
