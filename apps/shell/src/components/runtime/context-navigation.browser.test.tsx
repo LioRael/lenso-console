@@ -140,6 +140,16 @@ describe("Context navigation", () => {
     await page.viewport(375, 800);
     try {
       flushSync(() => root?.render(<RouterProvider router={router} />));
+      await expect
+        .element(page.getByRole("button", { name: "Search Console" }))
+        .toBeVisible();
+      expect(
+        page
+          .getByRole("banner", { name: "Console toolbar" })
+          .element()
+          .getBoundingClientRect().height
+      ).toBe(52);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(375);
       await page
         .getByRole("button", { name: "Open workspace navigation" })
         .click();
@@ -189,16 +199,16 @@ describe("Context navigation", () => {
         .element()
         .getBoundingClientRect();
       const toolbarBounds = header.getBoundingClientRect();
-      expect(toolbarSearch.width).toBe(272);
+      expect(toolbarSearch.width).toBe(400);
       expect(toolbarSearch.left + toolbarSearch.width / 2).toBe(
-        toolbarBounds.left + toolbarBounds.width / 2 + 32
+        toolbarBounds.left + toolbarBounds.width / 2
       );
       expect(
         page
           .getByRole("button", { name: "Back", exact: true })
           .element()
           .getBoundingClientRect().height
-      ).toBe(40);
+      ).toBe(32);
     } finally {
       await page.viewport(1280, 800);
     }
@@ -208,6 +218,7 @@ describe("Context navigation", () => {
     if (!container) {
       throw new Error("Browser test container is missing");
     }
+    const onSelect = vi.fn();
     root = createRoot(container);
     flushSync(() => {
       root?.render(
@@ -218,14 +229,21 @@ describe("Context navigation", () => {
                 id: "projects",
                 group: "Workspace",
                 label: "Projects",
-                onSelect: () => undefined,
+                onSelect,
               },
+              ...Array.from({ length: 40 }, (_, index) => ({
+                id: `command-${index}`,
+                group: "Workspace",
+                label: `Command ${index}`,
+                onSelect: () => undefined,
+              })),
             ]}
           />
         </ThemeScope>
       );
     });
     const trigger = page.getByRole("button", { name: "Search Console" });
+    const restingShadow = getComputedStyle(trigger.element()).boxShadow;
     container
       .querySelector<HTMLButtonElement>('button[aria-label="Search Console"]')
       ?.focus();
@@ -236,6 +254,49 @@ describe("Context navigation", () => {
       .toHaveFocus();
     await userEvent.keyboard("{Escape}");
     await expect.element(trigger).toHaveFocus();
+    const focusedStyle = getComputedStyle(trigger.element());
+    expect(
+      focusedStyle.outlineStyle !== "none" ||
+        focusedStyle.boxShadow !== restingShadow
+    ).toBe(true);
+    await trigger.click();
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await expect.element(trigger).toHaveFocus();
+    await userEvent.keyboard("{Control>}k{/Control}");
+    const input = page.getByRole("combobox", { name: "Search Console" });
+    await input.fill("missing destination");
+    await expect
+      .element(page.getByText("No matching destinations."))
+      .toBeVisible();
+    await input.fill("Projects");
+    await expect
+      .element(page.getByRole("option", { name: "Projects Workspace" }))
+      .toBeVisible();
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    expect(onSelect).toHaveBeenCalledOnce();
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(trigger).toHaveFocus();
+    await page.viewport(1024, 400);
+    try {
+      await trigger.click();
+      const dialog = page.getByRole("dialog");
+      await expect.element(dialog).toBeVisible();
+      const last = page.getByRole("option", { name: "Command 39 Workspace" });
+      last.element().scrollIntoView({ block: "end" });
+      await expect
+        .poll(() => {
+          const popupBounds = dialog.element().getBoundingClientRect();
+          const lastBounds = last.element().getBoundingClientRect();
+          return lastBounds.bottom <= popupBounds.bottom;
+        })
+        .toBe(true);
+      const popupBounds = dialog.element().getBoundingClientRect();
+      expect(popupBounds.top).toBeGreaterThanOrEqual(0);
+      expect(popupBounds.bottom).toBeLessThanOrEqual(400);
+      await userEvent.keyboard("{Escape}");
+    } finally {
+      await page.viewport(1280, 800);
+    }
   });
 
   test("keeps both navigation levels aligned and expands content when the sidebar collapses", async () => {
@@ -265,7 +326,7 @@ describe("Context navigation", () => {
     expect(main.getBoundingClientRect().top).toBe(
       header.getBoundingClientRect().bottom
     );
-    expect(header.getBoundingClientRect().height).toBe(48);
+    expect(header.getBoundingClientRect().height).toBe(56);
     expect(
       main.getBoundingClientRect().bottom -
         sidebar.getBoundingClientRect().bottom

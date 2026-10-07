@@ -18,7 +18,7 @@ Search in that order. A raw button or anchor is appropriate for native document 
 
 | UI role | Starting point | What to preserve |
 | --- | --- | --- |
-| Two-level shell and navigation | `apps/shell/src/components/runtime/console-frame.tsx`, `console-navigation-rail.tsx`, `context-navigation.tsx` | Shared 48px toolbar, 56px rail, 248px context sidebar, desktop collapse, mobile focus and close behavior |
+| Two-level shell and navigation | `apps/shell/src/components/runtime/console-frame.tsx`, `console-navigation-rail.tsx`, `context-navigation.tsx` | Shared 56px toolbar (52px below 768px), 56px rail, 248px context sidebar, desktop collapse, mobile focus and close behavior |
 | Plugin sidebar | `apps/shell/src/features/extensions/workspace-sidebar-slot.tsx`; `docs/console-page-contributions.md` | Plugin provider context through the shared slot; one context sidebar |
 | Toolbar, context identity, page heading | `console-header.tsx`, `console-workspace-header.tsx`, `console-page-header.tsx` in `apps/shell/src/components/runtime/` | Separate global history/search, current context selection, and feature title/actions; shared anchors and wrapping |
 | Action / icon-only action | `@lenso/ui/button`, `isIconOnly` | Variant, loading/disabled states, focus, accessible name; all icon-only actions use the primitive's pill radius without local corner overrides |
@@ -37,7 +37,9 @@ Discover other controls from package exports instead of assuming they are absent
 
 `ConsoleFrame` owns the two-level geometry and mobile drawer. `ConsoleHeader` owns global history/search/actions; `ConsoleWorkspaceHeader` owns the context identity and switcher. `ConsoleNavigationRail` owns primary destinations and appearance actions. `ContextNavigationContent`/`Item`/`Section` give feature sidebars common spacing and selection. Page titles and actions use `ConsolePageHeader`.
 
-The desktop toolbar follows Pencil's three regions: equal 360px side regions and a centered 336px address group containing a workspace mark, page icon and 272px context-search trigger. Its global navigation actions use 40px Lenso icon-only buttons. Below 1050px the identity/address group contracts to the icon-only search; action regions must not overlap. Do not position the field independently at 50% of the window: it belongs inside the centered group, whose other identity elements account for its offset.
+The toolbar follows the Lenso UI documentation site's first row: brand/context navigation, a centered search field capped at 400px, and trailing history/actions. Equal flexible side regions keep search centered. The row is 56px high, or 52px below 768px; below that breakpoint search becomes a 36px icon-only action. Desktop icon actions are 32px and mobile actions are 36px, retaining Lenso Button focus and pill geometry. Console's existing rail remains the feature-navigation owner; do not duplicate the documentation site's second-row tabs.
+
+`ConsoleSearch` retains Console-owned destinations and Modal/Autocomplete behavior while matching the documentation site's field tokens and 640px command popup. The popup owns its input separator; the toolbar owns the shell separator. Keep the popup inside short and narrow viewports, with scrollable results, visible keyboard highlighting, Escape/close behavior and focus return. Failure: the old address mark shifts search off center, or the popup clips its results below a short viewport. Acceptance: side regions do not overlap search, and every result remains reachable by keyboard and scrolling.
 
 `Sidebar.Item` already composes Lenso Button directly. Context items use `ghost` when idle and `secondary` when selected, retaining the Button's pill radius and hover surface. Do not nest another Button through `render`, or restore small corner/background overrides in the context-navigation styles. The row's width, height, padding and text alignment remain Console layout concerns.
 

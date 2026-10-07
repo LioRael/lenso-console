@@ -1,8 +1,9 @@
 import { Autocomplete } from "@lenso/ui/autocomplete";
 import { Button } from "@lenso/ui/button";
+import { Kbd } from "@lenso/ui/kbd";
 import { Modal as Dialog } from "@lenso/ui/modal";
 import * as stylex from "@stylexjs/stylex";
-import { ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -26,13 +27,13 @@ export type ConsoleSearchItem = {
 export type ConsoleSearchHandle = { open: () => void };
 
 function subscribeToCompactToolbar(onChange: () => void) {
-  const viewport = window.matchMedia("(max-width: 1050px)");
+  const viewport = window.matchMedia("(max-width: 767px)");
   viewport.addEventListener("change", onChange);
   return () => viewport.removeEventListener("change", onChange);
 }
 
 function isToolbarCompact() {
-  return window.matchMedia("(max-width: 1050px)").matches;
+  return window.matchMedia("(max-width: 767px)").matches;
 }
 
 function serverToolbarCompact() {
@@ -116,19 +117,14 @@ export function ConsoleSearch({
         type="button"
         xstyle={[styles.trigger, !compact && styles.expandedTrigger]}
       >
-        {!label || compact ? <Search aria-hidden="true" size={16} /> : null}
+        <Search aria-hidden="true" size={16} />
         <span {...stylex.props(styles.triggerLabel)}>
-          {label ?? t("Search Console…")}
+          {t("Search Console…")}
         </span>
-        {label ? (
-          <ChevronDown
-            aria-hidden="true"
-            size={12}
-            {...stylex.props(styles.shortcut)}
-          />
-        ) : (
-          <kbd {...stylex.props(styles.shortcut)}>⌘ K</kbd>
-        )}
+        <span aria-hidden="true" {...stylex.props(styles.shortcut)}>
+          <kbd {...stylex.props(styles.shortcutKey)}>⌘</kbd>
+          <kbd {...stylex.props(styles.shortcutKey)}>K</kbd>
+        </span>
       </Button>
       <Dialog.Root
         open={open}
@@ -169,6 +165,12 @@ export function ConsoleSearch({
                       ref={inputRef}
                       xstyle={styles.searchInput}
                     />
+                    <Dialog.Close
+                      aria-label={t("Close")}
+                      render={<Button variant="ghost" size="sm" />}
+                    >
+                      <Kbd>ESC</Kbd>
+                    </Dialog.Close>
                   </Autocomplete.InputGroup>
                   <Autocomplete.List xstyle={styles.results}>
                     {(item: ConsoleSearchItem) => (
@@ -177,7 +179,9 @@ export function ConsoleSearch({
                         value={item}
                         xstyle={styles.result}
                       >
-                        <span>{item.label}</span>
+                        <span {...stylex.props(styles.resultLabel)}>
+                          {item.label}
+                        </span>
                         <span {...stylex.props(styles.group)}>
                           {item.group}
                         </span>

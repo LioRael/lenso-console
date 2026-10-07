@@ -167,6 +167,14 @@ async function fixture({
       }
       requests.push({ path, method: request.method });
       if (withShell) {
+        if (path.endsWith("/locale")) {
+          return Response.json({
+            preference: "global",
+            global_default: "en",
+            can_manage_default: false,
+            available: true,
+          });
+        }
         if (path.endsWith("/session")) {
           return Response.json({ mode: "local" });
         }
