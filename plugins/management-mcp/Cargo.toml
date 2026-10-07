@@ -21,7 +21,7 @@ axum = "0.8"
 http = "1"
 lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
-lenso-capability-management = { path = "../../contracts/crates/lenso-capability-management", version = "0.1.0" }
+lenso-capability-management = { path = "../../contracts/lenso-capability-management", version = "0.1.0" }
 lenso-kernel = "0.3.12"
 rmcp = { version = "=3.5.0", default-features = false, features = [
   "server",

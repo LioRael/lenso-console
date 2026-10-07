@@ -1,0 +1,38 @@
+[package]
+name = "lenso-capability-console-locale-store"
+version = "0.1.0"
+description = "Durable locale preferences role for Lenso Console."
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/LioRael/lenso-console"
+publish = true
+rust-version = "1.94"
+
+[package.metadata.lenso.contract]
+descriptor = "capability.json"
+projection = "rust-runtime"
+output = "src/generated.rs"
+
+[dependencies]
+lenso-guest-sdk = "0.5.1"
+lenso-runtime-codec = "=0.4.4"
+futures = "0.3"
+lenso-contract-runtime = "0.2.0"
+lenso-kernel = "=0.3.12"
+lenso-plugin-authoring = "0.2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[build-dependencies]
+lenso-contract-codegen = "=0.10.2"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"

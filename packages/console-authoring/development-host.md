@@ -6,10 +6,14 @@ using the current native Plugin API should start with
 [the embedding example](../../examples/plugin-host/README.md).
 
 This package contains the Engine CLI, a native Host with Console and Web ingress,
-the embedded Console Shell, Bun, the Console directory compiler, and Console SDK.
+the embedded Console Shell, Bun, the Console directory compiler, and Console SDK
+with its compiler dependencies frozen from the owner's pnpm lockfile.
 Application authors need no Cargo, rustc, Node, pnpm, or local Console checkout.
 Initial page-provider dependency installation uses the npm registry; this is not
 an offline dependency cache. Built App distributions run offline.
+Page compilation uses the installed kit's tools without installing or copying
+another SDK into each App. Registry access belongs to dependency installation,
+not source type checking.
 
 Add this package's `bin` directory to PATH, then run:
 

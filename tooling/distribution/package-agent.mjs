@@ -29,7 +29,7 @@ if (!targets[target] || !binary || !destination) {
   );
 }
 const { version } = JSON.parse(
-  await readFile(join(root, "apps/shell/package.json"))
+  await readFile(join(root, "plugins/console/shell/package.json"))
 );
 const cohort = JSON.parse(
   await readFile(join(root, "tooling/distribution/agent-release.json"))
@@ -48,9 +48,13 @@ await cp(join(root, "LICENSE"), join(platform, "LICENSE"));
 if (!nativeOnly) {
   await cp(resolve(binary), join(platform, "bin/lenso-console-with-agent"));
   await chmod(join(platform, "bin/lenso-console-with-agent"), 0o755);
-  await cp(join(root, "apps/shell/dist/client"), join(platform, "web"), {
-    recursive: true,
-  });
+  await cp(
+    join(root, "plugins/console/shell/dist/client"),
+    join(platform, "web"),
+    {
+      recursive: true,
+    }
+  );
   await readFile(join(platform, "web/index.html"));
 }
 const temporary = await mkdtemp(join(tmpdir(), "lenso-agent-package-"));

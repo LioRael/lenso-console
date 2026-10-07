@@ -107,12 +107,12 @@ impl ObserveWorkspace {
         Box::pin(ready(Ok(Ok(DescribeResponse {
             assets: vec![
                 DescribeResponseAssetsItem {
-                    content_base64: STANDARD.encode(include_bytes!("../workspace.mjs")),
+                    content_base64: STANDARD.encode(include_bytes!("../console/workspace.mjs")),
                     media_type: DescribeResponseAssetsItemMediaType::TextJavascriptCharsetUtf,
                     path: "workspace.mjs".to_owned(),
                 },
                 DescribeResponseAssetsItem {
-                    content_base64: STANDARD.encode(include_bytes!("../workspace.css")),
+                    content_base64: STANDARD.encode(include_bytes!("../console/workspace.css")),
                     media_type: DescribeResponseAssetsItemMediaType::TextCssCharsetUtf,
                     path: "workspace.css".to_owned(),
                 },

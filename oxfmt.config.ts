@@ -14,7 +14,7 @@ export default defineConfig({
     "contracts/**/generated/**",
     "plugins/**/generated/**",
     "packages/**/generated/**",
-    "apps/shell/src/**/generated/**",
+    "plugins/console/shell/src/**/generated/**",
     "plugins/management/crates/lenso-management-http/src/workers/mcp.mjs",
     "contracts/**/schemas/**",
   ],

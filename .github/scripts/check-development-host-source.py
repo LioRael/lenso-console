@@ -25,6 +25,27 @@ def require_source(source, repository, revision, resolved):
         raise ValueError("native framework source differs from qualified Core")
 
 
+def require_owner_versions(core_version):
+    # Cargo patches select a source for a version; a broad normal dependency
+    # may still choose a newer registry version and split public Rust types.
+    expected = {name: "=" + core_version(name) for name in
+                ["lenso", "lenso-kernel", "lenso-runtime-codec", "lenso-native-adapter-macros"]}
+    manifests = [Path("plugins/console/Cargo.toml"),
+                 *sorted(Path("contracts").glob("*/Cargo.toml"))]
+    checked = {}
+    for path in manifests:
+        dependencies = read_toml(path).get("dependencies", {})
+        selected = {name: value for name, value in dependencies.items() if name in expected}
+        for name, value in selected.items():
+            if value != expected[name]:
+                raise ValueError(f"{path}: {name} must require {expected[name]} for the selected "
+                                 f"development Host; available requirement {value!r}. "
+                                 "Align the owner cohort before compiling; a Git producer pin "
+                                 "does not constrain newer registry versions.")
+        checked[str(path)] = selected
+    return checked
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["facility", "runtime"])
@@ -45,6 +66,7 @@ def main():
     args.record.parent.mkdir(parents=True, exist_ok=True)
     args.record.write_text(json.dumps(record, indent=2) + "\n")
     if args.mode == "facility":
+        record["owner_runtime_requirements"] = require_owner_versions(core_version)
         manifest = read_toml(Path("packages/console-support/Cargo.toml"))
         anchor = manifest["dependencies"]["lenso"]
         require_source(f"git+{anchor['git']}?rev={anchor['rev']}", repository, revision, False)

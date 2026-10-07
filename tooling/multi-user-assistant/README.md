@@ -64,7 +64,7 @@ Build the real UI before starting the browser hold:
 
 ```sh
 pnpm install --frozen-lockfile
-cd apps/shell
+cd plugins/console/shell
 VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ pnpm build
 ```
 
@@ -72,7 +72,7 @@ In one terminal, start the same real acceptance services with their UI assets
 and a private evidence directory (from the repository root):
 
 ```sh
-LENSO_ASSISTANT_WEB_ROOT="$PWD/apps/shell/dist/client" \
+LENSO_ASSISTANT_WEB_ROOT="$PWD/plugins/console/shell/dist/client" \
 LENSO_ASSISTANT_UI_EVIDENCE_DIR=/tmp/lenso-assistant-ui \
 ./tooling/multi-user-assistant/run.sh
 ```

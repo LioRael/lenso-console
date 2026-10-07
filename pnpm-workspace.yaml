@@ -1,6 +1,6 @@
 packages:
   - .
-  - apps/shell
+  - plugins/console/shell
   - packages/console-authoring
 
 allowBuilds:

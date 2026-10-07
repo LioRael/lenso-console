@@ -10,7 +10,7 @@ rust-version = "1.94"
 [dependencies]
 futures = "0.3"
 jsonschema = { version = "0.51", default-features = false }
-lenso-capability-management = { path = "../../../../contracts/crates/lenso-capability-management", version = "0.1.0" }
+lenso-capability-management = { path = "../../../../contracts/lenso-capability-management", version = "0.1.0" }
 lenso-kernel = "0.3.12"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

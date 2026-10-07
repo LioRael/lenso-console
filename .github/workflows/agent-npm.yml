@@ -12,7 +12,8 @@ on:
       - "plugins/console/**"
       - "contracts/**"
       - "plugins/**"
-      - "packages/console-runtime/**"
+      - "packages/agent-turn-relay/**"
+      - "packages/local-agent-launcher/**"
       - "apps/**"
       - ".github/workflows/agent-npm.yml"
   workflow_dispatch:

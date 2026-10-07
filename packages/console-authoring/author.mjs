@@ -27,6 +27,42 @@ if (
   console.log(
     `Created ${root}\nRun: lenso-console-author check --entry ${JSON.stringify(root)}`
   );
+} else if (command === "dev" && value("--entry")) {
+  const flags = new Set([
+    "--entry",
+    "--plugin-id",
+    "--port",
+    "--backend",
+    "--examples",
+    "--open",
+  ]);
+  const seen = new Set();
+  for (let index = 0; index < args.length; index += 1) {
+    const flag = args[index];
+    if (!flags.has(flag) || seen.has(flag)) {
+      throw new Error(`Invalid or repeated authoring option: ${flag}`);
+    }
+    seen.add(flag);
+    if (
+      flag !== "--open" &&
+      (!args[(index += 1)] || args[index].startsWith("--"))
+    ) {
+      throw new Error(`Missing authoring option value: ${flag}`);
+    }
+  }
+  const port = Number(value("--port") ?? 5174);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error("Preview port must be an integer between 1024 and 65535");
+  }
+  const { dev } = await import("./dev/launch.mjs");
+  await dev({
+    entry: path.resolve(value("--entry")),
+    pluginId: value("--plugin-id"),
+    port,
+    backendUrl: value("--backend"),
+    examples: value("--examples"),
+    open: seen.has("--open"),
+  });
 } else if (["check", "build"].includes(command) && value("--entry")) {
   const flags = new Set(["--entry", "--out", "--plugin-id", "--version"]);
   const seen = new Set();
@@ -74,7 +110,7 @@ if (
   );
 } else {
   console.error(
-    "Usage: lenso-console-author init <console-directory> [--services] | check/build --entry <console-directory> [--out <directory>] [--plugin-id <id>] [--version <semver>]"
+    "Usage: lenso-console-author init <console-directory> [--services] | check/build --entry <console-directory> [--out <directory>] [--plugin-id <id>] [--version <semver>] | dev --entry <console-directory> [--plugin-id <id>] [--port <port>] [--open] [--examples <browser-module> | --backend <console-url>]"
   );
   process.exit(1);
 }

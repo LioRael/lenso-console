@@ -506,7 +506,7 @@ async fn fixed_auth_instances_only_admit_explicit_operator_workspaces() {
             let mut config = crate::ConsolePluginConfig::defaults();
             config.web_root = lifecycle_root.path().to_str().unwrap().into();
             config.require_user_session = true;
-            config.http_paths = crate::ConsoleHttpPaths {shell_base_path:shell.into(),api_base_path:api.into(),auth_base_path:auth_base.into()};
+            config.http_paths = crate::ConsoleHttpPaths {shell_base_path:shell.into(),api_base_path:api.into(),auth_base_path:auth_base.into(), workspace_sources: Vec::new()};
             config.member_workspace_ids = if operator {vec![]} else {vec!["user".into()]};
             if operator {
                 config.operators_profile = Some(OperatorsProfile {deployment:"alpha".into(),issuer:"operators".into(),public_key:ActorAssertionIssuer::from_signing_key("operators",[8;32]).public_key_base64(),max_assertion_ttl_seconds:300,human_interface:false,management_enabled:false,administrator_workspace_ids:vec!["admin".into()]});
@@ -562,7 +562,7 @@ async fn fixed_auth_instances_only_admit_explicit_operator_workspaces() {
         admin.operators_profile.as_mut().unwrap().administrator_workspace_ids.push(id.into());
         let mut config = crate::ConsolePluginConfig::defaults();
         config.web_root = root.path().to_str().unwrap().into();
-        config.http_paths = crate::ConsoleHttpPaths {shell_base_path:"/admin".into(),api_base_path:"/admin/api".into(),auth_base_path:"/auth/operator".into()};
+        config.http_paths = crate::ConsoleHttpPaths {shell_base_path:"/admin".into(),api_base_path:"/admin/api".into(),auth_base_path:"/auth/operator".into(), workspace_sources: Vec::new()};
         let admin_application = crate::console_application(crate::ConsoleConfig::from_plugin(&config).unwrap(),catalog.clone());
         let request = |path:String| lenso_capability_http_endpoint::HandleRequest {route_id:"console.api.get".into(),request_id:"fixed-auth-fixture".into(),method:"GET".into(),path,path_parameters:vec![],query:None,headers:vec![],credential:Some(lenso_capability_http_endpoint::HandleRequestCredential {scheme:"session".into(),value:"alice".into()}),body:Vec::new().into()};
         let response = crate::lenso_http::buffered(admin_application.clone(),admin.clone(),context(),request(format!("/admin{module}"))).await.unwrap();
@@ -574,7 +574,7 @@ async fn fixed_auth_instances_only_admit_explicit_operator_workspaces() {
         assert_eq!(factory.auth_calls.get(),calls);
         let response = crate::lenso_http::buffered(admin_application.clone(),admin.clone(),context(),request("/admin/api/console/v1/pages/unspecified/assets/file/page.mjs".into())).await.unwrap();
         assert_eq!(response.status,403);
-        config.http_paths = crate::ConsoleHttpPaths {shell_base_path:"/console".into(),api_base_path:"/console/api".into(),auth_base_path:"/auth".into()};
+        config.http_paths = crate::ConsoleHttpPaths {shell_base_path:"/console".into(),api_base_path:"/console/api".into(),auth_base_path:"/auth".into(), workspace_sources: Vec::new()};
         let user_application = crate::console_application(crate::ConsoleConfig::from_plugin(&config).unwrap(),catalog);
         let response = crate::lenso_http::buffered(user_application,user.clone(),context(),request(format!("/console{module}"))).await.unwrap();
         assert_eq!(response.status,403);

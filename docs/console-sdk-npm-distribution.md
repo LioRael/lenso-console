@@ -1,21 +1,24 @@
 # Console SDK npm distribution
 
-`packages/console-authoring` is the owner package `@lenso/console-sdk`. Its first
-publication candidate remains `0.1.0`; preparing it does not upgrade an App,
-Console's Rust dependency graph, the Agent cohort or any contract versions.
-The scoped-read SDK and workspace compiler sources match Console
-`b8a26b8616212cf651e8803aba0e16775dbdb104` and landed main
-`8d165735828e744bc86bf93746ce31242db229b5` byte for byte. Package metadata adds
-the public compiler export and the source repository needed for provenance.
+`packages/console-authoring` owns `@lenso/console-sdk`. Public `0.2.0` contains
+the SDK and compiler, but **does not contain the Shell export**. The next reviewed
+release adds the owner-built Shell to the same archive; preparing this candidate
+with unchanged package metadata does not make that release publicly installable.
+The existing immutable `0.2.0` must never be overwritten.
 
 ## Consumer contract
 
-After publication, declare `"@lenso/console-sdk": "0.1.0"` and generate the
-App's ordinary dependency lock. Resolve `@lenso/console-sdk/compiler` from the
+Declare the released SDK version and generate the App's ordinary dependency lock.
+Resolve `@lenso/console-sdk/compiler` from the
 package owning that dependency using Node `createRequire`, and run the resolved
 file with Bun. The existing `lenso.convention-compile.v1` stdin request and
 `lenso.convention-compiled.v1` stdout response are unchanged. The archive contains
 `src`, the compiler's sibling modules and `router.ts`, scaffold and service example.
+The next release also contains `shell/index.html` and all owner-built static assets.
+Resolve `@lenso/console-sdk/shell` using the same dependency-owning `createRequire`,
+then pass its directory as `LENSO_CONSOLE_SHELL_ROOT` when embedding Console.
+An explicitly supplied Shell directory remains supported. Compiler and Shell now
+share one package version and archive; Apps do not build the owner frontend.
 It needs neither a Console checkout nor a portable Plugin package.
 
 This compiler is an executable entry, not a JavaScript function to import into
@@ -37,12 +40,16 @@ The preparation job has read-only repository permission and no publishing token.
 Local equivalent:
 
 ```sh
+pnpm install --frozen-lockfile
+pnpm sdk:prepare
+node --test tooling/distribution/sdk-shell.test.mjs
 mkdir -p /tmp/console-sdk-candidate
 npm pack ./packages/console-authoring --ignore-scripts --pack-destination /tmp/console-sdk-candidate
-LENSO_AUTHOR_ARCHIVE=/tmp/console-sdk-candidate/lenso-console-sdk-0.1.0.tgz bun test packages/console-authoring/compiler/test/consumer.test.mjs
+LENSO_AUTHOR_ARCHIVE=/tmp/console-sdk-candidate/lenso-console-sdk-0.2.0.tgz bun test packages/console-authoring/compiler/test/consumer.test.mjs
 ```
 
-The archive is a validation artifact; until npm exposes this version, an App
+The Shell archive is a validation artifact; until npm exposes a new version with
+this export, an App
 cannot replace its source copy with a registry version and claim the migration
 is complete. Installing this candidate tarball proves package readiness, not
 registry availability or a released Host's compatibility.

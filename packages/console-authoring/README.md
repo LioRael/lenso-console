@@ -14,6 +14,11 @@ registry access on first installation; application source compilation uses the
 installed authoring tools. No Console checkout, Cargo or Git patches are needed
 for this page compilation path.
 
+Both npm and Bun's isolated installation layout are supported. The compiler
+resolves its own declared tools; it never installs dependencies or creates a
+second tool cache in the application's generated output. Install the App's
+locked dependencies once before compilation.
+
 ```sh
 bun install --ignore-scripts /tmp/console-sdk.tgz
 bun run lenso-console-author init console
@@ -33,7 +38,7 @@ Page compilation alone does not prove compatibility with a released Engine Host.
 ## Compiler package entry
 
 After the owner publishes this candidate, ordinary Apps can pin
-`@lenso/console-sdk` at `0.1.0` in their normal dependency manifest and lockfile.
+the new `@lenso/console-sdk` release in their normal dependency manifest and lockfile.
 The public `@lenso/console-sdk/compiler` entry resolves to the existing Bun
 compiler; it is an executable stdin/stdout protocol, not an importable function:
 
@@ -219,9 +224,10 @@ closure. Rust `console-support` remains a separate native Host build boundary,
 not a second page authoring SDK. Shell UI, optional assistant/MCP and domain
 contracts keep their independent lifecycle/security boundaries.
 
-The repository now separates application and provider ownership: `apps/shell`
+The repository now separates application and provider ownership: `plugins/console/shell`
 owns the browser application, `apps/reference-host` owns executable composition,
-`plugins/console` owns the Console provider, and `packages/console-runtime` owns
+`plugins/console` owns the Console provider, and `packages/agent-turn-relay` and
+`packages/local-agent-launcher` own
 private process/stream support. `tooling` owns validation and distribution. Root
 commands forward to the Shell owner. The tracked root directory set is `apps`,
 `contracts`, `plugins`, `packages`, `examples`, `tooling`, `docs`, `.agents`,
@@ -288,3 +294,83 @@ The server, account preference, permission checks, initial HTML locale and
 migration responsibilities are described in `docs/console-locale.md` in the
 Console repository. A compatible SDK release and Shell are required together;
 this changeset does not publish either one.
+
+### Shell assets
+
+The next SDK release includes the owner-built Shell in the compiler archive.
+Public `0.2.0` has no Shell export. After installing the new release, resolve:
+
+```js
+const shellRoot = path.dirname(require.resolve("@lenso/console-sdk/shell"));
+```
+
+Pass this absolute directory as `LENSO_CONSOLE_SHELL_ROOT` for embedded Rust
+Console builds. Source maintainers stage the assets with `pnpm sdk:prepare`
+before packing; App consumers only install the SDK. An explicit custom Shell
+root remains supported.
+
+## Develop one plugin page
+
+Install the SDK and the dependencies your pages import in the plugin's own
+`package.json`. Node 22.18+ and Bun 1.4.2+ are required; Rust, a database and a
+Console source checkout are unnecessary. The SDK archive includes the official
+Console Shell preview source and its Vite/React/StyleX dependency closure.
+
+```sh
+cd plugins/orders
+npm install --save-dev @lenso/console-sdk
+npm install react@19.2.8 react-dom@19.2.8 @lenso/ui @stylexjs/stylex
+./node_modules/.bin/lenso-console-author dev --entry ./console --open
+```
+
+The same installed executable works after `pnpm install` or `bun install`.
+`--entry`, `--plugin-id` and the existing `workspace.ts` / `page.tsx` / layout,
+loading, error and not-found declarations retain their existing meanings. There
+is no additional project configuration language. Use `--plugin-id` when the
+workspace has no explicit ID. `--port` defaults to 5174, binds only 127.0.0.1,
+and fails if occupied. `--open` opens the local URL. Ctrl+C closes the Vite
+listener, watchers and its Node child.
+
+Page-only component and StyleX edits use Fast Refresh and retain compatible
+React state. Changing workspace metadata, adding/removing routes, changing
+component exports or hook signatures may reload/remount. Compilation errors
+appear in Vite's overlay; rendering failures use the official Console extension
+error boundary. Service implementations and `@lenso/console-sdk/server` cannot
+be imported into browser pages.
+
+UI preview is visibly marked **example data only**. Unconfigured service calls
+fail explicitly. For data pages, pass an author-owned browser module that exports
+an explicit `WorkspaceServices` implementation (it may reject unsupported
+operations):
+
+```sh
+./node_modules/.bin/lenso-console-author dev --entry ./console --examples ./examples.ts
+```
+
+`examples.ts` is inside the plugin directory and is never inferred from server
+`services.ts`; it runs in the browser. It is a development input and is not added
+to production plugin output.
+
+To render local pages against an already compatible Console backend:
+
+```sh
+./node_modules/.bin/lenso-console-author dev --entry ./console --backend http://127.0.0.1:8787/console/
+```
+
+Supply the backend's Console URL. It must expose its normal public
+`lenso-console-http-paths` bootstrap. The preview follows those fixed Shell/API/
+Auth paths, reads the normal authenticated catalog and replaces only matching
+plugin page implementations. A backend must admit the same page identity;
+unavailable/unauthorized pages do not become locally authorized pages. Services
+keep the backend's owner, revision, implementation and expected-subject headers.
+Sign in through the normal Console UI; do not copy tokens. The backend must
+explicitly trust the preview origin and use browser-compatible cookies. The
+proxy preserves Origin, cookies, CSRF and permission failures, never changes
+Origin or synthesizes credentials, and rejects foreign-origin writes. Redirects
+and Secure/Domain cookie policies remain the backend's policy. `--backend` and
+`--examples` are mutually exclusive.
+
+`check` and `build` remain the production validation/artifact commands. The
+preview server and Vite client are not included in their generated plugin output
+or in the production Shell assets. SDK release staging runs `pnpm sdk:prepare`;
+normal consumers use the complete published archive, not repository aliases.

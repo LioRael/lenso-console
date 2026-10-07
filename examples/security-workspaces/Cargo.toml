@@ -57,8 +57,8 @@ lenso-audit-log-postgres-plugin = { path = "../../../lenso-audit-log-plugin/crat
 lenso-capability-access-control = { path = "../../../lenso-access-control-plugin/crates/lenso-capability-access-control" }
 lenso-capability-access-control-directory = { path = "../../../lenso-access-control-plugin/crates/lenso-capability-access-control-directory" }
 lenso-capability-audit-log = { path = "../../../lenso-audit-log-plugin/crates/lenso-capability-audit-log" }
-lenso-capability-ui-contribution = { path = "../../contracts/crates/lenso-capability-ui-contribution" }
-lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service" }
+lenso-capability-ui-contribution = { path = "../../contracts/lenso-capability-ui-contribution" }
+lenso-capability-workspace-service = { path = "../../contracts/lenso-capability-workspace-service" }
 lenso-secrets-env-plugin = "=0.1.7"
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
@@ -85,9 +85,9 @@ lenso-capability-managed-session = { path = "../../../lenso-auth-plugin/crates/l
 lenso-capability-secrets = "=0.1.4"
 
 [patch."https://github.com/LioRael/lenso-console"]
-lenso-capability-ui-contribution = { path = "../../contracts/crates/lenso-capability-ui-contribution" }
-lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service" }
-lenso-capability-ui-global-contribution = { path = "../../contracts/crates/lenso-capability-ui-global-contribution" }
+lenso-capability-ui-contribution = { path = "../../contracts/lenso-capability-ui-contribution" }
+lenso-capability-workspace-service = { path = "../../contracts/lenso-capability-workspace-service" }
+lenso-capability-ui-global-contribution = { path = "../../contracts/lenso-capability-ui-global-contribution" }
 
 [patch."https://github.com/LioRael/lenso-auth-plugin"]
 lenso-auth-sdk = { path = "../../../lenso-auth-plugin/crates/lenso-auth-sdk" }

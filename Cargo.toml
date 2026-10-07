@@ -6,12 +6,12 @@ members = [
   "apps/reference-host",
   "plugins/console/tests/fixtures/welcome-workspace-plugin",
   "plugins/console/tests/fixtures/password-session-consumer",
-  "contracts/crates/lenso-capability-ui-contribution",
-  "contracts/crates/lenso-capability-ui-global-contribution",
-  "contracts/crates/lenso-capability-workspace-service",
-  "contracts/crates/lenso-capability-console-locale-store",
-  "contracts/crates/lenso-capability-management",
-  "contracts/crates/lenso-capability-management-human",
+  "contracts/lenso-capability-ui-contribution",
+  "contracts/lenso-capability-ui-global-contribution",
+  "contracts/lenso-capability-workspace-service",
+  "contracts/lenso-capability-console-locale-store",
+  "contracts/lenso-capability-management",
+  "contracts/lenso-capability-management-human",
   "plugins/observe",
   "plugins/assistant",
   "plugins/agent-ai-adapter",
@@ -20,8 +20,8 @@ members = [
   "plugins/management/crates/lenso-management-authority",
   "plugins/management/crates/lenso-management-http",
   "plugins/management-mcp",
-  "packages/console-runtime/agent-turn-relay",
-  "packages/console-runtime/local-agent-launcher",
+  "packages/agent-turn-relay",
+  "packages/local-agent-launcher",
   "examples/plugin-host",
 ]
 default-members = ["plugins/console", "apps/reference-host"]
@@ -41,5 +41,5 @@ lenso-capability-access-control-admin = { git = "https://github.com/LioRael/lens
 lenso-capability-access-control-directory = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "94b6d06cff1e6f17a06e771df232f662cae28ad5" }
 
 [patch."https://github.com/LioRael/lenso-console"]
-lenso-capability-ui-contribution = { path = "contracts/crates/lenso-capability-ui-contribution" }
-lenso-capability-workspace-service = { path = "contracts/crates/lenso-capability-workspace-service" }
+lenso-capability-ui-contribution = { path = "contracts/lenso-capability-ui-contribution" }
+lenso-capability-workspace-service = { path = "contracts/lenso-capability-workspace-service" }

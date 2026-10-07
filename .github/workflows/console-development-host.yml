@@ -93,7 +93,7 @@ jobs:
         env:
           CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
         run: |
-          node tooling/package-development-host.mjs --engine-host "$CORE_PRODUCER" --host-distribution .artifacts/seed --out .artifacts/development-host
+          node tooling/distribution/package-development-host.mjs --engine-host "$CORE_PRODUCER" --host-distribution .artifacts/seed --out .artifacts/development-host
           python3 .github/scripts/check-development-host-source.py runtime --core ../core --seed .artifacts/seed --kit .artifacts/development-host --record .artifacts/native-runtime-sources.json
           git diff --exit-code
           node --input-type=module <<'NODE'

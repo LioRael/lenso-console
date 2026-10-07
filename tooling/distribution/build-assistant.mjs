@@ -5,25 +5,34 @@ import stylex from "@stylexjs/unplugin/vite";
 import { build } from "vite";
 
 const root = resolve(import.meta.dirname, "../..");
-const out = resolve(root, "plugins/assistant/web/dist");
+const out = resolve(root, "plugins/assistant/console/dist");
 const adapters = new Map(
   [
-    ["apps/shell/src/app/console-session", "@lenso/console-sdk/session"],
-    ["apps/shell/src/app/console-locale", "@lenso/console-sdk/locale"],
     [
-      "apps/shell/src/features/agent/agent-identity-context",
+      "plugins/console/shell/src/app/console-session",
+      "@lenso/console-sdk/session",
+    ],
+    [
+      "plugins/console/shell/src/app/console-locale",
+      "@lenso/console-sdk/locale",
+    ],
+    [
+      "plugins/console/shell/src/features/agent/agent-identity-context",
       "@lenso/console-sdk/agent-target",
     ],
     [
-      "apps/shell/src/features/agent/agent-quick-panel-context",
+      "plugins/console/shell/src/features/agent/agent-quick-panel-context",
       "@lenso/console-sdk/assistant",
     ],
     [
-      "apps/shell/src/features/agent/use-agent-draft",
+      "plugins/console/shell/src/features/agent/use-agent-draft",
       "@lenso/console-sdk/drafts",
     ],
-    ["apps/shell/src/lib/http-client", "@lenso/console-sdk/http"],
-    ["apps/shell/src/lib/session-fetch", "@lenso/console-sdk/session-http"],
+    ["plugins/console/shell/src/lib/http-client", "@lenso/console-sdk/http"],
+    [
+      "plugins/console/shell/src/lib/session-fetch",
+      "@lenso/console-sdk/session-http",
+    ],
   ].map(([file, name]) => [resolve(root, file), name])
 );
 const shared = [
@@ -40,7 +49,7 @@ await build({
     emptyOutDir: true,
     lib: {
       cssFileName: "assistant",
-      entry: resolve(root, "plugins/assistant/web/entry.tsx"),
+      entry: resolve(root, "plugins/assistant/console/entry.tsx"),
       fileName: () => "assistant.cjs",
       formats: ["cjs"],
     },

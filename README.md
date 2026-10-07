@@ -163,10 +163,13 @@ must first provide identity and authorization as reviewed vNext Plugins.
 ## Architecture
 
 The repository root owns workspace commands and dependency coordination.
-`apps/shell` owns the browser application and its package version; `apps/reference-host`
+`plugins/console/shell` owns the browser application and its package version; `apps/reference-host`
 owns executable composition. `plugins` owns providers, `contracts` owns public
 contracts, `packages` owns authoring and private runtime support, and `tooling`
 owns checks and distribution assembly. Root commands forward to these owners.
+
+See [repository layout](docs/repository-layout.md) for directory ownership,
+ordinary SDK preview, and the migration map.
 
 Console Plugin defaults are declared once in `plugins/console/config.defaults.json`.
 The descriptor and `ConsolePluginConfig::defaults()` project that same source.
@@ -179,20 +182,20 @@ Hosts still supply deployment paths and explicitly select authority and provider
 - `contracts`: independently built UI Contribution and Workspace Service
   contracts with generated Rust and TypeScript projections.
 - `plugins/observe`: independently built Observe provider and its query contract.
-- `packages/console-runtime/agent-turn-relay`: detachable Agent streams, transient activity and
+- `packages/agent-turn-relay`: detachable Agent streams, transient activity and
   bounded browser queues, independent of Shell and Lenso implementation packages.
-- `packages/console-runtime/local-agent-launcher`: directory registration, portable Home seeding
+- `packages/local-agent-launcher`: directory registration, portable Home seeding
   and child-process supervision without Console or HTTP dependencies.
 - `plugins/console/tests/fixtures/welcome-workspace-plugin`: an explicitly selected
   Host integration fixture, absent from production binaries.
 - Projects Workspace implementation and assets belong to the separate
   `lenso-projects-web-plugin` repository. See [ADR-0010](docs/adr/0010-separate-console-shell-from-app-assembly.md)
   for reproducible source composition and the enforced dependency boundaries.
-- `apps/shell/src/routes`: Agent, Plugins, and Settings routes.
-- `apps/shell/src/features/agent`: Agent conversation, trajectory, history, editing, and
+- `plugins/console/shell/src/routes`: Agent, Plugins, and Settings routes.
+- `plugins/console/shell/src/features/agent`: Agent conversation, trajectory, history, editing, and
   ask-user UI.
-- `apps/shell/src/features/plugins`: installed Plugin inventory for the current App.
-- `apps/shell/src/features/settings`: local Console and Agent policy settings.
+- `plugins/console/shell/src/features/plugins`: installed Plugin inventory for the current App.
+- `plugins/console/shell/src/features/settings`: local Console and Agent policy settings.
 
 System Registry, Runtime Story, Surface Gateway, generic managed-Service,
 PostgreSQL migration, worker, deployment-recovery, and dynamic Console Module

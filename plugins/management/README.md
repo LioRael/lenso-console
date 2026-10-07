@@ -6,7 +6,7 @@ model provider or implicit activation. Domain Plugins own operation behavior,
 resource rules, transactions and commit receipts. Auth, Access Control, Approval
 and Audit keep their own facts.
 
-`contracts/crates/lenso-capability-management` owns the source-first
+`contracts/lenso-capability-management` owns the source-first
 `lenso.management@1` contract. Its `catalog`, `invoke` and `status` projections
 are generated for Rust and TypeScript. Callers cannot supply a deployment URL,
 subject, permission or approval flag. A Host accepts exact `Binding` entries;

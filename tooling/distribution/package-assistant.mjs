@@ -9,7 +9,7 @@ if (!assetsRoot || !destination) {
   );
 }
 const { version } = JSON.parse(
-  await readFile(join(root, "apps/shell/package.json"))
+  await readFile(join(root, "plugins/console/shell/package.json"))
 );
 const assets = JSON.parse(
   await readFile(join(resolve(assetsRoot), "assets.json"))

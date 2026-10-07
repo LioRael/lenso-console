@@ -35,7 +35,7 @@ for (const [testCase, name] of [
   );
 }
 const assets = new URL(
-  "../../../apps/shell/dist/client/assets/",
+  "../../../plugins/console/shell/dist/client/assets/",
   import.meta.url
 );
 const filenames = await readdir(assets);

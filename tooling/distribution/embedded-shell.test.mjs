@@ -74,6 +74,22 @@ fn main() { ${body} }`
     );
     assert.equal(result.stdout, "<main>external Shell</main>");
 
+    const localAssets = join(plugin, "shell", "dist", "client");
+    await mkdir(localAssets, { recursive: true });
+    await writeFile(
+      join(localAssets, "index.html"),
+      "<main>Plugin-owned Shell</main>"
+    );
+    const local = run({ CARGO_FEATURE_EMBEDDED_SHELL: "1" });
+    assert.equal(local.status, 0, local.stderr);
+    assert.ok(
+      local.stdout.includes("cargo:rerun-if-changed=shell/dist/client")
+    );
+    const localResult = await compileAndRunProbe(
+      'assert_eq!(EMBEDDED_SHELL.len(), 1); print!("{}", std::str::from_utf8(EMBEDDED_SHELL[0].1).unwrap());'
+    );
+    assert.equal(localResult.stdout, "<main>Plugin-owned Shell</main>");
+
     const disabled = run({ LENSO_CONSOLE_SHELL_ROOT: "unused-relative-path" });
     assert.equal(disabled.status, 0, disabled.stderr);
     await compileAndRunProbe("assert!(EMBEDDED_SHELL.is_empty());");

@@ -44,7 +44,9 @@ test("assistant assets stage independently with an exact native Agent dependency
     );
     assert.equal(staged.status, 0, staged.stderr);
     const manifest = JSON.parse(await readFile(join(output, "package.json")));
-    const { version } = JSON.parse(await readFile("apps/shell/package.json"));
+    const { version } = JSON.parse(
+      await readFile("plugins/console/shell/package.json")
+    );
     assert.equal(manifest.name, "@lenso/console-assistant");
     assert.deepEqual(manifest.dependencies, { "@lenso/agent-native": version });
     const packageFiles = await readdir(output);
@@ -183,9 +185,9 @@ test("native Agent stages the verified native command closure without Console fi
     await cp("packages/agent", join(temp, "packages/agent"), {
       recursive: true,
     });
-    await mkdir(join(temp, "apps/shell"), { recursive: true });
+    await mkdir(join(temp, "plugins/console/shell"), { recursive: true });
     await writeFile(
-      join(temp, "apps/shell/package.json"),
+      join(temp, "plugins/console/shell/package.json"),
       JSON.stringify({ version: "1.20.0" })
     );
     await writeFile(join(temp, "LICENSE"), "Fixture license");

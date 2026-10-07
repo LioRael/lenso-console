@@ -17,7 +17,7 @@ export const packageConsole = async (target, binary, webRoot, destination) => {
   }
   await readFile(join(resolve(webRoot), "index.html"));
   const { version } = JSON.parse(
-    await readFile(join(root, "apps/shell/package.json"))
+    await readFile(join(root, "plugins/console/shell/package.json"))
   );
   const output = resolve(destination);
   const platform = join(output, `console-${target}`);

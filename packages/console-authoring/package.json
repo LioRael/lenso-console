@@ -20,7 +20,9 @@
     "author.mjs",
     "README.md",
     "development-host.md",
-    "LICENSE"
+    "LICENSE",
+    "shell",
+    "dev"
   ],
   "type": "module",
   "exports": {
@@ -31,7 +33,8 @@
     "./client": "./src/client.ts",
     "./compiler": "./compiler/compiler.mjs",
     "./locale": "./src/locale.ts",
-    "./i18n": "./src/i18n.ts"
+    "./i18n": "./src/i18n.ts",
+    "./shell": "./shell/index.html"
   },
   "publishConfig": {
     "access": "public"
@@ -40,15 +43,46 @@
     "check": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module preserve --moduleResolution bundler --skipLibCheck src/*.ts src/generated/*.ts"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
+    "@gsap/react": "^2.1.2",
     "@lenso/contract-runtime": "0.3.1",
+    "@lenso/tokens": "0.9.0",
+    "@lenso/ui": "0.9.0",
+    "@streamdown/cjk": "^1.0.3",
+    "@stylexjs/stylex": "0.19.1",
+    "@stylexjs/unplugin": "0.19.0",
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-router": "^1.170.21",
+    "@tanstack/react-start": "^1.168.38",
+    "@tiptap/extension-placeholder": "^3.31.3",
+    "@tiptap/extension-table": "^3.31.3",
+    "@tiptap/extension-task-item": "^3.31.3",
+    "@tiptap/extension-task-list": "^3.31.3",
+    "@tiptap/markdown": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "@types/bun": "1.4.0",
     "@types/react": "19.2.18",
-    "typescript": "7.0.2"
+    "@vitejs/plugin-react": "^6.0.5",
+    "gsap": "^3.15.0",
+    "ky": "^2.0.2",
+    "lucide-react": "^1.28.0",
+    "react-dom": "19.2.8",
+    "smol-toml": "^1.8.0",
+    "streamdown": "^2.6.0",
+    "typescript": "7.0.2",
+    "use-sync-external-store": "1.6.0",
+    "vite": "^8.2.0"
   },
-  "devDependencies": {
-    "react-dom": "^19.2.8"
-  },
+  "devDependencies": {},
   "peerDependencies": {
     "react": "^19.0.0"
+  },
+  "engines": {
+    "bun": ">=1.4.2",
+    "node": ">=22.18.0"
   }
 }

@@ -18,7 +18,7 @@ base64 = "0.22"
 lenso = "0.5.29"
 lenso-kernel = "0.3.12"
 lenso-native-adapter-macros = "=0.2.9"
-lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service" }
+lenso-capability-workspace-service = { path = "../../contracts/lenso-capability-workspace-service" }
 lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 lenso-capability-credential-state = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 reqwest = { version = "0.12", default-features = false, features = [

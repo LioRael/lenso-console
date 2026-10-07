@@ -17,7 +17,9 @@ mod session;
 mod workspace_paths;
 mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
-pub use http_paths::ConsoleHttpPaths;
+pub use http_paths::{
+    ConsoleHttpPaths, WorkspaceNavigationCheck, WorkspaceSource, WorkspaceSourceMount,
+};
 #[cfg(not(target_arch = "wasm32"))]
 pub use projects::LocalProjects;
 pub use session::{AssistantAccessPolicy, AssistantPermission};
@@ -868,6 +870,26 @@ impl ConsoleApplication {
             builder = builder
                 .header(header::CACHE_CONTROL, "no-store")
                 .header(header::VARY, "Accept-Language");
+        } else if path
+            .parent()
+            .is_some_and(|parent| parent.ends_with("assets"))
+            && path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .is_some_and(|stem| {
+                    let bytes = stem.as_bytes();
+                    bytes.len() > 9
+                        && bytes[bytes.len() - 9] == b'-'
+                        && bytes[bytes.len() - 8..]
+                            .iter()
+                            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+                })
+        {
+            // Only public, content-named Shell assets use immutable caching.
+            // Workspace contributions retain their separate session admission.
+            builder = builder.header(header::CACHE_CONTROL, "public, max-age=31536000, immutable");
+        } else {
+            builder = builder.header(header::CACHE_CONTROL, "no-cache");
         }
         builder
             .header(header::CONTENT_TYPE, http::content_type(path))
@@ -1220,10 +1242,8 @@ impl ConsoleConfig {
             Err(std::env::VarError::NotPresent) => Vec::new(),
             Err(error) => return Err(error.into()),
         };
-        let web_root = std::env::var_os("CONSOLE_WEB_ROOT").map_or_else(
-            || manifest.join("../../apps/shell/dist/client"),
-            PathBuf::from,
-        );
+        let web_root = std::env::var_os("CONSOLE_WEB_ROOT")
+            .map_or_else(|| manifest.join("shell/dist/client"), PathBuf::from);
         let managed_app_connections = match std::env::var("LENSO_CONSOLE_MANAGED_APPS") {
             Ok(value) => serde_json::from_str::<Vec<ManagedAppConnection>>(&value)?,
             Err(std::env::VarError::NotPresent) => Vec::new(),
@@ -2233,6 +2253,7 @@ mod tests {
                 shell_base_path: shell.into(),
                 api_base_path: api.into(),
                 auth_base_path: auth.into(),
+                workspace_sources: Vec::new(),
             };
             let console = inactive_console(config.clone());
             let routes = console

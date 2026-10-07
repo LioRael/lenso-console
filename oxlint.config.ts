@@ -16,18 +16,18 @@ export default defineConfig({
     "contracts/**/generated/**",
     "plugins/**/generated/**",
     "packages/**/generated/**",
-    "apps/shell/src/**/generated/**",
+    "plugins/console/shell/src/**/generated/**",
     "plugins/management/crates/lenso-management-http/src/workers/mcp.mjs",
   ],
   overrides: [
     {
       files: [
-        "apps/shell/src/**/*.{ts,tsx}",
+        "plugins/console/shell/src/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx,mjs}",
         "plugins/management/workers-mcp/*.mjs",
         "plugins/management/crates/lenso-management-core/src/workers/*.mjs",
         "examples/**/*.{ts,tsx}",
-        "apps/shell/vite.config.ts",
+        "plugins/console/shell/vite.config.ts",
       ],
       rules: {
         "class-methods-use-this": "off",

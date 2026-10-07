@@ -24,8 +24,8 @@ lenso = "0.5.29"
 lenso-native-adapter-macros = "=0.2.9"
 lenso-capability-observability-query = { path = "crates/lenso-capability-observability-query", version = "0.1.0" }
 lenso-capability-http-stream-endpoint = "0.1.4"
-lenso-capability-ui-contribution = { path = "../../contracts/crates/lenso-capability-ui-contribution", version = "0.1.0" }
-lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service", version = "0.1.0" }
+lenso-capability-ui-contribution = { path = "../../contracts/lenso-capability-ui-contribution", version = "0.1.0" }
+lenso-capability-workspace-service = { path = "../../contracts/lenso-capability-workspace-service", version = "0.1.0" }
 lenso-kernel = "0.3.12"
 opentelemetry-proto = { version = "0.32.0", default-features = false, features = [
   "gen-tonic-messages",

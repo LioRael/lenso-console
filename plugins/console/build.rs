@@ -9,7 +9,7 @@ fn main() {
     let mut files = Vec::new();
     if env::var_os("CARGO_FEATURE_EMBEDDED_SHELL").is_some() {
         let root = env::var_os("LENSO_CONSOLE_SHELL_ROOT").map_or_else(
-            || PathBuf::from("../../apps/shell/dist/client"),
+            || PathBuf::from("shell/dist/client"),
             |value| {
                 let root = PathBuf::from(value);
                 assert!(
@@ -68,11 +68,11 @@ fn collect(root: &Path, directory: &Path, files: &mut Vec<(String, String)>) {
 // The frontend's generated route table remains the only owner of built-in URLs.
 // Its splat belongs to the admitted workspace catalog, not a blanket HTML fallback.
 fn shell_routes() -> String {
-    let source = Path::new("../../apps/shell/src/routeTree.gen.ts");
+    let source = Path::new("shell/src/routeTree.gen.ts");
     println!("cargo:rerun-if-changed={}", source.display());
     // Compile the tracked frontend manifest with this build script. Cargo
     // consumers may execute it from another directory with external assets.
-    let tree = include_str!("../../apps/shell/src/routeTree.gen.ts");
+    let tree = include_str!("shell/src/routeTree.gen.ts");
     let routes = tree
         .split_once("export interface FileRoutesByFullPath {")
         .and_then(|(_, routes)| routes.split_once('}'))

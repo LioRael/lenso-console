@@ -80,7 +80,7 @@ lenso_console_plugin::link();
 
 The reference distribution lives in `apps/reference-host`. It owns the `lenso-console` and `lenso-console-with-agent` binaries, concrete Plugin dependencies, Host Catalog, listener configuration and Kernel lifecycle. `ConsoleAppConfig` contains an explicit `shell: ConsoleConfig`; Rust embedders import `start_host` and `serve_host` from `lenso_console_app`. The Shell crate can be checked independently with `cargo check --manifest-path plugins/console/Cargo.toml -p lenso-console-plugin --lib` from the repository root. See [ADR-0010](../../docs/adr/0010-separate-console-shell-from-app-assembly.md) for the enforced ownership and reproducible App composition.
 
-Local directory registration, Home seeding and subprocess supervision live in the independent [local Agent launcher](../../packages/console-runtime/local-agent-launcher/README.md). Shell supplies its Agent protocol client and retains HTTP admission and proxy translation. The independent [Agent turn relay](../../packages/console-runtime/agent-turn-relay/README.md) owns stream detachment, bounded browser queues and transient activity. The launcher has no Console, Lenso or HTTP dependencies; local directories are unrelated to Projects Issue records.
+Local directory registration, Home seeding and subprocess supervision live in the independent [local Agent launcher](../../packages/local-agent-launcher/README.md). Shell supplies its Agent protocol client and retains HTTP admission and proxy translation. The independent [Agent turn relay](../../packages/agent-turn-relay/README.md) owns stream detachment, bounded browser queues and transient activity. The launcher has no Console, Lenso or HTTP dependencies; local directories are unrelated to Projects Issue records.
 
 Workspace packages link in the App. The reference App makes linked Workspace packages available, but activation comes from explicit App defaults or Plugin Root configuration. It binds selected `lenso.ui.contribution@1` providers to Console through the immutable Plan. Welcome is a dev-only fixture and is absent from production binaries. The launcher does not scan frontend directories to discover production Workspaces.
 
@@ -121,7 +121,7 @@ pnpm install --frozen-lockfile
 pnpm service:web-build
 ```
 
-Set `CONSOLE_SOURCE_SHA` to the same immutable 40-character revision used by the Rust dependency. When building the consuming Host, set `LENSO_CONSOLE_SHELL_ROOT` to that checkout's absolute `apps/shell/dist/client` path. The build script embeds those assets without writing to Cargo's Git cache; it requires `index.html` and regular files, rejects symlink entries, and tracks the asset directory and environment variable for rebuilds. Without an override, repository builds still use `apps/shell/dist/client`.
+Set `CONSOLE_SOURCE_SHA` to the same immutable 40-character revision used by the Rust dependency. When building the consuming Host, set `LENSO_CONSOLE_SHELL_ROOT` to that checkout's absolute `plugins/console/shell/dist/client` path. The build script embeds those assets without writing to Cargo's Git cache; it requires `index.html` and regular files, rejects symlink entries, and tracks the asset directory and environment variable for rebuilds. Without an override, repository builds still use `plugins/console/shell/dist/client`.
 
 Alternatively, leave `embedded-shell` disabled and configure `web_root` with the built Shell directory; the Host then serves those files at runtime.
 

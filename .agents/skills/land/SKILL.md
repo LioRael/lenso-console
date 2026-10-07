@@ -78,7 +78,7 @@ from that procedure, rather than replacing it.
 
 - Use the exact Node version in `.node-version`, pnpm version in
   `package.json#packageManager`, and Rust version in `rust-toolchain.toml`.
-  `tooling/check-environment.mjs` enforces these versions. Inspect actual
+  `tooling/checks/check-environment.mjs` enforces these versions. Inspect actual
   versions instead of assuming executable availability proves compatibility.
   If suitable tools are unavailable, report the concrete blocker; do not
   silently substitute a different version or modify global tool configuration.
@@ -91,15 +91,15 @@ from that procedure, rather than replacing it.
     `package.json` scripts. Choose applicable focused checks.
   - `pnpm test:browser src/components/runtime/context-navigation.browser.test.tsx`:
     `package.json#scripts.test:browser` forwards to
-    `apps/shell/package.json#scripts.test:browser`, whose Vitest invocation
+    `plugins/console/shell/package.json#scripts.test:browser`, whose Vitest invocation
     accepts the file filter. Other browser changes need their relevant tests.
-  - `pnpm check`: `package.json#scripts.check` invokes `tooling/check.mjs`,
+  - `pnpm check`: `package.json#scripts.check` invokes `tooling/checks/check.mjs`,
     which runs preflight, installs pinned Chromium, then runs `check:full`.
     `RUSTUP_TOOLCHAIN=nightly-2026-10-04 pnpm check` is the documented override for the
     checked-in toolchain; recheck `rust-toolchain.toml` before using it.
 - Keep diagnostic evidence distinct from the required gate. An alternate
   browser executable may be used for focused diagnostics but is rejected by
-  `tooling/check.mjs`; preflight alone, synthetic distribution fixtures and
+  `tooling/checks/check.mjs`; preflight alone, synthetic distribution fixtures and
   macOS results do not replace the complete Linux candidate proof.
 - Confirm checks exercised the final source revision and inspect the working
   tree afterward for generated or external changes. Review and commit any

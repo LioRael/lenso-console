@@ -53,8 +53,8 @@ under `/api/lenso/v1`. An existing Agent receives it under its established
 cursor, and streaming responses retain their existing semantics.
 
 Generic targets must implement the existing inventory/management/configuration
-wire contracts defined in `apps/shell/src/features/plugins/plugin-control-contract.ts` and
-the golden fixture in `apps/shell/src/features/plugins/__fixtures__/`. Those payloads still
+wire contracts defined in `plugins/console/shell/src/features/plugins/plugin-control-contract.ts` and
+the golden fixture in `plugins/console/shell/src/features/plugins/__fixtures__/`. Those payloads still
 use their legacy `lenso.agent.*` schema names. Generic connections support Plugin
 inventory, configuration proposals/publications/rollback, enabled selection,
 instance removal, and operation observation. The proxy is not an arbitrary HTTP
