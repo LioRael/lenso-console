@@ -80,6 +80,7 @@ test(
             "@lenso/console": backend,
             "@lenso/console-sdk": sdk,
             ...frameworkArtifacts,
+            "drizzle-orm": "0.45.3",
             react: "19.2.8",
             typescript: "7.0.2",
             zod: "4.6.5",
