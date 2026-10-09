@@ -38,7 +38,8 @@ contributor authorship and the Issue link.
 ## Focused validation
 
 Choose the smallest checks that prove the changed behavior. For Console code,
-use the relevant scripts from `package.json`; common focused checks are:
+use the current root and affected package scripts. Console's runtime is the
+TypeScript plugin, not the retired native Host. Common Shell checks are:
 
 ```sh
 pnpm format:check
@@ -46,33 +47,50 @@ pnpm lint
 pnpm typecheck
 pnpm test:local
 pnpm build:local
-pnpm service:boundary
 ```
 
-Browser, distribution, and Rust checks are required when their area changes.
-Do not claim that local checks cover platform CI; record skipped checks and
-limitations in the Issue. Workflow, executable script, and dependency changes
-receive focused syntax/configuration checks and the upstream candidate gate.
+For backend changes, run the Console package's typecheck, tests and build.
+For SDK changes, run its compile and focused transport/authoring checks.
+For packaging changes, consume the actual built archives in a clean external
+application, checking declarations and browser/server import boundaries.
+Read the current manifests for the exact commands; a script name alone does not
+prove it validates the TS implementation.
+
+Browser checks are required for changed interactive surfaces. Backend tests
+must exercise real Fetch/oRPC/Auth/Manage calls, instance isolation and applicable
+write safeguards. Use only disposable test-owned data. Record skipped checks
+and limitations; local results do not cover platform CI. Workflow, executable
+script and dependency changes receive focused review and the upstream candidate gate.
 
 ### Shared local and CI gate
 
-Install Node from `.node-version`, pnpm from `packageManager`, and the checked-in
-Rust toolchain, then run `pnpm install --frozen-lockfile` and `pnpm check`.
-Remove conflicting Rust overrides or use
-`RUSTUP_TOOLCHAIN=nightly-2026-10-04 pnpm check`. Dated nightly builds are checked
-against the installed Rust manifest; an alias is accepted only for that same build.
-The gate logs the SHA and tool versions, then runs app typechecking and the
-independent Console Descriptor/default-tool assertions before installing
-Chromium. Playwright's exact version pins the browser revision. CI calls this
-same entrypoint; its Linux browser dependency installation still follows
-preflight. A focused command or `check:preflight` alone is not the full gate.
+Use Node from `.node-version`, pnpm from `packageManager`, and Bun according to
+the affected manifests and any exact CI pin. Inspect the workflow and the
+complete command chain before running the shared gate.
 
-The full gate includes `pnpm check:distribution:real`: the existing packager
-downloads checksum-pinned Agent release binaries and the native smoke consumes
-real npm archives in an empty workspace with its own Home, npm cache/config and
-runtime PATH. This is read-only and never publishes. For focused distribution
-work, run that command with an optional evidence-file argument. Existing
-`test:distribution` synthetic fixtures remain useful but do not replace it.
+Dependencies must resolve with `pnpm install --frozen-lockfile` in a clean
+candidate checkout. Prefer a compatible published TS package set. Unpublished
+framework dependencies require immutable source revisions and reviewed,
+reproducible archive/workspace preparation available to CI, including transitive
+resolutions. Ignored local archives or a dirty sibling checkout do not establish
+candidate readiness.
+
+The current preparation is `node tooling/distribution/prepare-ts-framework.mjs`,
+run before installation. It fetches the revision recorded in
+`tooling/distribution/framework-source.json` and uses Bun from `.bun-version`.
+CI runs that same preparation and frozen installation sequence.
+
+The shared local and CI gate must cover the TS plugin, SDK and Shell, including
+actual archive consumption and pinned-browser validation where applicable. The
+gate records the source SHA and tool versions; the Linux candidate run remains
+authoritative. A focused check or preflight alone is not the complete gate.
+
+Migration check: existing scripts and CI may still contain Rust/Cargo validation,
+native Host or Agent binary steps. These are retired Console requirements.
+If the current gate still invokes them, migrate the pipeline before landing
+rather than installing the old stack, skipping required checks or weakening
+branch protection. In particular, verify the implementation of `pnpm check`
+before treating it as the shared TS gate.
 
 Browser fixtures retain real StyleX CSS loading, content-type and geometry
 assertions, plus the existing file-level isolation. Run
@@ -115,6 +133,6 @@ git fetch origin main && git rev-parse origin/main
 Untrusted workflow or executable-script changes are reviewed before a
 maintainer runs them with upstream credentials. Candidate validation never
 receives publishing credentials. Landing is separate from releases: this guide
-does not authorize npm/Cargo publication, version bumps, tags, releases,
+does not authorize package publication, version bumps, tags, releases,
 deployment, or other registry writes. Those remain explicit, separately
 controlled maintainer operations.

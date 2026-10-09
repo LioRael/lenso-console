@@ -67,6 +67,7 @@ export function pageMountScopeKey(
     mount.owner.instance,
     mount.subject,
     mount.revision,
+    mount.protocol ?? "workspace-http/1",
     mount.implementationId ?? mount.module,
     mount.requirements,
     mount.transport?.sourceId,

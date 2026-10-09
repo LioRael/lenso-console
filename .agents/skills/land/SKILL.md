@@ -1,7 +1,7 @@
 ---
 name: land
 description: >-
-  Land changes in Lenso Console using its reviewed immutable candidate workflow.
+  Land TypeScript Lenso Console changes using its reviewed immutable candidate workflow.
   Invoke only when the user explicitly requests landing or merging the relevant
   changes, not for review, preparation, successful checks, or skill installation.
 metadata:
@@ -74,33 +74,36 @@ from that procedure, rather than replacing it.
   before using upstream credentials. The contribution guide owns that review
   requirement; record what was reviewed and any remaining limits.
 
-### Verification prerequisites and evidence
+### TypeScript verification and evidence
 
-- Use the exact Node version in `.node-version`, pnpm version in
-  `package.json#packageManager`, and Rust version in `rust-toolchain.toml`.
-  `tooling/checks/check-environment.mjs` enforces these versions. Inspect actual
-  versions instead of assuming executable availability proves compatibility.
-  If suitable tools are unavailable, report the concrete blocker; do not
-  silently substitute a different version or modify global tool configuration.
-- Run the contribution guide's focused validation for the changed areas and
-  its shared local gate. The authoritative definitions are:
-  - `pnpm install --frozen-lockfile`: `.github/workflows/ci.yml`, dependency
-    installation step, with `pnpm-lock.yaml`.
-  - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test:local`,
-    `pnpm build:local`, and `pnpm service:boundary`: the identically named
-    `package.json` scripts. Choose applicable focused checks.
-  - `pnpm test:browser src/components/runtime/context-navigation.browser.test.tsx`:
-    `package.json#scripts.test:browser` forwards to
-    `plugins/console/shell/package.json#scripts.test:browser`, whose Vitest invocation
-    accepts the file filter. Other browser changes need their relevant tests.
-  - `pnpm check`: `package.json#scripts.check` invokes `tooling/checks/check.mjs`,
-    which runs preflight, installs pinned Chromium, then runs `check:full`.
-    `RUSTUP_TOOLCHAIN=nightly-2026-10-04 pnpm check` is the documented override for the
-    checked-in toolchain; recheck `rust-toolchain.toml` before using it.
-- Keep diagnostic evidence distinct from the required gate. An alternate
-  browser executable may be used for focused diagnostics but is rejected by
-  `tooling/checks/check.mjs`; preflight alone, synthetic distribution fixtures and
-  macOS results do not replace the complete Linux candidate proof.
+- Read the current root and affected package manifests, lockfile and
+  `.github/workflows/ci.yml` before choosing checks. Use Node from `.node-version`,
+  pnpm from `package.json#packageManager`, and a Bun version satisfying the
+  affected packages and any exact CI pin. Inspect the installed versions;
+  unavailable tools are blockers, not permission to change global configuration.
+- Console is a TypeScript plugin and SDK. Use the contribution guide's checks
+  for backend/Auth/Manage, browser SDK, Shell and packaging according to the diff.
+  Inspect their actual scripts and imported tool configuration before running
+  them; a scoped lint command must apply the repository's existing overrides.
+- Establish dependency reproducibility before installation. Prefer compatible
+  published TS packages. If a candidate depends on unpublished framework changes,
+  record their immutable source revision and provide a reviewed archive/workspace
+  preparation that works in a clean candidate checkout and CI. Include transitive
+  resolutions; ignored local archives and a dirty framework patch are not CI
+  evidence. Installing dependencies must preserve the committed lockfile.
+- The required local and candidate gates must validate the TS runtime. If current
+  scripts or CI still invoke retired Rust/Cargo checks, native launchers or Agent
+  binary downloads, report the stale pipeline as a blocker and have it migrated
+  under the appropriate scope. Do not install the retired stack to satisfy it,
+  silently skip required checks, or weaken destination protection.
+- Exercise the real Fetch/oRPC/Auth/Manage boundary and exact instance bindings
+  when backend behavior changes. SDK or packaging changes need a built archive
+  consumed outside source aliases, including declaration and browser import
+  boundaries. Only use disposable test-owned data for write checks.
+- Keep focused diagnostics distinct from the full gate. Browser changes need
+  actual browser evidence with the repository-pinned Playwright revision.
+  Unit fixtures, preflight alone and macOS results do not replace the required
+  successful Linux candidate proof.
 - Confirm checks exercised the final source revision and inspect the working
   tree afterward for generated or external changes. Review and commit any
   intended changes, then rerun affected checks before publishing. Unrelated

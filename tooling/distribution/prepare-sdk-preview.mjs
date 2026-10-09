@@ -109,8 +109,8 @@ export const preparePreview = (repo, sdk) => {
           }`;
           text = replaceOnce(
             text,
-            "  const requestSignal = (signal?: AbortSignal) => {",
-            "  if (isUiPreview) return exampleServices(lifetime);\n  const requestSignal = (signal?: AbortSignal) => {"
+            '  if (mount.protocol !== "lenso-console-rpc/2") {',
+            '  if (isUiPreview) return exampleServices(lifetime);\n  if (mount.protocol !== "lenso-console-rpc/2") {'
           );
         }
         if (name === "app/console-session.tsx") {

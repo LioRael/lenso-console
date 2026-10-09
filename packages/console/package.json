@@ -2,29 +2,53 @@
   "name": "@lenso/console",
   "version": "1.5.2",
   "private": true,
-  "description": "Run the Lenso Console Host without installing Agent.",
+  "description": "Optional Console plugin for TypeScript Lenso applications.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/LioRael/lenso-console.git",
     "directory": "packages/console"
   },
-  "bin": {
-    "lenso-console": "bin/lenso-console.mjs"
-  },
   "files": [
-    "bin",
+    "dist",
     "README.md"
   ],
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "default": "./dist/auth.js"
+    }
+  },
   "publishConfig": {
     "access": "public"
   },
-  "optionalDependencies": {
-    "@lenso/console-darwin-arm64": "1.5.2",
-    "@lenso/console-linux-x64": "1.5.2"
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test test"
+  },
+  "dependencies": {
+    "@lenso/auth": "0.2.0",
+    "@lenso/console-sdk": "workspace:*",
+    "@lenso/core": "0.2.0",
+    "@lenso/engine": "0.2.0",
+    "@lenso/manage": "0.2.0",
+    "@orpc/server": "2.0.0-beta.42",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@orpc/client": "2.0.0-beta.42",
+    "@types/bun": "1.4.2",
+    "tsdown": "0.22.14",
+    "typescript": "7.0.2"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "bun": ">=1.4.2",
+    "node": ">=22.18.0"
   }
 }

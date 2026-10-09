@@ -46,6 +46,7 @@ function workspaceRouteConflicts(mount: PageMount, basePath: string): boolean {
 export type PageMount = {
   transport?: WorkspaceSourceTransport;
   apiMajor: 1;
+  protocol?: "lenso-console-rpc/2" | "workspace-http/1";
   id: string;
   basePath?: string;
   access?: "member" | "administrator";
@@ -60,7 +61,7 @@ export type PageMount = {
   };
   owner: {
     instance: string;
-    source: "development-filesystem" | "resolved-plan";
+    source: "application" | "development-filesystem" | "resolved-plan";
     trusted: boolean;
   };
   requirements: readonly {
@@ -210,6 +211,9 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       !validSubject(candidate.subject) ||
       !("apiMajor" in candidate) ||
       candidate.apiMajor !== 1 ||
+      ("protocol" in candidate &&
+        candidate.protocol !== "lenso-console-rpc/2" &&
+        candidate.protocol !== "workspace-http/1") ||
       !("module" in candidate) ||
       typeof candidate.module !== "string" ||
       !isMountAssetUrl(candidate.module, candidate.id) ||
@@ -339,11 +343,13 @@ function validOwner(value: unknown): value is PageMount["owner"] {
     typeof value.instance === "string" &&
     !!value.instance.trim() &&
     "source" in value &&
-    (value.source === "resolved-plan" ||
+    (value.source === "application" ||
+      value.source === "resolved-plan" ||
       value.source === "development-filesystem") &&
     "trusted" in value &&
     typeof value.trusted === "boolean" &&
-    value.trusted === (value.source === "resolved-plan")
+    value.trusted ===
+      (value.source === "application" || value.source === "resolved-plan")
   );
 }
 

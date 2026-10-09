@@ -1,19 +1,19 @@
+import { implement, ORPCError } from "@orpc/server";
+import { RPCHandler } from "@orpc/server/fetch";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { consoleContract } from "../../../../../../packages/console-authoring/src/protocol";
 import type { PageMount } from "./page-contribution-catalog";
 import { createWorkspaceServices } from "./workspace-service-client";
 
 const mount: PageMount = {
   apiMajor: 1,
+  protocol: "lenso-console-rpc/2",
   id: "welcome",
-  module:
-    "/api/console/v1/pages/welcome/assets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/workspace.mjs",
+  implementationId: "a".repeat(64),
+  module: `/api/console/v1/pages/welcome/assets/${"a".repeat(64)}/workspace.mjs`,
   navigation: { items: [], label: "Welcome" },
-  owner: {
-    instance: "welcome/default",
-    source: "resolved-plan",
-    trusted: true,
-  },
+  owner: { instance: "welcome/default", source: "application", trusted: true },
   requirements: [
     {
       available: true,
@@ -30,6 +30,37 @@ const mount: PageMount = {
   subject: { kind: "console" },
   title: "Welcome",
 };
+
+function rpcFetch(
+  handle: (input: {
+    mountId: string;
+    service: string;
+    operation: string;
+    input: unknown;
+  }) => unknown = (input) => input.input,
+  prefix: `/${string}` = "/api/console/v2/rpc"
+) {
+  const handler = new RPCHandler(
+    {
+      workspace: {
+        invoke: implement(consoleContract.workspace.invoke).handler(
+          ({ input }) => handle(input)
+        ),
+      },
+    },
+    { errorStatusMap: { WORKSPACE_SERVICE_DOMAIN_ERROR: 422 } }
+  );
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(
+      new URL(String(input), "https://console.test"),
+      init
+    );
+    const result = await handler.handle(request, { prefix, context: {} });
+    return result.matched
+      ? result.response
+      : new Response(null, { status: 404 });
+  });
+}
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -56,98 +87,97 @@ describe("Workspace service client", () => {
     vi.stubGlobal("document", {
       cookie: "__Host-account-csrf=account; __Host-operator-csrf=operator",
     });
-    const fetch = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    const fetch = rpcFetch(() => ({ ok: true }), "/admin/api/console/v2/rpc");
     vi.stubGlobal("fetch", fetch);
     const services = createWorkspaceServices(
       { ...mount, transport },
       undefined,
       "account-a"
     );
-    await services.invoke("welcome", "greet", {});
+    await expect(services.invoke("welcome", "greet", {})).resolves.toEqual({
+      ok: true,
+    });
     const [url, options] = fetch.mock.calls[0]!;
-    expect(url).toBe(
-      "/admin/api/console/v1/pages/welcome/services/welcome/invoke/greet"
+    expect(new URL(String(url), "https://console.test").pathname).toBe(
+      "/admin/api/console/v2/rpc/workspace/invoke"
     );
-    expect(new Headers(options.headers).get("x-lenso-expected-subject")).toBe(
+    expect(new Headers(options?.headers).get("x-lenso-expected-subject")).toBe(
       "operator-a"
     );
-    expect(new Headers(options.headers).get("x-csrf-token")).toBe("operator");
+    expect(new Headers(options?.headers).get("x-csrf-token")).toBe("operator");
     fetch.mockResolvedValue(Response.json({}, { status: 403 }));
     await expect(services.invoke("welcome", "greet", {})).rejects.toBeDefined();
     expect(retire).toHaveBeenCalledOnce();
     fetch.mockClear();
-    await expect(services.invoke("welcome", "greet", {})).rejects.toBeDefined();
+    await expect(services.invoke("welcome", "greet", {})).rejects.toMatchObject(
+      { name: "AbortError" }
+    );
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("invokes only a service declared by its mount", async () => {
-    const fetch = vi.fn().mockResolvedValue(
-      Response.json(
-        { message: "Hello" },
-        {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        }
-      )
-    );
-    vi.stubGlobal("fetch", fetch);
-    await expect(
-      createWorkspaceServices(mount).invoke("welcome", "greet", {
-        name: "Console",
-      })
-    ).resolves.toEqual({ message: "Hello" });
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/console/v1/pages/welcome/services/welcome/invoke/greet",
-      expect.objectContaining({ method: "POST" })
-    );
-  });
 
-  it("rejects undeclared operations before HTTP dispatch", async () => {
-    const fetch = vi.fn();
+  it("invokes only an operation admitted by its mount over the real RPC protocol", async () => {
+    const input = { name: "你好 🌍" };
+    const dispatch = vi.fn((value) => value.input);
+    const fetch = rpcFetch(dispatch);
     vi.stubGlobal("fetch", fetch);
+    const services = createWorkspaceServices(mount, undefined, "actor-a");
+    await expect(services.invoke("welcome", "greet", input)).resolves.toEqual(
+      input
+    );
+    expect(dispatch).toHaveBeenCalledWith({
+      mountId: "welcome",
+      service: "welcome",
+      operation: "greet",
+      input,
+    });
+    const [, options] = fetch.mock.calls[0]!;
+    const headers = new Headers(options?.headers);
+    expect(headers.get("x-lenso-page-owner")).toBe(mount.owner.instance);
+    expect(headers.get("x-lenso-page-revision")).toBe(mount.revision);
+    expect(headers.get("x-lenso-page-implementation")).toBe(
+      mount.implementationId
+    );
+    expect(headers.get("x-lenso-expected-subject")).toBe("actor-a");
     await expect(
-      createWorkspaceServices(mount).invoke("welcome", "delete", {})
+      services.invoke("welcome", "delete", {})
     ).rejects.toMatchObject({
       code: "workspace_service_unavailable",
     });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("rejects oversized UTF-8 JSON before HTTP dispatch", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    await expect(
+      createWorkspaceServices(mount).invoke("welcome", "greet", {
+        text: "你".repeat(350_000),
+      })
+    ).rejects.toMatchObject({
+      code: "workspace_service_request_too_large",
+      status: 413,
+    });
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("decodes bounded SSE items and terminal success", async () => {
-    const payload = btoa(JSON.stringify({ tick: 0 }))
-      .replaceAll("+", "-")
-      .replaceAll("/", "_")
-      .replaceAll("=", "");
-    const body = new ReadableStream({
-      start(controller) {
-        controller.enqueue(
-          new TextEncoder().encode(
-            `event: item\ndata: {"sequence":"0","outcome":"item","bodyBase64Url":"${payload}"}\n\nevent: terminal\ndata: {"outcome":"success"}\n\n`
-          )
-        );
-        controller.close();
-      },
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(body, {
-          headers: { "content-type": "text/event-stream" },
-          status: 200,
-        })
-      )
-    );
-    const items: unknown[] = [];
-    for await (const item of createWorkspaceServices(mount).subscribe(
+  it("explicitly rejects streams without dispatching or pretending success", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const stream = createWorkspaceServices(mount).subscribe(
       "welcome",
       "ticks",
-      { count: 1 }
-    )) {
-      items.push(item);
-    }
-    expect(items).toEqual([{ tick: 0 }]);
+      {}
+    );
+    const iterator = stream[Symbol.asyncIterator]();
+    await expect(iterator.next()).rejects.toMatchObject({
+      code: "workspace_service_streaming_unsupported",
+      status: 501,
+      message: "Console v2 Manage does not support workspace service streaming",
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("passes mount cancellation to an outstanding request", async () => {
+  it("passes caller cancellation to an outstanding request", async () => {
     const fetch = vi.fn(
       (_input: RequestInfo | URL, init?: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {
@@ -160,38 +190,39 @@ describe("Workspace service client", () => {
     );
     vi.stubGlobal("fetch", fetch);
     const controller = new AbortController();
-    const invocation = createWorkspaceServices(mount).invoke(
+    const pending = createWorkspaceServices(mount).invoke(
       "welcome",
       "greet",
       {},
       { signal: controller.signal }
     );
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
     controller.abort();
-    await expect(invocation).rejects.toMatchObject({ name: "AbortError" });
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
 
-  it("rejects a late response from a retired mount even if fetch ignores cancellation", async () => {
-    let finish!: (response: Response) => void;
-    const fetch = vi
-      .fn()
-      .mockImplementationOnce(
-        () =>
-          new Promise<Response>((resolve) => {
-            finish = resolve;
-          })
-      )
-      .mockResolvedValueOnce(Response.json({ instance: "beta" }));
+  it("discards a late response after a mount switch even when fetch ignores cancellation", async () => {
+    let finish!: () => void;
+    const realFetch = rpcFetch((input) => ({ instance: input.mountId }));
+    const fetch = rpcFetch((input) => ({ instance: input.mountId }));
+    fetch.mockImplementationOnce(async (url, init) => {
+      const response = await realFetch(url, init);
+      return new Promise((resolve) => {
+        finish = () => resolve(response);
+      });
+    });
     vi.stubGlobal("fetch", fetch);
-    const alpha = new AbortController();
+    const lifetime = new AbortController();
     const caller = new AbortController();
-    const old = createWorkspaceServices(mount, alpha.signal);
+    const old = createWorkspaceServices(mount, lifetime.signal);
     const pending = old.invoke(
       "welcome",
       "greet",
       {},
       { signal: caller.signal }
     );
-    alpha.abort();
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    lifetime.abort();
     await expect(
       createWorkspaceServices({
         ...mount,
@@ -199,76 +230,58 @@ describe("Workspace service client", () => {
         owner: { ...mount.owner, instance: "welcome/beta" },
       }).invoke("welcome", "greet", {})
     ).resolves.toEqual({ instance: "beta" });
-    finish(Response.json({ instance: "alpha" }));
+    finish();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     await expect(old.invoke("welcome", "greet", {})).rejects.toMatchObject({
       name: "AbortError",
     });
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(fetch.mock.calls[1]).toEqual([
-      "/api/console/v1/pages/beta/services/welcome/invoke/greet",
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          "x-lenso-page-owner": "welcome/beta",
-        }),
-        cache: "no-store",
-      }),
-    ]);
+    expect(
+      new Headers(fetch.mock.calls[1]?.[1]?.headers).get("x-lenso-page-owner")
+    ).toBe("welcome/beta");
   });
 
-  it("cancels an idle stream reader when the mount retires", async () => {
-    const cancel = vi.fn();
-    const body = new ReadableStream({ cancel });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
-    const controller = new AbortController();
-    const source = createWorkspaceServices(mount, controller.signal).subscribe(
-      "welcome",
-      "ticks",
-      {}
-    );
-    const stream = source[Symbol.asyncIterator]();
-    const pending = stream.next();
-    await vi.waitFor(() => expect(body.locked).toBe(true));
-    controller.abort();
-    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    expect(cancel).toHaveBeenCalledOnce();
-  });
-
-  // Fetch may finish before cancellation while body decoding is still pending.
-  // The transport-level late-response test cannot exercise this second boundary.
-  it.each([
-    ["invoke", 422, true],
-    ["invoke", 409, false],
-    ["subscribe", 409, false],
-  ] as const)(
-    "cancels a retired %s failure while decoding status %i (domain=%s)",
-    async (kind, status, domain) => {
-      let finish!: (body: unknown) => void;
-      const response = new Response(null, {
-        status,
-        headers: domain ? { "x-lenso-workspace-outcome": "domain_error" } : {},
+  // The response can arrive before retirement while decoding remains pending.
+  it.each(["CONFLICT", "WORKSPACE_SERVICE_DOMAIN_ERROR"] as const)(
+    "discards a retired %s failure during body decoding",
+    async (code) => {
+      const realFetch = rpcFetch(() => {
+        throw new ORPCError(code, {
+          data:
+            code === "CONFLICT" ? undefined : { payload: { error: "denied" } },
+        });
       });
-      const decode = vi.spyOn(response, "json").mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            finish = resolve;
-          })
+      let finish!: () => void;
+      let pendingResponse: Response | undefined;
+      const fetch = vi.fn(
+        async (url: RequestInfo | URL, init?: RequestInit) => {
+          const response = await realFetch(url, init);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          pendingResponse = new Response(
+            new ReadableStream({
+              start(controller) {
+                finish = () => {
+                  controller.enqueue(bytes);
+                  controller.close();
+                };
+              },
+            }),
+            { status: response.status, headers: response.headers }
+          );
+          return pendingResponse;
+        }
       );
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+      vi.stubGlobal("fetch", fetch);
       const controller = new AbortController();
-      const services = createWorkspaceServices(mount, controller.signal);
-      const stream = services.subscribe("welcome", "ticks", {});
-      const pending =
-        kind === "invoke"
-          ? services.invoke("welcome", "greet", {})
-          : stream[Symbol.asyncIterator]().next();
-      const rejected = expect(pending).rejects.toMatchObject({
-        name: "AbortError",
-      });
-      await vi.waitFor(() => expect(decode).toHaveBeenCalledOnce());
+      const pending = createWorkspaceServices(mount, controller.signal).invoke(
+        "welcome",
+        "greet",
+        {}
+      );
+      await vi.waitFor(() => expect(pendingResponse?.bodyUsed).toBe(true));
       controller.abort();
-      finish({ code: "old_instance_failure" });
-      await rejected;
+      finish();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     }
   );
 
@@ -278,12 +291,14 @@ describe("Workspace service client", () => {
       vi.fn().mockResolvedValue(
         new Response("not-json", {
           headers: { "content-type": "application/json" },
-          status: 200,
         })
       )
     );
     await expect(
       createWorkspaceServices(mount).invoke("welcome", "greet", {})
-    ).rejects.toMatchObject({ code: "workspace_service_protocol_error" });
+    ).rejects.toMatchObject({
+      code: "workspace_service_protocol_error",
+      status: 502,
+    });
   });
 });

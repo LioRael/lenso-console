@@ -35,28 +35,54 @@ describe("parsePageCatalog", () => {
       })
     ).toThrow("malformed");
   });
-  it("accepts an admitted Console mount", () => {
-    expect(
-      parsePageCatalog({
-        schema: "console.page-catalog/1",
-        mounts: [
-          {
-            ...ownership,
-            apiMajor: 1,
-            id: "observe",
-            module: `${observeAssets}/page.mjs`,
-            navigation: {
-              items: [{ label: "Home", path: [] }],
-              label: "Observe",
+  it.each([
+    ["application", true],
+    ["resolved-plan", true],
+    ["development-filesystem", false],
+  ] as const)(
+    "accepts an admitted Console mount from %s with trust %s",
+    (source, trusted) => {
+      expect(
+        parsePageCatalog({
+          schema: "console.page-catalog/1",
+          mounts: [
+            {
+              ...ownership,
+              owner: { ...ownership.owner, source, trusted },
+              apiMajor: 1,
+              id: "observe",
+              module: `${observeAssets}/page.mjs`,
+              navigation: {
+                items: [{ label: "Home", path: [] }],
+                label: "Observe",
+              },
+              styles: [`${observeAssets}/page.css`],
+              subject: { kind: "console" },
+              title: "Observe",
             },
-            styles: [`${observeAssets}/page.css`],
-            subject: { kind: "console" },
-            title: "Observe",
-          },
-        ],
-      })
-    ).toHaveLength(1);
-  });
+          ],
+        })
+      ).toHaveLength(1);
+      expect(() =>
+        parsePageCatalog({
+          schema: "console.page-catalog/1",
+          mounts: [
+            {
+              ...ownership,
+              owner: { ...ownership.owner, source, trusted: !trusted },
+              apiMajor: 1,
+              id: "observe",
+              module: `${observeAssets}/page.mjs`,
+              navigation: { items: [], label: "Observe" },
+              styles: [],
+              subject: { kind: "console" },
+              title: "Observe",
+            },
+          ],
+        })
+      ).toThrow("malformed");
+    }
+  );
 
   it("rejects duplicate mounts and arbitrary module origins", () => {
     const mount = {
