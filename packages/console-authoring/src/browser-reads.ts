@@ -1,19 +1,19 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
+import { ConsoleQueryClient } from "./browser-query-client";
 import {
   freezeReadSnapshot,
   snapshotReadValue,
   type WorkspaceReadOptions,
   type WorkspaceReads,
-} from "../src/read";
+} from "./read";
 import {
   deriveReadRefreshState,
   resolveReadRefreshPolicy,
   type ReadRefreshPolicy,
-} from "../src/read-refresh";
-import { WorkspaceServiceError } from "../src/transport";
-import { ConsoleQueryClient } from "./shell/lib/console-query-client";
+} from "./read-refresh";
+import { WorkspaceServiceError } from "./transport";
 
 function isReadDenied(error: unknown): error is WorkspaceServiceError {
   return error instanceof WorkspaceServiceError && error.status === 403;

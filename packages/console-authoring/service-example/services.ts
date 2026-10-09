@@ -6,6 +6,7 @@ export default defineServices({
     version: "1.0.0",
     operations: {
       read: operation({
+        effect: "read",
         parse(value: unknown) {
           if (
             typeof value !== "object" ||

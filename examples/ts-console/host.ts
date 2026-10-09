@@ -10,6 +10,7 @@ import { defineApp, definePlugin } from "@lenso/core";
 import { createWebPlugin } from "@lenso/web";
 import { createBunListenerPlugin } from "@lenso/web/bun";
 
+import { createAuthorizationMount } from "./authorization-mount";
 import type { HostConfiguration } from "./configuration";
 import {
   createLocalAuthentication,
@@ -65,6 +66,9 @@ export async function createHost(config: HostConfiguration) {
         tenantId: localScope.id,
         plugins: [authorization.plugin, locale],
         manage: [authorization.manage],
+        mounts: [
+          await createAuthorizationMount(authorization, config.apiBasePath),
+        ],
       },
     ],
     binding: (_operation, _input, request, identity, resource) => ({

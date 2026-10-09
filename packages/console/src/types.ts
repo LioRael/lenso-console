@@ -1,4 +1,5 @@
 import type { Actor } from "@lenso/auth";
+import type { ConsolePageAuthoringDescriptor } from "@lenso/console-sdk/protocol";
 import type {
   ConfigBinding,
   Plugin,
@@ -41,39 +42,7 @@ export interface ConsoleAuthentication {
   fetch(request: Request): Promise<Response | undefined>;
 }
 
-export interface ConsolePageDescriptor {
-  apiMajor: 1;
-  protocol?: "lenso-console-rpc/2";
-  id: string;
-  title: string;
-  readonly targetId?: string;
-  subject: { kind: "console" } | { kind: "app"; appId: string };
-  owner: { instance: string; source: "application"; trusted: true };
-  revision: string;
-  implementationId: string;
-  pageId?: string;
-  basePath?: string;
-  module: string;
-  styles: readonly string[];
-  navigation: {
-    label: string;
-    items: readonly { label: string; path: readonly string[] }[];
-  };
-  access?: "member" | "administrator";
-  index?: readonly string[];
-  routes?: readonly (readonly string[])[];
-  credentials?: { issuePath?: string; rotatePath?: string };
-  requirements: readonly {
-    service_id: string;
-    capability_id: string;
-    descriptor_version: string;
-    operations: readonly string[];
-    streaming_operations?: readonly string[];
-    available: boolean;
-    required: boolean;
-    source: "owner" | "subject";
-  }[];
-}
+export type ConsolePageDescriptor = ConsolePageAuthoringDescriptor;
 
 export interface ConsoleMount {
   readonly descriptor: ConsolePageDescriptor;
@@ -85,6 +54,8 @@ export interface ConsoleMount {
         readonly manage: Manage;
         readonly operations: readonly Operation[];
         readonly streams?: readonly ConsoleStream[];
+        /** Explicit public names mapped to exact admitted owner methods. */
+        readonly operationAliases?: Readonly<Record<string, string>>;
       }
     >
   >;
@@ -100,6 +71,8 @@ export interface ConsoleMount {
     }>;
   };
 }
+
+export type ConsoleMountService = ConsoleMount["services"][string];
 
 /** An explicit read subscription, not a finite Manage result or a write channel. */
 export interface ConsoleStream {

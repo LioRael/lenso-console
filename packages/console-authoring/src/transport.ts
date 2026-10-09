@@ -7,7 +7,7 @@ import {
 import { RPCLink } from "@orpc/client/fetch";
 
 import type { WorkspaceServices } from "./index";
-import type { ConsoleClient } from "./protocol";
+import type { ConsoleClient, ConsolePageDescriptor } from "./protocol";
 
 export type ConsoleClientOptions = Pick<
   ConstructorParameters<typeof RPCLink>[0],
@@ -68,18 +68,18 @@ export class WorkspaceServiceDomainError extends WorkspaceServiceError {
   }
 }
 
-export interface ConsoleWorkspaceMount {
-  id: string;
-  owner: { instance: string };
-  revision: string;
-  implementationId?: string;
-  requirements: readonly {
-    available: boolean;
-    service_id: string;
-    operations: readonly string[];
-    streaming_operations?: readonly string[];
-  }[];
-}
+/** Read-only transport projection; complete catalog DTOs remain schema-derived. */
+export type ConsoleWorkspaceMount = Pick<
+  ConsolePageDescriptor,
+  "id" | "revision"
+> & {
+  owner: Pick<ConsolePageDescriptor["owner"], "instance">;
+  implementationId?: ConsolePageDescriptor["implementationId"];
+  requirements: readonly Pick<
+    ConsolePageDescriptor["requirements"][number],
+    "available" | "service_id" | "operations" | "streaming_operations"
+  >[];
+};
 
 export interface ConsoleWorkspaceServicesOptions extends ConsoleClientOptions {
   mount: ConsoleWorkspaceMount;
@@ -282,7 +282,7 @@ export function createConsoleWorkspaceServices(
                 return { done: false, value: result.value as Item };
               } catch (error) {
                 closed = true;
-                await release().catch(() => undefined);
+                await cancel();
                 signal?.removeEventListener("abort", cancel);
                 signal?.throwIfAborted();
                 const mapped = mapWorkspaceError(error, service, operation);

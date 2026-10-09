@@ -40,7 +40,8 @@ function deferred() {
 
 async function fixture(
   overrides?: (stream: ConsoleStream) => ConsoleStream,
-  binding?: ConsoleOptions["binding"]
+  binding?: ConsoleOptions["binding"],
+  publicWatch = "watch"
 ) {
   const gate = deferred();
   const state = {
@@ -167,7 +168,7 @@ async function fixture(
           service_id: "events",
           capability_id: "events",
           descriptor_version: "1",
-          operations: ["read", "watch"],
+          operations: ["read", publicWatch],
           available: true,
           required: true,
           source: "owner",
@@ -175,7 +176,15 @@ async function fixture(
         },
       ],
     },
-    services: { events: { manage, operations: [read], streams: [stream] } },
+    services: {
+      events: {
+        manage,
+        operations: [read],
+        streams: [stream],
+        operationAliases:
+          publicWatch === "watch" ? undefined : { [publicWatch]: "watch" },
+      },
+    },
     asset: async () => undefined,
   };
   const running = await startApp(defineApp({ plugins: [plugin] }));
@@ -245,57 +254,61 @@ async function fixture(
     client(extra).workspace.subscribe({
       mountId: "events-page",
       service: "events",
-      operation: "watch",
+      operation: publicWatch,
       input: input === undefined ? { label: "  public  " } : input,
     });
   return { service, running, state, subscribe, client, gate, mount };
 }
 
 test("Fetch/oRPC streams project Unicode DTOs and keep finite Manage/catalog separate", async () => {
-  const f = await fixture();
-  try {
-    const iterator = await f.subscribe();
-    expect(await iterator.next()).toEqual({
-      done: false,
-      value: { label: "你好 🌍" },
-    });
-    expect(f.state.bound).toEqual([{ label: "public" }]);
-    f.gate.resolve();
-    expect(await iterator.next()).toEqual({
-      done: false,
-      value: { label: "你好 🌍" },
-    });
-    const completed = await iterator.next();
-    expect(completed.done).toBe(true);
-    expect(f.state.returned).toBe(1);
-    const catalog = await f.client().catalog({});
-    expect(catalog.operations.map((operation) => operation.method)).toEqual([
-      "read",
-    ]);
-    await expect(
-      f.client().workspace.invoke({
-        mountId: "events-page",
-        service: "events",
-        operation: "watch",
-        input: { label: "x" },
-      })
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-    const pages = await f.service.fetch(
-      new Request(`${origin}/api/console/v1/pages`)
-    );
-    const result = await pages!.json();
-    expect(result.mounts[0].requirements[0].streaming_operations).toEqual([
-      "watch",
-    ]);
-    expect(result.mounts[0].requirements[0].operations).toEqual([
-      "read",
-      "watch",
-    ]);
-    await f.service.close?.();
-    expect(f.running.get(f.mount.services.events.manage.plugin)).toBeDefined();
-  } finally {
-    await f.service.close?.();
-    await f.running.stop();
+  for (const publicWatch of ["watch", "updates"]) {
+    const f = await fixture(undefined, undefined, publicWatch);
+    try {
+      const iterator = await f.subscribe();
+      expect(await iterator.next()).toEqual({
+        done: false,
+        value: { label: "你好 🌍" },
+      });
+      expect(f.state.bound).toEqual([{ label: "public" }]);
+      f.gate.resolve();
+      expect(await iterator.next()).toEqual({
+        done: false,
+        value: { label: "你好 🌍" },
+      });
+      const completed = await iterator.next();
+      expect(completed.done).toBe(true);
+      expect(f.state.returned).toBe(1);
+      const catalog = await f.client().catalog({});
+      expect(catalog.operations.map((operation) => operation.method)).toEqual([
+        "read",
+      ]);
+      await expect(
+        f.client().workspace.invoke({
+          mountId: "events-page",
+          service: "events",
+          operation: publicWatch,
+          input: { label: "x" },
+        })
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      const pages = await f.service.fetch(
+        new Request(`${origin}/api/console/v1/pages`)
+      );
+      const result = await pages!.json();
+      expect(result.mounts[0].requirements[0].streaming_operations).toEqual([
+        publicWatch,
+      ]);
+      expect(result.mounts[0].requirements[0].operations).toEqual([
+        "read",
+        publicWatch,
+      ]);
+      await f.service.close?.();
+      expect(
+        f.running.get(f.mount.services.events.manage.plugin)
+      ).toBeDefined();
+    } finally {
+      await f.service.close?.();
+      await f.running.stop();
+    }
   }
 });
 

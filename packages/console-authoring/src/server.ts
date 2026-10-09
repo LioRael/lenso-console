@@ -1,72 +1,160 @@
-import type {
-  InvocationContext,
-  WorkspaceServiceProvider,
-  InvokeResult,
-} from "./generated/workspace-service";
+import { definePlugin, type Plugin } from "@lenso/core";
+import {
+  defineOperation,
+  boundedJson,
+  type Operation as EngineOperation,
+} from "@lenso/engine/operations";
+import { defineManage, type Manage } from "@lenso/manage";
+import { z } from "zod";
 
-export interface Operation<Input = unknown, Output = unknown> {
-  parse(value: unknown): Input;
-  authorize(
-    context: InvocationContext,
-    input: Input
-  ): boolean | Promise<boolean>;
-  handle(input: Input, context: InvocationContext): Output | Promise<Output>;
+import type { Subject } from "./index";
+import {
+  compiledWorkspaceSchema,
+  type ConsolePageAuthoringDescriptor,
+} from "./protocol";
+
+/** Supplied by the trusted Host binding, never reconstructed from business input. */
+export interface WorkspaceOperationContext {
+  subject: Subject;
+  owner: { instance: string };
+  mountId: string;
+  revision: string;
+  signal: AbortSignal;
 }
-export interface DeclaredOperation<Input = unknown, Output = unknown> {
-  /** Type-only projection: never executes or exports server source in a page. */
-  readonly __types?: { input: Input; output: Output };
-  invoke(context: InvocationContext, value: unknown): Promise<InvokeResult>;
-}
-const failure = (
-  error:
+
+export class WorkspaceServiceError extends Error {
+  readonly code:
     | "denied"
     | "codec_mismatch"
     | "unknown_operation"
     | "unknown_service"
     | "request_too_large"
-    | "response_too_large"
-): InvokeResult => ({ ok: false, error: { kind: "domain", error } });
-/** Validation and final authorization are mandatory and owned by the Plugin. */
+    | "response_too_large";
+
+  constructor(code: WorkspaceServiceError["code"]) {
+    super(code);
+    this.code = code;
+    this.name = "WorkspaceServiceError";
+  }
+}
+
+export interface Operation<Input = unknown, Output = unknown> {
+  description?: string;
+  effect?: "read" | "write" | "unknown";
+  parse(value: unknown): Input;
+  authorize(
+    context: WorkspaceOperationContext,
+    input: Input
+  ): boolean | Promise<boolean>;
+  handle(
+    input: Input,
+    context: WorkspaceOperationContext
+  ): Output | Promise<Output>;
+}
+export interface DeclaredOperation<Input = unknown, Output = unknown> {
+  readonly interaction: "request";
+  readonly description?: string;
+  readonly effect?: "read" | "write" | "unknown";
+  readonly __types?: { input: Input; output: Output };
+  invoke(context: WorkspaceOperationContext, value: unknown): Promise<Output>;
+}
+export interface DeclaredStreamOperation<Input = unknown, Item = unknown> {
+  readonly interaction: "stream";
+  readonly description?: string;
+  readonly effect: "read";
+  readonly __types?: { input: Input; output: Item };
+  subscribe(
+    context: WorkspaceOperationContext,
+    value: unknown
+  ): AsyncIterable<Item>;
+}
+
+async function admit<Input>(
+  declaration: Pick<Operation<Input>, "parse" | "authorize">,
+  context: WorkspaceOperationContext,
+  value: unknown
+): Promise<Input> {
+  context.signal.throwIfAborted();
+  checkJson(value, "request_too_large");
+  let input: Input;
+  try {
+    input = declaration.parse(value);
+  } catch {
+    throw new WorkspaceServiceError("codec_mismatch");
+  }
+  if ((await declaration.authorize(context, input)) !== true) {
+    throw new WorkspaceServiceError("denied");
+  }
+  context.signal.throwIfAborted();
+  return input;
+}
+
+function checkJson(
+  value: unknown,
+  sizeError: "request_too_large" | "response_too_large"
+): void {
+  let json: string;
+  try {
+    json = boundedJson(value, Number.MAX_SAFE_INTEGER);
+  } catch {
+    throw new WorkspaceServiceError("codec_mismatch");
+  }
+  if (new TextEncoder().encode(json).length > 1024 * 1024) {
+    throw new WorkspaceServiceError(sizeError);
+  }
+}
+
+/** Parse and final domain authorization precede every business invocation. */
 export function operation<Input, Output>(
   declaration: Operation<Input, Output>
 ): DeclaredOperation<Input, Awaited<Output>> {
   return {
-    async invoke(context, value) {
-      let input: Input;
-      try {
-        input = declaration.parse(value);
-      } catch {
-        return failure("codec_mismatch");
-      }
-      if ((await declaration.authorize(context, input)) !== true) {
-        return failure("denied");
-      }
-      const json = JSON.stringify(await declaration.handle(input, context));
-      if (json === undefined) {
-        return failure("codec_mismatch");
-      }
-      const bytes = new TextEncoder().encode(json);
-      if (bytes.length > 1024 * 1024) {
-        return failure("response_too_large");
-      }
-      return {
-        ok: true,
-        value: {
-          outcome: "success",
-          body_base64: btoa(
-            Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("")
-          ),
-        },
-      };
+    interaction: "request",
+    description: declaration.description,
+    effect: declaration.effect,
+    async invoke(context, value): Promise<Awaited<Output>> {
+      const input = await admit(declaration, context, value);
+      const output = await declaration.handle(input, context);
+      context.signal.throwIfAborted();
+      checkJson(output, "response_too_large");
+      return output;
     },
   };
 }
+
+export function streamOperation<Input, Item>(
+  declaration: Omit<Operation<Input, AsyncIterable<Item>>, "effect"> & {
+    effect?: "read";
+  }
+): DeclaredStreamOperation<Input, Item> {
+  if (declaration.effect !== undefined && declaration.effect !== "read") {
+    throw new Error("Workspace streams must have read-only effects");
+  }
+  return {
+    interaction: "stream",
+    description: declaration.description,
+    effect: "read",
+    async *subscribe(context, value) {
+      const input = await admit(declaration, context, value);
+      const stream = await declaration.handle(input, context);
+      for await (const item of stream) {
+        context.signal.throwIfAborted();
+        checkJson(item, "response_too_large");
+        yield item;
+      }
+    },
+  };
+}
+
 export interface Service {
   capabilityId: string;
   version: string;
-  operations: Readonly<Record<string, DeclaredOperation>>;
+  operations: Readonly<
+    Record<string, DeclaredOperation | DeclaredStreamOperation>
+  >;
 }
 export type ServiceDefinitions = Readonly<Record<string, Service>>;
+
 export function defineServices<const Definitions extends ServiceDefinitions>(
   services: Definitions
 ): Definitions {
@@ -102,67 +190,259 @@ export function defineServices<const Definitions extends ServiceDefinitions>(
   }
   return services;
 }
+
+/** Plain dispatch only. Installation, mount admission and lifetime belong to the Host. */
 export function createWorkspaceServices(
-  services: ReturnType<typeof defineServices>,
+  services: ServiceDefinitions,
   revision: string
 ) {
-  const exports = Object.entries(services).map(([service_id, service]) => ({
-    service_id,
-    capability_id: service.capabilityId,
-    descriptor_version: service.version,
-    operations: Object.keys(service.operations).map((name) => ({
-      name,
-      interaction: "request" as const,
-    })),
-  }));
-  const requirements = exports.map((service) => ({
-    ...service,
-    operations: service.operations.map((op) => op.name),
-    required: true,
-    source: "owner" as const,
-  }));
-  const provider: WorkspaceServiceProvider = {
-    async describe_exports() {
-      return {
-        ok: true,
-        value: { adapter_revision: revision, services: exports },
+  const requirements = Object.entries(services).map(
+    ([service_id, service]) => ({
+      service_id,
+      capability_id: service.capabilityId,
+      descriptor_version: service.version,
+      operations: Object.keys(service.operations),
+      streaming_operations: Object.entries(service.operations)
+        .filter(([, declaration]) => declaration.interaction === "stream")
+        .map(([name]) => name),
+      required: true,
+      source: "owner" as const,
+    })
+  );
+  const resolve = (
+    context: WorkspaceOperationContext,
+    service: string,
+    name: string
+  ) => {
+    context.signal.throwIfAborted();
+    if (context.revision !== revision) {
+      throw new WorkspaceServiceError("denied");
+    }
+    if (!Object.hasOwn(services, service)) {
+      throw new WorkspaceServiceError("unknown_service");
+    }
+    const { operations } = services[service];
+    if (!Object.hasOwn(operations, name)) {
+      throw new WorkspaceServiceError("unknown_operation");
+    }
+    return operations[name];
+  };
+  return {
+    requirements,
+    invoke(
+      context: WorkspaceOperationContext,
+      request: { service: string; operation: string; input: unknown }
+    ) {
+      const declaration = resolve(context, request.service, request.operation);
+      if (declaration.interaction !== "request") {
+        throw new WorkspaceServiceError("unknown_operation");
+      }
+      return declaration.invoke(context, request.input);
+    },
+    subscribe(
+      context: WorkspaceOperationContext,
+      request: { service: string; operation: string; input: unknown }
+    ) {
+      const declaration = resolve(context, request.service, request.operation);
+      if (declaration.interaction !== "stream") {
+        throw new WorkspaceServiceError("unknown_operation");
+      }
+      return declaration.subscribe(context, request.input);
+    },
+  };
+}
+
+export interface WorkspaceMountService {
+  readonly manage: Manage;
+  readonly operations: readonly EngineOperation[];
+  readonly operationAliases: Readonly<Record<string, string>>;
+  readonly streams: readonly {
+    operation: EngineOperation;
+    output: EngineOperation["input"];
+  }[];
+}
+
+export interface WorkspaceMount {
+  readonly descriptor: ConsolePageAuthoringDescriptor;
+  readonly placement?: "page" | "global";
+  readonly services: Readonly<Record<string, WorkspaceMountService>>;
+  readonly asset: (relativePath: string) => Promise<Response | undefined>;
+}
+
+/** Only the declared workspace operations become explicit owner-bound Manage operations. */
+export function createWorkspacePlugin(options: {
+  id: string;
+  services: ServiceDefinitions;
+  revision: string;
+}): {
+  plugin: Plugin<
+    Record<
+      string,
+      (input: unknown, context: WorkspaceOperationContext) => unknown
+    >
+  >;
+  manage: Manage;
+  services: Readonly<Record<string, WorkspaceMountService>>;
+  requirements: ReturnType<typeof createWorkspaceServices>["requirements"];
+} {
+  const adapter = createWorkspaceServices(
+    defineServices(options.services),
+    options.revision
+  );
+  const methods: Record<
+    string,
+    (input: unknown, context: WorkspaceOperationContext) => unknown
+  > = Object.create(null);
+  for (const [alias, service] of Object.entries(options.services)) {
+    for (const [name, declaration] of Object.entries(service.operations)) {
+      methods[`${alias}:${name}`] = (input, context) => {
+        if (context.owner.instance !== options.id) {
+          throw new WorkspaceServiceError("denied");
+        }
+        const request = { service: alias, operation: name, input };
+        return declaration.interaction === "request"
+          ? adapter.invoke(context, request)
+          : adapter.subscribe(context, request);
       };
-    },
-    async invoke(context, request) {
-      if (request.media_type !== "application/json") {
-        return failure("codec_mismatch");
+    }
+  }
+  const plugin = definePlugin({ id: options.id, setup: () => methods });
+  const declarations = Object.entries(options.services).flatMap(
+    ([alias, service]) =>
+      Object.entries(service.operations).map(([name, declaration]) => ({
+        alias,
+        interaction: declaration.interaction,
+        operation: defineOperation({
+          plugin,
+          method: `${alias}:${name}`,
+          input: z.unknown(),
+          context: true,
+          description: declaration.description ?? `${alias}:${name}`,
+          effect: declaration.effect ?? "unknown",
+          cancellation: "cooperative",
+        }),
+      }))
+  );
+  const manage = defineManage({
+    plugin,
+    operations: declarations
+      .filter((entry) => entry.interaction === "request")
+      .map((entry) => entry.operation),
+  });
+  const services = Object.fromEntries(
+    Object.entries(options.services).map(([alias, service]) => {
+      const selected = declarations.filter((entry) => entry.alias === alias);
+      return [
+        alias,
+        {
+          manage,
+          operations: selected
+            .filter((entry) => entry.interaction === "request")
+            .map((entry) => entry.operation),
+          operationAliases: Object.fromEntries(
+            Object.keys(service.operations).map((name) => [
+              name,
+              `${alias}:${name}`,
+            ])
+          ),
+          streams: selected
+            .filter((entry) => entry.interaction === "stream")
+            .map((entry) => ({
+              operation: entry.operation,
+              output: z.unknown(),
+            })),
+        },
+      ];
+    })
+  );
+  return { plugin, manage, services, requirements: adapter.requirements };
+}
+
+export interface WorkspaceMountOptions {
+  id: string;
+  workspaceId?: string;
+  subject: Subject;
+  basePath?: string;
+  apiBasePath?: string;
+  targetId?: string;
+  placement?: "page" | "global";
+}
+
+/** Compiled content is executable only after the application installs this exact owner. */
+export function createWorkspaceInstallation(options: {
+  id: string;
+  descriptor: unknown;
+  services?: ServiceDefinitions;
+  aliases?: Readonly<Record<string, readonly string[] | null>>;
+}) {
+  const descriptor = compiledWorkspaceSchema.parse(options.descriptor);
+  const installation = createWorkspacePlugin({
+    id: options.id,
+    services: options.services ?? {},
+    revision: descriptor.revision,
+  });
+  return {
+    plugin: installation.plugin,
+    manage: installation.manage,
+    createMount(mount: WorkspaceMountOptions): WorkspaceMount {
+      const workspace = descriptor.workspaces.find(
+        (entry) => entry.id === (mount.workspaceId ?? descriptor.workspace_id)
+      );
+      if (!workspace) {
+        throw new Error("Unknown compiled workspace");
       }
-      if (!Object.hasOwn(services, request.service_id)) {
-        return failure("unknown_service");
+      const aliases =
+        options.aliases?.[workspace.id] ?? Object.keys(installation.services);
+      if (
+        aliases.some((alias) => !Object.hasOwn(installation.services, alias))
+      ) {
+        throw new Error("Workspace declares an unknown service alias");
       }
-      const { operations } = services[request.service_id];
-      if (!Object.hasOwn(operations, request.operation)) {
-        return failure("unknown_operation");
-      }
-      if (request.body_base64.length > 1_398_104) {
-        return failure("request_too_large");
-      }
-      let value: unknown;
-      try {
-        value = JSON.parse(
-          new TextDecoder("utf-8", { fatal: true }).decode(
-            Uint8Array.from(
-              atob(request.body_base64),
-              (character) => character.codePointAt(0) ?? 0
-            )
-          )
-        );
-      } catch {
-        return failure("codec_mismatch");
-      }
-      return operations[request.operation].invoke(context, value);
-    },
-    async subscribe() {
+      const api = (mount.apiBasePath ?? "/api").replace(/\/$/, "");
+      const assetBase = `${api}/console/v1/pages/${mount.id}/assets/${descriptor.revision}/`;
       return {
-        ok: false,
-        error: { kind: "domain", error: "unknown_operation" },
+        descriptor: {
+          apiMajor: 1,
+          protocol: "lenso-console-rpc/2",
+          targetId: mount.targetId,
+          id: mount.id,
+          title: workspace.title,
+          subject: mount.subject,
+          owner: { instance: options.id, source: "application", trusted: true },
+          revision: descriptor.revision,
+          implementationId: descriptor.revision,
+          pageId: workspace.id,
+          basePath: mount.basePath ?? workspace.path,
+          module: `${assetBase}${descriptor.module}`,
+          styles: descriptor.styles.map((style) => `${assetBase}${style}`),
+          navigation: workspace.navigation,
+          access: workspace.access,
+          index: workspace.index,
+          routes: workspace.routes,
+          requirements: installation.requirements
+            .filter((entry) => aliases.includes(entry.service_id))
+            .map((entry) => ({ ...entry, available: true })),
+        },
+        placement: mount.placement,
+        services: Object.fromEntries(
+          aliases.map((alias) => [alias, installation.services[alias]])
+        ),
+        async asset(relativePath) {
+          const asset = descriptor.assets.find(
+            (entry) => entry.path === relativePath
+          );
+          if (!asset) {
+            return undefined;
+          }
+          const content = Uint8Array.from(
+            atob(asset.content_base64),
+            (character) => character.codePointAt(0) ?? 0
+          );
+          return new Response(content, {
+            headers: { "content-type": asset.media_type },
+          });
+        },
       };
     },
   };
-  return { requirements, provider };
 }

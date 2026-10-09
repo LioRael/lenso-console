@@ -1,7 +1,7 @@
 import {
   type ReadRefreshPolicy,
   resolveReadRefreshPolicy,
-} from "../../../../../packages/console-authoring/src/read-refresh";
+} from "@lenso/console-sdk";
 
 export interface ConsoleReadRefreshConfiguration {
   defaults?: ReadRefreshPolicy;

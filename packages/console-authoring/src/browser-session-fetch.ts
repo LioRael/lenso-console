@@ -2,7 +2,12 @@ import {
   consoleApiPath,
   isConsoleApiPath,
   mapConsoleApiRequest,
-} from "./console-http-paths";
+} from "./http-paths";
+import {
+  createConsoleWorkspaceServices,
+  WorkspaceServiceError,
+  type ConsoleWorkspaceServicesOptions,
+} from "./transport";
 
 export type CsrfPolicy = { cookie_name: string; header_name: string };
 export type SessionFetchScope = {
@@ -191,4 +196,33 @@ export async function sessionFetch(
     }
     throw error;
   }
+}
+
+/** In-band stream failures use the originating request's session and abort guards. */
+export function createSessionWorkspaceServices(
+  options: Pick<
+    ConsoleWorkspaceServicesOptions,
+    "mount" | "signal" | "expectedSubject" | "url" | "origin"
+  >
+) {
+  const statusHandlers = new WeakMap<AbortSignal, (status: number) => void>();
+  return createConsoleWorkspaceServices({
+    ...options,
+    fetch: (input, init) =>
+      sessionFetch(
+        input,
+        { ...init, credentials: "same-origin", cache: "no-store" },
+        undefined,
+        (handle) => {
+          if (init?.signal) {
+            statusHandlers.set(init.signal, handle);
+          }
+        }
+      ),
+    onStreamError(error, signal) {
+      if (error instanceof WorkspaceServiceError && signal && !signal.aborted) {
+        statusHandlers.get(signal)?.(error.status);
+      }
+    },
+  });
 }

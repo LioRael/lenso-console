@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Console browser regressions</title>
+  </head>
+  <body>
+    <script type="module">
+      if (new URL(location.href).searchParams.get("fixture") === "dock") {
+        const { mountDock } = await import("./dock.fixture.tsx");
+        mountDock();
+      } else {
+        const { mountLayout } = await import("./layout.fixture.tsx");
+        window.consoleLayoutFixture = mountLayout();
+      }
+      document.body.dataset.ready = "true";
+    </script>
+  </body>
+</html>

@@ -1,10 +1,10 @@
-import { expect, test } from "vitest";
+import { expect, test } from "bun:test";
 
 import {
   consoleApiPath,
   consoleAuthPath,
   parseConsoleHttpPaths,
-} from "./console-http-paths";
+} from "@lenso/console-sdk/http-paths";
 
 test("fixed instance paths preserve query bytes and reject ambiguous bootstrap authority", () => {
   const user = parseConsoleHttpPaths({

@@ -1,5 +1,6 @@
-import { resolveReadRefreshPolicy } from "../../../../../packages/console-authoring/src/read-refresh";
-import { ConsoleQueryClient } from "./console-query-client";
+import { resolveReadRefreshPolicy } from "@lenso/console-sdk";
+import { ConsoleQueryClient } from "@lenso/console-sdk/query-client";
+
 import { consoleReadRefreshPolicy } from "./read-refresh-policy";
 
 export const queryClient = new ConsoleQueryClient({

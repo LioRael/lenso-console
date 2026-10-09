@@ -4,17 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "VITE_CONSOLE_DEV_MODE=${VITE_CONSOLE_DEV_MODE:-mock} VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-mock} vite",
-    "bundle:local": "node ../../../tooling/distribution/clean-console-web.mjs && VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} vite build",
-    "test:local": "vitest run src --exclude '**/*.browser.test.*'",
-    "test:browser": "vitest run --config vitest.browser.config.ts",
-    "typecheck:local": "tsc -b --pretty false",
-    "preview": "vite preview --host 0.0.0.0",
-    "build": "pnpm typecheck:local && pnpm bundle:local"
+    "dev": "bun --bun vite --configLoader native",
+    "bundle:local": "bun ../../../tooling/distribution/clean-console-web.mjs && VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} bun --bun vite build --configLoader native",
+    "test:local": "bun test --preload ./test/stylex-preload.ts ./src",
+    "test:browser": "bun test ./test/browser",
+    "typecheck:local": "bun --bun tsc -b --pretty false",
+    "preview": "bun --bun vite preview --configLoader native --host 0.0.0.0",
+    "build": "bun run typecheck:local && bun run bundle:local"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
+    "@lenso/console-sdk": "workspace:*",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",
     "@stylexjs/stylex": "0.19.1",
@@ -31,15 +32,15 @@
   },
   "devDependencies": {
     "@stylexjs/unplugin": "0.19.0",
+    "@types/bun": "1.4.2",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitest/browser-playwright": "4.1.10",
     "playwright": "1.62.1",
-    "typescript": "7.0.2",
-    "vitest": "^4.1.10"
+    "typescript": "7.0.2"
   },
   "engines": {
+    "bun": ">=1.4.2",
     "node": ">=22.12.0"
   }
 }

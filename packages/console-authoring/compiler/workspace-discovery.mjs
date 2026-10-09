@@ -24,7 +24,7 @@ async function declaration(directory) {
             namespace: "lenso-workspace-declaration",
           }));
           // This pure helper has no imports. Loading its packaged source directly
-          // also avoids Bun's file-namespace rejection of long pnpm store paths.
+          // also avoids Bun's file-namespace rejection of long dependency paths.
           build.onLoad(
             { filter: /^workspace$/, namespace: "lenso-workspace-declaration" },
             () => ({ contents: fs.readFileSync(sdk, "utf-8"), loader: "ts" })

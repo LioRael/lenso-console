@@ -1,5 +1,6 @@
 import type * as React from "react";
 
+import type { ConsolePageDescriptor } from "./protocol";
 import type { WorkspaceReads } from "./read";
 import type { ReadRefreshPolicy } from "./read-refresh";
 
@@ -39,7 +40,24 @@ export interface WorkspaceServices {
     options?: { signal?: AbortSignal }
   ): AsyncIterable<Item>;
 }
-export type Subject = { kind: "console" } | { kind: "app"; appId: string };
+export type Subject = ConsolePageDescriptor["subject"];
+
+/** Page view projection also supports local preview and older Host props. */
+export type PageMount = Pick<
+  ConsolePageDescriptor,
+  "id" | "pageId" | "title" | "subject" | "revision" | "basePath"
+> & {
+  /** Content identity of the executable page, independent of its mount. */
+  implementationId?: ConsolePageDescriptor["implementationId"];
+  /** Mount/session cache namespace. Never cache by pageId alone. */
+  scopeKey?: string;
+  owner: Pick<ConsolePageDescriptor["owner"], "instance">;
+  requirements?: readonly Pick<
+    ConsolePageDescriptor["requirements"][number],
+    "service_id" | "operations" | "available"
+  >[];
+};
+
 export interface PageProps {
   /** Optional protected one-time credential channel, never a scoped read or Manage result. */
   credentials?: WorkspaceCredentials;
@@ -53,26 +71,7 @@ export interface PageProps {
     segments: readonly string[];
     handoff?: { kind: string; payload: unknown };
   };
-  mount: {
-    id: string;
-    /** Plugin-declared page identity; several instance mounts may share it. */
-    pageId?: string;
-    /** Content identity of the executable page, independent of its mount. */
-    implementationId?: string;
-    /** Mount/session cache namespace. Never cache by pageId alone. */
-    scopeKey?: string;
-    title: string;
-    subject: Subject;
-    owner: { instance: string };
-    revision: string;
-    /** Resolved browser path; never a permission or cache identity. */
-    basePath?: string;
-    requirements?: readonly {
-      service_id: string;
-      operations: readonly string[];
-      available: boolean;
-    }[];
-  };
+  mount: PageMount;
   navigation: {
     go(segments: readonly string[]): void;
     href(segments: readonly string[]): string;

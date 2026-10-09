@@ -13,6 +13,7 @@ export default defineConfig({
     {
       files: [
         "plugins/console/shell/src/**/*.{ts,tsx}",
+        "plugins/console/shell/test/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx,mjs}",
         "examples/**/*.{ts,tsx}",
         "plugins/console/shell/vite.config.ts",

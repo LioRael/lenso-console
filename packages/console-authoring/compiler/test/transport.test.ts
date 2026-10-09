@@ -3,7 +3,16 @@ import { describe, expect, it } from "bun:test";
 import { implement, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { consoleContract } from "../../src/protocol";
+import {
+  configureSessionReadScope,
+  createSessionWorkspaceServices,
+  retireSessionReads,
+} from "../../src/browser-session-fetch";
+import {
+  consoleContract,
+  consoleOperationDescriptorSchema,
+  consoleSessionSchema,
+} from "../../src/protocol";
 import {
   createConsoleClient,
   createConsoleWorkspaceServices,
@@ -25,7 +34,43 @@ const mount = {
   ],
 };
 
+const streamingMount = {
+  ...mount,
+  requirements: [
+    {
+      ...mount.requirements[0]!,
+      operations: ["echo", "ticks"],
+      streaming_operations: ["ticks"],
+    },
+  ],
+};
+
 describe("Console SDK Fetch transport", () => {
+  // Type-only oRPC outputs previously admitted partial catalog DTOs at runtime.
+  // The successful transport fixture cannot detect weakened required fields.
+  it("rejects incomplete operation and authenticated session projections", () => {
+    expect(
+      consoleOperationDescriptorSchema.safeParse({
+        key: "notes:read",
+        targetId: "self",
+        pluginId: "notes",
+        method: "read",
+        description: "Read notes",
+        effect: "read",
+        schemaAvailability: "runtime-validation-only",
+      }).success
+    ).toBe(false);
+    expect(
+      consoleSessionSchema.safeParse({
+        mode: "required",
+        authenticated: true,
+        subject: "actor-a",
+        administrator: false,
+        workspace_ids: [],
+      }).success
+    ).toBe(false);
+  });
+
   // Mocked JSON cannot prove compatibility with the actual RPC framing.
   it("round trips Unicode JSON without base64 and preserves explicit public errors", async () => {
     const implementation = implement(consoleContract).$context<{
@@ -136,85 +181,139 @@ describe("Console SDK Fetch transport", () => {
   });
 
   // The old 501 stub never decoded frames or exercised an iterator's lifetime.
-  it.each(["/api/console/v2/rpc", "/admin/api/console/v2/rpc"] as const)(
-    "streams Unicode, terminal errors and completion at %s without wrong-mode dispatch",
-    async (prefix) => {
-      let dispatches = 0;
-      const handler = new RPCHandler({
-        workspace: {
-          subscribe: implement(consoleContract.workspace.subscribe).handler(
-            async function* unicodeStream({ input }) {
-              dispatches += 1;
-              yield { text: "你好 🌍" };
-              if (input.input === "error") {
-                throw new ORPCError("WORKSPACE_SERVICE_ERROR", {
-                  message: "private upstream diagnostic",
-                  data: { code: "safe_conflict", status: 409 },
-                });
-              }
+  it("streams Unicode, terminal errors and completion at a custom prefix without wrong-mode dispatch", async () => {
+    const prefix = "/admin/api/console/v2/rpc";
+    let dispatches = 0;
+    const handler = new RPCHandler({
+      workspace: {
+        subscribe: implement(consoleContract.workspace.subscribe).handler(
+          async function* unicodeStream({ input }) {
+            dispatches += 1;
+            yield { text: "你好 🌍" };
+            if (input.input === "error") {
+              throw new ORPCError("WORKSPACE_SERVICE_ERROR", {
+                message: "private upstream diagnostic",
+                data: { code: "safe_conflict", status: 409 },
+              });
             }
-          ),
-        },
-      });
-      const services = createConsoleWorkspaceServices({
-        origin: "https://console.test",
-        url: prefix,
-        mount: {
-          ...mount,
-          requirements: [
-            {
-              ...mount.requirements[0]!,
-              operations: ["echo", "ticks"],
-              streaming_operations: ["ticks"],
-            },
-          ],
-        },
-        fetch: async (url, init) => {
-          const result = await handler.handle(new Request(url, init), {
-            prefix,
-            context: {},
-          });
-          return result.matched
-            ? result.response
-            : new Response(null, { status: 404 });
-        },
-      });
-      const stream = services.subscribe("notes", "ticks", {});
-      const iterator = stream[Symbol.asyncIterator]();
-      expect(await iterator.next()).toEqual({
-        done: false,
-        value: { text: "你好 🌍" },
-      });
-      expect(await iterator.next()).toEqual({ done: true, value: undefined });
-      const failingStream = services.subscribe("notes", "ticks", "error");
-      const failed = failingStream[Symbol.asyncIterator]();
-      await failed.next();
-      await expect(failed.next()).rejects.toMatchObject({
-        code: "safe_conflict",
-        status: 409,
-        message: "Workspace service notes/ticks: safe_conflict",
-      });
-      await expect(services.invoke("notes", "ticks", {})).rejects.toMatchObject(
-        {
-          code: "workspace_service_unavailable",
-        }
-      );
-      await expect(
-        services.subscribe("notes", "echo", {})[Symbol.asyncIterator]().next()
-      ).rejects.toMatchObject({ code: "workspace_service_unavailable" });
-      expect(dispatches).toBe(2);
-    }
-  );
+          }
+        ),
+      },
+    });
+    const services = createConsoleWorkspaceServices({
+      origin: "https://console.test",
+      url: prefix,
+      mount: streamingMount,
+      fetch: async (url, init) => {
+        const result = await handler.handle(new Request(url, init), {
+          prefix,
+          context: {},
+        });
+        return result.matched
+          ? result.response
+          : new Response(null, { status: 404 });
+      },
+    });
+    const stream = services.subscribe("notes", "ticks", {});
+    const iterator = stream[Symbol.asyncIterator]();
+    expect(await iterator.next()).toEqual({
+      done: false,
+      value: { text: "你好 🌍" },
+    });
+    expect(await iterator.next()).toEqual({ done: true, value: undefined });
+    const failingStream = services.subscribe("notes", "ticks", "error");
+    const failed = failingStream[Symbol.asyncIterator]();
+    await failed.next();
+    await expect(failed.next()).rejects.toMatchObject({
+      code: "safe_conflict",
+      status: 409,
+      message: "Workspace service notes/ticks: safe_conflict",
+    });
+    await expect(services.invoke("notes", "ticks", {})).rejects.toMatchObject({
+      code: "workspace_service_unavailable",
+    });
+    await expect(
+      services.subscribe("notes", "echo", {})[Symbol.asyncIterator]().next()
+    ).rejects.toMatchObject({ code: "workspace_service_unavailable" });
+    expect(dispatches).toBe(2);
+  });
 
-  it("cancels the response body exactly once on early return, break and stalled next cancellation", async () => {
-    for (const mode of [
-      "return",
-      "stalled-return",
-      "caller",
-      "mount",
-      "break",
-    ]) {
-      const stalled = !["return", "break"].includes(mode);
+  // Header-only session tests do not see a stream's later in-band revocation.
+  it("retires session reads on terminal stream revocation but not from an aborted old mount", async () => {
+    const originalWindow = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "window"
+    );
+    const originalFetch = globalThis.fetch;
+    const browser = Object.assign(new EventTarget(), {
+      location: { origin: "https://console.test" },
+    });
+    let expired = 0;
+    browser.addEventListener("lenso-session-expired", () => {
+      expired += 1;
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: browser,
+    });
+    const prefix = "/api/console/v2/rpc";
+    const handler = new RPCHandler({
+      workspace: {
+        subscribe: implement(consoleContract.workspace.subscribe).handler(
+          async function* revokedStream() {
+            yield { value: 1 };
+            throw new ORPCError("UNAUTHORIZED");
+          }
+        ),
+      },
+    });
+    globalThis.fetch = async (input, init) => {
+      const result = await handler.handle(new Request(input, init), {
+        prefix,
+        context: {},
+      });
+      return result.matched
+        ? result.response
+        : new Response(null, { status: 404 });
+    };
+    const lifetime = new AbortController();
+    try {
+      configureSessionReadScope("a".repeat(64), async () => {});
+      const services = createSessionWorkspaceServices({
+        origin: browser.location.origin,
+        url: prefix,
+        signal: lifetime.signal,
+        mount: streamingMount,
+      });
+      const currentStream = services.subscribe("notes", "ticks", {});
+      const current = currentStream[Symbol.asyncIterator]();
+      await current.next();
+      await expect(current.next()).rejects.toMatchObject({ status: 401 });
+      expect(expired).toBe(1);
+
+      configureSessionReadScope("b".repeat(64), async () => {});
+      const oldStream = services.subscribe("notes", "ticks", {});
+      const old = oldStream[Symbol.asyncIterator]();
+      await old.next();
+      lifetime.abort();
+      configureSessionReadScope("c".repeat(64), async () => {});
+      await expect(old.next()).rejects.toBeInstanceOf(DOMException);
+      expect(expired).toBe(1);
+    } finally {
+      lifetime.abort();
+      retireSessionReads();
+      globalThis.fetch = originalFetch;
+      if (originalWindow) {
+        Object.defineProperty(globalThis, "window", originalWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, "window");
+      }
+    }
+  });
+
+  it("cancels the response body exactly once on break and stalled next cancellation", async () => {
+    for (const mode of ["stalled-return", "caller", "mount", "break"]) {
+      const stalled = mode !== "break";
       const caller = new AbortController();
       const lifetime = new AbortController();
       let cancels = 0;
@@ -257,16 +356,7 @@ describe("Console SDK Fetch transport", () => {
       const services = createConsoleWorkspaceServices({
         origin: "https://console.test",
         signal: lifetime.signal,
-        mount: {
-          ...mount,
-          requirements: [
-            {
-              ...mount.requirements[0]!,
-              operations: ["ticks"],
-              streaming_operations: ["ticks"],
-            },
-          ],
-        },
+        mount: streamingMount,
         fetch: async (_url, init) => {
           requestSignal = init.signal;
           return new Response(

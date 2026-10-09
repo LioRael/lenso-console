@@ -6,6 +6,7 @@ export function generateClient({ root, out, config, checker }) {
   const source = path.join(root, "services.ts");
   // A reused output must not keep callable types after its service is removed.
   fs.rmSync(path.join(out, "client.ts"), { force: true });
+  fs.rmSync(path.join(out, "services.d.ts"), { force: true });
   fs.rmSync(path.join(out, "client-types"), { recursive: true, force: true });
   if (!fs.existsSync(source)) {
     return;
@@ -64,6 +65,10 @@ export function generateClient({ root, out, config, checker }) {
     .relative(out, declarations[0])
     .replaceAll(path.sep, "/")
     .replace(/\.d\.ts$/, "")}`;
+  fs.writeFileSync(
+    path.join(out, "services.d.ts"),
+    `import type definitions from ${JSON.stringify(relative)};\ndeclare const services: typeof definitions;\nexport default services;\n`
+  );
   fs.writeFileSync(
     path.join(out, "client.ts"),
     `// Generated from services.ts. Do not edit.\nimport {createClient} from "@lenso/console-sdk/client";\nimport type {WorkspaceServices} from "@lenso/console-sdk";\nimport type definitions from ${JSON.stringify(relative)};\nexport const bindServices = (transport:WorkspaceServices) => createClient<typeof definitions>(transport);\n`

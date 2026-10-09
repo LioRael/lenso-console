@@ -6,29 +6,39 @@ import {
 } from "@orpc/contract";
 import { z } from "zod";
 
-export interface ConsoleOperationDescriptor {
-  key: string;
-  targetId: string;
-  pluginId: string;
-  method: string;
-  description: string;
-  effect: "read" | "write" | "unknown";
-  schemaAvailability: "available" | "runtime-validation-only";
-  inputSchema?: Record<string, unknown>;
-  confirmation: boolean;
-  approval: boolean;
-  available: boolean;
-  unavailableReason?: string;
-}
+export { consoleHttpPathsSchema } from "./http-paths";
+export type {
+  ConsoleHttpPaths,
+  WorkspaceSource,
+  WorkspaceNavigationCheck,
+} from "./http-paths";
+
+export const consoleOperationDescriptorSchema = z.strictObject({
+  key: z.string(),
+  targetId: z.string(),
+  pluginId: z.string(),
+  method: z.string(),
+  description: z.string(),
+  effect: z.enum(["read", "write", "unknown"]),
+  schemaAvailability: z.enum(["available", "runtime-validation-only"]),
+  inputSchema: z.record(z.string(), z.unknown()).optional(),
+  confirmation: z.boolean(),
+  approval: z.boolean(),
+  available: z.boolean(),
+  unavailableReason: z.string().optional(),
+});
+
+export type ConsoleOperationDescriptor = z.infer<
+  typeof consoleOperationDescriptorSchema
+>;
 
 export type ConsolePluginDescriptor = z.infer<
   typeof consolePluginDescriptorSchema
 >;
 
-export interface ConsoleTargetDescriptor {
-  id: string;
-  label: string;
-}
+export type ConsoleTargetDescriptor = z.infer<
+  typeof consoleTargetDescriptorSchema
+>;
 
 export const consoleTargetDescriptorSchema = z.strictObject({
   id: z.string(),
@@ -62,10 +72,7 @@ export const consolePageDescriptorSchema = z.strictObject({
   protocol: z.literal("lenso-console-rpc/2"),
   id: z.string(),
   title: z.string(),
-  targetId: z
-    .string()
-    .regex(/^[a-z][a-z0-9._-]{0,63}$/)
-    .optional(),
+  targetId: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/),
   subject: z.union([
     z.strictObject({ kind: z.literal("console") }),
     z.strictObject({ kind: z.literal("app"), appId: z.string() }),
@@ -125,13 +132,96 @@ export const consolePageDescriptorSchema = z.strictObject({
     .readonly(),
 });
 
+export type ConsolePageDescriptor = z.infer<typeof consolePageDescriptorSchema>;
+/** Host composition supplies the route protocol and target before wire projection. */
+export type ConsolePageAuthoringDescriptor = Omit<
+  ConsolePageDescriptor,
+  "protocol" | "targetId"
+> & {
+  protocol?: ConsolePageDescriptor["protocol"];
+  targetId?: ConsolePageDescriptor["targetId"];
+};
+
+export const compiledWorkspaceSchema = z.strictObject({
+  workspace_id: z.string(),
+  title: z.string(),
+  revision: z.string(),
+  module: z.string(),
+  styles: z.array(z.string()),
+  navigation: consolePageDescriptorSchema.shape.navigation,
+  requirements: z.array(z.unknown()).length(0),
+  assets: z.array(
+    z.strictObject({
+      path: z.string(),
+      media_type: z.string(),
+      content_base64: z.string(),
+    })
+  ),
+  workspaces: z.array(
+    z.strictObject({
+      id: z.string(),
+      title: z.string(),
+      path: z.string().optional(),
+      index: z.array(z.string()).optional(),
+      access: z.enum(["member", "administrator"]),
+      routes: z.array(z.array(z.string())),
+      navigation: consolePageDescriptorSchema.shape.navigation,
+    })
+  ),
+});
+
+export const consoleSessionSchema = z.strictObject({
+  mode: z.literal("required"),
+  authenticated: z.literal(true),
+  subject: z.string(),
+  administrator: z.boolean(),
+  workspace_ids: z.array(z.string()).readonly(),
+  assistant_enabled: z.literal(false),
+  human_management_enabled: z.literal(false),
+  management_enabled: z.boolean(),
+  management_protocol: z.literal("lenso-console-rpc/2"),
+  capabilities: z.strictObject({
+    locale: z.enum(["available", "unavailable"]),
+    pluginConfiguration: z.literal("read-only"),
+    pluginConfigurationWrite: z.strictObject({
+      available: z.literal(false),
+      reason: z.string(),
+    }),
+    agent: z.strictObject({
+      available: z.literal(false),
+      reason: z.string(),
+    }),
+  }),
+});
+export type ConsoleSession = z.infer<typeof consoleSessionSchema>;
+
+export const consoleAppsCatalogSchema = z.strictObject({
+  apps: z
+    .array(
+      consoleTargetDescriptorSchema.extend({
+        scope: z.literal("application"),
+        pluginConfiguration: z.literal(true),
+        agentId: z.null(),
+        localBundleInstall: z.literal(false),
+      })
+    )
+    .readonly(),
+});
+export type ConsoleAppsCatalog = z.infer<typeof consoleAppsCatalogSchema>;
+
+export const consolePageCatalogSchema = z.strictObject({
+  schema: z.literal("console.page-catalog/1"),
+  mounts: z.array(consolePageDescriptorSchema).readonly(),
+});
+export type ConsolePageCatalog = z.infer<typeof consolePageCatalogSchema>;
+
 export const consoleContract = {
   catalog: oc.input(z.strictObject({ targetId: z.string().optional() })).output(
-    type<{
-      schemaVersion: 1;
-      revision: string;
-      operations: ConsoleOperationDescriptor[];
-    }>()
+    z.strictObject({
+      schemaVersion: z.literal(1),
+      revision: z.string(),
+      operations: z.array(consoleOperationDescriptorSchema),
+    })
   ),
   invoke: oc
     .input(
@@ -150,11 +240,18 @@ export const consoleContract = {
       ])
     )
     .output(type<unknown>()),
-  plugins: oc
-    .input(z.strictObject({ targetId: z.string() }))
-    .output(type<{ schemaVersion: 1; plugins: ConsolePluginDescriptor[] }>()),
-  targets:
-    oc.output(type<{ schemaVersion: 1; targets: ConsoleTargetDescriptor[] }>()),
+  plugins: oc.input(z.strictObject({ targetId: z.string() })).output(
+    z.strictObject({
+      schemaVersion: z.literal(1),
+      plugins: z.array(consolePluginDescriptorSchema),
+    })
+  ),
+  targets: oc.output(
+    z.strictObject({
+      schemaVersion: z.literal(1),
+      targets: z.array(consoleTargetDescriptorSchema),
+    })
+  ),
   workspace: {
     invoke: oc
       .errors({

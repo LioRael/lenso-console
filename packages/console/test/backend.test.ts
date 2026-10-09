@@ -9,8 +9,15 @@ import {
   type Access,
 } from "@lenso/auth";
 import type { ConsoleClient } from "@lenso/console-sdk/protocol";
+import { WorkspaceServiceError } from "@lenso/console-sdk/server";
 import { createConsoleWorkspaceServices } from "@lenso/console-sdk/transport";
-import { defineApp, startApp, valuesSource, type Plugin } from "@lenso/core";
+import {
+  defineApp,
+  definePlugin,
+  startApp,
+  valuesSource,
+  type Plugin,
+} from "@lenso/core";
 import { EngineError } from "@lenso/engine/diagnostics";
 import { defineOperation, type Operation } from "@lenso/engine/operations";
 import { defineManage } from "@lenso/manage";
@@ -368,6 +375,36 @@ test("SDK errors keep trusted domain status and safe retry units, never arbitrar
         status: 409,
       },
       {
+        error: new WorkspaceServiceError("denied"),
+        code: "FORBIDDEN",
+        status: 403,
+      },
+      {
+        error: new WorkspaceServiceError("codec_mismatch"),
+        code: "UNPROCESSABLE_CONTENT",
+        status: 422,
+      },
+      {
+        error: new WorkspaceServiceError("unknown_operation"),
+        code: "NOT_FOUND",
+        status: 404,
+      },
+      {
+        error: new WorkspaceServiceError("unknown_service"),
+        code: "NOT_FOUND",
+        status: 404,
+      },
+      {
+        error: new WorkspaceServiceError("request_too_large"),
+        code: "PAYLOAD_TOO_LARGE",
+        status: 413,
+      },
+      {
+        error: new WorkspaceServiceError("response_too_large"),
+        code: "SERVICE_UNAVAILABLE",
+        status: 503,
+      },
+      {
         error: new ConsoleOperationError("TOO_MANY_REQUESTS", {
           retryAfterMs: 1001,
         }),
@@ -384,6 +421,13 @@ test("SDK errors keep trusted domain status and safe retry units, never arbitrar
         error: Object.assign(new Error("private-database-password"), {
           code: "FORBIDDEN",
           status: 403,
+        }),
+        code: "SERVICE_UNAVAILABLE",
+        status: 503,
+      },
+      {
+        error: Object.assign(new Error("private-database-password"), {
+          code: "denied",
         }),
         code: "SERVICE_UNAVAILABLE",
         status: 503,
@@ -1046,12 +1090,131 @@ test("discovery redacts metadata while opaque catalog keys retain exact dispatch
   }
 });
 
+test("mounted aliases isolate same-name services and snapshot exact owner methods", async () => {
+  const auth = authentication();
+  const owner = definePlugin({
+    id: "owner",
+    setup: () => ({
+      "orders.read": async () => ({ service: "orders" }),
+      "inventory.read": async () => ({ service: "inventory" }),
+    }),
+  });
+  const operations = (["orders.read", "inventory.read"] as const).map(
+    (method) =>
+      defineOperation({
+        plugin: owner,
+        method,
+        input: z.strictObject({}),
+        effect: "read",
+        description: `Read ${method}`,
+      })
+  );
+  const manage = defineManage({ plugin: owner, operations });
+  const original = mount(counter("unused", auth.plugin), "services");
+  const ordersAliases = { read: "orders.read" };
+  const page: ConsoleMount = {
+    ...original,
+    descriptor: {
+      ...original.descriptor,
+      owner: { instance: owner.id, source: "application", trusted: true },
+      requirements: ["orders", "inventory"].map((id) => ({
+        ...original.descriptor.requirements[0]!,
+        service_id: id,
+      })),
+    },
+    services: {
+      orders: {
+        manage,
+        operations: [operations[0]!],
+        operationAliases: ordersAliases,
+      },
+      inventory: {
+        manage,
+        operations: [operations[1]!],
+        operationAliases: { read: "inventory.read" },
+      },
+    },
+  };
+  const boundMethods: string[] = [];
+  const consolePlugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [
+      {
+        id: "north",
+        label: "North",
+        tenantId: "north",
+        plugins: [owner],
+        manage: [manage],
+        mounts: [page],
+      },
+    ],
+    binding: (...args) => {
+      boundMethods.push(args[4].operation!);
+      return bound(...args);
+    },
+  });
+  const app = await startApp(
+    defineApp({ plugins: [auth.plugin, owner, consolePlugin] })
+  );
+  try {
+    ordersAliases.read = "inventory.read";
+    const service = app.get(consolePlugin);
+    const catalog = await service.fetch(
+      new Request(`${origin}/api/console/v1/pages`, {
+        headers: { authorization: "Bearer alice" },
+      })
+    );
+    expect(catalog!.status).toBe(200);
+    const catalogResult = await catalog!.json();
+    expect(
+      catalogResult.mounts[0].requirements.map(
+        (requirement: { operations: string[] }) => requirement.operations
+      )
+    ).toEqual([["read"], ["read"]]);
+    const rpc = client(service, {
+      authorization: "Bearer alice",
+      "x-lenso-page-owner": owner.id,
+      "x-lenso-page-revision": "1",
+      "x-lenso-page-implementation": page.descriptor.implementationId,
+    });
+    for (const id of ["orders", "inventory"]) {
+      expect(
+        await rpc.workspace.invoke({
+          mountId: "services",
+          service: id,
+          operation: "read",
+          input: {},
+        })
+      ).toEqual({ service: id });
+    }
+    expect(boundMethods).toEqual(["orders.read", "inventory.read"]);
+    await expect(
+      rpc.workspace.invoke({
+        mountId: "services",
+        service: "orders",
+        operation: "inventory.read",
+        input: {},
+      })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  } finally {
+    await app.stop();
+  }
+});
+
 test("startup refuses detached Manage owners, unadmitted workspace operations and overlapping route owners", async () => {
   const auth = authentication();
   const instance = counter("counter", auth.plugin);
   const detached = counter("counter", auth.plugin);
   const other = counter("second-counter", auth.plugin);
-  for (const targets of [
+  const reasons = [
+    "Manage must bind an explicitly selected exact plugin.",
+    "Required workspace services must be explicitly admitted.",
+    "Console workspace route ownership overlaps.",
+    "Workspace requirements must uniquely bind their declared service owner.",
+    "Workspace operation aliases must uniquely name admitted methods without collisions.",
+  ];
+  for (const [index, targets] of [
     [{ ...target("north", instance), manage: [detached.manage] }],
     [
       {
@@ -1096,19 +1259,55 @@ test("startup refuses detached Manage owners, unadmitted workspace operations an
         ],
       },
     ],
-  ]) {
+    [
+      {
+        ...target("north", instance),
+        mounts: [
+          {
+            ...mount(instance),
+            services: {
+              counter: {
+                manage: instance.manage,
+                operations: [instance.read],
+                operationAliases: { read: "write" },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  ].entries()) {
     const consolePlugin = createConsolePlugin({
       authentication: auth.plugin,
       targets,
       binding: bound,
     });
-    await expect(
-      startApp(
+    const before = [instance, other].map(({ state }) => ({ ...state }));
+    let rejected: unknown;
+    try {
+      const app = await startApp(
         defineApp({
           plugins: [auth.plugin, instance.plugin, other.plugin, consolePlugin],
         })
-      )
-    ).rejects.toBeDefined();
+      );
+      await app.stop();
+    } catch (error) {
+      rejected = error;
+    }
+    expect(rejected).toBeInstanceOf(Error);
+    const messages: string[] = [];
+    const seen = new Set<Error>();
+    while (rejected instanceof Error && !seen.has(rejected)) {
+      seen.add(rejected);
+      messages.push(rejected.message);
+      rejected = rejected.cause;
+    }
+    expect(messages).toContain(reasons[index]!);
+    for (const [position, { state }] of [instance, other].entries()) {
+      expect(state.setups - before[position]!.setups).toBe(1);
+      expect(state.cleanups - before[position]!.cleanups).toBe(1);
+    }
+    expect(detached.state.setups).toBe(0);
   }
 });
 

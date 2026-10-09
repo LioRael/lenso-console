@@ -77,9 +77,9 @@ from that procedure, rather than replacing it.
 ### TypeScript verification and evidence
 
 - Read the current root and affected package manifests, lockfile and
-  `.github/workflows/ci.yml` before choosing checks. Use Node from `.node-version`,
-  pnpm from `package.json#packageManager`, and a Bun version satisfying the
-  affected packages and any exact CI pin. Inspect the installed versions;
+  `.github/workflows/ci.yml` before choosing checks. Use Bun from `.bun-version`
+  and `package.json#packageManager`; `.node-version` applies to npm publisher
+  compatibility only. Inspect the installed versions;
   unavailable tools are blockers, not permission to change global configuration.
 - Console is a TypeScript plugin and SDK. Use the contribution guide's checks
   for backend/Auth/Manage, browser SDK, Shell and packaging according to the diff.

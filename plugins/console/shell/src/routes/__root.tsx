@@ -1,3 +1,4 @@
+import { consoleShellPath } from "@lenso/console-sdk/http-paths";
 import { Tooltip } from "@lenso/ui/tooltip";
 import {
   HeadContent,
@@ -7,15 +8,18 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { ConsoleAppearanceProvider } from "../app/console-appearance";
+import {
+  ConsoleAdmissionProvider,
+  ConsoleAdmittedPage,
+} from "../app/console-admission";
 import "@fontsource-variable/inter";
 
 import "@fontsource/roboto-mono/400.css";
 import "@lenso/tokens/styles.css";
 import "../styles.css";
 
-import { RouteError, RouteNotFound } from "../app/route-states";
-import { consoleShellPath } from "../lib/console-http-paths";
+import { ConsoleAppearanceProvider } from "../app/console-appearance";
+import { RouteError } from "../app/route-states";
 
 const consoleLayerStyle = `@layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;`;
 
@@ -30,7 +34,9 @@ const RootComponent = () => {
 
   return (
     <ConsoleAppearanceProvider>
-      <Outlet />
+      <ConsoleAdmissionProvider>
+        <Outlet />
+      </ConsoleAdmissionProvider>
     </ConsoleAppearanceProvider>
   );
 };
@@ -86,6 +92,6 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootComponent,
-  notFoundComponent: RouteNotFound,
+  notFoundComponent: ConsoleAdmittedPage,
   shellComponent: RootDocument,
 });

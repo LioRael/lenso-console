@@ -5,9 +5,9 @@ import {
 } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
 
+import { consoleHttpPaths } from "../src/http-paths";
 import { Route } from "./browser-root";
 import { PreviewShell } from "./preview-shell";
-import { consoleHttpPaths } from "./shell/lib/console-http-paths";
 import "virtual:stylex:runtime";
 
 const page = createRoute({

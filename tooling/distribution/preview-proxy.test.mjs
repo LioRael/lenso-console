@@ -1,10 +1,13 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
-import test from "node:test";
 import { promisify } from "node:util";
 
 import { backendProxy } from "../../packages/console-authoring/dev/proxy.mjs";
+
+const closeServer = (server) =>
+  server.listening ? promisify(server.close.bind(server))() : Promise.resolve();
 
 // Prevent a preview proxy from silently authorizing writes or dropping Auth/CSRF.
 test("backend proxy preserves authentication boundaries and rejects foreign writes", async () => {
@@ -82,10 +85,7 @@ test("backend proxy preserves authentication boundaries and rejects foreign writ
   } finally {
     frontend.closeAllConnections();
     backend.closeAllConnections();
-    await Promise.all([
-      promisify(frontend.close.bind(frontend))(),
-      promisify(backend.close.bind(backend))(),
-    ]);
+    await Promise.all([closeServer(frontend), closeServer(backend)]);
   }
 });
 
@@ -120,9 +120,6 @@ test("closing preview aborts an active backend event stream", async () => {
     proxy.close();
     frontend.closeAllConnections();
     backend.closeAllConnections();
-    await Promise.all([
-      promisify(frontend.close.bind(frontend))(),
-      promisify(backend.close.bind(backend))(),
-    ]);
+    await Promise.all([closeServer(frontend), closeServer(backend)]);
   }
 });

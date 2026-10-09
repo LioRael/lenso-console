@@ -12,6 +12,7 @@
     "lenso-console-author": "./author.mjs"
   },
   "files": [
+    "dist",
     "src",
     "compiler/*.mjs",
     "compiler/router.ts",
@@ -19,37 +20,97 @@
     "service-example",
     "author.mjs",
     "README.md",
+    "MIGRATION.md",
     "LICENSE",
     "shell",
     "dev"
   ],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./contribution": "./src/generated/contribution.ts",
-    "./workspace-service": "./src/generated/workspace-service.ts",
-    "./server": "./src/server.ts",
-    "./client": "./src/client.ts",
-    "./protocol": "./src/protocol.ts",
-    "./transport": "./src/transport.ts",
-    "./credentials": "./src/credentials.ts",
-    "./paths": "./src/paths.ts",
+    ".": {
+      "lenso-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "lenso-source": "./src/server.ts",
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "lenso-source": "./src/client.ts",
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./protocol": {
+      "lenso-source": "./src/protocol.ts",
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    },
+    "./transport": {
+      "lenso-source": "./src/transport.ts",
+      "types": "./dist/transport.d.ts",
+      "default": "./dist/transport.js"
+    },
+    "./credentials": {
+      "lenso-source": "./src/credentials.ts",
+      "types": "./dist/credentials.d.ts",
+      "default": "./dist/credentials.js"
+    },
+    "./paths": {
+      "lenso-source": "./src/paths.ts",
+      "types": "./dist/paths.d.ts",
+      "default": "./dist/paths.js"
+    },
     "./compiler": "./compiler/compiler.mjs",
-    "./locale": "./src/locale.ts",
-    "./i18n": "./src/i18n.ts",
+    "./locale": {
+      "lenso-source": "./src/locale.ts",
+      "types": "./dist/locale.d.ts",
+      "default": "./dist/locale.js"
+    },
+    "./i18n": {
+      "lenso-source": "./src/i18n.ts",
+      "types": "./dist/i18n.d.ts",
+      "default": "./dist/i18n.js"
+    },
+    "./http-paths": {
+      "lenso-source": "./src/http-paths.ts",
+      "types": "./dist/http-paths.d.ts",
+      "default": "./dist/http-paths.js"
+    },
+    "./browser": {
+      "lenso-source": "./src/browser.tsx",
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./session-fetch": {
+      "lenso-source": "./src/browser-session-fetch.ts",
+      "types": "./dist/browser-session-fetch.d.ts",
+      "default": "./dist/browser-session-fetch.js"
+    },
+    "./query-client": {
+      "lenso-source": "./src/browser-query-client.ts",
+      "types": "./dist/browser-query-client.d.ts",
+      "default": "./dist/browser-query-client.js"
+    },
     "./shell": "./shell/index.html"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "check": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module preserve --moduleResolution bundler --skipLibCheck --jsx react-jsx src/*.ts src/generated/*.ts dev/*.ts dev/*.tsx"
+    "build": "bun run build.ts && bun run build:types",
+    "build:types": "bun run --bun tsc -p tsconfig.build.json",
+    "check": "bun run --bun tsc -p tsconfig.json",
+    "test": "bun test compiler/test"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
-    "@lenso/contract-runtime": "0.3.1",
+    "@lenso/core": "0.3.1",
+    "@lenso/engine": "0.6.0",
+    "@lenso/manage": "0.5.0",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",
     "@orpc/client": "2.0.0-beta.42",
@@ -58,7 +119,7 @@
     "@stylexjs/unplugin": "0.19.0",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-router": "^1.170.21",
-    "@types/bun": "1.4.0",
+    "@types/bun": "1.4.2",
     "@types/react": "19.2.18",
     "@vitejs/plugin-react": "^6.0.5",
     "react-dom": "19.2.8",

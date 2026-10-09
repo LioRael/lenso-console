@@ -1,6 +1,5 @@
+import { sessionFetch } from "@lenso/console-sdk/session-fetch";
 import ky, { isHTTPError } from "ky";
-
-import { sessionFetch } from "./session-fetch";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
 const consoleMode = import.meta.env.VITE_CONSOLE_MODE as

@@ -144,11 +144,6 @@ const descriptor = {
   assets,
   requirements: [],
 };
-// Generated provider uses the existing public contract; the Shell never imports source.
-fs.copyFileSync(
-  path.resolve(import.meta.dir, "../src/generated/contribution.ts"),
-  path.join(out, "contribution.ts")
-);
 fs.writeFileSync(path.join(out, "descriptor.json"), JSON.stringify(descriptor));
 const hasServices = fs.existsSync(path.join(root, "services.ts"));
 if (
@@ -161,24 +156,11 @@ if (
   );
 }
 if (hasServices) {
-  fs.copyFileSync(
-    path.join(import.meta.dir, "../src/generated/workspace-service.ts"),
-    path.join(out, "workspace-service.ts")
-  );
   const backend = await Bun.build({
     entrypoints: [path.join(root, "services.ts")],
     target: "bun",
     format: "esm",
-    plugins: [
-      {
-        name: "console-server-sdk",
-        setup(build) {
-          build.onResolve({ filter: /^@lenso\/console-sdk\/server$/ }, () => ({
-            path: path.join(import.meta.dir, "../src/server.ts"),
-          }));
-        },
-      },
-    ],
+    packages: "external",
   });
   if (!backend.success) {
     throw new AggregateError(backend.logs, "Console service build failed");
@@ -193,34 +175,32 @@ if (hasServices) {
     JSON.stringify(descriptor)
   );
   fs.writeFileSync(path.join(out, "services.js"), backendSource);
-  fs.copyFileSync(
-    path.join(import.meta.dir, "../src/server.ts"),
-    path.join(out, "server.ts")
-  );
-  const server = fs
-    .readFileSync(path.join(out, "server.ts"), "utf-8")
-    .replace('"./generated/workspace-service"', '"./workspace-service"');
-  fs.writeFileSync(path.join(out, "server.ts"), server);
 } else {
-  for (const file of ["services.js", "server.ts", "workspace-service.ts"]) {
+  for (const file of ["services.js", "services.d.ts"]) {
     fs.rmSync(path.join(out, file), { force: true });
   }
 }
+// Reused output must not retain executable legacy providers after migration.
+for (const file of ["contribution.ts", "workspace-service.ts", "server.ts"]) {
+  fs.rmSync(path.join(out, file), { force: true });
+}
 fs.writeFileSync(
   path.join(out, "plugin.ts"),
-  `import {definePlugin} from "@lenso/bun-plugin";
-import {Contribution, type ContributionProvider, type DescribeContributionResponse} from "./contribution.ts";
+  `import {createWorkspaceInstallation} from "@lenso/console-sdk/server";
 import descriptor from "./descriptor.json";
-${hasServices ? 'import {WorkspaceService, type WorkspaceServiceProvider} from "./workspace-service.ts"; import services from "./services.js"; import {createWorkspaceServices} from "./server.ts";' : ""}
-export default definePlugin({provides:[Contribution${hasServices ? ",WorkspaceService" : ""}],create(): ContributionProvider${hasServices ? " & WorkspaceServiceProvider" : ""} {
-${
-  hasServices
-    ? `const adapter=createWorkspaceServices(services,descriptor.revision);
-const aliases:Record<string,readonly string[]|null>=${JSON.stringify(Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.services ?? null])))};
-const workspaces=descriptor.workspaces.map(workspace=>{const selected=aliases[workspace.id]; if(selected===undefined) throw new Error("Workspace service selection is missing"); if(selected?.some(alias=>!adapter.requirements.some(requirement=>requirement.service_id===alias))) throw new Error("Workspace declares an unknown service alias"); return {...workspace,requirements:selected===null?adapter.requirements:adapter.requirements.filter(requirement=>selected.includes(requirement.service_id))};});`
-    : ""
+${hasServices ? 'import services from "./services.js";' : ""}
+export function createInstallation(id=${JSON.stringify(request.plugin_id)}) {
+  return createWorkspaceInstallation({
+    id, descriptor,
+    ${hasServices ? "services," : ""}
+    aliases:${JSON.stringify(Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.services ?? null])))},
+  });
 }
-return {${hasServices ? "...adapter.provider," : ""}async describe_contribution(){return {ok:true,value:{...descriptor,${hasServices ? "workspaces," : ""}requirements:${hasServices ? "adapter.requirements" : "descriptor.requirements"}} as DescribeContributionResponse};}};}});
+const installation=createInstallation();
+export const plugin=installation.plugin;
+export const manage=installation.manage;
+export const createMount=installation.createMount;
+export default plugin;
 `
 );
 fs.writeFileSync(
@@ -232,17 +212,15 @@ fs.writeFileSync(
       private: true,
       type: "module",
       dependencies: {
-        "@lenso/bun-plugin": "0.4.1",
-        "@lenso/contract-runtime": "0.3.0",
+        "@lenso/console-sdk": JSON.parse(
+          fs.readFileSync(
+            path.resolve(import.meta.dir, "../package.json"),
+            "utf-8"
+          )
+        ).version,
       },
-      devDependencies: { typescript: "7.0.2", "@types/bun": "1.4.0" },
+      devDependencies: { typescript: "7.0.2" },
       scripts: { check: "tsc --noEmit" },
-      lenso: {
-        pluginId: request.plugin_id,
-        rootSlot: "console-workspaces",
-        runtime: "bun",
-        source: "plugin.ts",
-      },
     },
     null,
     2
@@ -259,9 +237,9 @@ fs.writeFileSync(
       moduleResolution: "bundler",
       allowImportingTsExtensions: true,
       resolveJsonModule: true,
-      types: ["bun"],
+      types: [],
     },
-    include: ["plugin.ts", "contribution.ts"],
+    include: ["plugin.ts", "services.d.ts"],
   })
 );
 fs.unlinkSync(entry);

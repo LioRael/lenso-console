@@ -1,10 +1,9 @@
 import path from "node:path";
 
-/** Bun owns declaration/compiler execution; Node owns the supported Vite runtime. */
 export async function dev(options) {
   const child = Bun.spawn(
     [
-      "node",
+      process.execPath,
       path.join(import.meta.dirname, "server.mjs"),
       JSON.stringify(options),
     ],
@@ -12,7 +11,7 @@ export async function dev(options) {
       stdin: "inherit",
       stdout: "inherit",
       stderr: "inherit",
-      env: { ...process.env, LENSO_CONSOLE_BUN: process.execPath },
+      env: process.env,
     }
   );
   const interrupt = () => child.kill("SIGINT");

@@ -1,4 +1,4 @@
-import { consoleHttpPaths } from "../lib/console-http-paths";
+import { consoleHttpPaths } from "@lenso/console-sdk/http-paths";
 
 export const rootRedirectPath = "/";
 

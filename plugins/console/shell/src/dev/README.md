@@ -1,6 +1,6 @@
 # Console frontend development
 
-`pnpm dev` runs the existing Vite loop. The local Agentation toolbar is enabled
+`bun run dev` runs the existing Vite loop. The local Agentation toolbar is enabled
 after hydration only in development; no MCP endpoint or webhook is configured.
 
 For an application-owned TS service, configure `VITE_CONSOLE_MODE=api`,

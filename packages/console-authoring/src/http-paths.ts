@@ -1,31 +1,40 @@
-import { canonicalWorkspacePath } from "../../../../../packages/console-authoring/src/paths";
+import { z } from "zod";
 
-export interface WorkspaceNavigationCheck {
-  path: readonly string[];
-  service_id: string;
-  operation: string;
-  fields: readonly string[];
-}
+import { canonicalWorkspacePath } from "./paths";
 
-export interface WorkspaceSource {
-  id: string;
-  account_issuer: string;
-  shell_base_path: string;
-  api_base_path: string;
-  auth_base_path: string;
-  mounts: readonly {
-    id: string;
-    base_path: string;
-    navigation_checks: readonly WorkspaceNavigationCheck[];
-  }[];
-}
+const navigationCheckSchema = z.strictObject({
+  path: z.array(z.string()).readonly(),
+  service_id: z.string(),
+  operation: z.string(),
+  fields: z.array(z.string()).readonly(),
+});
+export type WorkspaceNavigationCheck = z.infer<typeof navigationCheckSchema>;
 
-export interface ConsoleHttpPaths {
-  shell_base_path: string;
-  api_base_path: string;
-  auth_base_path: string;
-  workspace_sources?: readonly WorkspaceSource[];
-}
+const workspaceSourceSchema = z.strictObject({
+  id: z.string(),
+  account_issuer: z.string(),
+  shell_base_path: z.string(),
+  api_base_path: z.string(),
+  auth_base_path: z.string(),
+  mounts: z
+    .array(
+      z.strictObject({
+        id: z.string(),
+        base_path: z.string(),
+        navigation_checks: z.array(navigationCheckSchema).readonly(),
+      })
+    )
+    .readonly(),
+});
+export type WorkspaceSource = z.infer<typeof workspaceSourceSchema>;
+
+const httpPathsShape = z.strictObject({
+  shell_base_path: z.string(),
+  api_base_path: z.string(),
+  auth_base_path: z.string(),
+  workspace_sources: z.array(workspaceSourceSchema).readonly().optional(),
+});
+export type ConsoleHttpPaths = z.infer<typeof httpPathsShape>;
 
 const defaults: ConsoleHttpPaths = {
   shell_base_path: "/",
@@ -88,6 +97,24 @@ export function parseConsoleHttpPaths(value: unknown): ConsoleHttpPaths {
   }
   return paths;
 }
+
+/** The same parser checks authority ambiguity for browser bootstrap and server output. */
+export const consoleHttpPathsSchema = z
+  .unknown()
+  .transform((value, context) => {
+    try {
+      return parseConsoleHttpPaths(value);
+    } catch (error) {
+      context.addIssue({
+        code: "custom",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Console HTTP bootstrap is invalid",
+      });
+      return z.NEVER;
+    }
+  });
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {

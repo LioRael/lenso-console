@@ -7,14 +7,17 @@ exports, central registries or a second parallel server layer.
 
 ## Start
 
-This is a local package candidate, not a published npm version. Pack this directory
-with `pnpm pack --out /tmp/console-sdk.tgz`, install that archive in a clean project,
-and use Bun to run its `lenso-console-author` executable. Dependencies require npm
-registry access on first installation; application source compilation uses the
+This is a local package candidate, not a published npm version. From this
+directory, pack it with
+`bun pm pack --ignore-scripts --filename /tmp/console-sdk.tgz`, install that
+archive in a clean project, and use Bun to run its `lenso-console-author`
+executable. Dependencies require registry access on first installation;
+application source compilation uses the
 installed authoring tools. No Console checkout, Cargo or Git patches are needed
 for this page compilation path.
 
-Both npm and Bun's isolated installation layout are supported. The compiler
+Both npm and Bun's isolated installation layout are supported at the consumer
+boundary. The compiler
 resolves its own declared tools; it never installs dependencies or creates a
 second tool cache in the application's generated output. Install the App's
 locked dependencies once before compilation.
@@ -33,7 +36,15 @@ editor with that directory's generated `tsconfig.authoring.json`. `@lenso/consol
 is a compiler-provided, owner-local alias, not a globally shared service registry.
 Use the [TypeScript Console plugin](../console/README.md) for application
 assembly. Native development kits and embedding Hosts have been retired.
-Page compilation alone does not install its emitted provider into a TS app.
+Page compilation alone does not install its emitted Plugin into a TS app.
+See [the migration guide](MIGRATION.md) for the removed legacy provider API.
+
+The shared browser adapter uses unqualified URL paths. Every selected mount must
+have a globally distinct, non-overlapping `basePath`, including mounts belonging
+to different app subjects. The backend may catalog overlapping paths in separate
+subjects for other consumers; Console and backend preview reject that ambiguous
+browser selection. Assign distinct paths in Host mount configuration rather than
+relying on catalog order.
 
 ## Compiler package entry
 
@@ -63,16 +74,16 @@ if (result.status !== 0) throw new Error(result.stderr);
 ```
 
 Success returns `{"schema":"lenso.convention-compiled.v1"}` and writes the same
-descriptor and provider assets as `lenso-console-author`. Existing workspace
+descriptor and Plugin assets as `lenso-console-author`. Existing workspace
 options, authorization, scoped reads and generated dependencies are unchanged.
 Node resolves the entry; Bun runs it. A repository's private workspace root is
 not this npm package.
 
 The default scaffold has pages and navigation only. `init console --services`
-adds the typed source example. Its provider protocol is retained as a public SDK
-contract, but compilation is not automatic runtime integration. Supported TS apps
-select exact service instances and Manage operations explicitly; see the backend
-guide. The compiler neither grants permissions nor bypasses runtime admission.
+adds the typed source example. The generated `plugin.ts` exports a current
+TypeScript Plugin, its explicit `manage` declaration, and `createMount`.
+Supported TS apps install those exact objects and register mounts explicitly.
+The compiler neither grants permissions nor bypasses runtime admission.
 
 ## What you write
 
@@ -104,9 +115,10 @@ operations and rejected when defining services. Type information is not runtime 
 untrusted input and the domain owner performs final authorization on every call.
 Owner service aliases, explicit application admission, authentication and cancellation
 continue to apply. Existing cross-Plugin domain contracts keep using their normal
-generated SDK; the page helper does not grant access to private domain storage.
-Streaming remains available through the low-level mount transport and explicit
-TS read-stream declarations; `services.ts` currently declares unary operations.
+published SDK; the page helper does not grant access to private domain storage.
+Declare streaming reads with `streamOperation` and consume them with
+`client.orders.watch.subscribe(input, { signal })`. Both request and stream
+handlers validate and authorize before executing domain code.
 
 ## Pages and navigation
 
@@ -125,8 +137,8 @@ bubbles to its parent boundary. Boundaries reset on route changes. Root
 are checked under an isolated strict configuration, without executing services
 or inheriting arbitrary parent tsconfig plugins.
 
-`@lenso/console-sdk/contribution` and `/workspace-service` retain the generated
-public contract projections. Native providers retain request/stream support.
+`@lenso/console-sdk/protocol` owns validated wire schemas and inferred DTOs.
+`/contribution` and `/workspace-service` were removed with the legacy providers.
 The Shell injects scoped navigation, theme/locale, subject identity and an unmount
 cancellation signal; handoffs remain context, never authorization.
 
@@ -175,24 +187,24 @@ Layouts and `not-found.tsx` receive the same instance scope. Links retain native
 keyboard, modified-click and download behavior. Cross-workspace navigation uses
 `navigation.openWorkspace` with an admitted catalog mount ID.
 
-Install the implementation twice in the App Composition and configure Console's
-`workspace_mounts` by exact Plugin Instance and local workspace ID:
+Install the implementation twice using independent installations:
 
-```json
-{
-  "workspace_mounts": [
-    { "instance": "example.users/one", "workspace": "user", "path": "/team-one" },
-    { "instance": "example.users/two", "workspace": "user", "path": "/team-two" }
-  ]
-}
+```ts
+import { createInstallation } from "./console/.lenso/console/plugin";
+const one = createInstallation("example.users/one");
+const two = createInstallation("example.users/two");
+const mounts = [
+  one.createMount({ id: "users-one", workspaceId: "user", subject: { kind: "console" }, basePath: "/team-one/" }),
+  two.createMount({ id: "users-two", workspaceId: "user", subject: { kind: "console" }, basePath: "/team-two/" }),
+];
+// Install both exact Plugins and Manage declarations, then register mounts.
 ```
 
 Both instances render the same compiled page. Changing a mount path changes only
 URL metadata; mount IDs, executable identity and service bindings remain stable.
 Declared workspace IDs are local to the Plugin. Catalog mount IDs include the
 owner and subject; use those actual IDs in existing `member_workspace_ids`
-permission selectors. Legacy single-workspace responses keep their existing
-default-instance selector. Reserved paths, duplicate paths, overlapping prefixes
+permission selectors. Reserved paths, duplicate paths, overlapping prefixes
 and ambiguous root/child routes fail activation before publication. Dotted page
 segments are valid; unknown files and unregistered deep paths return 404.
 
@@ -210,7 +222,7 @@ workspace-metadata HMR protocol or native development Host.
 | Business source | your `console/` and business Plugin | pages, domain logic, explicit authorization |
 | Authoring package | `packages/console-authoring` | consume one package/command |
 | Runtime | `packages/console` | application selects exact TS plugins, services and authorities |
-| Generated projections | `.lenso/console`, SDK `src/generated` | maintain the SDK-owned TS public contracts without duplicate crate projections |
+| Generated projections | `.lenso/console` | consume inferred browser declarations and explicit Plugin/Manage/mount output |
 | Console maintenance | `plugins`, `packages`, `tooling`, `docs`, `examples` | maintainers only; these are not App author scaffolding |
 
 The SDK/compiler/scaffold have one package closure. `plugins/console/shell`
@@ -232,12 +244,16 @@ runs domain handlers. Browser errors name their public service/operation; missin
 requirements list public contract/version/source, without credentials or policy
 internals. Author-created parsing exception text is not reflected to the browser.
 
-Run package type checks and the compiler/consumer tests. The clean consumer gate
-packs this package, installs the archive outside the repository, invokes the public
-scaffold/compiler, proves typed mistakes fail, checks server-code exclusion and
-runs allowed/denied requests through the emitted server provider. It grants no
-model or production authority. TS backend archive consumption separately proves
-real Fetch/Auth/Manage invocation and browser/server import boundaries.
+Run package type checks and the compiler tests. One clean archive application
+installs the candidate SDK and backend outside the repository, invokes the public
+scaffold/compiler, rejects typed mistakes and server-code leakage, and exercises
+allowed/denied requests and streams through real Fetch/Auth/Manage. The local gate
+and SDK distribution workflow reuse this proof rather than maintaining separate
+consumer applications. Validation grants no publishing or production authority.
+
+The SDK's default `dist` JavaScript is built with Bun; its declaration files are
+emitted with TypeScript. `lenso-source` is an opt-in development condition, not
+the package's default runtime path.
 
 ## Shared language and Plugin catalogs
 
@@ -272,15 +288,15 @@ const shellRoot = path.dirname(require.resolve("@lenso/console-sdk/shell"));
 ```
 
 Supply that directory to the application-owned TS shell response adapter.
-Source maintainers stage the assets with `pnpm sdk:prepare`
+Source maintainers stage the assets with `bun run sdk:prepare`
 before packing; App consumers only install the SDK. An explicit custom Shell
 root remains supported.
 
 ## Develop one plugin page
 
 Install the SDK and the dependencies your pages import in the plugin's own
-`package.json`. Node 22.18+ and Bun 1.4.2+ are required; Rust, a database and a
-Console source checkout are unnecessary. The SDK archive includes its page-only
+`package.json`. Bun 1.4.2+ is the project runtime; Node is only needed for npm
+compatibility consumers and publishing. Rust, a database and a Console source checkout are unnecessary. The SDK archive includes its page-only
 preview source and Vite/React/StyleX closure, not built-in Console application pages.
 
 ```sh
@@ -290,7 +306,8 @@ npm install react@19.2.8 react-dom@19.2.8 @lenso/ui @stylexjs/stylex
 ./node_modules/.bin/lenso-console-author dev --entry ./console --open
 ```
 
-The same installed executable works after `pnpm install` or `bun install`.
+The same installed executable works after `bun install`; `npm install` is
+supported only for external npm-compatibility consumers.
 `--entry`, `--plugin-id` and the existing `workspace.ts` / `page.tsx` / layout,
 loading, error and not-found declarations retain their existing meanings. There
 is no additional project configuration language. Use `--plugin-id` when the
@@ -340,11 +357,11 @@ and Secure/Domain cookie policies remain the backend's policy. `--backend` and
 
 `check` and `build` remain the production validation/artifact commands. The
 preview server and Vite client are not included in their generated plugin output
-or in the production Shell assets. SDK release staging runs `pnpm sdk:prepare`;
+or in the production Shell assets. SDK release staging runs `bun run sdk:prepare`;
 normal consumers use the complete published archive, not repository aliases.
 
 Preview uses the SDK-owned page outlet and scoped-read runtime, with shared
 appearance and transport primitives only. It does not bundle the removed Agent,
 Plugins, Settings or management pages. Locale defaults to English without
-pretending to persist preferences. `pnpm test:preview` exercises authored-page
+pretending to persist preferences. `bun run test:preview` exercises authored-page
 navigation, explicit example reads and unauthenticated TS backend refusal.

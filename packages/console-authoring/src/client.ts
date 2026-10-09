@@ -1,5 +1,9 @@
 import type { WorkspaceServices } from "./index";
-import type { DeclaredOperation, ServiceDefinitions } from "./server";
+import type {
+  DeclaredOperation,
+  DeclaredStreamOperation,
+  ServiceDefinitions,
+} from "./server";
 
 export type ServiceClient<Definitions extends ServiceDefinitions> = {
   readonly [Service in keyof Definitions]: {
@@ -8,7 +12,17 @@ export type ServiceClient<Definitions extends ServiceDefinitions> = {
       infer Output
     >
       ? (input: Input, options?: { signal?: AbortSignal }) => Promise<Output>
-      : never;
+      : Definitions[Service]["operations"][Name] extends DeclaredStreamOperation<
+            infer Input,
+            infer Item
+          >
+        ? {
+            subscribe(
+              input: Input,
+              options?: { signal?: AbortSignal }
+            ): AsyncIterable<Item>;
+          }
+        : never;
   };
 };
 
@@ -30,8 +44,16 @@ export function createClient<Definitions extends ServiceDefinitions>(
               if (typeof operation !== "string" || operation === "then") {
                 return undefined;
               }
-              return (input: unknown, options?: { signal?: AbortSignal }) =>
-                transport.invoke(service, operation, input, options);
+              return Object.assign(
+                (input: unknown, options?: { signal?: AbortSignal }) =>
+                  transport.invoke(service, operation, input, options),
+                {
+                  subscribe: (
+                    input: unknown,
+                    options?: { signal?: AbortSignal }
+                  ) => transport.subscribe(service, operation, input, options),
+                }
+              );
             },
           })
         );

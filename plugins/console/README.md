@@ -11,14 +11,14 @@ native Host or Agent launcher.
 From the repository root:
 
 ```sh
-pnpm framework:prepare
-pnpm install --frozen-lockfile
-pnpm dev
-pnpm typecheck
-pnpm test:local
-pnpm build:local
+bun install --frozen-lockfile
+bun run dev
+bun run typecheck
+bun run test:local
+bun run build:local
 ```
 
-`pnpm dev` uses mock data unless explicitly configured for an application-owned
-TS backend. It does not establish backend feature availability or authorization.
+The home remains empty. Plugin pages require admission by an authenticated,
+application-owned TS backend; development mode does not fabricate product data
+or grant authorization.
 See [the root guide](../../README.md) for TS serving and focused checks.

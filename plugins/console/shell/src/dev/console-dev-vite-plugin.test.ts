@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import {
   createServer,
@@ -8,8 +9,6 @@ import {
 } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
-import { afterEach, describe, expect, test } from "vitest";
 
 import { consoleDevPlugin } from "./console-dev-vite-plugin";
 

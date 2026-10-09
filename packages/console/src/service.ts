@@ -1,38 +1,41 @@
-import { AuthError } from "@lenso/auth";
 import {
+  consoleAppsCatalogSchema,
   consoleContract,
-  consolePageDescriptorSchema,
+  consolePageCatalogSchema,
   consolePluginDescriptorSchema,
+  consoleSessionSchema,
   consoleTargetDescriptorSchema,
   type ConsoleOperationDescriptor,
 } from "@lenso/console-sdk/protocol";
-import {
-  EngineError,
-  environmentSecrets,
-  redact,
-} from "@lenso/engine/diagnostics";
+import { environmentSecrets, redact } from "@lenso/engine/diagnostics";
 import {
   boundedJson,
   executeOperation,
   operationError,
   validateOperationInput,
-  validateOperations,
   type Operation,
 } from "@lenso/engine/operations";
-import {
-  createManageAdapter,
-  createManageSelection,
-  defineManage,
-  type ManageSelection,
-} from "@lenso/manage";
+import { createManageAdapter } from "@lenso/manage";
 import { COMMON_ERROR_STATUS_MAP, implement, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { ConsoleRequestError, expectedConsoleSubject } from "./auth";
-import { isConsoleOperationError } from "./errors";
+import {
+  admitTargets,
+  basePath,
+  mountedOperationMethod,
+  overlaps,
+  relativePath,
+} from "./admission";
+import { expectedConsoleSubject } from "./auth";
+import {
+  boundedRpcRequest,
+  checkAbort,
+  failure,
+  jsonInput,
+  rpcFailure,
+  safeError,
+} from "./boundary";
 import { createLocaleRoutes } from "./locale";
-import { snapshotOperation } from "./operation-selection";
-import { readRequestBytes } from "./request-body";
 import { subscription } from "./subscription";
 import type {
   ConsoleAuthentication,
@@ -44,174 +47,6 @@ import type {
   ConsoleService,
   ConsoleTarget,
 } from "./types";
-
-const boundaryErrors = new WeakSet<Error>();
-
-class BoundaryError extends Error {
-  readonly code: string;
-  readonly status: number;
-  readonly retryAfterMs?: number;
-  constructor(code: string, status: number, retryAfterMs?: number) {
-    super("Console request failed");
-    this.name = "BoundaryError";
-    this.code = code;
-    this.status = status;
-    this.retryAfterMs = retryAfterMs;
-  }
-}
-
-function failure(
-  code: string,
-  status: number,
-  retryAfterMs?: number
-): BoundaryError {
-  const error = new BoundaryError(code, status, retryAfterMs);
-  boundaryErrors.add(error);
-  return error;
-}
-
-function rpcFailure(
-  error: BoundaryError,
-  headers: Headers
-): ORPCError<string, unknown> {
-  if (error.retryAfterMs !== undefined) {
-    headers.set("retry-after", String(Math.ceil(error.retryAfterMs / 1000)));
-    return new ORPCError(error.code, {
-      data: { retryAfterMs: error.retryAfterMs },
-    });
-  }
-  return new ORPCError(error.code);
-}
-
-function safeError(error: unknown): BoundaryError {
-  const seen = new Set<unknown>();
-  let current = error;
-  while (current instanceof Error && !seen.has(current)) {
-    const cause = current;
-    seen.add(cause);
-    current = cause.cause;
-    if (cause instanceof ConsoleRequestError) {
-      const code = {
-        bad_request: "BAD_REQUEST",
-        unauthorized: "UNAUTHORIZED",
-        forbidden: "FORBIDDEN",
-        session_changed: "PRECONDITION_FAILED",
-        service_unavailable: "SERVICE_UNAVAILABLE",
-      }[cause.code];
-      return failure(code, cause.status);
-    }
-    if (cause instanceof AuthError) {
-      const status = {
-        UNAUTHORIZED: 401,
-        FORBIDDEN: 403,
-        REAUTHENTICATION_REQUIRED: 401,
-        SERVICE_UNAVAILABLE: 503,
-      }[cause.code];
-      return failure(
-        cause.code === "REAUTHENTICATION_REQUIRED"
-          ? "UNAUTHORIZED"
-          : cause.code,
-        status
-      );
-    }
-    if (cause instanceof BoundaryError && boundaryErrors.has(cause)) {
-      return cause;
-    }
-    if (isConsoleOperationError(cause)) {
-      return failure(cause.code, cause.status, cause.retryAfterMs);
-    }
-  }
-  if (error instanceof EngineError) {
-    const { code } = error.diagnostic;
-    if (["invalid-input", "invalid-task", "invalid-options"].includes(code)) {
-      return failure("UNPROCESSABLE_CONTENT", 422);
-    }
-    if (["unknown-operation", "unknown-plugin", "not-found"].includes(code)) {
-      return failure("NOT_FOUND", 404);
-    }
-    if (code === "conflict") {
-      return failure("CONFLICT", 409);
-    }
-    if (code === "unsupported") {
-      return failure("NOT_IMPLEMENTED", 501);
-    }
-    if (
-      [
-        "forbidden-operation",
-        "confirmation-required",
-        "approval-required",
-        "forbidden",
-        "denied",
-      ].includes(code)
-    ) {
-      return failure("FORBIDDEN", 403);
-    }
-  }
-  if (error instanceof ORPCError && error.code === "BAD_REQUEST") {
-    return failure("UNPROCESSABLE_CONTENT", 422);
-  }
-  return failure("SERVICE_UNAVAILABLE", 503);
-}
-
-function basePath(value: string): "" | `/${string}` {
-  if (
-    !/^\/(?:[a-zA-Z0-9._~-]+\/)*[a-zA-Z0-9._~-]*$/.test(value) ||
-    value.split("/").some((part) => part === "." || part === "..")
-  ) {
-    throw new Error("Console base paths must be absolute safe paths.");
-  }
-  return value === "/" ? "" : `/${value.slice(1).replace(/\/$/, "")}`;
-}
-
-function overlaps(a: string, b: string): boolean {
-  return a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
-}
-
-function relativePath(value: string): boolean {
-  return (
-    value.length > 0 &&
-    !/[\\?#%]/u.test(value) &&
-    !hasControlCharacter(value) &&
-    value
-      .split("/")
-      .every((part) => part.length > 0 && part !== "." && part !== "..")
-  );
-}
-
-function jsonInput(value: unknown): void {
-  try {
-    boundedJson(value);
-  } catch (error) {
-    const oversized =
-      error instanceof EngineError &&
-      error.diagnostic.code === "output-too-large";
-    throw failure(
-      oversized ? "PAYLOAD_TOO_LARGE" : "BAD_REQUEST",
-      oversized ? 413 : 400
-    );
-  }
-}
-
-function hasControlCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const code = character.codePointAt(0)!;
-    return code <= 0x1f || code === 0x7f;
-  });
-}
-
-function checkAbort(request: Request): void {
-  request.signal.throwIfAborted();
-}
-
-async function boundedRpcRequest(request: Request): Promise<Request> {
-  if (!request.body) {
-    return request;
-  }
-  const body = await readRequestBytes(request, 1024 * 1024 + 4096, () =>
-    failure("PAYLOAD_TOO_LARGE", 413)
-  );
-  return new Request(request, { body, method: request.method });
-}
 
 function resource(
   target: ConsoleTarget,
@@ -271,264 +106,16 @@ export function createConsoleService(
       "Console shell requires an explicit route matcher and response callback."
     );
   }
-  const targets = options.targets.map((target) => ({
-    ...target,
-    plugins: [...target.plugins],
-    manage: [...target.manage],
-    mounts: [...(target.mounts ?? [])],
-  }));
+  const { targets, mounts, selections } = admitTargets(
+    runtime,
+    options.targets,
+    api
+  );
   const locale = createLocaleRoutes(
     options.locale ? runtime.get(options.locale) : undefined,
     auth,
     options.localeResource
   );
-  const targetIds = new Set<string>();
-  const mounts = new Map<
-    string,
-    { target: ConsoleTarget; mount: ConsoleMount }
-  >();
-  const selections = new Map<ConsoleTarget, ManageSelection>();
-  const mountRoutes: { subject: string; base: string }[] = [];
-  for (const target of targets) {
-    if (
-      !/^[a-z][a-z0-9._-]{0,63}$/.test(target.id) ||
-      redact(target.id, environmentSecrets()) !== target.id ||
-      !target.label.trim() ||
-      !target.tenantId ||
-      targetIds.has(target.id)
-    ) {
-      throw new Error(
-        "Console targets need unique IDs and server-bound tenants."
-      );
-    }
-    targetIds.add(target.id);
-    const running = target.running ?? runtime;
-    for (const plugin of target.plugins) {
-      running.get(plugin);
-    }
-    const operations = target.manage.flatMap((manage) => {
-      defineManage(manage);
-      if (!target.plugins.includes(manage.plugin)) {
-        throw new Error(
-          "Manage must bind an explicitly selected exact plugin."
-        );
-      }
-      return [...manage.operations];
-    });
-    validateOperations(target.plugins, operations);
-    selections.set(
-      target,
-      createManageSelection({
-        running,
-        plugins: target.plugins,
-        operations,
-      })
-    );
-    for (const mount of target.mounts ?? []) {
-      if (mount.credentials) {
-        for (const operation of ["issue", "rotate"] as const) {
-          const endpoint = mount.credentials[`${operation}Path`];
-          const bound = mount.credentials.resources[operation];
-          if (
-            !/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/.test(endpoint) ||
-            bound.targetId !== target.id ||
-            bound.tenantId !== target.tenantId ||
-            bound.action !== "invoke" ||
-            bound.operation !== operation
-          ) {
-            throw new Error(
-              "Credential routes must be explicitly owned by this target."
-            );
-          }
-        }
-      }
-      const descriptor = consolePageDescriptorSchema.parse(
-        JSON.parse(
-          boundedJson(
-            redact(
-              {
-                ...mount.descriptor,
-                protocol: "lenso-console-rpc/2",
-                targetId: target.id,
-              },
-              environmentSecrets()
-            )
-          )
-        )
-      );
-      if (
-        !/^[a-zA-Z0-9][a-zA-Z0-9._~-]*$/.test(descriptor.id) ||
-        mounts.has(descriptor.id) ||
-        descriptor.owner.source !== "application" ||
-        descriptor.owner.trusted !== true ||
-        !target.plugins.some(
-          (plugin) => plugin.id === mount.descriptor.owner.instance
-        ) ||
-        !/^[a-f0-9]{64}$/.test(descriptor.implementationId) ||
-        !descriptor.revision ||
-        (mount.descriptor.targetId !== undefined &&
-          mount.descriptor.targetId !== target.id) ||
-        (descriptor.subject.kind === "app" &&
-          descriptor.subject.appId !== target.id)
-      ) {
-        throw new Error(
-          "Console mount must name an installed owner, target and immutable implementation."
-        );
-      }
-      const assetBase = `${api}/console/v1/pages/${descriptor.id}/assets/${descriptor.implementationId}/`;
-      for (const asset of [descriptor.module, ...descriptor.styles]) {
-        if (
-          !asset.startsWith(assetBase) ||
-          !relativePath(asset.slice(assetBase.length))
-        ) {
-          throw new Error(
-            "Console assets must be bound to their mount implementation."
-          );
-        }
-      }
-      for (const service of Object.values(mount.services)) {
-        if (
-          !target.manage.includes(service.manage) ||
-          service.operations.some(
-            (operation) => !service.manage.operations.includes(operation)
-          )
-        ) {
-          throw new Error(
-            "Workspace services must select installed Manage declarations."
-          );
-        }
-        validateOperations([service.manage.plugin], service.operations);
-        const methods = new Set(
-          service.operations.map((operation) => operation.method)
-        );
-        const streams = service.streams ?? [];
-        validateOperations(
-          [service.manage.plugin],
-          streams.map((stream) => stream.operation)
-        );
-        for (const stream of streams) {
-          const { operation } = stream;
-          const budget = stream.maxItemBytes ?? 48 * 1024;
-          if (
-            operation.plugin !== service.manage.plugin ||
-            operation.effect !== "read" ||
-            operation.destructive === true ||
-            operation.confirmation !== undefined ||
-            operation.approval !== undefined ||
-            !stream.output?.["~standard"] ||
-            typeof stream.output["~standard"].validate !== "function" ||
-            stream.output["~standard"].version !== 1 ||
-            methods.has(operation.method) ||
-            operations.some(
-              (finite) =>
-                finite.plugin === operation.plugin &&
-                finite.method === operation.method
-            ) ||
-            !Number.isSafeInteger(budget) ||
-            budget < 1 ||
-            budget > 1024 * 1024
-          ) {
-            throw new Error(
-              "Workspace streams require unique ungated read operations, an item schema and a bounded item budget."
-            );
-          }
-          const installed = running.get(operation.plugin);
-          if (
-            installed === null ||
-            typeof installed !== "object" ||
-            !Object.hasOwn(installed, operation.method) ||
-            typeof Reflect.get(installed, operation.method) !== "function"
-          ) {
-            throw new Error(
-              "Workspace stream must select an installed own service method."
-            );
-          }
-          methods.add(operation.method);
-        }
-      }
-      const requirements = new Set<string>();
-      for (const requirement of descriptor.requirements) {
-        const service = mount.services[requirement.service_id];
-        if (
-          requirements.has(requirement.service_id) ||
-          (service &&
-            requirement.source === "owner" &&
-            service.manage.plugin.id !== mount.descriptor.owner.instance)
-        ) {
-          throw new Error(
-            "Workspace requirements must uniquely bind their declared service owner."
-          );
-        }
-        requirements.add(requirement.service_id);
-        if (
-          requirement.required &&
-          (!requirement.available ||
-            !service ||
-            requirement.operations.some(
-              (method) =>
-                !service.operations.some((op) => op.method === method) &&
-                !service.streams?.some(
-                  (stream) => stream.operation.method === method
-                )
-            ))
-        ) {
-          throw new Error(
-            "Required workspace services must be explicitly admitted."
-          );
-        }
-      }
-      descriptor.requirements = descriptor.requirements.map((requirement) => ({
-        ...requirement,
-        streaming_operations: (
-          mount.services[requirement.service_id]?.streams ?? []
-        )
-          .filter(
-            (stream) =>
-              requirement.available &&
-              requirement.operations.includes(stream.operation.method)
-          )
-          .map((stream) => stream.operation.method),
-      }));
-      const subject =
-        descriptor.subject.kind === "console" ? "console" : target.id;
-      const routeBase = basePath(descriptor.basePath ?? "/");
-      if (
-        mount.placement !== "global" &&
-        mountRoutes.some(
-          (route) =>
-            route.subject === subject && overlaps(route.base, routeBase)
-        )
-      ) {
-        throw new Error("Console workspace route ownership overlaps.");
-      }
-      if (mount.placement !== "global") {
-        mountRoutes.push({ subject, base: routeBase });
-      }
-      const services = Object.fromEntries(
-        Object.entries(mount.services).map(([id, service]) => [
-          id,
-          Object.freeze({
-            manage: defineManage(service.manage),
-            operations: Object.freeze(
-              service.operations.map(snapshotOperation)
-            ),
-            streams: Object.freeze(
-              (service.streams ?? []).map((stream) =>
-                Object.freeze({
-                  ...stream,
-                  operation: snapshotOperation(stream.operation),
-                })
-              )
-            ),
-          }),
-        ])
-      );
-      mounts.set(descriptor.id, {
-        target,
-        mount: { ...mount, descriptor, services },
-      });
-    }
-  }
 
   const catalogRevision = crypto.randomUUID();
   const writable = (
@@ -840,7 +427,9 @@ export function createConsoleService(
               ? mount.services[input.service]
               : undefined;
             const stream = service?.streams?.find(
-              (entry) => entry.operation.method === input.operation
+              (entry) =>
+                entry.operation.method ===
+                mountedOperationMethod(service, input.operation)
             );
             if (
               !requirement?.available ||
@@ -996,7 +585,7 @@ export function createConsoleService(
             return await invoke(
               target,
               service.manage.plugin.id,
-              input.operation,
+              mountedOperationMethod(service, input.operation),
               input.input,
               request,
               identity,
@@ -1115,30 +704,32 @@ export function createConsoleService(
           path === `${prefix}/v1/session`
         ) {
           const session = await auth.session(identity);
-          response = Response.json({
-            mode: "required",
-            authenticated: true,
-            subject: identity.actor.subjectId,
-            ...session,
-            assistant_enabled: false,
-            human_management_enabled: false,
-            management_enabled: options.management === true,
-            management_protocol: "lenso-console-rpc/2",
-            capabilities: {
-              locale: options.locale ? "available" : "unavailable",
-              pluginConfiguration: "read-only",
-              pluginConfigurationWrite: {
-                available: false,
-                reason:
-                  "Startup configuration is read-only here. Change the application-owned source and restart.",
+          response = Response.json(
+            consoleSessionSchema.parse({
+              mode: "required",
+              authenticated: true,
+              subject: identity.actor.subjectId,
+              ...session,
+              assistant_enabled: false,
+              human_management_enabled: false,
+              management_enabled: options.management === true,
+              management_protocol: "lenso-console-rpc/2",
+              capabilities: {
+                locale: options.locale ? "available" : "unavailable",
+                pluginConfiguration: "read-only",
+                pluginConfigurationWrite: {
+                  available: false,
+                  reason:
+                    "Startup configuration is read-only here. Change the application-owned source and restart.",
+                },
+                agent: {
+                  available: false,
+                  reason:
+                    "No Agent transport is installed in this TypeScript application.",
+                },
               },
-              agent: {
-                available: false,
-                reason:
-                  "No Agent transport is installed in this TypeScript application.",
-              },
-            },
-          });
+            })
+          );
         } else if (request.method === "GET" && path === `${prefix}/v1/apps`) {
           const permitted = [];
           for (const target of targets) {
@@ -1157,7 +748,9 @@ export function createConsoleService(
               });
             }
           }
-          response = Response.json({ apps: permitted });
+          response = Response.json(
+            consoleAppsCatalogSchema.parse({ apps: permitted })
+          );
         } else if (
           request.method === "GET" &&
           [`${prefix}/v1/pages`, `${prefix}/v1/surfaces`].includes(path)
@@ -1189,12 +782,19 @@ export function createConsoleService(
                 const methods: string[] = [];
                 const streamingMethods: string[] = [];
                 const declaredStreams = service?.streams ?? [];
-                for (const operation of [
-                  ...(service?.operations ?? []),
-                  ...declaredStreams.map((stream) => stream.operation),
-                ]) {
+                for (const name of requirement.operations) {
+                  const operation =
+                    service &&
+                    [
+                      ...service.operations,
+                      ...declaredStreams.map((stream) => stream.operation),
+                    ].find(
+                      (candidate) =>
+                        candidate.method ===
+                        mountedOperationMethod(service, name)
+                    );
                   if (
-                    requirement.operations.includes(operation.method) &&
+                    operation &&
                     writable(operation, target, mount) &&
                     (await auth.can(
                       identity,
@@ -1205,13 +805,13 @@ export function createConsoleService(
                       resource(target, "list", operation, mount)
                     ))
                   ) {
-                    methods.push(operation.method);
+                    methods.push(name);
                     if (
                       declaredStreams.some(
                         (stream) => stream.operation === operation
                       )
                     ) {
-                      streamingMethods.push(operation.method);
+                      streamingMethods.push(name);
                     }
                   }
                 }
@@ -1253,10 +853,12 @@ export function createConsoleService(
               });
             }
           }
-          response = Response.json({
-            schema: "console.page-catalog/1",
-            mounts: visible,
-          });
+          response = Response.json(
+            consolePageCatalogSchema.parse({
+              schema: "console.page-catalog/1",
+              mounts: visible,
+            })
+          );
         } else if (
           options.management === true &&
           path.startsWith(`${prefix}/v2/rpc/`)

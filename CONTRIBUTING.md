@@ -42,11 +42,11 @@ use the current root and affected package scripts. Console's runtime is the
 TypeScript plugin, not the retired native Host. Common Shell checks are:
 
 ```sh
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test:local
-pnpm build:local
+bun run format:check
+bun run lint
+bun run typecheck
+bun run test:local
+bun run build:local
 ```
 
 For backend changes, run the Console package's typecheck, tests and build.
@@ -64,21 +64,23 @@ script and dependency changes receive focused review and the upstream candidate 
 
 ### Shared local and CI gate
 
-Use Node from `.node-version`, pnpm from `packageManager`, and Bun according to
-the affected manifests and any exact CI pin. Inspect the workflow and the
+Use Bun 1.4.2 from `.bun-version`. Node is only used at the publisher and
+external npm-compatibility consumer boundary. Inspect the workflow and the
 complete command chain before running the shared gate.
 
-Dependencies must resolve with `pnpm install --frozen-lockfile` in a clean
-candidate checkout. Prefer a compatible published TS package set. Unpublished
-framework dependencies require immutable source revisions and reviewed,
-reproducible archive/workspace preparation available to CI, including transitive
-resolutions. Ignored local archives or a dirty sibling checkout do not establish
-candidate readiness.
+Dependencies must resolve with `bun install --frozen-lockfile` in a clean
+candidate checkout. Framework dependencies use compatible published npm packages,
+including transitive resolutions. Do not inject framework source overrides,
+workspace aliases, temporary archives or copied implementation files. An
+unavailable published API is a delivery blocker, not permission to patch
+`node_modules` or prepare a sibling framework checkout.
 
-The current preparation is `node tooling/distribution/prepare-ts-framework.mjs`,
-run before installation. It fetches the revision recorded in
-`tooling/distribution/framework-source.json` and uses Bun from `.bun-version`.
-CI runs that same preparation and frozen installation sequence.
+CI and local validation use the same frozen installation sequence. Archive
+integration packs the candidate Console backend and SDK, then installs those
+archives in an isolated application with normal published framework packages. It
+checks actual authoring, typed invocation, authentication and browser/server
+boundaries. The required staged Shell must exist with every referenced asset;
+missing build output fails validation rather than skipping it.
 
 The shared local and CI gate must cover the TS plugin, SDK and Shell, including
 actual archive consumption and pinned-browser validation where applicable. The
@@ -89,13 +91,13 @@ Rust/Cargo validation, native Hosts, Agent binaries and development kits are
 retired Console requirements. The supported scripts and CI use only TS owners.
 If a future change reintroduces a native step, migrate the pipeline before landing
 rather than installing the old stack, skipping required checks or weakening
-branch protection. In particular, verify the implementation of `pnpm check`
+branch protection. In particular, verify the implementation of `bun run check`
 before treating it as the shared TS gate.
 
 Browser fixtures retain real StyleX CSS loading and geometry assertions, plus
 the existing file-level isolation. Run
-`pnpm test:browser src/components/console/console-layout.browser.test.tsx src/components/console/console-dock.browser.test.tsx`
-for the focused layout and Dock regressions. An alternate browser executable is diagnostic
+`bun run test:browser` for the focused layout and Dock regressions; the browser
+fixtures now live under `plugins/console/shell/test/`. An alternate browser executable is diagnostic
 evidence and is rejected by the complete pinned gate. macOS proof does not
 replace the required Linux candidate result.
 

@@ -2,29 +2,12 @@ import { expect, test } from "bun:test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 
-import { chromium } from "playwright";
-
-async function freePort() {
-  const server = createServer();
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
-  const address = server.address();
-  if (!address || typeof address === "string") {
-    throw new Error("No TCP address");
-  }
-  await new Promise<void>((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve()))
-  );
-  return address.port;
-}
+import { freePort } from "./test/port";
 
 async function start(
   script: string,
@@ -34,7 +17,7 @@ async function start(
   auth: string,
   config?: string
 ) {
-  const child = spawn("pnpm", [script, ...(config ? [config] : [])], {
+  const child = spawn("bun", ["run", script, ...(config ? [config] : [])], {
     cwd: path.resolve("."),
     detached: true,
     env: {
@@ -102,11 +85,10 @@ async function start(
   }
 }
 
-// Direct startApp tests do not load trusted lenso.config.ts, resolve its real
-// env/file adapters, exercise package conditions, or prove the documented command.
-test("official built and source commands load config, serve Shell and retain browser Auth/CSRF", async () => {
+// Auth and business workflows live in host tests. Only the commands exercise
+// config loading, package conditions and descendant-process shutdown.
+test("official built and source commands load config, serve Shell and close their listener", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ts-console-cli-"));
-  const browser = await chromium.launch({ headless: true });
   try {
     // Wrapper exit can precede Bun's asynchronous cleanup. Keep the listener
     // alive briefly during cleanup so the existing network assertion catches it.
@@ -135,80 +117,33 @@ export default { ...app, plugins: [...app.plugins, delay] };
       ["service:ts:dev", "/api/tenant", "/operator/auth"],
     ] as const) {
       const origin = `http://127.0.0.1:${await freePort()}`;
+      const database = path.join(directory, `${script}.sqlite`);
+      const migration = Bun.spawn(
+        ["bun", "examples/ts-console/locale-store/migrate.ts", database],
+        { stdout: "pipe", stderr: "pipe" }
+      );
+      const diagnostics = await new Response(migration.stderr).text();
+      expect(await migration.exited, diagnostics).toBe(0);
       const child = await start(
         script,
         origin,
-        path.join(directory, `${script}.sqlite`),
+        database,
         api,
         auth,
         script === "service:ts:dev" ? delayedConfig : undefined
       );
       try {
-        const context = await browser.newContext({ locale: "en-US" });
-        const page = await context.newPage();
-        page.setDefaultTimeout(10_000);
-        const errors: string[] = [];
-        page.on("pageerror", (error) => errors.push(error.message));
-        const shell = await page.goto(origin);
-        expect(shell?.status()).toBe(200);
-        const login = await page.evaluate(
-          async ({ api: apiPath, auth: authPath }) => {
-            await fetch(`${authPath}/methods`);
-            const csrf =
-              document.cookie
-                .split(";")
-                .map((part) => part.trim())
-                .find((part) => part.startsWith("__Host-lenso-csrf="))
-                ?.split("=")[1] ?? "";
-            const response = await fetch(`${authPath}/login`, {
-              method: "POST",
-              headers: {
-                "content-type": "application/json",
-                "x-csrf-token": csrf,
-              },
-              body: JSON.stringify({
-                identifier: "operator@localhost.test",
-                password: "isolated-cli-operator-token",
-              }),
-            });
-            const session = await fetch(`${apiPath}/console/v1/session`);
-            return { status: response.status, session: await session.json() };
-          },
-          { api, auth }
-        );
-        expect(login.status).toBe(204);
-        expect(login.session).toMatchObject({
-          authenticated: true,
-          subject: "operator@localhost.test",
-        });
-        const cookies = await context.cookies();
-        expect(
-          cookies.find((cookie) => cookie.name === "__Host-lenso-session")
-        ).toMatchObject({ secure: true, httpOnly: true });
-        expect(
-          cookies.find((cookie) => cookie.name === "__Host-lenso-csrf")
-        ).toMatchObject({ secure: true, httpOnly: false });
-        const write = await page.evaluate(async (prefix) => {
-          const csrf =
-            document.cookie
-              .split(";")
-              .map((part) => part.trim())
-              .find((part) => part.startsWith("__Host-lenso-csrf="))
-              ?.split("=")[1] ?? "";
-          const response = await fetch(`${prefix}/console/v1/locale/default`, {
-            method: "PUT",
-            headers: {
-              "content-type": "application/json",
-              "x-csrf-token": csrf,
-            },
-            body: JSON.stringify({ locale: "zh-CN" }),
-          });
-          return { status: response.status, snapshot: await response.json() };
-        }, api);
-        expect(write.status).toBe(200);
-        expect(write.snapshot.global_default).toBe("zh-CN");
-        expect(errors).toEqual([]);
-        await context.close();
+        const shell = await fetch(origin);
+        expect(shell.status).toBe(200);
+        const html = await shell.text();
+        expect(html).toContain(`"api_base_path":"${api}"`);
+        expect(html).toContain(`"auth_base_path":"${auth}"`);
+        const methods = await fetch(`${origin}${auth}/methods`);
+        expect(methods.status).toBe(200);
+        await methods.arrayBuffer();
+        const session = await fetch(`${origin}${api}/console/v1/session`);
+        expect(session.status).toBe(401);
+        await session.arrayBuffer();
       } finally {
         await child.stop();
       }
@@ -217,7 +152,6 @@ export default { ...app, plugins: [...app.plugins, delay] };
       ).rejects.toThrow();
     }
   } finally {
-    await browser.close();
     await rm(directory, { recursive: true, force: true });
   }
 }, 90_000);

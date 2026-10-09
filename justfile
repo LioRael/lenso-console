@@ -5,49 +5,49 @@ default:
 
 # Dependencies
 install:
-    pnpm install
+    bun install
 
 install-ci:
-    CI=true pnpm install --frozen-lockfile
+    CI=true bun install --frozen-lockfile
 
 # Quality gates
 fmt:
-    pnpm format
+    bun run format
 
 fmt-check:
-    pnpm format:check
+    bun run format:check
 
 lint:
-    pnpm lint
+    bun run lint
 
 typecheck:
-    pnpm typecheck
+    bun run typecheck
 
 test:
-    pnpm test
+    bun run test
 
 build:
-    pnpm build
+    bun run build
 
 check:
-    pnpm check
+    bun run check
 
 # Apps
 console:
-    pnpm dev
+    bun run dev
 
 console-api:
-    VITE_CONSOLE_MODE=api VITE_CONSOLE_DEV_MODE=production VITE_API_BASE_URL=http://127.0.0.1:3100 pnpm dev
+    VITE_CONSOLE_MODE=api VITE_CONSOLE_DEV_MODE=production VITE_API_BASE_URL=http://127.0.0.1:3100 bun run dev
 
 console-preview:
-    pnpm preview
+    bun run preview
 
 # Console Service
 service-serve:
-    pnpm service:serve
+    bun run service:serve
 
 service-check:
-    pnpm service:check
+    bun run service:check
 
 # Console web
 console-fmt: fmt

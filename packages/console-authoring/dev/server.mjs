@@ -20,7 +20,7 @@ const escapeHtml = (value) => value.replaceAll("<", "\\u003c");
 function discoverPages(entry, pluginId) {
   const result = JSON.parse(
     execFileSync(
-      process.env.LENSO_CONSOLE_BUN || "bun",
+      process.execPath,
       [path.join(directory, "discover.mjs"), entry, pluginId],
       { encoding: "utf-8", maxBuffer: 2 * 1024 * 1024 }
     )
@@ -112,7 +112,7 @@ export async function dev({
     }
     paths = JSON.parse(
       execFileSync(
-        process.env.LENSO_CONSOLE_BUN || "bun",
+        process.execPath,
         [path.join(directory, "discover.mjs"), "--http-paths", match[1]],
         { encoding: "utf-8", maxBuffer: 1024 * 1024 }
       )

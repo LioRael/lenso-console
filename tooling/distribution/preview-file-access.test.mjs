@@ -1,15 +1,18 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import fs from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
 import { promisify } from "node:util";
 
 import { createServer } from "vite";
 
 import { previewFileAccess } from "../../packages/console-authoring/dev/file-access.mjs";
+
+const closeServer = (server) =>
+  server.listening ? promisify(server.close.bind(server))() : Promise.resolve();
 
 // Direct outside-file/.env checks miss links whose request path looks allowed.
 // Also prevent a cached module from surviving a link's destination change.
@@ -79,7 +82,7 @@ test("preview rejects symlink escapes and masked env files before Vite serves th
     assert.match(await normal.text(), /explicit safe fixture/u);
   } finally {
     http.closeAllConnections();
-    await Promise.all([vite.close(), promisify(http.close.bind(http))()]);
+    await Promise.all([vite.close(), closeServer(http)]);
     fs.rmSync(temp, { force: true, recursive: true });
   }
 });

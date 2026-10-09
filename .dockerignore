@@ -2,7 +2,6 @@
 .github
 .artifacts
 .playwright-cli
-.pnpm-store
 build
 dist
 node_modules

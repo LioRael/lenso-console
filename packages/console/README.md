@@ -152,6 +152,14 @@ descriptor cannot supply executable dispatch or grant authority. The unchanged
 SDK `services.subscribe(service, operation, input, { signal })` signature uses
 these declarations. Hosts with no stream declaration remain unavailable.
 
+When one owner implements several services with the same public method name,
+set `operationAliases` on each mount service, for example
+`{ read: "orders.read" }`. The destination must be an exact method selected in
+that service's `operations` or `streams`. Requirements and browser calls use
+the public name; binding, authorization and dispatch use the admitted owner
+operation. Console snapshots this map at startup and rejects collisions or
+unadmitted destinations. Omitting the map keeps direct method-name matching.
+
 Subscriptions must be explicitly read-only and ungated: write/unknown,
 destructive, confirmation- or approval-required declarations are rejected rather
 than bypassed. Input validation precedes trusted binding; entry authorization is
@@ -170,15 +178,14 @@ stopping a borrowed app. Producer waits must honor the signal, and providers own
 any detached work: an uncooperative wait can delay cleanup indefinitely. Neither
 a timeout nor an abort signal proves that detached work has stopped.
 
-## Local framework consumption
+## Published framework dependencies
 
-The bridge uses the immutable framework commit
-`9dc049e695d3063c960be861b53004f1def92573`, including application composition,
-borrowed-runtime seams and reusable Manage selections. Its cohort is Core
-`0.3.1`, Engine `0.5.0`, Manage `0.4.1`, Auth `0.3.1`, Web `0.3.2`, and the
-matching optional companion builds. Several of these exact versions are not
-yet published. They resolve from the source archives, not from guessed registry
-releases.
+Console uses normal registry dependencies: Core `0.3.1`, Engine `0.6.0`,
+Manage `0.5.0`, Auth `0.3.1`, Web `0.3.2`, and the optional companion versions
+pinned in `package.json`. Their published package exports have been verified;
+no framework checkout, source alias or locally built framework archive is needed.
+`@lenso/console` itself remains a private workspace package. This is not a claim
+that the backend can be installed from the registry.
 
 Console prepares one Manage selection per target. Request adapters supply fresh
 listing policy and invocation evidence without rebuilding that selection.
@@ -187,27 +194,17 @@ shutdown closes its selections and drains owned subscriptions without stopping
 borrowed applications. This is in-memory selection cleanup, not a publication,
 history or hot-replacement workflow.
 
-Preparation works from a clean Console checkout without a sibling worktree:
+From the Console workspace:
 
 ```sh
-node tooling/distribution/prepare-ts-framework.mjs
-pnpm install --frozen-lockfile
-pnpm --filter @lenso/console typecheck
-pnpm --filter @lenso/console build
+bun install --frozen-lockfile
+bun run --cwd packages/console typecheck
+bun run --cwd packages/console build
 ```
 
-Archives and their source revision and artifact SHA-256
-are generated under `.artifacts/framework`. Filenames include the full source SHA,
-and relative overrides align direct/transitive dependencies. No machine path is
-committed. An optional checkout argument must be clean at that exact commit;
-dirty patches are never accepted. The script checks its source before and after
-building. It does not reset, merge, publish or claim registry availability.
-Refresh the source pin, archives and lockfile together. Remove the bridge only
-after the required public exports are available in compatible registry artifacts.
-Framework release metadata alone does not establish registry availability.
-The source review and consumed archive now use the same commit, but that does
-not prove published tarball contents. Do not replace the cohort using version
-numbers alone.
+When updating dependencies, verify the public entries in the actual registry
+artifacts and run the focused backend checks. Repository source or release
+metadata alone does not establish that an export has been published.
 
 ## Run the application-owned TypeScript host
 
@@ -221,9 +218,9 @@ unreviewed upload or a browser-selected path.
 Build the backend and the original Shell before starting:
 
 ```sh
-pnpm --filter @lenso/console build
-VITE_CONSOLE_MODE=api pnpm bundle:local
-pnpm service:ts
+bun run --cwd packages/console build
+VITE_CONSOLE_MODE=api bun run bundle:local
+bun run service:ts
 ```
 
 Before the last command, supply your own `LENSO_TS_TOKEN` in the process
@@ -297,8 +294,8 @@ stops a borrowed app. The Web adapter permits packaged response chunks up to
 8 MiB because Bun file responses and built page assets can arrive as a single
 chunk; this does not remove the backend's separate bounded-request rules.
 
-`pnpm service:ts` consumes built backend/framework entries.
-`pnpm service:ts:dev` uses the same trusted config with `lenso-source` conditions
+`bun run service:ts` consumes built backend/framework entries.
+`bun run service:ts:dev` uses the same trusted config with `lenso-source` conditions
 for source development. Changing conditions is not archive/publication evidence.
 An alternate trusted config can be passed as the command's sole positional
 argument. Tests live in `examples/ts-console/host.test.ts` (listener, original

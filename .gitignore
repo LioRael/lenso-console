@@ -4,7 +4,6 @@ dist/
 .artifacts/
 packages/console/.generated/
 .playwright-cli/
-.pnpm-store/
 
 .env
 .env.*
@@ -14,10 +13,6 @@ packages/console/.generated/
 .DS_Store
 *.log
 *.tsbuildinfo
-
-# Generated browser test diagnostics
-.vitest-attachments/
-plugins/console/shell/src/**/__screenshots__/
 
 # Local App example authoring caches
 examples/**/.lenso/

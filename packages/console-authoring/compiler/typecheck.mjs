@@ -13,7 +13,7 @@ export async function typecheck({ root, out, authored, imports, checks, sdk }) {
   let bunTypes;
   try {
     // Resolve each declared dependency through this package. Their physical
-    // parents differ in ordinary Bun/pnpm installations; no shared root exists.
+    // parents differ in ordinary isolated installations; no shared root exists.
     const manifest = require.resolve("typescript/package.json");
     const typescript = JSON.parse(fs.readFileSync(manifest, "utf-8"));
     checker = path.resolve(path.dirname(manifest), typescript.bin.tsc);
