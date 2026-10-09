@@ -44,22 +44,27 @@ test(
       };
       const sdk = pack(path.join(root, "packages/console-authoring"));
       const backend = pack(path.join(root, "packages/console"));
+      const frameworkArtifacts = Object.fromEntries(
+        ["core", "engine", "manage"].map((name) => [
+          `@lenso/${name}`,
+          `file:${path.join(root, ".artifacts/framework", `lenso-${name}-0.2.0.tgz`)}`,
+        ])
+      );
       fs.writeFileSync(
         path.join(temp, "package.json"),
         JSON.stringify({
           dependencies: {
+            "@lenso/auth": "0.2.0",
             "@lenso/console": backend,
             "@lenso/console-sdk": sdk,
+            ...frameworkArtifacts,
             react: "19.2.8",
+            typescript: "7.0.2",
+            zod: "4.6.5",
           },
           overrides: {
             "@lenso/console-sdk": sdk,
-            ...Object.fromEntries(
-              ["core", "engine", "manage"].map((name) => [
-                `@lenso/${name}`,
-                `file:${path.join(root, ".artifacts/framework", `lenso-${name}-0.2.0.tgz`)}`,
-              ])
-            ),
+            ...frameworkArtifacts,
           },
           private: true,
           type: "module",
