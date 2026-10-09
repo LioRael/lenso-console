@@ -1,7 +1,7 @@
 # TypeScript Console plugin
 
-This directory is a local TypeScript replacement candidate for the old native
-launcher. It is private and not a published replacement for
+This directory owns Console's sole supported runtime: the TypeScript Lenso
+plugin. It is private and not a published replacement for
 `@lenso/console@1.5.2`. The same version number does not establish registry
 compatibility. Use the exact built archive with the matching SDK candidate.
 
@@ -13,7 +13,7 @@ owns a listener, launches Agent, nor stops a borrowed `RunningApp`.
 
 The following code evidence was checked against official
 [`LioRael/lenso` main at `9dc049e`](https://github.com/LioRael/lenso/tree/9dc049e695d3063c960be861b53004f1def92573),
-not the older local framework archive or the Rust workbench:
+not an older local framework archive:
 
 - **Runtime assembly is explicit.** A `Plugin<T>` declares an ID, exact
   `requires` objects and `setup`; `defineApp` returns the supplied plugin array.
@@ -65,15 +65,15 @@ not the older local framework archive or the Rust workbench:
   [application discovery](https://github.com/LioRael/lenso/blob/9dc049e695d3063c960be861b53004f1def92573/packages/engine/src/application.ts#L66-L133),
   [Engine lifecycle and dev](https://github.com/LioRael/lenso/blob/9dc049e695d3063c960be861b53004f1def92573/packages/engine/README.md#L27-L110).
 
-**Console direction (recommendation):** compose Console into that same graph,
+**Console architecture:** compose Console into that same graph,
 choose explicit targets, pages and Manage operations, and route it through the
 application-owned Web/listener with explicit Auth evidence binding. Do not add a
 second container, generic configuration CAS/publication/history/rollback layer
 or runtime hot-replacement mechanism to reproduce the Rust workbench model.
 Those are not prerequisites of the demonstrated TS path. Any separately
 requested product workflow must define its own owner and safety contract.
-Retained legacy endpoint limitations below describe compatibility, not missing
-mandatory Framework layers or completed feature migrations.
+Retained frontend contract limitations below do not imply missing mandatory
+Framework layers or completed feature migrations.
 
 ## Application assembly
 
@@ -119,12 +119,10 @@ Workspace invokes use oRPC `2.0.0-beta.42` JSON transport. Streaming is explicit
 separate from the finite Manage adapter. Explicit read subscriptions use the
 existing oRPC async-iterator transport; finite `invoke` never buffers or invokes
 a stream-only method. TS page descriptors select `lenso-console-rpc/2`.
-The Shell retains a separate browser-only v1 adapter for older descriptors
-without that field, preserving their error, stream and identity semantics during
-cutover. Remove that adapter after the remaining qualified v1 Hosts upgrade;
-the TS backend does not mount those routes. Legacy `/server` and generated
-capability exports remain available, but this backend does not execute their
-Rust provider or base64 dispatch path.
+The Shell retains browser-only v1 wire handling for existing page contracts.
+The TS backend does not mount those routes. SDK `/server` and generated
+capability exports remain public TypeScript APIs; they do not install or execute
+a native provider. Their snapshots now belong to the SDK, not Rust contract crates.
 
 Catalog keys belong to one Console startup revision, not durable receipts. Old
 keys fail with 409 after replacement. Request cancellation discards responses
@@ -213,8 +211,8 @@ numbers alone.
 
 ## Run the application-owned TypeScript host
 
-`examples/ts-console/serve.ts` is a runnable local isolation candidate, not a
-production identity provider or a replacement for every Rust Console feature.
+`examples/ts-console/serve.ts` is the supported runnable local TS example, not a
+production identity provider or proof of complete product feature availability.
 It imports the explicitly selected trusted `lenso.config.ts` through Engine's
 `applicationConfigPath` and `readApplication`, then calls Core `startApp`.
 TypeScript config executes trusted application code; never point it at an
@@ -231,17 +229,20 @@ pnpm service:ts
 Before the last command, supply your own `LENSO_TS_TOKEN` in the process
 environment. It must be 16–4096 characters. There is no default credential,
 generated setup secret, injected preview identity, or anonymous administrator.
-Do not commit credentials. Open `http://127.0.0.1:3100/authorization`, enter
-`operator@localhost.test` in the Shell's account field and your token in its
-password field. `LENSO_TS_SUBJECT` changes the configured local operator email.
+Do not commit credentials. The example exposes explicit Auth methods/login
+handlers but no longer ships a login or Authorization page. The redesigned
+Shell is a separate prototype, not an authentication interface. Use an
+application-owned client against the advertised Auth handlers.
+`LENSO_TS_SUBJECT` changes the configured local operator email
+(default `operator@localhost.test`).
 The existing Auth source verifies the token and issues a bounded, one-hour,
 in-memory session. Sessions disappear on restart; the persistent locale
 database does not store tokens or session IDs.
 
 This example deliberately binds only `127.0.0.1` on an unprivileged HTTP port.
 Browsers accepting Secure `__Host-` cookies on trustworthy loopback origins
-can use the original Shell login form. No Authorization-header injection is
-needed. Login discovery supplies a separate readable CSRF cookie; unsafe
+can use the application-owned login handler. No Authorization-header injection
+is needed. Login discovery supplies a separate readable CSRF cookie; unsafe
 requests require exact Origin and double-submit CSRF. Session cookies are
 HttpOnly, Secure and SameSite=Strict. Listener ingress validates Host and Origin
 before any Shell, asset, Auth or API dispatch. This is local isolation, not
@@ -274,7 +275,7 @@ symlink escapes and missing asset/API routes never become SPA HTML. The Shell
 stays at `/` in this example.
 
 The app explicitly installs the local Auth source, its scoped RBAC policy,
-the real Authorization inspection companion and packaged Authorization page,
+the real Authorization inspection companion without a packaged page,
 and an application-owned SQLite locale provider. The inspection returns the
 actual policy used for this local operator, not a fabricated service response.
 Locale preferences are keyed by realm and subject. Global-default writes use
@@ -302,26 +303,26 @@ for source development. Changing conditions is not archive/publication evidence.
 An alternate trusted config can be passed as the command's sole positional
 argument. Tests live in `examples/ts-console/host.test.ts` (listener, original
 SDK, persistence, shutdown and static safety) and `cli.test.ts` (both official
-commands, original Shell cookie login and protected locale writes with isolated
+commands, browser cookie login through owner Auth handlers and protected locale writes with isolated
 credentials/databases). Run `bun test examples/ts-console` after building the
 original Shell; Chromium must be installed for the command/browser test.
 
 ## Current Shell endpoint migration
 
-These are the candidate's current boundaries, not a whole-product cutover:
+These are the supported TS service's current boundaries:
 
 | Shell contract | TypeScript candidate |
 | --- | --- |
 | Auth methods, login and logout | Explicit host-owned handlers; this example uses user-supplied local token evidence and real session cookies |
 | `/api/console/v1/session` | Authenticated session projection; TS management advertised, Agent and human-management capability unavailable |
 | `/api/console/v1/apps` | Authorized, explicit application targets; no host-wide discovery |
-| `/api/console/v1/pages` | Authorized owner-selected page mounts, including the real Authorization companion |
+| `/api/console/v1/pages` | Authorized owner-selected page mounts; the example selects none |
 | `/api/console/v1/surfaces` | Explicit global contributions only; empty when no global mounts are registered |
 | `/api/console/v1/locale` and its preference/default PUT routes | Application-owned durable provider; public default snapshot, authenticated preference, independently authorized global-default write |
 | `/api/console/v2/rpc` | Original SDK catalog/invoke and finite workspace Manage calls; protected by current identity, scope and request evidence |
 | Workspace `subscribe` | Explicit authorized read subscriptions over oRPC; not generic Manage streaming or automatic replay |
 | Plugin workbench discovery/config inspection | TS read-only application metadata replacement; no live configuration write authority |
-| Plugin install/select/delete, TOML proposal/history/publication | Retained Rust workbench workflows are unported; not prerequisites of explicit TS application assembly |
+| Plugin install/select/delete, TOML proposal/history/publication | Not implemented by this TS service; not prerequisites of explicit TS application assembly |
 | Agent sessions/chat/tools and Agent installation | Unported; no TS Agent transport installed |
 | Organization and human/token management | Unported; not enabled by an operator session |
 
@@ -330,23 +331,23 @@ a locale provider, the public snapshot reports `available: false` with an
 explicit `unavailableReason`, and locale writes return 503. That is an
 unavailable capability, not successful fake storage.
 
-The Rust `service:serve` and `agent:web` commands remain explicitly available.
-Runnable TS startup and a real management workflow do not establish native
-feature parity, production auth, deployment parity or data migration. They are
-not authority to remove the retained Rust workflow.
+`service:serve` now prepares and runs the TS example; `agent:web`, native
+launchers and Rust runtime assemblies have been removed. Unavailable features
+stay unavailable rather than falling back to native binaries. Runnable TS startup
+does not establish production authentication, deployment parity or data migration.
 
 ## Optional backend capabilities
 
 Select only the entries your host installs:
 
-| Console entry | Current backend capability |
+| Console integration export | Current backend capability |
 | --- | --- |
-| `/audit` | Host-bound scope query, filters, cursor pagination and authorized event detail |
-| `/authorization` | Existing Auth policy adapter, scoped RBAC and read-only role/binding inspection |
-| `/api-keys` | Host-bound subject metadata list/read/revoke; separate issue/rotation Fetch adapter |
-| `/tasks` | Bounded authorized job list/detail, explicitly safe retry and cancellation request |
-| `/scheduler` | Registered-task schedules, revision checks and occurrence reservations |
-| `/limits` | Explicit rate/quota binding, execution lease helper and route-scoped pre-auth admission |
+| `@lenso/console/audit` | Host-bound scope query, filters, cursor pagination and authorized event detail |
+| `@lenso/console/authorization` | Existing Auth policy adapter, scoped RBAC and read-only role/binding inspection |
+| `@lenso/console/api-keys` | Host-bound subject metadata list/read/revoke; separate issue/rotation Fetch adapter |
+| `@lenso/console/tasks` | Bounded authorized job list/detail, explicitly safe retry and cancellation request |
+| `@lenso/console/scheduler` | Registered-task schedules, revision checks and occurrence reservations |
+| `@lenso/console/limits` | Explicit rate/quota binding, execution lease helper and route-scoped pre-auth admission |
 
 These are optional peer dependencies, not a new required database or identity
 system. The Console root does not import them. Returned exact plugins and Manage
@@ -380,61 +381,22 @@ Pass the host logger to Lenso startup and use the host's existing OTel context.
 Engine calls reuse that logger and OTel API; Console does not initialize another
 SDK or provide log-query storage.
 
-## Install an optional management page
+## Application-authored pages
 
-`createConsoleManagementMount` from `@lenso/console/pages` selects the packaged,
-owner-built page assets. It does not install a service or start resources:
+The previous packaged management pages and `@lenso/console/pages` factory have
+been removed by explicit product decision. The underlying optional Manage
+integrations, protected credential routes and public application-selected mount
+contracts remain supported. This package no longer bundles built-in page assets.
 
-```ts
-const auditMount = createConsoleManagementMount({
-  id: "audit",
-  page: "audit",
-  title: "Audit",
-  subject: { kind: "console" },
-  manage: auditIntegration.manage,
-});
-```
+Applications may select their own `ConsoleMount` descriptors, asset handlers,
+exact services and authorized operations. Page discovery does not install or
+authorize a service. The SDK's page compiler and developer preview remain separate
+authoring tools; emitted provider compilation alone does not assemble a TS app.
 
-Add that mount to the intended target's `mounts`, its exact plugin to `plugins`,
-and its declaration to `manage`. Compose the target's binding using exact
-operation/plugin references, not a host-wide scan. The other page names are
-`api-keys`, `authorization`, `tasks` and `scheduler`. Application subjects use
-their canonical `/apps/<appId>/.../` paths; Console keeps its existing frame,
-navigation, scoped TanStack reads and page lifecycle.
+API Keys issue/rotate results must stay on the protected one-time credential
+channel, not in generic Manage results or read caches. Scheduler task schemas
+require explicit `authorizeCatalog`; the application still owns workers/ticks.
+Page removal does not relax any backend request, identity, scope or write guard.
 
-For API Keys, pass the separately mounted credential adapter as the mount's
-`credentials` option. The catalog advertises each path only after its current
-authorization check, and the Shell supplies the explicit one-time credential
-channel. Issue/rotate results never enter Manage, query caches or result history.
-Dismissal and identity/mount retirement clear local credential state. A failed
-metadata refresh cannot hide and later resurrect an acknowledged credential.
-
-Scheduler creation uses the real registered-task `catalog` and its JSON schemas.
-Supply `authorizeCatalog` to the Scheduler integration; absence returns no task
-schemas. Unsupported schema forms keep creation disabled, with no raw-JSON
-fallback. The host remains responsible for tick/worker startup.
-
-The v2 protocol survives catalog parsing. Non-admin workspace navigation waits
-for discovery before redirecting. The TS session explicitly advertises v2
-management; its Management directory uses SDK metadata and links to owner pages,
-while qualified older Hosts retain their v1 adapter. No v1 Rust execution path
-is used by the TypeScript management pages.
-
-Build and run the existing Shell against the real isolated services:
-
-```sh
-pnpm --filter @lenso/console build
-VITE_CONSOLE_MODE=api pnpm bundle:local
-node --test tooling/distribution/management-ui.test.mjs
-```
-
-The browser fixture owns one loopback listener and closes its app, queue and
-in-memory databases. It verifies workflows plus 1280px light and 390px dark
-focus/target/overflow geometry. Its SQLite D1-shaped adapter is explicitly a
-local fixture, not online Workers proof. Provider/native-workerd tests are
-separate evidence. Production migrations, deployment and data parity remain
-unverified.
-
-The full shell cutover, Agent removal and live browser acceptance are still in
-progress. API integration tests and a neutral Fetch import graph do not establish
-Workers deployment, production data migration or feature parity.
+Production migrations, deployment and data parity remain unverified. API tests
+and clean archive consumption do not establish production feature parity.

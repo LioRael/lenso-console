@@ -19,12 +19,6 @@ packages/console/.generated/
 .vitest-attachments/
 plugins/console/shell/src/**/__screenshots__/
 
-# Rust build artifacts and compiler/coverage scratch files
-target/
-**/*.rs.bk
-*.profraw
-*.profdata
-
 # Local App example authoring caches
 examples/**/.lenso/
 

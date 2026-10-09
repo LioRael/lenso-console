@@ -104,7 +104,7 @@ async function start(
 
 // Direct startApp tests do not load trusted lenso.config.ts, resolve its real
 // env/file adapters, exercise package conditions, or prove the documented command.
-test("official built and source commands load the config and serve the original Shell", async () => {
+test("official built and source commands load config, serve Shell and retain browser Auth/CSRF", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ts-console-cli-"));
   const browser = await chromium.launch({ headless: true });
   try {
@@ -149,62 +149,38 @@ export default { ...app, plugins: [...app.plugins, delay] };
         page.setDefaultTimeout(10_000);
         const errors: string[] = [];
         page.on("pageerror", (error) => errors.push(error.message));
-        await page.goto(`${origin}/authorization`);
-        await page
-          .locator('input[name="identifier"]')
-          .fill("operator@localhost.test");
-        await page
-          .locator('input[name="password"]')
-          .fill("isolated-cli-operator-token");
-        await page
-          .getByRole("button", { name: "Sign in", exact: true })
-          .click();
-        await page
-          .getByRole("heading", { name: "Authorization", exact: true })
-          .waitFor();
-        await page
-          .getByText("local-operator", { exact: true })
-          .first()
-          .waitFor();
-        await page.goto(`${origin}/plugins`);
-        await page
-          .getByRole("link", { name: "local-locale-store", exact: true })
-          .click();
-        await page
-          .getByRole("tab", { name: "Configuration", exact: true })
-          .click();
-        await page
-          .getByRole("tabpanel", { name: "Configuration", exact: true })
-          .getByText("Read-only:", { exact: false })
-          .waitFor();
-        const configuration = page.getByRole("tabpanel", {
-          name: "Configuration",
-          exact: true,
-        });
-        await configuration
-          .getByText("values", { exact: true })
-          .first()
-          .waitFor();
-        expect(
-          await configuration.getByText("values", { exact: true }).count()
-        ).toBe(2);
-        await configuration
-          .getByText('["databasePath"]', { exact: true })
-          .waitFor();
-        await configuration
-          .getByText("values · Sensitive (value not exposed)", { exact: true })
-          .waitFor();
-        expect(
-          await page
-            .getByText("Configuration: resolved · Read-only", { exact: true })
-            .count()
-        ).toBe(1);
-        const inspection = await configuration.textContent();
-        expect(inspection).not.toContain(
-          path.join(directory, `${script}.sqlite`)
+        const shell = await page.goto(origin);
+        expect(shell?.status()).toBe(200);
+        const login = await page.evaluate(
+          async ({ api: apiPath, auth: authPath }) => {
+            await fetch(`${authPath}/methods`);
+            const csrf =
+              document.cookie
+                .split(";")
+                .map((part) => part.trim())
+                .find((part) => part.startsWith("__Host-lenso-csrf="))
+                ?.split("=")[1] ?? "";
+            const response = await fetch(`${authPath}/login`, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "x-csrf-token": csrf,
+              },
+              body: JSON.stringify({
+                identifier: "operator@localhost.test",
+                password: "isolated-cli-operator-token",
+              }),
+            });
+            const session = await fetch(`${apiPath}/console/v1/session`);
+            return { status: response.status, session: await session.json() };
+          },
+          { api, auth }
         );
-        expect(inspection).not.toContain("isolated-cli-operator-token");
-        expect(await page.locator("textarea").count()).toBe(0);
+        expect(login.status).toBe(204);
+        expect(login.session).toMatchObject({
+          authenticated: true,
+          subject: "operator@localhost.test",
+        });
         const cookies = await context.cookies();
         expect(
           cookies.find((cookie) => cookie.name === "__Host-lenso-session")

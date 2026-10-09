@@ -4,10 +4,7 @@ import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 
-import {
-  createConsoleClient,
-  createConsoleWorkspaceServices,
-} from "@lenso/console-sdk/transport";
+import { createConsoleClient } from "@lenso/console-sdk/transport";
 import { startApp, valuesSource } from "@lenso/core";
 
 import { resolveHostConfiguration } from "./configuration";
@@ -127,29 +124,25 @@ test("owned host authenticates, invokes the original SDK, persists locale and cl
       headers,
     });
     const pages = await pageResponse.json();
-    const mount = pages.mounts.find(
-      (entry: { id: string }) => entry.id === "authorization"
-    );
-    expect(mount).toBeDefined();
-    const services = createConsoleWorkspaceServices({
-      url: "/operator/api/console/v2/rpc",
-      origin,
-      headers,
-      mount,
-      expectedSubject: config.subject,
-    });
-    const roles = await services.invoke<
-      Record<string, never>,
-      { graph: { roles: { id: string }[] } }
-    >("authorization", "inspect", {});
-    expect(roles.graph.roles.map((role) => role.id)).toEqual([
-      "local-operator",
-    ]);
+    expect(pages.mounts).toEqual([]);
     const client = createConsoleClient({
       url: "/operator/api/console/v2/rpc",
       origin,
       headers,
     });
+    const catalog = await client.catalog({ targetId: "local" });
+    const inspectOperation = catalog.operations.find(
+      (operation) => operation.method === "inspect"
+    );
+    expect(inspectOperation).toBeDefined();
+    const roles = (await client.invoke({
+      targetId: "local",
+      key: inspectOperation!.key,
+      input: {},
+    })) as { graph: { roles: { id: string }[] } };
+    expect(roles.graph.roles.map((role) => role.id)).toEqual([
+      "local-operator",
+    ]);
     const inspected = await client.plugins({ targetId: "local" });
     expect(
       inspected.plugins.find((plugin) => plugin.id === host.locale.id)

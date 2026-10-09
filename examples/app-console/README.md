@@ -1,34 +1,17 @@
-# App-owned Console
+# Console page source example
 
-This fixture targets the separately pinned Engine development-kit protocol.
-The current standalone Lenso CLI does not expose its `app dev --root` command.
-For the current native Lenso Plugin API and removal proof, use
-[the embedding example](../plugin-host/README.md).
+`app/orders/console/` demonstrates pages, dynamic route parameters and optional
+typed service declarations. It is compiler input, not an executable application.
+The old native development-kit configuration has been removed.
 
-From this repository build the shared Shell once with `pnpm service:web-build`.
-Then use the local Engine CLI:
+After preparing and installing workspace dependencies:
 
 ```sh
-lenso app dev --root examples/app-console
+bun packages/console-authoring/author.mjs check --entry examples/app-console/app/orders/console
 ```
 
-Open the printed HTTP address. The App composes its own Console and discovers
-`app/orders/console/` through the explicitly adopted Console support package.
-There is no Agent prerequisite. The example is an integration fixture, not an
-Agent application. `lenso app build` creates a source-free distribution.
-
-This local native support package currently requires Cargo when compiling a new
-Host. Running the resulting distribution needs no source, Cargo, or Node. The
-Bun runtime is included by the App packager for portable contribution providers.
-
-For application development without Cargo or this source checkout, use the
-[precompiled Console development package](../../packages/console-authoring/development-host.md).
-
-For page-only development and generated service clients, use the single
-[Console authoring entry](../../packages/console-authoring/README.md).
-
-This fixture contains the optional typed service example. Its full WorkspaceService
-role includes Stream, while the current Engine App Host only admits Request for
-Bun. The generic Host therefore rejects this fixture at implementation admission.
-Use the kit's page-only starter for a working default, or a qualified Host for the
-service example. Do not treat a passing source compile as a running App.
+This checks and builds the page source without starting services or granting
+authorization. Use [the TS host](../../packages/console/README.md) for runnable
+application assembly and [the SDK guide](../../packages/console-authoring/README.md)
+for page authoring. Compilation does not automatically install the emitted provider
+into a TypeScript Lenso application.

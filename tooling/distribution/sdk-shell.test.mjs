@@ -66,7 +66,7 @@ test(
       assert.equal(resolved[0], path.join(installed, "compiler/compiler.mjs"));
       assert.equal(resolved[1], path.join(installed, "shell/index.html"));
       validateShell(path.dirname(resolved[1]));
-      for (const directory of ["shell", "dev/shell", "dev/shared"]) {
+      for (const directory of ["shell", "dev/shell"]) {
         const sourceRoot = path.join(packageRoot, directory);
         for (const name of fs.readdirSync(sourceRoot, { recursive: true })) {
           const original = path.join(sourceRoot, name);

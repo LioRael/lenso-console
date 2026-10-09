@@ -26,11 +26,17 @@ const AppearanceContext = createContext<ConsoleAppearance>({
 });
 
 export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
-  const [preference, setPreference] =
+  const [storedPreference, setPreference] =
     usePersistedLayout<ConsoleThemePreference>(
       "lenso-console:theme-preference",
       "system"
     );
+  const preference =
+    storedPreference === "light" ||
+    storedPreference === "dark" ||
+    storedPreference === "system"
+      ? storedPreference
+      : "system";
   const [systemTheme, setSystemTheme] = useState<ConsoleTheme>("light");
 
   useEffect(() => {

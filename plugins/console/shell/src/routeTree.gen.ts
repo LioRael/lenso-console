@@ -10,234 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SplatRouteImport } from './routes/$'
-import { Route as ManagementRouteImport } from './routes/management'
-import { Route as PluginsRouteImport } from './routes/plugins'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as AgentChatIdRouteImport } from './routes/agent.$chatId'
-import { Route as SettingsAgentRouteImport } from './routes/settings_.agent'
-import { Route as SettingsAiRouteImport } from './routes/settings_.ai'
-import { Route as SettingsAppearanceRouteImport } from './routes/settings_.appearance'
-import { Route as SettingsConnectionsRouteImport } from './routes/settings_.connections'
-import { Route as SettingsProfilesRouteImport } from './routes/settings_.profiles'
-import { Route as AgentAgentIdChatIdRouteImport } from './routes/agent.$agentId.$chatId'
-import { Route as SettingsAiAgentRouteImport } from './routes/settings_.ai_.agent'
-import { Route as PluginsAgentIdPackageIdInstanceKeyRouteImport } from './routes/plugins_.$agentId.$packageId.$instanceKey'
-import { Route as SettingsAgentSkillsNewRouteImport } from './routes/settings_.agent_.skills.new'
-import { Route as SettingsProfilesAgentIdProfileNameRouteImport } from './routes/settings_.profiles_.$agentId.$profileName'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SplatRoute = SplatRouteImport.update({
-  id: '/$',
-  path: '/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ManagementRoute = ManagementRouteImport.update({
-  id: '/management',
-  path: '/management',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsRoute = PluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AgentChatIdRoute = AgentChatIdRouteImport.update({
-  id: '/agent/$chatId',
-  path: '/agent/$chatId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsAgentRoute = SettingsAgentRouteImport.update({
-  id: '/settings_/agent',
-  path: '/settings/agent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsAiRoute = SettingsAiRouteImport.update({
-  id: '/settings_/ai',
-  path: '/settings/ai',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
-  id: '/settings_/appearance',
-  path: '/settings/appearance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
-  id: '/settings_/connections',
-  path: '/settings/connections',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsProfilesRoute = SettingsProfilesRouteImport.update({
-  id: '/settings_/profiles',
-  path: '/settings/profiles',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AgentAgentIdChatIdRoute = AgentAgentIdChatIdRouteImport.update({
-  id: '/agent/$agentId/$chatId',
-  path: '/agent/$agentId/$chatId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsAiAgentRoute = SettingsAiAgentRouteImport.update({
-  id: '/settings_/ai_/agent',
-  path: '/settings/ai/agent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsAgentIdPackageIdInstanceKeyRoute =
-  PluginsAgentIdPackageIdInstanceKeyRouteImport.update({
-    id: '/plugins_/$agentId/$packageId/$instanceKey',
-    path: '/plugins/$agentId/$packageId/$instanceKey',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const SettingsAgentSkillsNewRoute = SettingsAgentSkillsNewRouteImport.update({
-  id: '/settings_/agent_/skills/new',
-  path: '/settings/agent/skills/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsProfilesAgentIdProfileNameRoute =
-  SettingsProfilesAgentIdProfileNameRouteImport.update({
-    id: '/settings_/profiles_/$agentId/$profileName',
-    path: '/settings/profiles/$agentId/$profileName',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/$': typeof SplatRoute
-  '/management': typeof ManagementRoute
-  '/plugins': typeof PluginsRoute
-  '/settings': typeof SettingsRoute
-  '/agent/$chatId': typeof AgentChatIdRoute
-  '/settings/agent': typeof SettingsAgentRoute
-  '/settings/ai': typeof SettingsAiRoute
-  '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/connections': typeof SettingsConnectionsRoute
-  '/settings/profiles': typeof SettingsProfilesRoute
-  '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
-  '/settings/ai/agent': typeof SettingsAiAgentRoute
-  '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
-  '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
-  '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$': typeof SplatRoute
-  '/management': typeof ManagementRoute
-  '/plugins': typeof PluginsRoute
-  '/settings': typeof SettingsRoute
-  '/agent/$chatId': typeof AgentChatIdRoute
-  '/settings/agent': typeof SettingsAgentRoute
-  '/settings/ai': typeof SettingsAiRoute
-  '/settings/appearance': typeof SettingsAppearanceRoute
-  '/settings/connections': typeof SettingsConnectionsRoute
-  '/settings/profiles': typeof SettingsProfilesRoute
-  '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
-  '/settings/ai/agent': typeof SettingsAiAgentRoute
-  '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
-  '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
-  '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/$': typeof SplatRoute
-  '/management': typeof ManagementRoute
-  '/plugins': typeof PluginsRoute
-  '/settings': typeof SettingsRoute
-  '/agent/$chatId': typeof AgentChatIdRoute
-  '/settings_/agent': typeof SettingsAgentRoute
-  '/settings_/ai': typeof SettingsAiRoute
-  '/settings_/appearance': typeof SettingsAppearanceRoute
-  '/settings_/connections': typeof SettingsConnectionsRoute
-  '/settings_/profiles': typeof SettingsProfilesRoute
-  '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
-  '/settings_/ai_/agent': typeof SettingsAiAgentRoute
-  '/plugins_/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
-  '/settings_/agent_/skills/new': typeof SettingsAgentSkillsNewRoute
-  '/settings_/profiles_/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/$'
-    | '/management'
-    | '/plugins'
-    | '/settings'
-    | '/agent/$chatId'
-    | '/settings/agent'
-    | '/settings/ai'
-    | '/settings/appearance'
-    | '/settings/connections'
-    | '/settings/profiles'
-    | '/agent/$agentId/$chatId'
-    | '/settings/ai/agent'
-    | '/plugins/$agentId/$packageId/$instanceKey'
-    | '/settings/agent/skills/new'
-    | '/settings/profiles/$agentId/$profileName'
+  fullPaths: '/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/$'
-    | '/management'
-    | '/plugins'
-    | '/settings'
-    | '/agent/$chatId'
-    | '/settings/agent'
-    | '/settings/ai'
-    | '/settings/appearance'
-    | '/settings/connections'
-    | '/settings/profiles'
-    | '/agent/$agentId/$chatId'
-    | '/settings/ai/agent'
-    | '/plugins/$agentId/$packageId/$instanceKey'
-    | '/settings/agent/skills/new'
-    | '/settings/profiles/$agentId/$profileName'
-  id:
-    | '__root__'
-    | '/'
-    | '/$'
-    | '/management'
-    | '/plugins'
-    | '/settings'
-    | '/agent/$chatId'
-    | '/settings_/agent'
-    | '/settings_/ai'
-    | '/settings_/appearance'
-    | '/settings_/connections'
-    | '/settings_/profiles'
-    | '/agent/$agentId/$chatId'
-    | '/settings_/ai_/agent'
-    | '/plugins_/$agentId/$packageId/$instanceKey'
-    | '/settings_/agent_/skills/new'
-    | '/settings_/profiles_/$agentId/$profileName'
+  to: '/'
+  id: '__root__' | '/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  SplatRoute: typeof SplatRoute
-  ManagementRoute: typeof ManagementRoute
-  PluginsRoute: typeof PluginsRoute
-  SettingsRoute: typeof SettingsRoute
-  AgentChatIdRoute: typeof AgentChatIdRoute
-  SettingsAgentRoute: typeof SettingsAgentRoute
-  SettingsAiRoute: typeof SettingsAiRoute
-  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
-  SettingsConnectionsRoute: typeof SettingsConnectionsRoute
-  SettingsProfilesRoute: typeof SettingsProfilesRoute
-  AgentAgentIdChatIdRoute: typeof AgentAgentIdChatIdRoute
-  SettingsAiAgentRoute: typeof SettingsAiAgentRoute
-  PluginsAgentIdPackageIdInstanceKeyRoute: typeof PluginsAgentIdPackageIdInstanceKeyRoute
-  SettingsAgentSkillsNewRoute: typeof SettingsAgentSkillsNewRoute
-  SettingsProfilesAgentIdProfileNameRoute: typeof SettingsProfilesAgentIdProfileNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -249,133 +48,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$': {
-      id: '/$'
-      path: '/$'
-      fullPath: '/$'
-      preLoaderRoute: typeof SplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/management': {
-      id: '/management'
-      path: '/management'
-      fullPath: '/management'
-      preLoaderRoute: typeof ManagementRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins': {
-      id: '/plugins'
-      path: '/plugins'
-      fullPath: '/plugins'
-      preLoaderRoute: typeof PluginsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agent/$chatId': {
-      id: '/agent/$chatId'
-      path: '/agent/$chatId'
-      fullPath: '/agent/$chatId'
-      preLoaderRoute: typeof AgentChatIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/agent': {
-      id: '/settings_/agent'
-      path: '/settings/agent'
-      fullPath: '/settings/agent'
-      preLoaderRoute: typeof SettingsAgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/ai': {
-      id: '/settings_/ai'
-      path: '/settings/ai'
-      fullPath: '/settings/ai'
-      preLoaderRoute: typeof SettingsAiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/appearance': {
-      id: '/settings_/appearance'
-      path: '/settings/appearance'
-      fullPath: '/settings/appearance'
-      preLoaderRoute: typeof SettingsAppearanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/connections': {
-      id: '/settings_/connections'
-      path: '/settings/connections'
-      fullPath: '/settings/connections'
-      preLoaderRoute: typeof SettingsConnectionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/profiles': {
-      id: '/settings_/profiles'
-      path: '/settings/profiles'
-      fullPath: '/settings/profiles'
-      preLoaderRoute: typeof SettingsProfilesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agent/$agentId/$chatId': {
-      id: '/agent/$agentId/$chatId'
-      path: '/agent/$agentId/$chatId'
-      fullPath: '/agent/$agentId/$chatId'
-      preLoaderRoute: typeof AgentAgentIdChatIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/ai_/agent': {
-      id: '/settings_/ai_/agent'
-      path: '/settings/ai/agent'
-      fullPath: '/settings/ai/agent'
-      preLoaderRoute: typeof SettingsAiAgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins_/$agentId/$packageId/$instanceKey': {
-      id: '/plugins_/$agentId/$packageId/$instanceKey'
-      path: '/plugins/$agentId/$packageId/$instanceKey'
-      fullPath: '/plugins/$agentId/$packageId/$instanceKey'
-      preLoaderRoute: typeof PluginsAgentIdPackageIdInstanceKeyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/agent_/skills/new': {
-      id: '/settings_/agent_/skills/new'
-      path: '/settings/agent/skills/new'
-      fullPath: '/settings/agent/skills/new'
-      preLoaderRoute: typeof SettingsAgentSkillsNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings_/profiles_/$agentId/$profileName': {
-      id: '/settings_/profiles_/$agentId/$profileName'
-      path: '/settings/profiles/$agentId/$profileName'
-      fullPath: '/settings/profiles/$agentId/$profileName'
-      preLoaderRoute: typeof SettingsProfilesAgentIdProfileNameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  SplatRoute: SplatRoute,
-  ManagementRoute: ManagementRoute,
-  PluginsRoute: PluginsRoute,
-  SettingsRoute: SettingsRoute,
-  AgentChatIdRoute: AgentChatIdRoute,
-  SettingsAgentRoute: SettingsAgentRoute,
-  SettingsAiRoute: SettingsAiRoute,
-  SettingsAppearanceRoute: SettingsAppearanceRoute,
-  SettingsConnectionsRoute: SettingsConnectionsRoute,
-  SettingsProfilesRoute: SettingsProfilesRoute,
-  AgentAgentIdChatIdRoute: AgentAgentIdChatIdRoute,
-  SettingsAiAgentRoute: SettingsAiAgentRoute,
-  PluginsAgentIdPackageIdInstanceKeyRoute:
-    PluginsAgentIdPackageIdInstanceKeyRoute,
-  SettingsAgentSkillsNewRoute: SettingsAgentSkillsNewRoute,
-  SettingsProfilesAgentIdProfileNameRoute:
-    SettingsProfilesAgentIdProfileNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

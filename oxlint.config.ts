@@ -6,26 +6,14 @@ import tanstack from "ultracite/oxlint/tanstack";
 export default defineConfig({
   extends: [core, react, tanstack],
   ignorePatterns: [
-    // Immutable inputs from the qualified fa6 kit proof. Preflight verifies
-    // their recorded bytes; style rewrites would invalidate that evidence.
-    ".github/fixtures/console-kit-stream/fixture/contribution.ts",
-    ".github/fixtures/console-kit-stream/fixture/workspace-service.ts",
-    ".github/fixtures/console-kit-stream/fixture/plugin.ts",
-    ".github/fixtures/console-kit-stream/fixture/driver.mjs",
-    "plugins/console/**/generated/**",
-    "contracts/**/generated/**",
-    "plugins/**/generated/**",
     "packages/**/generated/**",
     "plugins/console/shell/src/**/generated/**",
-    "plugins/management/crates/lenso-management-http/src/workers/mcp.mjs",
   ],
   overrides: [
     {
       files: [
         "plugins/console/shell/src/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx,mjs}",
-        "plugins/management/workers-mcp/*.mjs",
-        "plugins/management/crates/lenso-management-core/src/workers/*.mjs",
         "examples/**/*.{ts,tsx}",
         "plugins/console/shell/vite.config.ts",
       ],

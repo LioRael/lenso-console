@@ -14,21 +14,21 @@ Before editing files for a substantial task:
 
 # Agent instructions
 
-Before planning or changing a release, read the repository-local [`docs/release-process.md`](docs/release-process.md). Registry publication and OCI writes still require the repository's approved Trusted Publisher workflows; do not infer production authority from repository write access or restore the retired central release runtime.
+Registry publication and OCI writes still require explicit release authorization and the repository's approved Trusted Publisher workflows; do not infer production authority from repository write access or restore the retired central release runtime.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues and PRDs are tracked in the central `LioRael/lenso` GitHub repository. See `docs/agents/issue-tracker.md`.
+Issues and PRDs are tracked in the central `LioRael/lenso` GitHub repository.
 
 ### Triage labels
 
-Triage uses the five canonical labels in the central tracker. See `docs/agents/triage-labels.md`.
+Use the canonical triage labels in the central tracker.
 
 ### Domain docs
 
-Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
+Domain documentation uses a single-context layout.
 
 ## Contribution and delivery
 
@@ -46,7 +46,7 @@ Use [CONTRIBUTING.md](CONTRIBUTING.md) as the human entry point for optional Del
 
 ## UI design and review
 
-Before creating a page, changing controls/layout, or fixing visual details, read [the Lenso UI implementation standard](docs/design/README.md). Follow its component discovery, alignment, and rendered-state acceptance steps. This also applies to plugin pages inside Console; use one shared component owner and record visual verification before claiming completion.
+Before creating a page, changing controls/layout, or fixing visual details, read [the Console interaction direction](docs/design/console-interaction-direction.md). Keep Lenso UI as the base component library, reuse existing components and themes, and record real browser verification before claiming completion. This also applies to plugin pages inside Console.
 
 ## Marketplace ownership
 

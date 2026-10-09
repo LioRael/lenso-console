@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  consolePathFromLocation,
-  isRetiredConsolePath,
-  legacyConsoleTargetForPath,
-} from "./app/console-router-config";
+import { consolePathFromLocation } from "./app/console-router-config";
 import {
   consoleBasePathFromBaseUrl,
   getRouter,
@@ -19,37 +15,6 @@ describe("Console router", () => {
   test("mounts routes under the built console base path", () => {
     expect(consoleBasePathFromBaseUrl("/console/")).toBe("/console");
     expect(getRouter().options).toMatchObject({ basepath: "/" });
-  });
-
-  test("keeps legacy paths at the file-route catch-all seam", () => {
-    expect(legacyConsoleTargetForPath("/console/launchpad", "/console")).toBe(
-      "/"
-    );
-    expect(
-      legacyConsoleTargetForPath(
-        "/console/operations/admin-actions",
-        "/console"
-      )
-    ).toBeUndefined();
-    expect(
-      legacyConsoleTargetForPath("/console/data", "/console")
-    ).toBeUndefined();
-    expect(legacyConsoleTargetForPath("/console/unknown", "/console")).toBe(
-      undefined
-    );
-  });
-
-  test("hard-rejects retired administration paths", () => {
-    expect(isRetiredConsolePath("/console/data", "/console")).toBe(true);
-    expect(isRetiredConsolePath("/console/data/identity", "/console")).toBe(
-      true
-    );
-    expect(
-      isRetiredConsolePath("/console/operations/admin-actions", "/console")
-    ).toBe(true);
-    expect(isRetiredConsolePath("/console/modules", "/console")).toBe(true);
-    expect(isRetiredConsolePath("/console/overview", "/console")).toBe(true);
-    expect(isRetiredConsolePath("/console/runtime", "/console")).toBe(true);
   });
 
   test("normalizes the console base path once for module surfaces", () => {

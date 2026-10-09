@@ -2,304 +2,86 @@
 
 [![CI](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml)
 
-See [Contributing](CONTRIBUTING.md) for optional Delta/AI/editor workflows, fork and Issue handoffs, focused validation, and candidate-first landing.
+Console is an optional TypeScript Lenso plugin with a React Shell and page-authoring SDK.
+TypeScript Lenso is the only supported runtime. Rust Hosts, native Agent bundles,
+Cargo workspaces and precompiled development kits have been retired.
 
-Lenso Console is the local management and Agent workspace for one Lenso App.
-The Console service owns the React Shell, Agent catalog, and same-origin proxy.
-It runs as a Lenso App: Plan-bound `lenso.web-ingress` instances own Console
-and OTLP listeners, while removable Plugins own the route behavior and state.
-Axum remains only in test fixtures for simulated upstream services.
-The separately released `lenso-agent-web` binary owns Agent execution and its
-reviewed Plugin compositions; Console no longer links Agent's private Rust
-workspace.
+See [Contributing](CONTRIBUTING.md) for focused validation, fork and Issue handoffs,
+optional Delta/AI/editor workflows, and candidate-first landing. Publication and
+deployment require separate maintainer authorization.
 
-## Product direction
+## Ownership
 
-The long-term direction is an extensible App administration and development
-workbench, with Plugin-owned business pages, observability, and team tools.
-See the [product direction](docs/console-direction.md), [domain vocabulary](CONTEXT.md),
-and [native page contribution decision](docs/adr/0004-prefer-native-console-page-contributions.md).
-Plan-bound linked Workspaces and the first Observe tracer ship in the reference
-Host. The [Workspace service transport](docs/workspace-service-transport.md)
-and [observability](docs/console-observability.md) documents distinguish the
-implemented local-development slice from its production follow-ups. The
-[marketplace](docs/plugin-marketplace.md) remains a design awaiting its first
-implementation.
+- [`packages/console`](packages/console/README.md): the TypeScript plugin, Fetch
+  service and explicit Auth/Manage integrations. The application owns its listener,
+  service instances, configuration and authorization.
+- [`packages/console-authoring`](packages/console-authoring/README.md): the public
+  page SDK, compiler, typed service declarations, scaffold and page preview.
+- `plugins/console/shell`: the browser application, built on Lenso UI.
+- `examples/ts-console`: an application-owned local TS host with Engine discovery,
+  loopback Web ingress, explicit Auth and SQLite locale persistence.
+- `examples/app-console`: page/compiler source examples, not a runtime assembly.
+- `tooling`: TypeScript dependency preparation, validation and SDK distribution.
 
-## Run
+Marketplace source and delivery belong to `LioRael/lenso-marketplace`, not Console.
+Product and visual work follows the
+[Console interaction direction](docs/design/console-interaction-direction.md).
 
-For business Plugin pages and services, use the single [Console authoring entry](packages/console-authoring/README.md). Page authors do not maintain a separate runtime, service adapter, contract descriptor or registry.
+## Install and develop
 
-For an App that embeds Console as an optional Plugin, start with:
+Use Node from `.node-version`, Bun from `.bun-version` and pnpm from
+`package.json#packageManager`. The compatible TS framework cohort currently needs
+immutable source archives. Prepare them before frozen installation:
 
 ```sh
+pnpm framework:prepare
 pnpm install --frozen-lockfile
-pnpm plugin:dev
-```
-
-Open `http://127.0.0.1:3031`. This example uses the current
-`NativeWebHost::plugin::<ConsolePlugin>()` API, embeds the Shell and needs no
-Agent. `pnpm plugin:without-console` starts the same App with only its `/health`
-endpoint. See [the embedding example](examples/plugin-host/README.md) for the
-composition and removal check.
-
-The repository has one root Cargo workspace and lockfile. Console's independent
-Plugin stays in `plugins/console/`; the reference App assembly stays in
-`apps/reference-host/`. Contracts, optional Plugins and runtime
-support keep their own packages and ownership. The page SDK is a pnpm workspace
-package; check it with `pnpm sdk:check`.
-
-To start a normal Harness together with its Console Web UI:
-
-```sh
-pnpm install
-pnpm agent:web
-```
-
-This launcher requires `lenso-agent-web` and `lenso-agent-console-web` v0.1.3
-or later on `PATH`; set `LENSO_AGENT_WEB_BIN` or
-`LENSO_CONSOLE_AGENT_WEB_BIN` to an absolute binary path for a nonstandard
-install. It starts separate loopback App Agent and Console Agent processes,
-then exposes both through Console's same-origin API. The generated Host-only
-control token never reaches the browser.
-
-Open `http://127.0.0.1:3030`. Console discovers two complete Agent identities:
-the App Agent (`Lenso Agent`) and Console's own `Console Agent`. Each Agent owns
-its Sessions, Profiles, Tools, Tasks, Trajectory, and conversation state. The
-Agent selector changes identity rather than switching connection modes, and
-canonical Session URLs include the owning Agent identity.
-
-The App Agent Host selects its configuration authority explicitly with
-`LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY`. It defaults to
-`sqlite_configuration_store`; `local_plugin_root` and
-`remote_configuration_service` are also supported. Remote selection requires
-the service URL, App and environment identities, and
-`LENSO_PLUGIN_CONFIGURATION_REMOTE_TOKEN`. Those credentials remain inside the
-App Agent Host. Trusted package lifecycle is separately exposed as
-`lenso.agent.plugin-package-management@1`; configuration authority does not
-imply package-source authority.
-
-To run Console against an already-running Console Agent:
-
-```sh
-pnpm install
-test -f plugins/console/.env || cp plugins/console/.env.example plugins/console/.env
-pnpm service:serve
-```
-
-The Console Agent defaults to `http://127.0.0.1:8788`; override it with
-`LENSO_CONSOLE_AGENT_URL`. Privileged control requires the matching
-`LENSO_CONSOLE_AGENT_CONTROL_TOKEN` in both processes.
-
-Open `http://127.0.0.1:3030`.
-
-The reference Host is itself a configurable Lenso App. On startup it publishes
-the exact read-only Host Catalog to
-`~/.lenso/console/.lenso/host-catalog.json` and resolves the visible
-`~/.lenso/console/plugins/` Plugin Root before starting the Kernel. Override
-that root with the absolute `LENSO_CONSOLE_HOME` path. App-owned changes use the
-normal Lenso CLI 0.6.0 or later and take effect on the next Console restart:
-
-```sh
-lenso app check --root ~/.lenso/console
-lenso app show --root ~/.lenso/console
-lenso plugins disable lenso.console.workspace.welcome default --root ~/.lenso/console
-```
-
-The App owner never writes a Plan or binding file. The Host Catalog owns the
-WebIngress instances and private Capability bindings; `plugins/` contains only
-typed Instance configuration and enablement differences.
-
-For Plugin-configured email/password or enterprise SSO login, see
-[Console authentication](docs/console-authentication.md).
-
-The private Console Agent Home defaults to `~/.lenso/console/agent`. The App
-being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
-the launcher directory. The Console Agent admits the reviewed inspection,
-configuration, rollback, enablement, trusted-catalog installation, and
-recoverable-removal Tools by default. Set
-`LENSO_CONSOLE_AGENT_TOOLS` to an exact comma-separated subset to narrow access,
-or to an empty value to disable all model-visible Tools. `ask_user` remains
-available as the web interaction primitive. Every apply operation and the
-direct `set_plugin_enabled` lifecycle action pass through the interactive
-approval hook.
-
-The Console Host also links `lenso.agent.console-instructions`, a stateless
-Prompt Provider used only by the Console Agent identity. It instructs the Agent
-to inspect current Host and Capability state, respect the Plugin's reported
-configuration authority, keep review requests read-only, validate proposals
-before publication, and apply only after an explicit user request. App Agents
-remain independent and do not inherit this instruction.
-
-An App Host embedding `lenso.console.web` can contribute one App Agent by
-setting `connected_agent_url` to its loopback Agent Web origin. The setting is
-an Adapter detail retained for configuration compatibility; the Agent catalog
-exposes a stable App Agent identity instead of connection topology. Console
-proxies the Agent data plane. Plugin configuration control is exposed only
-when the App Host explicitly contributes
-`lenso.agent.plugin-configuration@1`; Tool-policy and Plugin lifecycle control
-remain owned by the App Agent's Host.
-
-The installed CLI can inspect the same App without Console-specific adapters:
-
-```sh
-lenso app check --root <managed-app>
-lenso app show --root <managed-app>
-lenso plugins list --root <managed-app>
-```
-
-The Console Host persists the Console Agent's proposal, compare-and-swap
-publication, history, and recovery state in
-`~/.lenso/console/agent-configuration.sqlite3` by default. The Web Shell does
-not own this state, and the Console Agent's authority cannot mutate the
-separate managed App implicitly. The `agent:web` launcher enables a durable
-configuration authority on the App Agent Host and contributes that capability
-to Console. Other embedding Hosts must opt in explicitly; catalog membership
-alone grants no control authority.
-
-The local Host currently binds only to loopback. A remotely reachable Console
-must first provide identity and authorization as reviewed vNext Plugins.
-
-## Architecture
-
-The repository root owns workspace commands and dependency coordination.
-`plugins/console/shell` owns the browser application and its package version; `apps/reference-host`
-owns executable composition. `plugins` owns providers, `contracts` owns public
-contracts, `packages` owns authoring and private runtime support, and `tooling`
-owns checks and distribution assembly. Root commands forward to these owners.
-
-See [repository layout](docs/repository-layout.md) for directory ownership,
-ordinary SDK preview, and the migration map.
-
-Console Plugin defaults are declared once in `plugins/console/config.defaults.json`.
-The descriptor and `ConsolePluginConfig::defaults()` project that same source.
-Hosts still supply deployment paths and explicitly select authority and providers.
-
-- `plugins/console`: the `lenso.console.web` Shell Plugin, its Plan-bound Workspace
-  catalog, same-origin Agent proxy and HTTP admission.
-- `apps/reference-host`: reference binaries, concrete providers,
-  Host Catalog, ingress configuration and Kernel lifecycle.
-- `contracts`: independently built UI Contribution and Workspace Service
-  contracts with generated Rust and TypeScript projections.
-- `plugins/observe`: independently built Observe provider and its query contract.
-- `packages/agent-turn-relay`: detachable Agent streams, transient activity and
-  bounded browser queues, independent of Shell and Lenso implementation packages.
-- `packages/local-agent-launcher`: directory registration, portable Home seeding
-  and child-process supervision without Console or HTTP dependencies.
-- `plugins/console/tests/fixtures/welcome-workspace-plugin`: an explicitly selected
-  Host integration fixture, absent from production binaries.
-- Projects Workspace implementation and assets belong to the separate
-  `lenso-projects-web-plugin` repository. See [ADR-0010](docs/adr/0010-separate-console-shell-from-app-assembly.md)
-  for reproducible source composition and the enforced dependency boundaries.
-- `plugins/console/shell/src/routes`: Agent, Plugins, and Settings routes.
-- `plugins/console/shell/src/features/agent`: Agent conversation, trajectory, history, editing, and
-  ask-user UI.
-- `plugins/console/shell/src/features/plugins`: installed Plugin inventory for the current App.
-- `plugins/console/shell/src/features/settings`: local Console and Agent policy settings.
-
-System Registry, Runtime Story, Surface Gateway, generic managed-Service,
-PostgreSQL migration, worker, deployment-recovery, and dynamic Console Module
-composition are not part of this Host or its frontend source.
-
-## Development
-
-For Shell-only work with seeded frontend adapters:
-
-```sh
 pnpm dev
 ```
 
-For hot reload against a running local Console Service:
+`pnpm dev` is the Shell-only mock development loop. It does not start a backend.
+For the application-owned local TypeScript host:
 
 ```sh
-VITE_CONSOLE_MODE=api \
-VITE_CONSOLE_DEV_MODE=production \
-VITE_API_BASE_URL=http://127.0.0.1:3030 \
-pnpm dev
+pnpm service:ts:prepare
+pnpm service:ts
 ```
 
-The development server binds `127.0.0.1` by default. Its diagnostics and Host
-proxy routes require a trusted socket peer and Host. Requests must either carry
-the exact same Origin, or be an Origin-less `GET`/`HEAD` browser fetch with
-same-origin Fetch Metadata (`same-origin`, `cors`, and `empty`). Cross-site
-metadata and requests without either browser signal are rejected. To opt into
-remote development, set `LENSO_CONSOLE_DEV_REMOTE_ORIGIN` to the exact HTTP(S)
-Origin opened in the browser. That single opt-in binds Vite to all interfaces
-and trusts only the configured Origin and Host for non-loopback requests; use
-it only on a trusted network. The privileged proxy also rejects request bodies
-larger than 1 MiB.
+Supply your own `LENSO_TS_TOKEN` in the process environment before serving.
+Do not commit credentials. The local host defaults to `http://127.0.0.1:3100`;
+see the [backend guide](packages/console/README.md) for authentication and
+configuration. `pnpm service:serve` prepares and runs that same TS host.
+`pnpm service:ts:dev` selects source imports; it never launches a native fallback.
+
+For Shell hot reload against the local TS service:
+
+```sh
+VITE_CONSOLE_MODE=api VITE_CONSOLE_DEV_MODE=production \
+VITE_API_BASE_URL=http://127.0.0.1:3100 pnpm dev
+```
+
+The development server defaults to loopback and protects its diagnostics and
+same-origin proxy. Remote development requires the explicit
+`LENSO_CONSOLE_DEV_REMOTE_ORIGIN` opt-in; use it only on a trusted network.
 
 ## Checks
 
-Run the smallest relevant checks for the change. Typical frontend changes use:
+Read manifests and choose focused checks for your change:
 
 ```sh
 pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test:local
+pnpm service:check
+pnpm sdk:check
 pnpm build:local
 ```
 
-Browser, distribution, and Rust checks are required when those areas change.
-The upstream candidate `ci` run is the authoritative full native/browser proof;
-see [Contributing](CONTRIBUTING.md) rather than running every gate locally by
-default.
-
-Browser tests use Playwright-managed Chromium. Install it with
-`pnpm exec playwright install chromium`; set `LENSO_BROWSER_EXECUTABLE_PATH`
-only when a local environment must use a specific Chromium-compatible binary.
-
-Repository operations notes live in
-[docs/repository-operations.md](docs/repository-operations.md).
-
-### Explicit coding Profile
-
-Install the official coding Profiles into a fresh Agent Home before starting
-its Host. Named Profile Plugin management requires `local_plugin_root`;
-SQLite-managed Agents support online coding Profile import through browser setup;
-this offline installer example is for a fresh local Plugin Root. Remote managed
-configuration does not support that offline installer.
-The default launcher remains SQLite-managed.
-
-```sh
-export LENSO_AGENT_HOME="$(mktemp -d)"
-lenso-agent-cli profiles install coding
-export LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY=local_plugin_root
-export LENSO_AGENT_PROFILE=code
-export LENSO_AGENT_TOOLS=read,edit,run_process,checkpoint_create,checkpoint_accept
-lenso-console-with-agent
-```
-
-Run the launcher from the workspace the Agent should operate on and configure
-its Provider authentication through the Auth Plugin. Tool grants are explicit:
-`LENSO_AGENT_TOOLS` is a comma-separated allowlist, not an automatic grant to
-all Tools introduced by a Profile. Profile installation into an already managed
-Home is rejected before writing; stopping its Host does not release ownership.
-
-## Packaged Agent Web
-
-Run Agent and Console from the current workspace with Node.js 22.12 or newer:
-
-```sh
-npx @lenso/agent web
-```
-
-Available on npm since 1.6.0 for macOS 15+ on Apple Silicon and Ubuntu 24.04+
-x64. No Rust toolchain or source checkout is required. The package includes the
-Console client and exact native runtime cohort. Use `--port` to choose a port,
-`--no-open` to skip opening the browser, or `@1.6.0` to pin the package version.
-See [distribution and release instructions](docs/agent-npm-distribution.md).
-
-### Packaged terminal Agent
-
-The same package includes the native terminal UI, management CLI, and ACP:
-
-```sh
-npx @lenso/agent cli auth login
-npx @lenso/agent cli profiles install coding
-npx @lenso/agent --profile code
-```
-
-Use `npx @lenso/agent acp` for an ACP editor or `npx @lenso/agent cli --help`
-for headless and management commands. See the [distribution guide](docs/agent-npm-distribution.md).
+`pnpm check` is the shared TS gate: tool versions, format/lint/type checks,
+backend/SDK/Shell tests, builds, actual archive consumption and pinned Chromium
+checks. It contains no Cargo, native binary download or legacy kit requirement.
+Install Chromium with `pnpm exec playwright install chromium` for focused browser
+checks. Alternate browser executables are diagnostic evidence, not full-gate proof.
+Linux candidate CI remains authoritative; local checks do not prove deployment,
+production data migration or package publication.

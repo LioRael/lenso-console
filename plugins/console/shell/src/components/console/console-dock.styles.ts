@@ -1,0 +1,148 @@
+import * as stylex from "@stylexjs/stylex";
+
+export const dockStyles = stylex.create({
+  anchor: {
+    "--dock-control-size": {
+      default: "36px",
+      "@media (pointer: coarse)": "44px",
+    },
+    position: "fixed",
+    zIndex: 30,
+    inset: 0,
+    boxSizing: "border-box",
+    paddingTop: "max(76px, env(safe-area-inset-top))",
+    paddingRight: "max(20px, env(safe-area-inset-right))",
+    paddingBottom: "max(20px, env(safe-area-inset-bottom))",
+    paddingLeft: "max(20px, env(safe-area-inset-left))",
+    pointerEvents: "none",
+  },
+  dock: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "max-content",
+    maxWidth: "calc(100vw - 40px)",
+    color: "var(--foreground)",
+    pointerEvents: "none",
+  },
+  foreground: {
+    position: "relative",
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr)",
+    boxSizing: "border-box",
+    padding: 8,
+    pointerEvents: "auto",
+  },
+  selectionForeground: {
+    paddingBlock: { default: 8, "@media (max-width: 480px)": 20 },
+  },
+  sideSelectionForeground: { paddingBlock: 20 },
+  shape: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    pointerEvents: "none",
+    filter:
+      "drop-shadow(0 6px 12px color-mix(in srgb, var(--foreground) 9%, transparent))",
+  },
+  piece: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 64,
+    height: 64,
+    backgroundColor: "var(--surface)",
+    transformOrigin: "0 0",
+  },
+  cap: { borderRadius: "50%" },
+  pane: { minWidth: 0 },
+  exitingPane: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    width: "max-content",
+    maxWidth: "calc(100vw - 56px)",
+    pointerEvents: "none",
+  },
+  exitingSelectionPane: {
+    top: { default: 8, "@media (max-width: 480px)": 20 },
+  },
+  exitingSideSelectionPane: { top: 20 },
+  unavailablePane: { pointerEvents: "none" },
+  row: { display: "flex", alignItems: "center", gap: 4 },
+  sideNavigation: {
+    flexDirection: { default: "column", "@media (max-height: 360px)": "row" },
+  },
+  selection: {
+    display: { default: "flex", "@media (max-width: 480px)": "grid" },
+    gridTemplateColumns: {
+      default: null,
+      "@media (max-width: 480px)": "repeat(4, var(--dock-control-size))",
+    },
+    justifyContent: { default: null, "@media (max-width: 480px)": "center" },
+  },
+  sideSelection: {
+    display: "grid",
+    gridTemplateColumns: {
+      default: "repeat(2, var(--dock-control-size))",
+      "@media (max-width: 480px)": "repeat(4, var(--dock-control-size))",
+    },
+    justifyContent: "center",
+  },
+  slot: {
+    position: "relative",
+    flex: "0 0 var(--dock-control-size)",
+    width: "var(--dock-control-size)",
+    height: "var(--dock-control-size)",
+    isolation: "isolate",
+  },
+  indicator: {
+    position: "absolute",
+    inset: 0,
+    zIndex: -1,
+    borderRadius: "calc(var(--dock-control-size) / 2)",
+    backgroundColor: "var(--surface-secondary)",
+    pointerEvents: "none",
+  },
+  control: {
+    flex: "0 0 auto",
+    width: "var(--dock-control-size)",
+    height: "var(--dock-control-size)",
+    minWidth: "var(--dock-control-size)",
+    minHeight: "var(--dock-control-size)",
+    padding: 0,
+    transform: {
+      default: "none",
+      ":hover": "none",
+      ":focus-visible": "none",
+      ":active": "none",
+    },
+    outline: { default: null, ":focus-visible": "2px solid var(--focus)" },
+    outlineOffset: { default: null, ":focus-visible": 1 },
+  },
+  slottedControl: {
+    backgroundColor: {
+      default: "transparent",
+      ":hover": "transparent",
+      ":active": "transparent",
+    },
+  },
+  currentControl: { color: "var(--foreground)" },
+  glyph: {
+    transform: {
+      default: "none",
+      ":hover": "none",
+      ":focus-visible": "none",
+      ":active": "none",
+    },
+  },
+  icon: { width: 16, height: 16 },
+  count: {
+    paddingInline: 4,
+    fontSize: 13,
+    overflowWrap: "anywhere",
+    gridColumn: { default: null, "@media (max-width: 480px)": "1 / -1" },
+    textAlign: { default: null, "@media (max-width: 480px)": "center" },
+  },
+  sideCount: { gridColumn: "1 / -1", textAlign: "center" },
+});

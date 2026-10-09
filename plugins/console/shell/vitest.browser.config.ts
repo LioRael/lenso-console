@@ -5,7 +5,6 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 import { consoleStylex } from "./config/console-stylex.ts";
-import { contributionRecoveryFixture } from "./config/contribution-recovery-fixture.ts";
 
 const browserExecutablePath =
   process.env.LENSO_BROWSER_EXECUTABLE_PATH?.trim() || undefined;
@@ -13,14 +12,17 @@ const browserExecutablePath =
 export default defineConfig({
   optimizeDeps: {
     include: [
-      "@gsap/react",
       "@lenso/ui",
+      "@lenso/ui/button-group",
+      "@lenso/ui/checkbox",
       "@lenso/ui/autocomplete",
       "@lenso/ui/breadcrumbs",
       "@lenso/ui/button",
       "@lenso/ui/chip",
       "@lenso/ui/input",
       "@lenso/ui/modal",
+      "@lenso/ui/popover",
+      "@lenso/ui/slider",
       "@lenso/ui/textarea",
       "@lenso/ui/textfield",
       "@lenso/ui/menu",
@@ -29,23 +31,16 @@ export default defineConfig({
       "@lenso/ui/switch",
       "@lenso/ui/tabs",
       "@lenso/ui/tooltip",
-      "@orpc/client",
-      "@orpc/client/fetch",
-      "@orpc/contract",
-      "@orpc/server",
-      "@orpc/server/fetch",
-      "@streamdown/cjk",
       "@stylexjs/stylex",
       "@tanstack/react-query",
       "@tanstack/react-router",
-      "gsap",
       "ky",
-      "smol-toml",
-      "streamdown",
+      "use-sync-external-store/shim",
+      "use-sync-external-store/shim/with-selector",
       "zod",
     ],
   },
-  plugins: [react(), consoleStylex(), contributionRecoveryFixture()],
+  plugins: [react(), consoleStylex()],
   test: {
     // StyleX development styles are shared by the Vite server. Keep browser
     // files serial so concurrent transforms cannot invalidate another page.

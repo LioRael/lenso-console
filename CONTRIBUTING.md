@@ -85,17 +85,17 @@ actual archive consumption and pinned-browser validation where applicable. The
 gate records the source SHA and tool versions; the Linux candidate run remains
 authoritative. A focused check or preflight alone is not the complete gate.
 
-Migration check: existing scripts and CI may still contain Rust/Cargo validation,
-native Host or Agent binary steps. These are retired Console requirements.
-If the current gate still invokes them, migrate the pipeline before landing
+Rust/Cargo validation, native Hosts, Agent binaries and development kits are
+retired Console requirements. The supported scripts and CI use only TS owners.
+If a future change reintroduces a native step, migrate the pipeline before landing
 rather than installing the old stack, skipping required checks or weakening
 branch protection. In particular, verify the implementation of `pnpm check`
 before treating it as the shared TS gate.
 
-Browser fixtures retain real StyleX CSS loading, content-type and geometry
-assertions, plus the existing file-level isolation. Run
-`pnpm test:browser src/components/runtime/context-navigation.browser.test.tsx`
-for that focused regression. An alternate browser executable is diagnostic
+Browser fixtures retain real StyleX CSS loading and geometry assertions, plus
+the existing file-level isolation. Run
+`pnpm test:browser src/components/console/console-layout.browser.test.tsx src/components/console/console-dock.browser.test.tsx`
+for the focused layout and Dock regressions. An alternate browser executable is diagnostic
 evidence and is rejected by the complete pinned gate. macOS proof does not
 replace the required Linux candidate result.
 

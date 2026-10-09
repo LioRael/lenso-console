@@ -58,9 +58,6 @@ export default defineConfig({
           if (id.includes("node_modules/react")) {
             return "react";
           }
-          if (id.includes("node_modules/gsap")) {
-            return "gsap";
-          }
           if (
             id.includes("node_modules/@base-ui") ||
             id.includes("node_modules/lucide-react") ||
@@ -75,11 +72,7 @@ export default defineConfig({
   environments: {
     client: {
       optimizeDeps: {
-        include: [
-          "@lenso/ui/**",
-          "use-sync-external-store/shim",
-          "use-sync-external-store/shim/with-selector",
-        ],
+        include: ["@lenso/ui/**"],
       },
     },
   },

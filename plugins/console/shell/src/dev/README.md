@@ -1,45 +1,18 @@
-# Console frontend with App dev
+# Console frontend development
 
-## Visual feedback
+`pnpm dev` runs the existing Vite loop. The local Agentation toolbar is enabled
+after hydration only in development; no MCP endpoint or webhook is configured.
 
-`pnpm dev` loads the Agentation toolbar in the browser. Use it to select a UI
-element, annotate it, and copy the feedback into the agent conversation.
-Annotations stay local; no MCP endpoint or webhook is configured.
-The root route renders Agentation after hydration only in Vite development
-mode, so it is excluded from production builds. Restart Vite after installing the
-dependency if the toolbar does not appear.
+For an application-owned TS service, configure `VITE_CONSOLE_MODE=api`,
+`VITE_CONSOLE_DEV_MODE=production` and `VITE_API_BASE_URL` with the backend origin.
+The supported example uses `http://127.0.0.1:3100`.
 
-## App dev integration
+The middleware also accepts an explicitly supplied `LENSO_API_URL_FILE` for a
+controller-owned loopback URL. This is a generic development proxy seam, not a
+native Engine launcher or a claim of hot-replacement support. A missing, invalid
+or symlinked file fails closed with 503. The `/__lenso/backend` readiness probe
+does not grant API access. Browser requests retain same-origin authorization
+and page owner/revision/implementation guards.
 
-Keep the existing Vite development loop. To embed this Shell in an App's
-explicit `frontend/lenso.dev.toml` process, start Vite with the Shell as its
-root and this repository's `plugins/console/shell/vite.config.ts`. The App controller
-supplies `LENSO_API_URL_FILE`; no generated Plan or Descriptor is authored.
-
-The development middleware implements the existing `/__lenso/backend`
-readiness handshake and reads the active backend URL for each API request.
-Backend replacement does not restart Vite. A configured URL file takes
-precedence over `LENSO_CONSOLE_DEV_HOST`; a missing, invalid or symlinked file
-returns 503. The file must contain a bounded HTTP loopback URL.
-
-For a standalone Shell, `LENSO_CONSOLE_DEV_HOST` retains its existing behavior.
-Browser API requests still require the existing same-origin authorization;
-the local controller's read-only readiness probe does not grant API access.
-The proxy retains page owner, revision and implementation guards so the selected
-backend can reject a retired mount before dispatch; these headers grant no authority.
-Console page conventions in the development kit retain their current build
-semantics. This integration covers the selected Shell frontend dev process,
-not hot replacement of generated Workspace service Plugins.
-
-Optional real-browser evidence (requires a prepared Core incremental-dev example):
-
-```sh
-node tooling/checks/devloop-smoke.mjs --cli /path/to/lenso \
-  --app /path/to/lenso/examples/incremental-dev --out /tmp/console-feedback.json
-```
-
-The probe uses mock Shell data, a real native App and real Vite/browser reload.
-It instruments a temporary frontend dependency, waits for the updated page to
-finish loading and checks that the backend generation and native artifacts did
-not change. Existing frontend configuration is never overwritten. A diagnostic
-`--chromium /path/to/browser` override is available; it is not pinned CI evidence.
+The retired native incremental-dev smoke script and development-kit instructions
+are no longer supported. Use the TS host and normal Vite development commands.

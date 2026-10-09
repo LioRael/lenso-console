@@ -1135,7 +1135,7 @@ export function createConsoleService(
               agent: {
                 available: false,
                 reason:
-                  "No TS Agent transport is installed; the Rust agent:web workflow is retained.",
+                  "No Agent transport is installed in this TypeScript application.",
               },
             },
           });

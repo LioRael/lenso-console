@@ -12,7 +12,6 @@
   "files": [
     "dist",
     "src",
-    ".generated",
     "README.md"
   ],
   "type": "module",
@@ -56,21 +55,15 @@
       "lenso-source": "./src/integrations/scheduler.ts",
       "types": "./dist/integrations/scheduler.d.ts",
       "default": "./dist/integrations/scheduler.js"
-    },
-    "./pages": {
-      "lenso-source": "./src/pages.ts",
-      "types": "./dist/pages.d.ts",
-      "default": "./dist/pages.js"
     }
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "pages:build": "node tooling/build-pages.mjs",
-    "build": "pnpm pages:build && tsdown",
-    "typecheck": "pnpm pages:build && tsc --noEmit -p tsconfig.json",
-    "test": "bun test test pages"
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test test"
   },
   "dependencies": {
     "@lenso/auth": "0.3.1",
@@ -90,13 +83,10 @@
     "@lenso/otel": "0.3.0",
     "@lenso/scheduler": "0.3.0",
     "@lenso/tasks": "0.4.0",
-    "@lenso/ui": "0.9.1",
     "@lenso/web": "0.3.2",
     "@orpc/client": "2.0.0-beta.42",
     "@types/bun": "1.4.2",
-    "@types/react": "19.2.18",
     "drizzle-orm": "0.45.3",
-    "react": "19.2.8",
     "tsdown": "0.22.14",
     "typescript": "7.0.2"
   },

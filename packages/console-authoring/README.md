@@ -31,9 +31,9 @@ It never evaluates authored services, starts a Host, selects a model or grants
 permissions. Generated files default to `console/.lenso/console/`; configure your
 editor with that directory's generated `tsconfig.authoring.json`. `@lenso/console-sdk/services`
 is a compiler-provided, owner-local alias, not a globally shared service registry.
-Use the precompiled [development Host](development-host.md) for an executable
-App, or the [native embedding example](https://github.com/LioRael/lenso-console/tree/main/examples/plugin-host).
-Page compilation alone does not prove compatibility with a released Engine Host.
+Use the [TypeScript Console plugin](../console/README.md) for application
+assembly. Native development kits and embedding Hosts have been retired.
+Page compilation alone does not install its emitted provider into a TS app.
 
 ## Compiler package entry
 
@@ -66,18 +66,13 @@ Success returns `{"schema":"lenso.convention-compiled.v1"}` and writes the same
 descriptor and provider assets as `lenso-console-author`. Existing workspace
 options, authorization, scoped reads and generated dependencies are unchanged.
 Node resolves the entry; Bun runs it. A repository's private workspace root is
-not this npm package. See the owner's [npm distribution process](https://github.com/LioRael/lenso-console/blob/main/docs/console-sdk-npm-distribution.md)
-for the candidate archive and separate publication requirements.
+not this npm package.
 
 The default scaffold has pages and navigation only. `init console --services`
-adds the typed service example for source compilation and a qualified Host.
-Services require a Host that qualifies the complete WorkspaceService role,
-including Request and Stream, even for unary business operations. Qualification
-belongs to an exact kit and its compiled framework sources: the Engine producer
-and the generated native Host are separate builds. Console's native support
-facility declares its framework source for Engine to unify during Host generation.
-Keep the default page-only starter when the selected Host is not qualified; this
-compiler does not remove operations or raise admission flags to bypass that boundary.
+adds the typed source example. Its provider protocol is retained as a public SDK
+contract, but compilation is not automatic runtime integration. Supported TS apps
+select exact service instances and Manage operations explicitly; see the backend
+guide. The compiler neither grants permissions nor bypasses runtime admission.
 
 ## What you write
 
@@ -107,11 +102,11 @@ Wrong service/operation names, input types and inferred output properties fail
 source checking. The Promise-like member `then` is reserved for both aliases and
 operations and rejected when defining services. Type information is not runtime validation: `parse` validates
 untrusted input and the domain owner performs final authorization on every call.
-Owner service aliases, immutable Plan admission, authentication and cancellation
+Owner service aliases, explicit application admission, authentication and cancellation
 continue to apply. Existing cross-Plugin domain contracts keep using their normal
 generated SDK; the page helper does not grant access to private domain storage.
-Streaming remains available through the low-level mount transport and native
-providers; `services.ts` currently declares unary request operations.
+Streaming remains available through the low-level mount transport and explicit
+TS read-stream declarations; `services.ts` currently declares unary operations.
 
 ## Pages and navigation
 
@@ -205,9 +200,8 @@ Each mount receives its own factory, React state, owner service transport,
 subject scope and cancellation signal. A switch retires old callbacks and requests;
 late responses cannot update the new instance or expire its session. The immutable
 implementation import can be shared, but mutable instance state cannot.
-The runtime catalog changes on App activation. This slice does not add a live
-workspace-metadata HMR protocol; source development uses the selected development
-Host's existing rebuild behavior.
+The runtime catalog changes on App activation. This does not add a live
+workspace-metadata HMR protocol or native development Host.
 
 ## Ownership and repository map
 
@@ -215,43 +209,16 @@ Host's existing rebuild behavior.
 | --- | --- | --- |
 | Business source | your `console/` and business Plugin | pages, domain logic, explicit authorization |
 | Authoring package | `packages/console-authoring` | consume one package/command |
-| Independently installable products | Console Host, `plugins/assistant`, `plugins/management-mcp`, Agent | Host explicitly selects compatible packages and authorities |
-| Generated projections | `.lenso/console`, SDK `src/generated`, contract crate projections | regenerate/check; never maintain parallel declarations |
-| Console maintenance | `apps`, `plugins`, `contracts`, `packages`, `tooling`, `docs`, `examples` | maintainers only; these are not App author scaffolding |
+| Runtime | `packages/console` | application selects exact TS plugins, services and authorities |
+| Generated projections | `.lenso/console`, SDK `src/generated` | maintain the SDK-owned TS public contracts without duplicate crate projections |
+| Console maintenance | `plugins`, `packages`, `tooling`, `docs`, `examples` | maintainers only; these are not App author scaffolding |
 
-The three previous SDK/compiler/scaffold directories have one owner and package
-closure. Rust `console-support` remains a separate native Host build boundary,
-not a second page authoring SDK. Shell UI, optional assistant/MCP and domain
-contracts keep their independent lifecycle/security boundaries.
-
-The repository now separates application and provider ownership: `plugins/console/shell`
-owns the browser application, `apps/reference-host` owns executable composition,
-`plugins/console` owns the Console provider, and `packages/agent-turn-relay` and
-`packages/local-agent-launcher` own
-private process/stream support. `tooling` owns validation and distribution. Root
-commands forward to the Shell owner. The tracked root directory set is `apps`,
-`contracts`, `plugins`, `packages`, `examples`, `tooling`, `docs`, `.agents`,
-`.changeset` and `.github`. The authoring package consolidation is:
-
-```text
-before packages/                 after packages/
-  console-sdk/                     console-authoring/
-  console-convention/                src/       # SDK, server declarations, client
-  console-dev/                       compiler/  # one compiler/type projection
-                                    template/  # one author scaffold
-  console-support/                 console-support/
-  console/                         console/
-  agent/                           agent/
-```
-
-This unifies page authoring, not every internal Console authority. Core Capability
-descriptors/schemas still own their Rust/TypeScript projections; native Plugin
-macros own their runtime descriptors; the Host explicitly admits instances and
-bindings. The source checkout still has separate Shell assets, service runtime,
-runtime support, configuration and contract maintenance. Further maintenance
-layout/configuration/release simplification is outside this change. Generated
-page metadata is no longer an author-maintained declaration, but it still exists
-because Engine needs a verifiable Plugin and the Host needs explicit admission.
+The SDK/compiler/scaffold have one package closure. `plugins/console/shell`
+owns the browser application; `packages/console` owns the TS backend;
+`examples/ts-console` owns the runnable local assembly. `tooling` owns validation
+and SDK distribution. Rust support, reference Hosts and process/stream launchers
+have been removed. Generated page metadata remains a verifiable public contract,
+not runtime or permission authority.
 
 ## Diagnostics and verification
 
@@ -269,8 +236,8 @@ Run package type checks and the compiler/consumer tests. The clean consumer gate
 packs this package, installs the archive outside the repository, invokes the public
 scaffold/compiler, proves typed mistakes fail, checks server-code exclusion and
 runs allowed/denied requests through the emitted server provider. It grants no
-model or production authority. The separate development-kit gate proves actual
-HTTP Host startup/removal for an exact compatible Engine/Console cohort.
+model or production authority. TS backend archive consumption separately proves
+real Fetch/Auth/Manage invocation and browser/server import boundaries.
 
 ## Shared language and Plugin catalogs
 
@@ -291,8 +258,8 @@ locale and retryable after failure. `formatConsoleDate` and
 number formatting preserves bigint inputs.
 
 The server, account preference, permission checks, initial HTML locale and
-migration responsibilities are described in `docs/console-locale.md` in the
-Console repository. A compatible SDK release and Shell are required together;
+migration responsibilities are owned by the Console repository. A compatible
+SDK release and Shell are required together;
 this changeset does not publish either one.
 
 ### Shell assets
@@ -304,8 +271,8 @@ Public `0.2.0` has no Shell export. After installing the new release, resolve:
 const shellRoot = path.dirname(require.resolve("@lenso/console-sdk/shell"));
 ```
 
-Pass this absolute directory as `LENSO_CONSOLE_SHELL_ROOT` for embedded Rust
-Console builds. Source maintainers stage the assets with `pnpm sdk:prepare`
+Supply that directory to the application-owned TS shell response adapter.
+Source maintainers stage the assets with `pnpm sdk:prepare`
 before packing; App consumers only install the SDK. An explicit custom Shell
 root remains supported.
 
@@ -313,8 +280,8 @@ root remains supported.
 
 Install the SDK and the dependencies your pages import in the plugin's own
 `package.json`. Node 22.18+ and Bun 1.4.2+ are required; Rust, a database and a
-Console source checkout are unnecessary. The SDK archive includes the official
-Console Shell preview source and its Vite/React/StyleX dependency closure.
+Console source checkout are unnecessary. The SDK archive includes its page-only
+preview source and Vite/React/StyleX closure, not built-in Console application pages.
 
 ```sh
 cd plugins/orders
@@ -334,8 +301,8 @@ listener, watchers and its Node child.
 Page-only component and StyleX edits use Fast Refresh and retain compatible
 React state. Changing workspace metadata, adding/removing routes, changing
 component exports or hook signatures may reload/remount. Compilation errors
-appear in Vite's overlay; rendering failures use the official Console extension
-error boundary. Service implementations and `@lenso/console-sdk/server` cannot
+appear in Vite's overlay; rendering failures use the SDK preview error boundary.
+Service implementations and `@lenso/console-sdk/server` cannot
 be imported into browser pages.
 
 UI preview is visibly marked **example data only**. Unconfigured service calls
@@ -363,7 +330,8 @@ Auth paths, reads the normal authenticated catalog and replaces only matching
 plugin page implementations. A backend must admit the same page identity;
 unavailable/unauthorized pages do not become locally authorized pages. Services
 keep the backend's owner, revision, implementation and expected-subject headers.
-Sign in through the normal Console UI; do not copy tokens. The backend must
+Authenticate through the application owner's supported mechanism; the SDK
+preview no longer includes Console's removed login page. Do not copy tokens. The backend must
 explicitly trust the preview origin and use browser-compatible cookies. The
 proxy preserves Origin, cookies, CSRF and permission failures, never changes
 Origin or synthesizes credentials, and rejects foreign-origin writes. Redirects
@@ -374,3 +342,9 @@ and Secure/Domain cookie policies remain the backend's policy. `--backend` and
 preview server and Vite client are not included in their generated plugin output
 or in the production Shell assets. SDK release staging runs `pnpm sdk:prepare`;
 normal consumers use the complete published archive, not repository aliases.
+
+Preview uses the SDK-owned page outlet and scoped-read runtime, with shared
+appearance and transport primitives only. It does not bundle the removed Agent,
+Plugins, Settings or management pages. Locale defaults to English without
+pretending to persist preferences. `pnpm test:preview` exercises authored-page
+navigation, explicit example reads and unauthenticated TS backend refusal.

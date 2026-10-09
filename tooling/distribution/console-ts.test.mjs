@@ -118,13 +118,12 @@ import {createConsoleAuthorizationPolicy} from "@lenso/console/authorization";
 import {createConsoleTasksIntegration} from "@lenso/console/tasks";
 import {createConsoleSchedulerIntegration} from "@lenso/console/scheduler";
 import {createConsoleLimitsBinding} from "@lenso/console/limits";
-import {createConsoleManagementMount} from "@lenso/console/pages";
 import type {ConsoleOptions} from "@lenso/console";
 const factory: (options:ConsoleOptions)=>ReturnType<typeof createConsolePlugin> = createConsolePlugin;
 void [factory, createConsoleAuthentication, consoleConfiguration,
   createConsoleAuditIntegration, createConsoleApiKeyManage, createConsoleApiKeyCredentials,
   createConsoleAuthorizationPolicy, createConsoleTasksIntegration,
-  createConsoleSchedulerIntegration, createConsoleLimitsBinding, createConsoleManagementMount];
+  createConsoleSchedulerIntegration, createConsoleLimitsBinding];
 `
       );
       execFileSync(
@@ -203,7 +202,7 @@ const consolePlugin=createConsolePlugin({
 });
 const app=await startApp({plugins:[authentication,plugin,consolePlugin]});
 try {
-  for (const entry of ["audit","api-keys","authorization","tasks","scheduler","limits","pages"]) {
+  for (const entry of ["audit","api-keys","authorization","tasks","scheduler","limits"]) {
     await import("@lenso/console/"+entry);
   }
   const service=app.get(consolePlugin);

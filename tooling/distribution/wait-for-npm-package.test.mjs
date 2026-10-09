@@ -5,15 +5,16 @@ import { waitForPackage } from "./wait-for-npm-package.mjs";
 
 const expected = {
   integrity: "sha512-verified",
-  name: "@lenso/agent",
-  version: "1.16.0",
+  name: "@lenso/console-sdk",
+  version: "0.2.0",
 };
 const published = () =>
   Response.json({
     ...expected,
     dist: {
       integrity: expected.integrity,
-      tarball: "https://registry.npmjs.org/@lenso/agent/-/agent-1.16.0.tgz",
+      tarball:
+        "https://registry.npmjs.org/@lenso/console-sdk/-/console-sdk-0.2.0.tgz",
     },
   });
 const harness = (responses) => {

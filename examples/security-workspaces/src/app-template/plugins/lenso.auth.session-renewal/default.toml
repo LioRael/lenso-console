@@ -1,3 +1,0 @@
-allowed_origin = "https://REPLACE_WITH_APP_ORIGIN"
-session_cookie_name = "__Host-lenso-session"
-csrf_cookie_name = "__Host-lenso-csrf"

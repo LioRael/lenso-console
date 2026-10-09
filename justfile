@@ -37,7 +37,7 @@ console:
     pnpm dev
 
 console-api:
-    VITE_CONSOLE_MODE=api VITE_CONSOLE_DEV_MODE=production VITE_API_BASE_URL=http://localhost:3000 pnpm dev
+    VITE_CONSOLE_MODE=api VITE_CONSOLE_DEV_MODE=production VITE_API_BASE_URL=http://127.0.0.1:3100 pnpm dev
 
 console-preview:
     pnpm preview

@@ -15,7 +15,7 @@ assert.ok(
   "The complete gate requires Playwright's pinned Chromium; use a focused command for alternate-browser diagnostics."
 );
 run(["check:preflight"]);
-// Browser installation follows cheap type/descriptor checks in both local and
+// Browser installation follows cheap type checks in both local and
 // CI entrypoints. Playwright's exact package version owns Chromium's revision.
 run([
   "exec",

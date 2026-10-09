@@ -1,4 +1,0 @@
-[session_cookie]
-name = "__Host-lenso-session"
-csrf_cookie_name = "__Host-lenso-csrf"
-csrf_header_name = "x-csrf-token"

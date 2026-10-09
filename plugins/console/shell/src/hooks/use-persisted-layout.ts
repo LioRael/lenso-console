@@ -6,12 +6,11 @@ export function usePersistedLayout<T>(key: string, defaultValue: T) {
       return defaultValue;
     }
 
-    const stored = window.localStorage.getItem(key);
-    if (!stored) {
-      return defaultValue;
-    }
-
     try {
+      const stored = window.localStorage.getItem(key);
+      if (!stored) {
+        return defaultValue;
+      }
       const parsed = JSON.parse(stored) as T;
       if (isObjectValue(defaultValue) && !isObjectValue(parsed)) {
         return defaultValue;
@@ -23,7 +22,11 @@ export function usePersistedLayout<T>(key: string, defaultValue: T) {
   });
 
   useEffect(() => {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Layout preferences remain usable when browser storage is blocked.
+    }
   }, [key, value]);
 
   const reset = useCallback(() => setValue(defaultValue), [defaultValue]);

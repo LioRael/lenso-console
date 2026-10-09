@@ -6,7 +6,6 @@ import {
   requireConsoleRequest,
 } from "@lenso/console/auth";
 import { createConsoleAuthorizationManage } from "@lenso/console/authorization";
-import { createConsoleManagementMount } from "@lenso/console/pages";
 import { defineApp, definePlugin } from "@lenso/core";
 import { createWebPlugin } from "@lenso/web";
 import { createBunListenerPlugin } from "@lenso/web/bun";
@@ -66,16 +65,6 @@ export async function createHost(config: HostConfiguration) {
         tenantId: localScope.id,
         plugins: [authorization.plugin, locale],
         manage: [authorization.manage],
-        mounts: [
-          createConsoleManagementMount({
-            id: "authorization",
-            page: "authorization",
-            title: "Authorization",
-            subject: { kind: "console" },
-            manage: authorization.manage,
-            apiBasePath: config.apiBasePath,
-          }),
-        ],
       },
     ],
     binding: (_operation, _input, request, identity, resource) => ({

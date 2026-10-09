@@ -54,8 +54,8 @@ from that procedure, rather than replacing it.
 - Follow the contribution guide's fork/Issue handoff requirements only when
   applicable. If landing an external contribution, import its pinned revision,
   preserve contributor authorship and retain its Issue link. For a linked
-  central ticket or PR, follow `docs/agents/issue-tracker.md`, including blocker
-  verification and repo-qualified closure syntax; do not close it early.
+  central ticket or PR, use the central `LioRael/lenso` GitHub repository.
+  Verify blockers and use repo-qualified closure syntax; do not close it early.
 - Integrate the requested change onto the freshly fetched upstream base using
   an isolated local topic branch. Use the contribution guide's fetch/base
   recording commands, and retain the full base SHA for the eventual promotion.

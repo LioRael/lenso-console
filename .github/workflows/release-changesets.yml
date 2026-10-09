@@ -54,6 +54,10 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
+      - name: Install pinned Bun
+        run: npm install --global "bun@$(cat .bun-version)"
+      - name: Prepare immutable TypeScript framework dependencies
+        run: node tooling/distribution/prepare-ts-framework.mjs
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
       - name: Check pending release intent without changing files
