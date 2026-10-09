@@ -22,30 +22,99 @@
     "./auth": {
       "types": "./dist/auth.d.ts",
       "default": "./dist/auth.js"
+    },
+    "./audit": {
+      "types": "./dist/integrations/audit.d.ts",
+      "default": "./dist/integrations/audit.js"
+    },
+    "./authorization": {
+      "types": "./dist/integrations/authorization.d.ts",
+      "default": "./dist/integrations/authorization.js"
+    },
+    "./api-keys": {
+      "types": "./dist/integrations/api-keys.d.ts",
+      "default": "./dist/integrations/api-keys.js"
+    },
+    "./limits": {
+      "types": "./dist/integrations/limits.d.ts",
+      "default": "./dist/integrations/limits.js"
+    },
+    "./tasks": {
+      "types": "./dist/integrations/tasks.d.ts",
+      "default": "./dist/integrations/tasks.js"
+    },
+    "./scheduler": {
+      "types": "./dist/integrations/scheduler.d.ts",
+      "default": "./dist/integrations/scheduler.js"
+    },
+    "./pages": {
+      "types": "./dist/pages.d.ts",
+      "default": "./dist/pages.js"
     }
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsdown",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "bun test test"
+    "pages:build": "node tooling/build-pages.mjs",
+    "build": "pnpm pages:build && tsdown",
+    "typecheck": "pnpm pages:build && tsc --noEmit -p tsconfig.json",
+    "test": "bun test test pages"
   },
   "dependencies": {
-    "@lenso/auth": "0.2.0",
+    "@lenso/auth": "0.3.1",
     "@lenso/console-sdk": "workspace:*",
-    "@lenso/core": "0.2.0",
-    "@lenso/engine": "0.2.0",
-    "@lenso/manage": "0.2.0",
+    "@lenso/core": "0.3.0",
+    "@lenso/engine": "0.4.0",
+    "@lenso/manage": "0.4.0",
     "@orpc/server": "2.0.0-beta.42",
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@lenso/api-keys": "0.1.2",
+    "@lenso/audit": "0.2.1",
+    "@lenso/authorization": "0.2.1",
+    "@lenso/limits": "0.2.1",
+    "@lenso/log": "0.2.1",
+    "@lenso/otel": "0.3.0",
+    "@lenso/scheduler": "0.2.1",
+    "@lenso/tasks": "0.3.1",
+    "@lenso/ui": "0.9.1",
     "@orpc/client": "2.0.0-beta.42",
     "@types/bun": "1.4.2",
+    "@types/react": "19.2.18",
+    "drizzle-orm": "0.45.3",
+    "react": "19.2.8",
     "tsdown": "0.22.14",
     "typescript": "7.0.2"
+  },
+  "peerDependencies": {
+    "@lenso/api-keys": "^0.1.1",
+    "@lenso/audit": "^0.2.0",
+    "@lenso/authorization": "^0.2.0",
+    "@lenso/limits": "^0.2.0",
+    "@lenso/scheduler": "^0.2.0",
+    "@lenso/tasks": "^0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "@lenso/api-keys": {
+      "optional": true
+    },
+    "@lenso/audit": {
+      "optional": true
+    },
+    "@lenso/authorization": {
+      "optional": true
+    },
+    "@lenso/limits": {
+      "optional": true
+    },
+    "@lenso/scheduler": {
+      "optional": true
+    },
+    "@lenso/tasks": {
+      "optional": true
+    }
   },
   "engines": {
     "bun": ">=1.4.2",

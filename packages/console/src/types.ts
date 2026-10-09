@@ -59,6 +59,7 @@ export interface ConsolePageDescriptor {
   access?: "member" | "administrator";
   index?: readonly string[];
   routes?: readonly (readonly string[])[];
+  credentials?: { issuePath?: string; rotatePath?: string };
   requirements: readonly {
     service_id: string;
     capability_id: string;
@@ -83,6 +84,15 @@ export interface ConsoleMount {
   >;
   /** Only explicitly installed, owner-built assets, never descriptor-selected URLs. */
   readonly asset: (relativePath: string) => Promise<Response | undefined>;
+  /** Explicitly mounted separate credential routes; not Manage operations or asset-selected URLs. */
+  readonly credentials?: {
+    readonly issuePath: string;
+    readonly rotatePath: string;
+    readonly resources: Readonly<{
+      issue: ConsoleResource;
+      rotate: ConsoleResource;
+    }>;
+  };
 }
 
 export interface ConsoleTarget {

@@ -1,3 +1,4 @@
+import type { WorkspaceCredentials } from "@lenso/console-sdk";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,6 +38,7 @@ import {
   loadPageImplementation,
   pageMountScopeKey,
 } from "./page-mount-runtime";
+import { createWorkspaceCredentials } from "./workspace-credentials";
 import { workspacePageHref } from "./workspace-paths";
 import { createWorkspaceReads } from "./workspace-read-client";
 import {
@@ -46,6 +48,7 @@ import {
 import { ContributionSidebar } from "./workspace-sidebar-slot";
 
 type ContributionProps = {
+  credentials?: WorkspaceCredentials | undefined;
   chrome?: { Sidebar: ComponentType<{ children: ReactNode }> };
   agent?:
     | {
@@ -92,6 +95,7 @@ type ContributionModule = {
 };
 
 type LoadedContribution<Props = ContributionProps> = {
+  credentials?: WorkspaceCredentials | undefined;
   status: "ready";
   Page: ComponentType<Props>;
   Provider: ComponentType<{ children: ReactNode }>;
@@ -333,6 +337,7 @@ function MountedContribution({
         reads={reads}
         signal={loaded.signal}
         services={loaded.services}
+        credentials={loaded.credentials}
       />
     </loaded.Provider>
   );
@@ -452,6 +457,11 @@ export function useContributionModule<Props = ContributionProps>(
           modules,
           expectedSubject,
           result: {
+            credentials: createWorkspaceCredentials(
+              mount,
+              signal,
+              expectedSubject
+            ),
             Page: page.Page as ComponentType<Props>,
             Provider: page.Provider ?? PassThroughProvider,
             signal,

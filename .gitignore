@@ -2,6 +2,7 @@ node_modules/
 dist/
 .output/
 .artifacts/
+packages/console/.generated/
 .playwright-cli/
 .pnpm-store/
 

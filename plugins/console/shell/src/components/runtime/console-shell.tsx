@@ -99,6 +99,9 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     (currentArea === "settings" && currentPath === "/settings/ai");
 
   useEffect(() => {
+    if (pageCatalog.isPending || pageCatalog.isError) {
+      return;
+    }
     if (
       !administrator &&
       !assistantArea &&
@@ -122,6 +125,8 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     administrator,
     assistantArea,
     managementEnabled,
+    pageCatalog.isPending,
+    pageCatalog.isError,
     currentArea,
     navigate,
     visibleWorkspaces,

@@ -94,6 +94,20 @@ export const consolePageDescriptorSchema = z.strictObject({
   access: z.enum(["member", "administrator"]).optional(),
   index: z.array(z.string()).readonly().optional(),
   routes: z.array(z.array(z.string()).readonly()).readonly().optional(),
+  credentials: z
+    .strictObject({
+      issuePath: z
+        .string()
+        .max(1024)
+        .regex(/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/)
+        .optional(),
+      rotatePath: z
+        .string()
+        .max(1024)
+        .regex(/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/)
+        .optional(),
+    })
+    .optional(),
   requirements: z
     .array(
       z.strictObject({

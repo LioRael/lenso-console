@@ -18,6 +18,7 @@
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
     "@gsap/react": "^2.1.2",
+    "@lenso/console-sdk": "workspace:*",
     "@lenso/primitives": "0.7.0",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",

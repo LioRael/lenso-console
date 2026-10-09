@@ -41,6 +41,8 @@ export interface WorkspaceServices {
 }
 export type Subject = { kind: "console" } | { kind: "app"; appId: string };
 export interface PageProps {
+  /** Optional protected one-time credential channel, never a scoped read or Manage result. */
+  credentials?: WorkspaceCredentials;
   /** Optional Host-owned placement for a Plugin's workspace navigation. */
   chrome?: { Sidebar: React.ComponentType<{ children: React.ReactNode }> };
   params: Readonly<Record<string, string | readonly string[]>>;
@@ -65,6 +67,11 @@ export interface PageProps {
     revision: string;
     /** Resolved browser path; never a permission or cache identity. */
     basePath?: string;
+    requirements?: readonly {
+      service_id: string;
+      operations: readonly string[];
+      available: boolean;
+    }[];
   };
   navigation: {
     go(segments: readonly string[]): void;
@@ -83,6 +90,19 @@ export interface PageProps {
   signal: AbortSignal;
   services: WorkspaceServices;
 }
+
+export interface WorkspaceCredentials {
+  readonly operations: readonly ("issue" | "rotate")[];
+  issue(
+    input: { requestedScopes: string[]; expiresAt: number; requestId: string },
+    options?: { signal?: AbortSignal }
+  ): Promise<unknown>;
+  rotate(
+    input: { id: string; expectedRevision: number; overlapMs: number },
+    options?: { signal?: AbortSignal }
+  ): Promise<unknown>;
+}
+
 /** Type a page without coupling it to Console's private router or state. */
 export function definePage(
   page: React.ComponentType<PageProps>

@@ -1,3 +1,4 @@
+import { consolePageDescriptorSchema } from "@lenso/console-sdk/protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -44,6 +45,7 @@ function workspaceRouteConflicts(mount: PageMount, basePath: string): boolean {
 }
 
 export type PageMount = {
+  credentials?: { issuePath?: string; rotatePath?: string };
   transport?: WorkspaceSourceTransport;
   apiMajor: 1;
   protocol?: "lenso-console-rpc/2" | "workspace-http/1";
@@ -286,6 +288,10 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
     ids.add(candidate.id);
     const mount: PageMount = {
       apiMajor: candidate.apiMajor,
+      ...(candidate.protocol === "lenso-console-rpc/2" ||
+      candidate.protocol === "workspace-http/1"
+        ? { protocol: candidate.protocol }
+        : {}),
       id: candidate.id,
       ...("basePath" in candidate
         ? { basePath: candidate.basePath as string }
@@ -313,6 +319,20 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       subject: candidate.subject,
       title: candidate.title,
     };
+    if ("credentials" in candidate && candidate.credentials !== undefined) {
+      const parsed = consolePageDescriptorSchema.shape.credentials.safeParse(
+        candidate.credentials
+      );
+      if (!parsed.success || !parsed.data) {
+        throw new TypeError("Console credential route metadata is malformed");
+      }
+      mount.credentials = {
+        ...(parsed.data.issuePath ? { issuePath: parsed.data.issuePath } : {}),
+        ...(parsed.data.rotatePath
+          ? { rotatePath: parsed.data.rotatePath }
+          : {}),
+      };
+    }
     if (mount.basePath && !validWorkspaceBasePath(mount, mount.basePath)) {
       throw new TypeError("Console workspace path is invalid or reserved");
     }

@@ -33,6 +33,8 @@
     "./client": "./src/client.ts",
     "./protocol": "./src/protocol.ts",
     "./transport": "./src/transport.ts",
+    "./credentials": "./src/credentials.ts",
+    "./paths": "./src/paths.ts",
     "./compiler": "./compiler/compiler.mjs",
     "./locale": "./src/locale.ts",
     "./i18n": "./src/i18n.ts",

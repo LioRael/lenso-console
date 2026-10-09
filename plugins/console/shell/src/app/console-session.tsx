@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type ContextType,
 } from "react";
 
 import { consoleDevConfig } from "../dev/console-dev-config";
@@ -50,6 +51,7 @@ const SessionActions = createContext<{
   administrator: boolean;
   assistantEnabled: boolean;
   managementEnabled: boolean;
+  managementProtocol?: "lenso-console-rpc/2";
   humanManagementEnabled: boolean;
   workspaceIds: string[];
   signOut?: () => Promise<void>;
@@ -64,6 +66,10 @@ const SessionActions = createContext<{
 export function useConsoleSession() {
   return useContext(SessionActions);
 }
+type SessionAccess = Omit<
+  ContextType<typeof SessionActions>,
+  "subject" | "signOut"
+>;
 
 // A public build-time setting; API requests still authenticate on every call.
 const configuredFreshness = Number(
@@ -100,7 +106,7 @@ export function ConsoleSession({
   const [identity, setIdentity] = useState("local");
   const [sessionSubject, setSessionSubject] = useState("local");
   const [authenticated, setAuthenticated] = useState(false);
-  const [access, setAccess] = useState({
+  const [access, setAccess] = useState<SessionAccess>({
     administrator: true,
     assistantEnabled: true,
     managementEnabled: false,
@@ -248,7 +254,11 @@ export function ConsoleSession({
               value.mode === "required" && "subject" in value
                 ? String(value.subject)
                 : "local";
-            const nextAccess = {
+            const nextAccess: SessionAccess = {
+              ...("management_protocol" in value &&
+              value.management_protocol === "lenso-console-rpc/2"
+                ? { managementProtocol: "lenso-console-rpc/2" }
+                : {}),
               assistantEnabled:
                 "assistant_enabled" in value &&
                 value.assistant_enabled === true,

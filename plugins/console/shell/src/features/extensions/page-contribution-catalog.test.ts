@@ -15,6 +15,7 @@ describe("parsePageCatalog", () => {
     const mounts = ["alpha", "beta"].map((id) => ({
       ...ownership,
       apiMajor: 1,
+      protocol: "lenso-console-rpc/2",
       id,
       pageId: "observe",
       implementationId: digest,
@@ -24,6 +25,10 @@ describe("parsePageCatalog", () => {
       styles: [],
       subject: { kind: "console" },
       title: id,
+      credentials: {
+        issuePath: "/credentials/issue",
+        rotatePath: "/credentials/rotate",
+      },
     }));
     expect(
       parsePageCatalog({ schema: "console.page-catalog/1", mounts })

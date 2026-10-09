@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -44,17 +45,38 @@ test(
       };
       const sdk = pack(path.join(root, "packages/console-authoring"));
       const backend = pack(path.join(root, "packages/console"));
+      const frameworkSource = JSON.parse(
+        fs.readFileSync(
+          path.join(root, ".artifacts/framework/source.json"),
+          "utf-8"
+        )
+      );
+      const pin = JSON.parse(
+        fs.readFileSync(
+          path.join(root, "tooling/distribution/framework-source.json"),
+          "utf-8"
+        )
+      );
+      assert.equal(frameworkSource.source, pin.revision);
+      for (const archive of frameworkSource.artifacts) {
+        const content = fs.readFileSync(
+          path.join(root, ".artifacts/framework", archive.filename)
+        );
+        assert.equal(
+          createHash("sha256").update(content).digest("hex"),
+          archive.sha256
+        );
+      }
       const frameworkArtifacts = Object.fromEntries(
-        ["core", "engine", "manage"].map((name) => [
-          `@lenso/${name}`,
-          `file:${path.join(root, ".artifacts/framework", `lenso-${name}-0.2.0.tgz`)}`,
+        frameworkSource.artifacts.map(({ package: name, filename }) => [
+          name,
+          `file:${path.join(root, ".artifacts/framework", filename)}`,
         ])
       );
       fs.writeFileSync(
         path.join(temp, "package.json"),
         JSON.stringify({
           dependencies: {
-            "@lenso/auth": "0.2.0",
             "@lenso/console": backend,
             "@lenso/console-sdk": sdk,
             ...frameworkArtifacts,
@@ -89,9 +111,18 @@ export const read = (page:PageProps) => page.services.invoke("notes", "read", {}
         `
 import {createConsolePlugin, consoleConfiguration} from "@lenso/console";
 import {createConsoleAuthentication} from "@lenso/console/auth";
+import {createConsoleAuditIntegration} from "@lenso/console/audit";
+import {createConsoleApiKeyManage, createConsoleApiKeyCredentials} from "@lenso/console/api-keys";
+import {createConsoleAuthorizationPolicy} from "@lenso/console/authorization";
+import {createConsoleTasksIntegration} from "@lenso/console/tasks";
+import {createConsoleSchedulerIntegration} from "@lenso/console/scheduler";
+import {createConsoleLimitsBinding} from "@lenso/console/limits";
 import type {ConsoleOptions} from "@lenso/console";
 const factory: (options:ConsoleOptions)=>ReturnType<typeof createConsolePlugin> = createConsolePlugin;
-void [factory, createConsoleAuthentication, consoleConfiguration];
+void [factory, createConsoleAuthentication, consoleConfiguration,
+  createConsoleAuditIntegration, createConsoleApiKeyManage, createConsoleApiKeyCredentials,
+  createConsoleAuthorizationPolicy, createConsoleTasksIntegration,
+  createConsoleSchedulerIntegration, createConsoleLimitsBinding];
 `
       );
       execFileSync(
@@ -120,7 +151,7 @@ import {audience, createAuth, defineSource, realm} from "@lenso/auth";
 import {definePlugin, startApp} from "@lenso/core";
 import {defineOperation} from "@lenso/engine/operations";
 import {defineManage} from "@lenso/manage";
-import {createConsolePlugin} from "@lenso/console";
+import {createConsolePlugin, type ConsoleIdentity, type ConsoleResource} from "@lenso/console";
 import {createConsoleAuthentication} from "@lenso/console/auth";
 import {createConsoleClient} from "@lenso/console-sdk/transport";
 import {z} from "zod";
@@ -140,7 +171,7 @@ const authentication = definePlugin({id:"auth", setup(ctx) {
 }});
 const plugin=definePlugin({id:"notes",requires:[authentication],setup(ctx) {
   const auth=ctx.get(authentication);
-  return {async read(input:{message:string},context:any) {
+  return {async read(input:{message:string},context:{identity:ConsoleIdentity;resource:ConsoleResource}) {
     await auth.enforce(context.identity,context.resource);
     return {message:input.message,subject:context.identity.actor.subjectId};
   }};
@@ -154,6 +185,9 @@ const consolePlugin=createConsolePlugin({
 });
 const app=await startApp({plugins:[authentication,plugin,consolePlugin]});
 try {
+  for (const entry of ["audit","api-keys","authorization","tasks","scheduler","limits"]) {
+    await import("@lenso/console/"+entry);
+  }
   const service=app.get(consolePlugin);
   const client=createConsoleClient({origin:"https://console.test",headers:{authorization:"Bearer fixture"},
     fetch:async (url,init)=>await service.fetch(new Request(url,init))??new Response(null,{status:404})});

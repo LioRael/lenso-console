@@ -18,9 +18,16 @@ export type ConsoleClientOptions = Pick<
 export function createConsoleClient(
   options: ConsoleClientOptions = {}
 ): ConsoleClient {
+  const browserOrigin =
+    typeof globalThis.location === "object"
+      ? globalThis.location.origin
+      : undefined;
   return createORPCClient(
     new RPCLink({
       ...options,
+      ...(options.origin === undefined && browserOrigin
+        ? { origin: browserOrigin }
+        : {}),
       url: options.url ?? "/api/console/v2/rpc",
     })
   );
@@ -29,12 +36,21 @@ export function createConsoleClient(
 export class WorkspaceServiceError extends Error {
   readonly code: string;
   readonly status: number;
+  readonly retryAfterMs?: number;
 
-  constructor(message: string, code: string, status: number) {
+  constructor(
+    message: string,
+    code: string,
+    status: number,
+    retryAfterMs?: number
+  ) {
     super(message);
     this.name = "WorkspaceServiceError";
     this.code = code;
     this.status = status;
+    if (retryAfterMs !== undefined) {
+      this.retryAfterMs = retryAfterMs;
+    }
   }
 }
 
@@ -235,9 +251,23 @@ function mapWorkspaceError(
   const status = Object.hasOwn(COMMON_ERROR_STATUS_MAP, error.code)
     ? Reflect.get(COMMON_ERROR_STATUS_MAP, error.code)
     : undefined;
+  const estimate =
+    error.code === "TOO_MANY_REQUESTS" &&
+    error.data &&
+    typeof error.data === "object"
+      ? Reflect.get(error.data, "retryAfterMs")
+      : undefined;
+  const retryAfterMs =
+    typeof estimate === "number" &&
+    Number.isFinite(estimate) &&
+    estimate >= 0 &&
+    estimate <= Number.MAX_SAFE_INTEGER
+      ? estimate
+      : undefined;
   return new WorkspaceServiceError(
     `Workspace service ${service}/${operation}: ${error.code}`,
     error.code,
-    typeof status === "number" ? status : 503
+    typeof status === "number" ? status : 503,
+    retryAfterMs
   );
 }

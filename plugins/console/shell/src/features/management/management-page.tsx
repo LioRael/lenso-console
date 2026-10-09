@@ -19,6 +19,7 @@ import { sessionFetch } from "../../lib/session-fetch";
 import { settingsPageStyles as page } from "../settings/settings-page.stylex";
 import { HumanApprovalPanel } from "./human-approval-panel";
 import { HumanTokenPanel } from "./human-token-panel";
+import { ManagementV2Directory } from "./management-v2-directory";
 import { ParameterFields } from "./parameter-fields";
 
 const styles = stylex.create({
@@ -94,6 +95,15 @@ function starter(entry: Entry): string {
 }
 
 export function ManagementPage() {
+  const session = useConsoleSession();
+  return session.managementProtocol === "lenso-console-rpc/2" ? (
+    <ManagementV2Directory subject={session.subject} />
+  ) : (
+    <LegacyManagementPage />
+  );
+}
+
+function LegacyManagementPage() {
   const { managementEnabled, humanManagementEnabled, subject } =
     useConsoleSession();
   const { locale } = useConsoleLocale();

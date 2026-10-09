@@ -32,6 +32,8 @@ export async function typecheck({ root, out, authored, imports, checks, sdk }) {
     `import type * as React from "react";\nimport type {PageProps,LayoutProps,ErrorProps} from "@lenso/console-sdk";\n${imports.join("\n")}\n${checks.join("\n")}`
   );
   const config = path.join(directory, "tsconfig.json");
+  const assetTypes = path.join(directory, "assets.d.ts");
+  fs.writeFileSync(assetTypes, 'declare module "*.css";\n');
   fs.writeFileSync(
     config,
     JSON.stringify({
@@ -63,7 +65,12 @@ export async function typecheck({ root, out, authored, imports, checks, sdk }) {
           ],
         },
       },
-      files: [...authored, bindings, path.join(import.meta.dir, "router.ts")],
+      files: [
+        ...authored,
+        bindings,
+        assetTypes,
+        path.join(import.meta.dir, "router.ts"),
+      ],
     })
   );
   generateClient({

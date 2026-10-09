@@ -21,6 +21,8 @@ import { COMMON_ERROR_STATUS_MAP, implement, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { ConsoleRequestError } from "./auth";
+import { isConsoleOperationError } from "./errors";
+import { readRequestBytes } from "./request-body";
 import type {
   ConsoleAuthentication,
   ConsoleIdentity,
@@ -37,18 +39,37 @@ const boundaryErrors = new WeakSet<Error>();
 class BoundaryError extends Error {
   readonly code: string;
   readonly status: number;
-  constructor(code: string, status: number) {
+  readonly retryAfterMs?: number;
+  constructor(code: string, status: number, retryAfterMs?: number) {
     super("Console request failed");
     this.name = "BoundaryError";
     this.code = code;
     this.status = status;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
-function failure(code: string, status: number): BoundaryError {
-  const error = new BoundaryError(code, status);
+function failure(
+  code: string,
+  status: number,
+  retryAfterMs?: number
+): BoundaryError {
+  const error = new BoundaryError(code, status, retryAfterMs);
   boundaryErrors.add(error);
   return error;
+}
+
+function rpcFailure(
+  error: BoundaryError,
+  headers: Headers
+): ORPCError<string, unknown> {
+  if (error.retryAfterMs !== undefined) {
+    headers.set("retry-after", String(Math.ceil(error.retryAfterMs / 1000)));
+    return new ORPCError(error.code, {
+      data: { retryAfterMs: error.retryAfterMs },
+    });
+  }
+  return new ORPCError(error.code);
 }
 
 function safeError(error: unknown): BoundaryError {
@@ -85,20 +106,31 @@ function safeError(error: unknown): BoundaryError {
     if (cause instanceof BoundaryError && boundaryErrors.has(cause)) {
       return cause;
     }
+    if (isConsoleOperationError(cause)) {
+      return failure(cause.code, cause.status, cause.retryAfterMs);
+    }
   }
   if (error instanceof EngineError) {
     const { code } = error.diagnostic;
-    if (code === "invalid-input") {
+    if (["invalid-input", "invalid-task", "invalid-options"].includes(code)) {
       return failure("UNPROCESSABLE_CONTENT", 422);
     }
-    if (code === "unknown-operation" || code === "unknown-plugin") {
+    if (["unknown-operation", "unknown-plugin", "not-found"].includes(code)) {
       return failure("NOT_FOUND", 404);
+    }
+    if (code === "conflict") {
+      return failure("CONFLICT", 409);
+    }
+    if (code === "unsupported") {
+      return failure("NOT_IMPLEMENTED", 501);
     }
     if (
       [
         "forbidden-operation",
         "confirmation-required",
         "approval-required",
+        "forbidden",
+        "denied",
       ].includes(code)
     ) {
       return failure("FORBIDDEN", 403);
@@ -164,32 +196,9 @@ async function boundedRpcRequest(request: Request): Promise<Request> {
   if (!request.body) {
     return request;
   }
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      request.signal.throwIfAborted();
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      size += value.byteLength;
-      if (size > 1024 * 1024 + 4096) {
-        await reader.cancel();
-        throw failure("PAYLOAD_TOO_LARGE", 413);
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const body = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const body = await readRequestBytes(request, 1024 * 1024 + 4096, () =>
+    failure("PAYLOAD_TOO_LARGE", 413)
+  );
   return new Request(request, { body, method: request.method });
 }
 
@@ -291,6 +300,23 @@ export function createConsoleService(
       canList: () => false,
     });
     for (const mount of target.mounts ?? []) {
+      if (mount.credentials) {
+        for (const operation of ["issue", "rotate"] as const) {
+          const endpoint = mount.credentials[`${operation}Path`];
+          const bound = mount.credentials.resources[operation];
+          if (
+            !/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/.test(endpoint) ||
+            bound.targetId !== target.id ||
+            bound.tenantId !== target.tenantId ||
+            bound.action !== "invoke" ||
+            bound.operation !== operation
+          ) {
+            throw new Error(
+              "Credential routes must be explicitly owned by this target."
+            );
+          }
+        }
+      }
       const descriptor = consolePageDescriptorSchema.parse(
         JSON.parse(
           boundedJson(
@@ -428,6 +454,17 @@ export function createConsoleService(
           boundResource
         );
         checkAbort(request);
+        if (mount?.descriptor.access === "administrator") {
+          await auth.enforce(
+            identity,
+            resource(target, "admin", undefined, mount)
+          );
+        }
+        await auth.enforce(identity, boundResource);
+        if (!writable(operation, target, mount)) {
+          throw failure("FORBIDDEN", 403);
+        }
+        checkAbort(request);
         return {
           ...binding,
           signal: binding.signal
@@ -478,6 +515,7 @@ export function createConsoleService(
   const implementation = implement(consoleContract).$context<{
     request: Request;
     identity: ConsoleIdentity;
+    responseHeaders: Headers;
   }>();
   const router = implementation.router({
     targets: implementation.targets.handler(
@@ -612,7 +650,7 @@ export function createConsoleService(
     ),
     workspace: {
       invoke: implementation.workspace.invoke.handler(
-        async ({ input, context: { request, identity } }) => {
+        async ({ input, context: { request, identity, responseHeaders } }) => {
           try {
             const { target, mount } = workspace(input.mountId, request);
             const requirement = mount.descriptor.requirements.find(
@@ -643,7 +681,7 @@ export function createConsoleService(
           } catch (error) {
             request.signal.throwIfAborted();
             const safe = safeError(error);
-            throw new ORPCError(safe.code);
+            throw rpcFailure(safe, responseHeaders);
           }
         }
       ),
@@ -652,14 +690,14 @@ export function createConsoleService(
   const rpc = new RPCHandler(router, {
     errorStatusMap: COMMON_ERROR_STATUS_MAP,
     clientInterceptors: [
-      async ({ next }) => {
+      async ({ next, context }) => {
         try {
           return await next();
         } catch (error) {
-          if (error instanceof ORPCError) {
+          if (error instanceof ORPCError && error.code !== "BAD_REQUEST") {
             throw error;
           }
-          throw new ORPCError(safeError(error).code);
+          throw rpcFailure(safeError(error), context.responseHeaders);
         }
       },
     ],
@@ -709,6 +747,7 @@ export function createConsoleService(
             assistant_enabled: false,
             human_management_enabled: false,
             management_enabled: options.management === true,
+            management_protocol: "lenso-console-rpc/2",
           });
         } else if (request.method === "GET" && path === `${prefix}/v1/apps`) {
           const permitted = [];
@@ -753,15 +792,52 @@ export function createConsoleService(
                 )
               )
             ) {
+              const requirements = [];
+              for (const requirement of mount.descriptor.requirements) {
+                const service = mount.services[requirement.service_id];
+                const methods: string[] = [];
+                for (const operation of service?.operations ?? []) {
+                  if (
+                    requirement.operations.includes(operation.method) &&
+                    writable(operation, target, mount) &&
+                    (await auth.can(
+                      identity,
+                      resource(target, "invoke", operation, mount)
+                    ))
+                  ) {
+                    methods.push(operation.method);
+                  }
+                }
+                requirements.push({
+                  ...requirement,
+                  operations: methods.length ? methods : requirement.operations,
+                  available:
+                    requirement.available &&
+                    options.management === true &&
+                    methods.length > 0,
+                });
+              }
+              const credentials: { issuePath?: string; rotatePath?: string } =
+                {};
+              if (mount.credentials) {
+                for (const operation of ["issue", "rotate"] as const) {
+                  if (
+                    await auth.can(
+                      identity,
+                      mount.credentials.resources[operation]
+                    )
+                  ) {
+                    credentials[`${operation}Path`] =
+                      mount.credentials[`${operation}Path`];
+                  }
+                }
+              }
               visible.push({
                 ...mount.descriptor,
-                requirements: mount.descriptor.requirements.map(
-                  (requirement) => ({
-                    ...requirement,
-                    available:
-                      requirement.available && options.management === true,
-                  })
-                ),
+                credentials: Object.keys(credentials).length
+                  ? credentials
+                  : undefined,
+                requirements,
               });
             }
           }
@@ -776,11 +852,18 @@ export function createConsoleService(
           if (!mounts.size && path.startsWith(`${prefix}/v2/rpc/workspace/`)) {
             throw failure("NOT_FOUND", 404);
           }
+          const responseHeaders = new Headers();
           const result = await rpc.handle(await boundedRpcRequest(request), {
             prefix: `${prefix}/v2/rpc`,
-            context: { request, identity },
+            context: { request, identity, responseHeaders },
           });
           response = result.matched ? result.response : undefined;
+          if (response && responseHeaders.has("retry-after")) {
+            response.headers.set(
+              "retry-after",
+              responseHeaders.get("retry-after")!
+            );
+          }
         } else {
           const asset = path.slice(`${prefix}/v1/pages/`.length).split("/");
           if (
@@ -827,14 +910,15 @@ export function createConsoleService(
       } catch (error) {
         request.signal.throwIfAborted();
         const safe = safeError(error);
-        const errorBody = new ORPCError(safe.code).toJSON();
+        const headers = new Headers({ "cache-control": "no-store" });
+        const errorBody = rpcFailure(safe, headers).toJSON();
         return Response.json(
           path.startsWith(`${prefix}/v2/rpc/`)
             ? { json: errorBody }
             : errorBody,
           {
             status: safe.status,
-            headers: { "cache-control": "no-store" },
+            headers,
           }
         );
       }

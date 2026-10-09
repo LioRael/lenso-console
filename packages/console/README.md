@@ -67,10 +67,14 @@ unless the correct business owner provides equivalent guarantees.
 
 ## Local framework consumption
 
-The published baseline is TS Lenso `0.2.0`. Additional Core/Engine/Manage seams
-are pinned to an immutable source commit in
-`tooling/distribution/framework-source.json`. Local preparation and CI fetch the
-same revision and build the same archives before dependency installation:
+The bridge uses the immutable framework commit
+`93dc3a81226d981a861b8afe51e25d07538aded5`, including the delivered borrowed-runtime
+seams and optional management companions. Its cohort is Core `0.3.0`,
+Engine/Manage `0.4.0`, Auth/Web `0.3.1`, and the matching optional package builds.
+Some companion exports are newer than the registry implementation at the same
+package version; registry version numbers alone do not identify these archives.
+
+Preparation works from a clean Console checkout without a sibling worktree:
 
 ```sh
 node tooling/distribution/prepare-ts-framework.mjs
@@ -79,12 +83,114 @@ pnpm --filter @lenso/console typecheck
 pnpm --filter @lenso/console build
 ```
 
-Archives and their source revision/hashes are generated under `.artifacts/framework`.
-Relative overrides cover transitive dependencies. No machine path is committed,
-and the archives are not a registry release. An optional existing checkout must
-be clean at that exact revision; dirty source and mismatched commits are rejected
-without reset or patch fallback. Update the pin and lockfile together when the
-framework revision changes.
+Archives and their source revision and artifact SHA-256
+are generated under `.artifacts/framework`. Filenames include the full source SHA,
+and relative overrides align direct/transitive dependencies. No machine path is
+committed. An optional checkout argument must be clean at that exact commit;
+dirty patches are never accepted. The script checks its source before and after
+building. It does not reset, merge, publish or claim registry availability.
+Refresh the source pin, archives and lockfile together. Remove the bridge only
+after the required public exports are available in compatible registry artifacts.
+
+## Optional backend capabilities
+
+Select only the entries your host installs:
+
+| Console entry | Current backend capability |
+| --- | --- |
+| `/audit` | Host-bound scope query, filters, cursor pagination and authorized event detail |
+| `/authorization` | Existing Auth policy adapter, scoped RBAC and read-only role/binding inspection |
+| `/api-keys` | Host-bound subject metadata list/read/revoke; separate issue/rotation Fetch adapter |
+| `/tasks` | Bounded authorized job list/detail, explicitly safe retry and cancellation request |
+| `/scheduler` | Registered-task schedules, revision checks and occurrence reservations |
+| `/limits` | Explicit rate/quota binding, execution lease helper and route-scoped pre-auth admission |
+
+These are optional peer dependencies, not a new required database or identity
+system. The Console root does not import them. Returned exact plugins and Manage
+declarations must be installed/selected by the application. Audit/Tasks/Scheduler
+helpers return their trusted `binding`. API Key and Authorization companions use
+`{ context: { identity, resource, request }, signal: request.signal }` from the
+host's binding for their explicitly selected operations; services recheck authority
+after asynchronous host mapping. Console also rechecks entry authority after binding.
+
+Issue/rotation paths have no defaults and must be routed to
+`createConsoleApiKeyCredentials` before Console's broad API route owner.
+The raw credential is never returned through generic Manage. Replay or a lost
+response cannot recover the original secret and must not trigger blind reissuance.
+Revoke still needs `canWrite` and its service's current management authorization.
+Role mutations remain closed: current service APIs lack the required stale-page
+revision and audit guarantees.
+
+Tasks list reads only one provider page, then checks each actual job's ownership.
+Filtered pages may be empty with a continuation cursor. Cursors are encrypted,
+bound to target/tenant/mount/identity revision and valid only for the installed
+service's lifetime; refresh after a restart or permission change. Retries require an explicit
+business replay-safety policy. Cancellation and schedule pause do not roll back
+external effects.
+
+Frequency/quota use trusted host policy values, not browser buckets. `retryAfterMs`
+is milliseconds; HTTP `Retry-After` is rounded up to seconds. An unknown estimate
+has no header. Backend faults remain 503. Concurrency leases wrap actual service
+execution; expiry is not fencing or proof of stopped execution.
+
+Pass the host logger to Lenso startup and use the host's existing OTel context.
+Engine calls reuse that logger and OTel API; Console does not initialize another
+SDK or provide log-query storage.
+
+## Install an optional management page
+
+`createConsoleManagementMount` from `@lenso/console/pages` selects the packaged,
+owner-built page assets. It does not install a service or start resources:
+
+```ts
+const auditMount = createConsoleManagementMount({
+  id: "audit",
+  page: "audit",
+  title: "Audit",
+  subject: { kind: "console" },
+  manage: auditIntegration.manage,
+});
+```
+
+Add that mount to the intended target's `mounts`, its exact plugin to `plugins`,
+and its declaration to `manage`. Compose the target's binding using exact
+operation/plugin references, not a host-wide scan. The other page names are
+`api-keys`, `authorization`, `tasks` and `scheduler`. Application subjects use
+their canonical `/apps/<appId>/.../` paths; Console keeps its existing frame,
+navigation, scoped TanStack reads and page lifecycle.
+
+For API Keys, pass the separately mounted credential adapter as the mount's
+`credentials` option. The catalog advertises each path only after its current
+authorization check, and the Shell supplies the explicit one-time credential
+channel. Issue/rotate results never enter Manage, query caches or result history.
+Dismissal and identity/mount retirement clear local credential state. A failed
+metadata refresh cannot hide and later resurrect an acknowledged credential.
+
+Scheduler creation uses the real registered-task `catalog` and its JSON schemas.
+Supply `authorizeCatalog` to the Scheduler integration; absence returns no task
+schemas. Unsupported schema forms keep creation disabled, with no raw-JSON
+fallback. The host remains responsible for tick/worker startup.
+
+The v2 protocol survives catalog parsing. Non-admin workspace navigation waits
+for discovery before redirecting. The TS session explicitly advertises v2
+management; its Management directory uses SDK metadata and links to owner pages,
+while qualified older Hosts retain their v1 adapter. No v1 Rust execution path
+is used by the TypeScript management pages.
+
+Build and run the existing Shell against the real isolated services:
+
+```sh
+pnpm --filter @lenso/console build
+VITE_CONSOLE_MODE=api pnpm bundle:local
+node --test tooling/distribution/management-ui.test.mjs
+```
+
+The browser fixture owns one loopback listener and closes its app, queue and
+in-memory databases. It verifies workflows plus 1280px light and 390px dark
+focus/target/overflow geometry. Its SQLite D1-shaped adapter is explicitly a
+local fixture, not online Workers proof. Provider/native-workerd tests are
+separate evidence. Production migrations, deployment and data parity remain
+unverified.
 
 The full shell cutover, Agent removal and live browser acceptance are still in
 progress. API integration tests and a neutral Fetch import graph do not establish

@@ -8,9 +8,20 @@ allowBuilds:
   esbuild: true
 
 overrides:
-  "@lenso/core": file:.artifacts/framework/lenso-core-0.2.0.tgz
-  "@lenso/engine": file:.artifacts/framework/lenso-engine-0.2.0.tgz
-  "@lenso/manage": file:.artifacts/framework/lenso-manage-0.2.0.tgz
+  "@lenso/core": file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/engine": file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/manage": file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/auth": file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/web": file:.artifacts/framework/lenso-web-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/audit": file:.artifacts/framework/lenso-audit-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/authorization": file:.artifacts/framework/lenso-authorization-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/tasks": file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/scheduler": file:.artifacts/framework/lenso-scheduler-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/api-keys": file:.artifacts/framework/lenso-api-keys-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/limits": file:.artifacts/framework/lenso-limits-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/log": file:.artifacts/framework/lenso-log-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/otel": file:.artifacts/framework/lenso-otel-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  "@lenso/db": file:.artifacts/framework/lenso-db-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
 
 minimumReleaseAgeExclude:
   - vite@8.2.0
@@ -31,8 +42,16 @@ minimumReleaseAgeExclude:
   - "@lenso/tokens@0.9.1"
   - "@lenso/ui@0.9.1"
   - "@lenso/contract-runtime@0.3.1"
-  - "@lenso/auth@0.2.0"
+  - "@lenso/auth@0.2.0 || 0.3.0"
   - "@lenso/core@0.2.0"
   - "@lenso/engine@0.2.0"
   - "@lenso/manage@0.2.0"
-  - "@lenso/web@0.2.0"
+  - "@lenso/web@0.2.0 || 0.3.0"
+  - "@lenso/api-keys@0.1.1"
+  - "@lenso/audit@0.2.0"
+  - "@lenso/authorization@0.2.0"
+  - "@lenso/limits@0.2.0"
+  - "@lenso/log@0.2.1"
+  - "@lenso/otel@0.3.0"
+  - "@lenso/scheduler@0.2.0"
+  - "@lenso/tasks@0.3.0"

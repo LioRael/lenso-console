@@ -10,6 +10,7 @@ import {
 } from "@lenso/auth";
 import type { ConsoleClient } from "@lenso/console-sdk/protocol";
 import { defineApp, startApp, valuesSource, type Plugin } from "@lenso/core";
+import { EngineError } from "@lenso/engine/diagnostics";
 import { defineOperation } from "@lenso/engine/operations";
 import { defineManage } from "@lenso/manage";
 import { createORPCClient } from "@orpc/client";
@@ -17,7 +18,9 @@ import { RPCLink } from "@orpc/client/fetch";
 import { z } from "zod";
 
 import { createConsoleAuthentication } from "../src/auth";
+import { ConsoleOperationError } from "../src/errors";
 import { consoleConfiguration, createConsolePlugin } from "../src/index";
+import { readRequestBytes } from "../src/request-body";
 import type {
   ConsoleAuthentication,
   ConsoleIdentity,
@@ -106,7 +109,13 @@ function counter(
   id: string,
   authenticationPlugin: Plugin<ConsoleAuthentication>
 ) {
-  const state = { setups: 0, cleanups: 0, value: 0, calls: 0 };
+  const state: {
+    setups: number;
+    cleanups: number;
+    value: number;
+    calls: number;
+    failure?: unknown;
+  } = { setups: 0, cleanups: 0, value: 0, calls: 0 };
   const plugin = {
     id,
     requires: [authenticationPlugin],
@@ -140,7 +149,7 @@ function counter(
           return state.value;
         },
         async fail() {
-          throw new Error("private-database-password");
+          throw state.failure ?? new Error("private-database-password");
         },
         async forbidden() {
           throw new AuthError("FORBIDDEN");
@@ -209,7 +218,8 @@ function client(
   service: ConsoleService,
   headers?: HeadersInit,
   api: `/${string}` = "/api",
-  statuses?: number[]
+  statuses?: number[],
+  responses?: Response[]
 ): ConsoleClient {
   return createORPCClient(
     new RPCLink({
@@ -221,6 +231,7 @@ function client(
           (await service.fetch(new Request(input, init))) ??
           new Response(null, { status: 404 });
         statuses?.push(response.status);
+        responses?.push(response.clone());
         return response;
       },
     })
@@ -278,6 +289,171 @@ function mount(
       path === "page.mjs" ? new Response("export default {}") : undefined,
   };
 }
+
+test("a stalled Fetch body read aborts and releases its stream with the exact caller reason", async () => {
+  let pulled!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    pulled = resolve;
+  });
+  let cancelled: unknown;
+  const stream = new ReadableStream<Uint8Array>({
+    pull() {
+      pulled();
+    },
+    cancel(reason) {
+      cancelled = reason;
+    },
+  });
+  const controller = new AbortController();
+  const reason = new Error("fixture abort");
+  const request = new Request(`${origin}/rpc`, {
+    method: "POST",
+    body: stream,
+    signal: controller.signal,
+  });
+  const read = readRequestBytes(request, 32_768, () => new Error("oversized"));
+  await pending;
+  controller.abort(reason);
+  await expect(read).rejects.toBe(reason);
+  expect(cancelled).toBe(reason);
+  expect(stream.locked).toBe(false);
+}, 1000);
+
+test("SDK errors keep trusted domain status and safe retry units, never arbitrary error fields", async () => {
+  const auth = authentication();
+  const instance = counter("counter", auth.plugin);
+  const consolePlugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [target("north", instance)],
+    binding: bound,
+  });
+  const app = await startApp({
+    plugins: [auth.plugin, instance.plugin, consolePlugin],
+  });
+  try {
+    const responses: Response[] = [];
+    const sdk = client(
+      app.get(consolePlugin),
+      undefined,
+      "/api",
+      undefined,
+      responses
+    );
+    const cases: readonly {
+      error: unknown;
+      code: string;
+      status: number;
+      retry?: string;
+    }[] = [
+      {
+        error: new EngineError({
+          code: "conflict",
+          phase: "invoke",
+          message: "private-database-password",
+        }),
+        code: "CONFLICT",
+        status: 409,
+      },
+      {
+        error: new ConsoleOperationError("TOO_MANY_REQUESTS", {
+          retryAfterMs: 1001,
+        }),
+        code: "TOO_MANY_REQUESTS",
+        status: 429,
+        retry: "2",
+      },
+      {
+        error: new ConsoleOperationError("TOO_MANY_REQUESTS"),
+        code: "TOO_MANY_REQUESTS",
+        status: 429,
+      },
+      {
+        error: Object.assign(new Error("private-database-password"), {
+          code: "FORBIDDEN",
+          status: 403,
+        }),
+        code: "SERVICE_UNAVAILABLE",
+        status: 503,
+      },
+    ];
+    for (const fixture of cases) {
+      instance.state.failure = fixture.error;
+      await expect(
+        sdk.invoke({
+          targetId: "north",
+          pluginId: instance.plugin.id,
+          method: "fail",
+          input: {},
+        })
+      ).rejects.toMatchObject({ code: fixture.code });
+      const response = responses.at(-1)!;
+      expect(response.status).toBe(fixture.status);
+      expect(response.headers.get("retry-after")).toBe(fixture.retry ?? null);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      const text = await response.text();
+      expect(text).not.toContain("private-database-password");
+      if (fixture.retry) {
+        expect(text).toContain('"retryAfterMs":1001');
+      }
+    }
+  } finally {
+    await app.stop();
+  }
+});
+
+test("a grant revoked during trusted binding prevents dispatch", async () => {
+  const auth = authentication();
+  let calls = 0;
+  const plugin: Plugin<{ read(): Promise<null> }> = {
+    id: "binding-gate",
+    setup: () => ({
+      async read() {
+        calls += 1;
+        return null;
+      },
+    }),
+  };
+  const operation = defineOperation({
+    plugin,
+    method: "read",
+    input: z.strictObject({}),
+    effect: "read",
+    description: "Exercise a deferred trusted binding.",
+  });
+  const consolePlugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [
+      {
+        id: "north",
+        label: "North",
+        tenantId: "north",
+        plugins: [plugin],
+        manage: [defineManage({ plugin, operations: [operation] })],
+      },
+    ],
+    async binding() {
+      await Promise.resolve();
+      auth.state.north = false;
+      return {};
+    },
+  });
+  const app = await startApp({ plugins: [auth.plugin, plugin, consolePlugin] });
+  try {
+    await expect(
+      client(app.get(consolePlugin)).invoke({
+        targetId: "north",
+        pluginId: plugin.id,
+        method: "read",
+        input: {},
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(calls).toBe(0);
+  } finally {
+    await app.stop();
+  }
+});
 
 test("same-type instances and selected lists dispatch exact services with current verified actors", async () => {
   const auth = authentication();

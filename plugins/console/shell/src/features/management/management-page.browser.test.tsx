@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
+import type * as SessionFetch from "../../lib/session-fetch";
 import { ManagementPage } from "./management-page";
 
 vi.mock("../../app/console-session", () => ({
@@ -20,7 +21,8 @@ vi.mock("../../app/console-locale", () => ({
 const requests: unknown[] = [];
 let state = "pending_approval";
 let loseInvokeResponse = false;
-vi.mock("../../lib/session-fetch", () => ({
+vi.mock("../../lib/session-fetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof SessionFetch>()),
   sessionFetch: async (path: string, init?: RequestInit) => {
     if (path.endsWith("catalog")) {
       return Response.json({

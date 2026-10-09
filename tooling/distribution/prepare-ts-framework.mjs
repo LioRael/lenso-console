@@ -18,13 +18,16 @@ const bun = fs
 if (execFileSync("bun", ["--version"], { encoding: "utf-8" }).trim() !== bun) {
   throw new Error(`Framework preparation requires Bun ${bun}`);
 }
-const [framework] = process.argv.slice(2);
+const [framework, ...extra] = process.argv.slice(2);
+if (extra.length) {
+  throw new Error("Use only an optional clean checkout at the pinned revision");
+}
 const destination = path.resolve(".artifacts/framework");
 const root = framework
   ? path.resolve(framework)
-  : path.join(destination, "source");
+  : path.join(destination, "sources", pin.revision);
 if (!framework && !fs.existsSync(root)) {
-  fs.mkdirSync(destination, { recursive: true });
+  fs.mkdirSync(path.dirname(root), { recursive: true });
   execFileSync(
     "git",
     ["clone", "--no-checkout", "--filter=blob:none", pin.repository, root],
@@ -60,8 +63,22 @@ if (
 ) {
   throw new Error("The source must be the TypeScript Lenso workspace");
 }
-const packages = new Set(["lenso", "engine", "manage"]);
-const buildOrder = ["lenso", "engine", "web", "auth", "manage"];
+const buildOrder = [
+  "lenso",
+  "otel",
+  "web",
+  "auth",
+  "engine",
+  "manage",
+  "tasks",
+  "db",
+  "log",
+  "audit",
+  "authorization",
+  "scheduler",
+  "api-keys",
+  "limits",
+];
 fs.mkdirSync(destination, { recursive: true });
 execFileSync("bun", ["install", "--frozen-lockfile", "--ignore-scripts"], {
   cwd: root,
@@ -73,9 +90,6 @@ for (const name of buildOrder) {
   const cwd = path.join(root, "packages", name);
   fs.rmSync(path.join(cwd, "dist"), { force: true, recursive: true });
   execFileSync("bun", ["run", "build"], { cwd, stdio: "inherit" });
-  if (!packages.has(name)) {
-    continue;
-  }
   const manifest = JSON.parse(
     fs.readFileSync(path.join(cwd, "package.json"), "utf-8")
   );
@@ -83,7 +97,12 @@ for (const name of buildOrder) {
     cwd,
     stdio: "inherit",
   });
-  const filename = `${manifest.name.replace("@", "").replace("/", "-")}-${manifest.version}.tgz`;
+  const packed = `${manifest.name.replace("@", "").replace("/", "-")}-${manifest.version}.tgz`;
+  const filename = packed.replace(".tgz", `-${source}.tgz`);
+  fs.renameSync(
+    path.join(destination, packed),
+    path.join(destination, filename)
+  );
   artifacts.push({
     filename,
     package: manifest.name,
@@ -92,6 +111,18 @@ for (const name of buildOrder) {
       .digest("hex"),
     version: manifest.version,
   });
+}
+if (
+  execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf-8",
+  }).trim() !== source ||
+  execFileSync("git", ["status", "--porcelain"], {
+    cwd: root,
+    encoding: "utf-8",
+  }).trim()
+) {
+  throw new Error("Framework source changed while building the archives");
 }
 fs.writeFileSync(
   path.join(destination, "source.json"),
