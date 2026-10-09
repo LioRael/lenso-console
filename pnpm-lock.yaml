@@ -163,20 +163,20 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/engine': file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/web': file:.artifacts/framework/lenso-web-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/audit': file:.artifacts/framework/lenso-audit-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/authorization': file:.artifacts/framework/lenso-authorization-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/tasks': file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/scheduler': file:.artifacts/framework/lenso-scheduler-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/api-keys': file:.artifacts/framework/lenso-api-keys-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/limits': file:.artifacts/framework/lenso-limits-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/log': file:.artifacts/framework/lenso-log-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/otel': file:.artifacts/framework/lenso-otel-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-  '@lenso/db': file:.artifacts/framework/lenso-db-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+  '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/engine': file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/web': file:.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/audit': file:.artifacts/framework/lenso-audit-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/authorization': file:.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/tasks': file:.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/scheduler': file:.artifacts/framework/lenso-scheduler-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/api-keys': file:.artifacts/framework/lenso-api-keys-0.1.3-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/limits': file:.artifacts/framework/lenso-limits-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/log': file:.artifacts/framework/lenso-log-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/otel': file:.artifacts/framework/lenso-otel-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+  '@lenso/db': file:.artifacts/framework/lenso-db-0.1.2-9dc049e695d3063c960be861b53004f1def92573.tgz
 
 importers:
 
@@ -186,29 +186,41 @@ importers:
         specifier: 2.31.1
         version: 2.31.1(@types/node@26.1.2)
       '@lenso/auth':
-        specifier: file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+        specifier: file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+      '@lenso/authorization':
+        specifier: file:.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)
       '@lenso/console':
         specifier: workspace:*
         version: link:packages/console
+      '@lenso/console-sdk':
+        specifier: workspace:*
+        version: link:packages/console-authoring
       '@lenso/contract-runtime':
         specifier: 0.3.1
         version: 0.3.1
       '@lenso/core':
-        specifier: file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+        specifier: file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@lenso/engine':
-        specifier: file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+        specifier: file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@lenso/manage':
-        specifier: file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
+        specifier: file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
       '@lenso/web':
-        specifier: file:.artifacts/framework/lenso-web-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-web-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+        specifier: file:.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@orpc/client':
+        specifier: 2.0.0-beta.42
+        version: 2.0.0-beta.42
       '@stylexjs/unplugin':
         specifier: 0.19.0
         version: 0.19.0(unplugin@2.3.11)
+      '@types/bun':
+        specifier: 1.4.2
+        version: 1.4.2
       '@types/node':
         specifier: ^26.1.2
         version: 26.1.2
@@ -251,42 +263,45 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/browser-playwright@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0))
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
 
   packages/console:
     dependencies:
       '@lenso/api-keys':
-        specifier: file:../../.artifacts/framework/lenso-api-keys-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-api-keys-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)
+        specifier: file:../../.artifacts/framework/lenso-api-keys-0.1.3-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-api-keys-0.1.3-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)
       '@lenso/audit':
-        specifier: file:../../.artifacts/framework/lenso-audit-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-audit-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(d33483e494c3039d877f01618e31cfd0)
+        specifier: file:../../.artifacts/framework/lenso-audit-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-audit-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz(73c15fca7782fda3418a0c080fba7480)
       '@lenso/auth':
-        specifier: file:../../.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+        specifier: file:../../.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
       '@lenso/authorization':
-        specifier: file:../../.artifacts/framework/lenso-authorization-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-authorization-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)
+        specifier: file:../../.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)
       '@lenso/console-sdk':
         specifier: workspace:*
         version: link:../console-authoring
       '@lenso/core':
-        specifier: file:../../.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+        specifier: file:../../.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@lenso/engine':
-        specifier: file:../../.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+        specifier: file:../../.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@lenso/limits':
-        specifier: file:../../.artifacts/framework/lenso-limits-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-limits-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+        specifier: file:../../.artifacts/framework/lenso-limits-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-limits-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
       '@lenso/manage':
-        specifier: file:../../.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
+        specifier: file:../../.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
       '@lenso/scheduler':
-        specifier: file:../../.artifacts/framework/lenso-scheduler-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-scheduler-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(ef99cd7a0ade4e0779da731790438efc)
+        specifier: file:../../.artifacts/framework/lenso-scheduler-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-scheduler-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz(c7b6d535c8ff35a1e434fa9a786a9e5c)
       '@lenso/tasks':
-        specifier: file:../../.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(bun-types@1.4.2)
+        specifier: file:../../.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz(bun-types@1.4.2)
       '@orpc/server':
         specifier: 2.0.0-beta.42
         version: 2.0.0-beta.42
@@ -295,14 +310,17 @@ importers:
         version: 4.6.5
     devDependencies:
       '@lenso/log':
-        specifier: file:../../.artifacts/framework/lenso-log-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-log-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+        specifier: file:../../.artifacts/framework/lenso-log-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-log-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@lenso/otel':
-        specifier: file:../../.artifacts/framework/lenso-otel-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-        version: file:.artifacts/framework/lenso-otel-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+        specifier: file:../../.artifacts/framework/lenso-otel-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-otel-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@lenso/ui':
         specifier: 0.9.1
         version: 0.9.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@lenso/web':
+        specifier: file:../../.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz
+        version: file:.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@orpc/client':
         specifier: 2.0.0-beta.42
         version: 2.0.0-beta.42
@@ -539,6 +557,9 @@ importers:
       '@lenso/contract-runtime':
         specifier: 0.3.1
         version: 0.3.1
+      '@orpc/contract':
+        specifier: 2.0.0-beta.42
+        version: 2.0.0-beta.42
       '@orpc/server':
         specifier: 2.0.0-beta.42
         version: 2.0.0-beta.42
@@ -1021,15 +1042,15 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lenso/api-keys@file:.artifacts/framework/lenso-api-keys-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-O9IK4sVyrQcszoHdj9abvwe1GlmZq7mN/ri8Jzy6fYLmaEU7h9L4uX0kjpr5MNdskgYT7kcmk4eXhNkzI3BqQQ==, tarball: file:.artifacts/framework/lenso-api-keys-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.1.2
+  '@lenso/api-keys@file:.artifacts/framework/lenso-api-keys-0.1.3-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-gmfVPS/9cCNOMeGsgb+ucTvqYHjKAH1Hg2THzUI6FQTv+YDpJUOJH3eBboGVl7InK0cwr3SflSqOEAo1aJf9Yw==, tarball: file:.artifacts/framework/lenso-api-keys-0.1.3-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.1.3
     peerDependencies:
       '@cloudflare/workers-types': ^5.20261008.1
       '@lenso/auth': ^0.3.1
-      '@lenso/core': ^0.3.0
-      '@lenso/engine': ^0.4.0
-      '@lenso/manage': ^0.4.0
+      '@lenso/core': ^0.3.1
+      '@lenso/engine': ^0.5.0
+      '@lenso/manage': ^0.4.1
       drizzle-orm: ^0.45.3
       zod: ^4.6.5
     peerDependenciesMeta:
@@ -1048,15 +1069,15 @@ packages:
       zod:
         optional: true
 
-  '@lenso/audit@file:.artifacts/framework/lenso-audit-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-gaP3ZBTnF1DaMFBNGevnvJsl9bFa+cnG3lJY+yw2r1gTtcJSuLLufi0+7BGq2JWp2LhCLFsKmqqYObK028nIyg==, tarball: file:.artifacts/framework/lenso-audit-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.2.1
+  '@lenso/audit@file:.artifacts/framework/lenso-audit-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-K6J2/Mur4OZGu+HUmdc9C5cIu/FEwnHTV86b+Raa19WPSt01LfXdOGPi6+zzy0hBe8L0Lp/4Z/3gAB02cwkUvQ==, tarball: file:.artifacts/framework/lenso-audit-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.3.0
     peerDependencies:
       '@lenso/auth': ^0.3.1
-      '@lenso/core': ^0.3.0
-      '@lenso/engine': ^0.4.0
-      '@lenso/manage': ^0.4.0
-      '@lenso/tasks': ^0.3.1
+      '@lenso/core': ^0.3.1
+      '@lenso/engine': ^0.5.0
+      '@lenso/manage': ^0.4.1
+      '@lenso/tasks': ^0.4.0
       '@opentelemetry/api': 1.9.1
       drizzle-orm: 0.45.3
       zod: 4.6.5
@@ -1078,8 +1099,8 @@ packages:
       zod:
         optional: true
 
-  '@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-Sac00igjz5uoRzDSBmi/6eujiru4/zg1dRQtVHnc+IdHEJzxRvOn2Oekhb51cYE03Ah84ScPSzu5+JqwkG8dgA==, tarball: file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
+  '@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-WeA7wH2wIWB97jSItlNlD4k7Sa5JKZmUqo7RMYStfJpoC8Djv0EdA8qZlhQIp8PcJOlgTPMgIIo8RRpbpAAnmw==, tarball: file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz}
     version: 0.3.1
     peerDependencies:
       '@lenso/core': ^0.3.0
@@ -1093,14 +1114,14 @@ packages:
       drizzle-orm:
         optional: true
 
-  '@lenso/authorization@file:.artifacts/framework/lenso-authorization-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-aVPjoJez/g/xpMwov3xLyZtETSQdaznhkroiINxKAyHvvqATeCaPUDHlud51JP7mIkmJWDH2COlpD8tWwIn7Mw==, tarball: file:.artifacts/framework/lenso-authorization-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.2.1
+  '@lenso/authorization@file:.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-JHD0gIbhmor15oetGaelYryJz392JcEnw3mDoFcvnfWerwL6pYudJn0v0rWVtDXYDVb0JGAjGCJVGi+DjF3beA==, tarball: file:.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.3.0
     peerDependencies:
       '@lenso/auth': ^0.3.1
-      '@lenso/core': ^0.3.0
-      '@lenso/engine': ^0.4.0
-      '@lenso/manage': ^0.4.0
+      '@lenso/core': ^0.3.1
+      '@lenso/engine': ^0.5.0
+      '@lenso/manage': ^0.4.1
       drizzle-orm: ^0.45.3
       zod: 4.6.5
     peerDependenciesMeta:
@@ -1121,16 +1142,16 @@ packages:
     resolution: {integrity: sha512-U7/wbd1nx9gZOI0Xxw0+sjMRD+SnYvpkFCXd/QXMTY99SlcMrvcyN8JPBlO2QSvGw1MgeniwEg6AT0igfj0XNA==}
     engines: {node: '>=18'}
 
-  '@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-JIca5eR0BgqBZ8f6rFD1NBM2gGDcnpVMsc5fe5V5tuxA3RnKQ0ccOePfZggOdaD+itlFGWOogzHINBpUsKgGpg==, tarball: file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.3.0
+  '@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-c10IqSvv4bM0X4jtMsmRs/H0bXF+M2nXekCagQ6jF1Bz9EhN1foNk7yn3TrKyJ3Rswe1Cvvm7etl8nh+DfBwrg==, tarball: file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.3.1
 
-  '@lenso/engine@file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-/5GzmOxWsCTgVk70Gn97TJFj5kobBDltYeXLv6E+MGU6qCOL049+1v1V2y/cFtXEGquRIyKPXC9L0gyyj93OHg==, tarball: file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.4.0
+  '@lenso/engine@file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-fFEDDOnr2mihhRliuBpHhyxEuo9PMO+yAUuvKbOIfk/INbLRoavcI/4U0/wVSWmZLwJ78/gUg/V+BgAjidzuuw==, tarball: file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.5.0
 
-  '@lenso/limits@file:.artifacts/framework/lenso-limits-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-gHz+SJl2lSY0iHISWVfztnQxAuDHw+CuBH0Et75Z0j71hqE4g11rEYULP/g8GuzC++02Q5fwdhExU1KYGhlspQ==, tarball: file:.artifacts/framework/lenso-limits-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
+  '@lenso/limits@file:.artifacts/framework/lenso-limits-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-Pl+vPN0cr9bVZc8fCwT5A6H/vReVXsP8akCbfJFB803kCrfE8/K094WC3gpv/7mGSZctz0Mh79Ha9w+g974C5A==, tarball: file:.artifacts/framework/lenso-limits-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz}
     version: 0.2.1
     peerDependencies:
       drizzle-orm: 0.45.3
@@ -1138,13 +1159,13 @@ packages:
       drizzle-orm:
         optional: true
 
-  '@lenso/log@file:.artifacts/framework/lenso-log-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-5q1vbg6sKlhrZWCdVFGzcwPztDDwf0u07Xj6VrwKa3GBx8WE571rhnxzX1QfYgNNvVEoiSoFQOPA6G2z2EEH3Q==, tarball: file:.artifacts/framework/lenso-log-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
+  '@lenso/log@file:.artifacts/framework/lenso-log-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-5q1vbg6sKlhrZWCdVFGzcwPztDDwf0u07Xj6VrwKa3GBx8WE571rhnxzX1QfYgNNvVEoiSoFQOPA6G2z2EEH3Q==, tarball: file:.artifacts/framework/lenso-log-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz}
     version: 0.2.1
 
-  '@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-/GaIjqlSuva5o2Y3iSeO8mOd8yyYZNdau7cjgVBTby2YLiUwEh6hFBoCc88LtMhP09yzUHZlWcdr9r/FLbL9+A==, tarball: file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.4.0
+  '@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-ztDePLBkSgaWqgKfyD4LzwDivTDCf74D94hYGY1S2rQhNdRk9VZRs0364D4TZL6udc3FXBtI0yd/xUKUJtrJgQ==, tarball: file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.4.1
     peerDependencies:
       '@lenso/auth': ^0.3.1
       '@orpc/server': 2.0.0-beta.42
@@ -1154,8 +1175,8 @@ packages:
       '@orpc/server':
         optional: true
 
-  '@lenso/otel@file:.artifacts/framework/lenso-otel-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-TET3pphBJToIrIwCSOOCfqeJmfOQcobcDHJoqcTcbr4vWPlee/0dd+Y15cKqI5M+aTI6ioluX4Z526POqinkLw==, tarball: file:.artifacts/framework/lenso-otel-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
+  '@lenso/otel@file:.artifacts/framework/lenso-otel-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-TET3pphBJToIrIwCSOOCfqeJmfOQcobcDHJoqcTcbr4vWPlee/0dd+Y15cKqI5M+aTI6ioluX4Z526POqinkLw==, tarball: file:.artifacts/framework/lenso-otel-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz}
     version: 0.3.0
     peerDependencies:
       '@orpc/cloudflare': 2.0.0-beta.42
@@ -1173,15 +1194,15 @@ packages:
       '@stylexjs/stylex': '>=0.19.0 <1.0.0'
       react: '>=19.2.0 <20.0.0'
 
-  '@lenso/scheduler@file:.artifacts/framework/lenso-scheduler-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-2J9N3d2cNr0M/vPWJfbXmGbB99ib0QimbXsfABfmDz81OV7uN69JCXZebLLyf13cKZDfCPMptgekbIQqRBfpow==, tarball: file:.artifacts/framework/lenso-scheduler-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.2.1
+  '@lenso/scheduler@file:.artifacts/framework/lenso-scheduler-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-QZP1yQcAmo+RGc5zBpffRZIhs+K/bipYZSW8Igr5jVs+Mpi91CZ2o7xOXUzyp5lIkY5wUZCrOQDt9tep+HrVWg==, tarball: file:.artifacts/framework/lenso-scheduler-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.3.0
     peerDependencies:
       '@lenso/auth': ^0.3.1
-      '@lenso/core': ^0.3.0
-      '@lenso/engine': ^0.4.0
-      '@lenso/manage': ^0.4.0
-      '@lenso/tasks': ^0.3.1
+      '@lenso/core': ^0.3.1
+      '@lenso/engine': ^0.5.0
+      '@lenso/manage': ^0.4.1
+      '@lenso/tasks': ^0.4.0
       drizzle-orm: 0.45.3
       zod: 4.6.5
     peerDependenciesMeta:
@@ -1200,9 +1221,9 @@ packages:
       zod:
         optional: true
 
-  '@lenso/tasks@file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-4hr4ntJTt6TMQVynRy4g2snWwe3PmPVB3CycIDQQXt8FbYgyUAMh7o9vzgzFpb5NRe6hWUanW17FJBHcZAfN2A==, tarball: file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.3.1
+  '@lenso/tasks@file:.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-RL49rbcYhaXMnQLsViRU32dEpuyXAUWM3ZisbnApHVhhXQpV9dForumuoU279otYnwhrpND2NBG2DSMcG9Lv8g==, tarball: file:.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.4.0
     peerDependencies:
       pg: 8.23.1
       pg-boss: 12.37.0
@@ -1221,9 +1242,9 @@ packages:
       react: '>=19.2.0 <20.0.0'
       react-dom: '>=19.2.0 <20.0.0'
 
-  '@lenso/web@file:.artifacts/framework/lenso-web-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
-    resolution: {integrity: sha512-l0xyyZLOo321nAALhmp8KHjJ5kFH0eMGh+mA6eUHrp80WZBj+2gq+oaZ2VzwgnrYVwjDAzm0brDiGH5AVQoRCQ==, tarball: file:.artifacts/framework/lenso-web-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz}
-    version: 0.3.1
+  '@lenso/web@file:.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz':
+    resolution: {integrity: sha512-FZxNacH2p6gBhAML+2w+TExBS92R2grA9fTEv9X7dmh1TALlNsaCg3ZZo8Z7/fs6nRZOefFGdvw5S6vSx5Fi1Q==, tarball: file:.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz}
+    version: 0.3.2
     peerDependencies:
       '@orpc/openapi': 2.0.0-beta.42
     peerDependenciesMeta:
@@ -4409,9 +4430,6 @@ packages:
   yuku-parser@0.8.7:
     resolution: {integrity: sha512-vRD9nwt4L3aYpxNqeSC4WqLv58xrXef0Ong1Mc45CTXTIpvLafx7JO05sczmQZwdLEZvywrLOGdNC5+Rp5N1BQ==}
 
-  zod@4.4.3:
-    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
-
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
@@ -4894,77 +4912,77 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  ? '@lenso/api-keys@file:.artifacts/framework/lenso-api-keys-0.1.2-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)'
+  ? '@lenso/api-keys@file:.artifacts/framework/lenso-api-keys-0.1.3-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)'
   : optionalDependencies:
-      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
+      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
       drizzle-orm: 0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)
       zod: 4.6.5
 
-  '@lenso/audit@file:.artifacts/framework/lenso-audit-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(d33483e494c3039d877f01618e31cfd0)':
+  '@lenso/audit@file:.artifacts/framework/lenso-audit-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz(73c15fca7782fda3418a0c080fba7480)':
     optionalDependencies:
-      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
-      '@lenso/tasks': file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(bun-types@1.4.2)
+      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
+      '@lenso/tasks': file:.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz(bun-types@1.4.2)
       '@opentelemetry/api': 1.9.1
       drizzle-orm: 0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)
       zod: 4.6.5
 
-  '@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))':
+  '@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))':
     optionalDependencies:
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@orpc/server': 2.0.0-beta.42
       drizzle-orm: 0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)
 
-  ? '@lenso/authorization@file:.artifacts/framework/lenso-authorization-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)'
+  ? '@lenso/authorization@file:.artifacts/framework/lenso-authorization-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/engine@file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz)(@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42))(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))(zod@4.6.5)'
   : optionalDependencies:
-      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
+      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
       drizzle-orm: 0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)
       zod: 4.6.5
 
   '@lenso/contract-runtime@0.3.1': {}
 
-  '@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
+  '@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@standard-schema/spec': 1.1.0
 
-  '@lenso/engine@file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
+  '@lenso/engine@file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
     dependencies:
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@opentelemetry/api': 1.9.1
       '@standard-schema/spec': 1.1.0
 
-  '@lenso/limits@file:.artifacts/framework/lenso-limits-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))':
+  '@lenso/limits@file:.artifacts/framework/lenso-limits-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))':
     dependencies:
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@standard-schema/spec': 1.1.0
     optionalDependencies:
       drizzle-orm: 0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)
 
-  '@lenso/log@file:.artifacts/framework/lenso-log-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
+  '@lenso/log@file:.artifacts/framework/lenso-log-0.2.1-9dc049e695d3063c960be861b53004f1def92573.tgz':
     dependencies:
       '@opentelemetry/api': 1.9.1
       pino: 10.4.0
       pino-pretty: 13.2.0
 
-  '@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)':
+  '@lenso/manage@file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)':
     dependencies:
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@standard-schema/spec': 1.1.0
     optionalDependencies:
-      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
       '@orpc/server': 2.0.0-beta.42
 
-  '@lenso/otel@file:.artifacts/framework/lenso-otel-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
+  '@lenso/otel@file:.artifacts/framework/lenso-otel-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/context-async-hooks': 2.12.0(@opentelemetry/api@1.9.1)
@@ -4988,22 +5006,22 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
-  '@lenso/scheduler@file:.artifacts/framework/lenso-scheduler-0.2.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(ef99cd7a0ade4e0779da731790438efc)':
+  '@lenso/scheduler@file:.artifacts/framework/lenso-scheduler-0.3.0-9dc049e695d3063c960be861b53004f1def92573.tgz(c7b6d535c8ff35a1e434fa9a786a9e5c)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       cron-parser: 5.10.1
     optionalDependencies:
-      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
-      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
-      '@lenso/tasks': file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(bun-types@1.4.2)
+      '@lenso/auth': file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2))
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/engine': file:.artifacts/framework/lenso-engine-0.5.0-9dc049e695d3063c960be861b53004f1def92573.tgz
+      '@lenso/manage': file:.artifacts/framework/lenso-manage-0.4.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/auth@file:.artifacts/framework/lenso-auth-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz(@lenso/core@file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz)(@orpc/server@2.0.0-beta.42)(drizzle-orm@0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)))(@orpc/server@2.0.0-beta.42)
+      '@lenso/tasks': file:.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz(bun-types@1.4.2)
       drizzle-orm: 0.45.3(@opentelemetry/api@1.9.1)(bun-types@1.4.2)
       zod: 4.6.5
 
-  '@lenso/tasks@file:.artifacts/framework/lenso-tasks-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz(bun-types@1.4.2)':
+  '@lenso/tasks@file:.artifacts/framework/lenso-tasks-0.4.0-9dc049e695d3063c960be861b53004f1def92573.tgz(bun-types@1.4.2)':
     dependencies:
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.1)
       '@standard-schema/spec': 1.1.0
@@ -5058,9 +5076,9 @@ snapshots:
       - '@types/react'
       - date-fns
 
-  '@lenso/web@file:.artifacts/framework/lenso-web-0.3.1-93dc3a81226d981a861b8afe51e25d07538aded5.tgz':
+  '@lenso/web@file:.artifacts/framework/lenso-web-0.3.2-9dc049e695d3063c960be861b53004f1def92573.tgz':
     dependencies:
-      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.0-93dc3a81226d981a861b8afe51e25d07538aded5.tgz
+      '@lenso/core': file:.artifacts/framework/lenso-core-0.3.1-9dc049e695d3063c960be861b53004f1def92573.tgz
       '@opentelemetry/api': 1.9.1
       '@orpc/client': 2.0.0-beta.42
       '@orpc/server': 2.0.0-beta.42
@@ -7966,7 +7984,7 @@ snapshots:
       jsonc-parser: 3.3.1
       nypm: 0.6.9
       yaml: 2.9.0
-      zod: 4.4.3
+      zod: 4.6.5
     optionalDependencies:
       oxfmt: 0.62.0
       oxlint: 1.77.0
@@ -8173,8 +8191,6 @@ snapshots:
       '@yuku-parser/binding-linux-x64-musl': 0.8.7
       '@yuku-parser/binding-win32-arm64': 0.8.7
       '@yuku-parser/binding-win32-x64': 0.8.7
-
-  zod@4.4.3: {}
 
   zod@4.6.5: {}
 

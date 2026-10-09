@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { useConsoleSession } from "../../app/console-session";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
   useAppManagement,
@@ -16,6 +17,7 @@ import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import { PluginDetail } from "./plugin-inspector";
 import type { PluginDetailTab } from "./plugin-overview";
 import { pluginKey } from "./plugin-workbench-model";
+import { TypeScriptPluginDetail } from "./typescript-plugin-inspector";
 import {
   usePluginConfigurationDraftStore,
   usePluginMutation,
@@ -93,6 +95,7 @@ export function PluginDetailPage({
   packageId: string;
 }) {
   const t = useConsoleTranslation();
+  const session = useConsoleSession();
 
   const { apps, selectApp, selectedApp, catalog } = useAppManagement();
   const routedApp = apps.find((agent) => agent.id === agentId);
@@ -124,7 +127,14 @@ export function PluginDetailPage({
     );
   }
 
-  return (
+  return session.managementProtocol === "lenso-console-rpc/2" ? (
+    <TypeScriptPluginDetail
+      instanceKey={instanceKey}
+      key={`${routedApp.id}/${packageId}/${instanceKey}`}
+      packageId={packageId}
+      selectedApp={routedApp}
+    />
+  ) : (
     <AppPluginDetail
       instanceKey={instanceKey}
       key={`${routedApp.id}/${packageId}/${instanceKey}`}
@@ -288,7 +298,7 @@ function AppPluginDetail({
   );
 }
 
-function PluginDetailShell({
+export function PluginDetailShell({
   children,
   onTabChange,
   tab,
@@ -316,7 +326,7 @@ function PluginDetailShell({
   );
 }
 
-function DetailState({
+export function DetailState({
   action,
   description,
   title,
@@ -334,12 +344,14 @@ function DetailState({
   );
 }
 
-function BackToPlugins() {
+export function BackToPlugins() {
   const t = useConsoleTranslation();
 
   return (
     <Button
       nativeButton={false}
+      // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- Button renders the Router Link anchor but otherwise forces button semantics.
+      role="link"
       render={<Link to="/plugins" />}
       size="sm"
       variant="secondary"

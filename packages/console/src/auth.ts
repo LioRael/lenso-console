@@ -341,6 +341,12 @@ export function createConsoleAuthentication<
     admit(request) {
       requireConsoleRequest(request, requestPolicy);
     },
+    hasCredentials(request) {
+      return (
+        request.headers.has("authorization") ||
+        cookie(request, names(requestPolicy).session) !== null
+      );
+    },
     async authenticate(request) {
       return guarded(request, async () => {
         requireConsoleRequest(request, requestPolicy);

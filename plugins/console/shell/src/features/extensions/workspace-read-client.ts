@@ -1,4 +1,5 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import {
   freezeReadSnapshot,
@@ -11,7 +12,62 @@ import {
   resolveReadRefreshPolicy,
   type ReadRefreshPolicy,
 } from "../../../../../../packages/console-authoring/src/read-refresh";
+import { WorkspaceServiceError } from "../../../../../../packages/console-authoring/src/transport";
 import { ConsoleQueryClient } from "../../lib/console-query-client";
+
+function isReadDenied(error: unknown): error is WorkspaceServiceError {
+  return error instanceof WorkspaceServiceError && error.status === 403;
+}
+
+type ReadDenial = { queryHash: string; error: WorkspaceServiceError };
+
+function useDeniedReadCleanup(
+  client: QueryClient,
+  signal: AbortSignal,
+  active: () => void,
+  queryHash: string,
+  {
+    error,
+    isSuccess,
+    isFetching,
+  }: { error: unknown; isSuccess: boolean; isFetching: boolean },
+  setDenial: Dispatch<SetStateAction<ReadDenial | undefined>>
+) {
+  useEffect(() => {
+    if (signal.aborted) {
+      return;
+    }
+    active();
+    if (isReadDenied(error)) {
+      setDenial((previous) =>
+        previous?.queryHash === queryHash && previous.error === error
+          ? previous
+          : { queryHash, error }
+      );
+      // Active observers may recreate an empty entry after removal. The denial
+      // latch keeps them masked and disabled until an explicit read succeeds.
+      const [entry] = client.getQueryCache().findAll({
+        predicate: (candidate) => candidate.queryHash === queryHash,
+      });
+      if (entry?.state.error === error && entry.state.fetchStatus === "idle") {
+        client.removeQueries({ queryKey: entry.queryKey, exact: true });
+      }
+    } else if (isSuccess && !isFetching) {
+      setDenial((previous) =>
+        previous?.queryHash === queryHash ? undefined : previous
+      );
+    }
+  }, [
+    client,
+    signal,
+    active,
+    queryHash,
+    error,
+    isSuccess,
+    isFetching,
+    setDenial,
+  ]);
+}
 
 export function createWorkspaceReads(
   client: QueryClient,
@@ -66,15 +122,32 @@ export function createWorkspaceReads(
     useRead<Params, Data>(options: WorkspaceReadOptions<Params, Data>) {
       active();
       const params = snapshotReadValue(options.params);
+      const queryKey = keyFor(options.key, params);
+      const defaults = client.defaultQueryOptions({ queryKey });
+      const { queryHash } = defaults;
+      const [denial, setDenial] = useState<ReadDenial>();
+      const denied = denial?.queryHash === queryHash ? denial : undefined;
+      const retry = defaults.retry ?? 3;
       const query = useQuery(
         {
-          queryKey: keyFor(options.key, params),
+          queryKey,
+          enabled: (entry) => !denied && !isReadDenied(entry.state.error),
+          retry: (failures, error) =>
+            !isReadDenied(error) &&
+            (typeof retry === "function"
+              ? retry(failures, error)
+              : retry === true || (retry !== false && failures < retry)),
           queryFn: async ({ signal: querySignal }) => {
             const signal = AbortSignal.any([querySignal, binding.signal]);
             active(signal);
-            const data = await options.read({ params, signal });
-            active(signal);
-            return snapshotReadValue(data);
+            try {
+              const data = await options.read({ params, signal });
+              active(signal);
+              return snapshotReadValue(data);
+            } catch (error) {
+              active(signal);
+              throw error;
+            }
           },
           select: freezeReadSnapshot<Data>,
           ...resolveReadRefreshPolicy(
@@ -85,10 +158,23 @@ export function createWorkspaceReads(
         },
         client
       );
+      useDeniedReadCleanup(
+        client,
+        binding.signal,
+        active,
+        queryHash,
+        query,
+        setDenial
+      );
+      const data = denied || isReadDenied(query.error) ? undefined : query.data;
       return {
-        data: query.data,
-        error: query.error,
-        ...deriveReadRefreshState(query),
+        data,
+        error: query.error ?? denied?.error ?? null,
+        ...deriveReadRefreshState({
+          data,
+          isPending: query.isPending && !denied,
+          isFetching: query.isFetching,
+        }),
         async refetch() {
           active();
           await query.refetch({ throwOnError: true });

@@ -15,6 +15,20 @@ vi.mock("../dev/console-dev-config", () => ({
 }));
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
+
+function stubLocaleFetch(handler: typeof fetch) {
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const { pathname } = new URL(
+      input instanceof Request ? input.url : String(input),
+      window.location.origin
+    );
+    return pathname.startsWith("/api/") || pathname.startsWith("/auth/")
+      ? handler(input, init)
+      : nativeFetch(input, init);
+  });
+}
+
 afterEach(() => {
   flushSync(() => root?.unmount());
   container?.remove();
@@ -60,8 +74,7 @@ test("anonymous startup reads session and methods together and language once", a
     completeMethods = resolve;
   });
   const requests: string[] = [];
-  vi.stubGlobal(
-    "fetch",
+  stubLocaleFetch(
     vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input);
       requests.push(path);
@@ -124,8 +137,7 @@ test("anonymous startup reads session and methods together and language once", a
 test("account language updates retain the admitted session and follow the global default", async () => {
   let preference = "global";
   let sessions = 0;
-  vi.stubGlobal(
-    "fetch",
+  stubLocaleFetch(
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       if (path.endsWith("/session")) {
@@ -182,8 +194,7 @@ test("account language updates retain the admitted session and follow the global
 test("a late prior-account locale read cannot overwrite the next account", async () => {
   let resolveOld: ((value: Response) => void) | undefined;
   let defer = false;
-  vi.stubGlobal(
-    "fetch",
+  stubLocaleFetch(
     vi.fn(async () =>
       defer
         ? new Promise<Response>((resolve) => {
@@ -224,3 +235,78 @@ test("a late prior-account locale read cannot overwrite the next account", async
   await old;
   await expect.element(page.getByText("en · global")).toBeVisible();
 });
+
+// Instant-response idle tests miss a locale read that permanently occupies
+// session revalidation. Exercise the real browser timeout and provider cancellation.
+test(
+  "a timed-out locale refresh preserves drafts and releases the next revocation check",
+  { timeout: 25_000 },
+  async () => {
+    let stalled = false;
+    let revoked = false;
+    let aborted = false;
+    let localeReads = 0;
+    stubLocaleFetch(
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path.endsWith("/session")) {
+          return revoked
+            ? new Response(null, { status: 403 })
+            : Response.json({
+                mode: "required",
+                authenticated: true,
+                subject: "alice",
+                workspace_ids: [],
+              });
+        }
+        if (path.endsWith("/methods")) {
+          return Response.json({ methods: [] });
+        }
+        localeReads += 1;
+        if (stalled) {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => {
+                aborted = true;
+                reject(init.signal?.reason);
+              },
+              { once: true }
+            );
+          });
+        }
+        return Response.json({
+          global_default: "en",
+          preference: "global",
+          available: true,
+          can_manage_default: false,
+        });
+      })
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    flushSync(() =>
+      root?.render(
+        <HostConsoleLocaleProvider>
+          <ConsoleSession freshnessMs={1000}>
+            <Probe />
+          </ConsoleSession>
+        </HostConsoleLocaleProvider>
+      )
+    );
+    await expect.element(page.getByText("en · global")).toBeVisible();
+    await page.getByRole("textbox", { name: "Keep draft" }).fill("retained");
+    stalled = true;
+    await expect.poll(() => localeReads).toBe(2);
+    await expect.poll(() => aborted, { timeout: 17_000 }).toBe(true);
+    await expect
+      .element(page.getByRole("textbox", { name: "Keep draft" }))
+      .toHaveValue("retained");
+    revoked = true;
+    stalled = false;
+    await expect
+      .element(page.getByRole("textbox", { name: "Keep draft" }))
+      .not.toBeInTheDocument();
+  }
+);

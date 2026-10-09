@@ -11,43 +11,54 @@
   },
   "files": [
     "dist",
+    "src",
+    ".generated",
     "README.md"
   ],
   "type": "module",
   "exports": {
     ".": {
+      "lenso-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./auth": {
+      "lenso-source": "./src/auth.ts",
       "types": "./dist/auth.d.ts",
       "default": "./dist/auth.js"
     },
     "./audit": {
+      "lenso-source": "./src/integrations/audit.ts",
       "types": "./dist/integrations/audit.d.ts",
       "default": "./dist/integrations/audit.js"
     },
     "./authorization": {
+      "lenso-source": "./src/integrations/authorization.ts",
       "types": "./dist/integrations/authorization.d.ts",
       "default": "./dist/integrations/authorization.js"
     },
     "./api-keys": {
+      "lenso-source": "./src/integrations/api-keys.ts",
       "types": "./dist/integrations/api-keys.d.ts",
       "default": "./dist/integrations/api-keys.js"
     },
     "./limits": {
+      "lenso-source": "./src/integrations/limits.ts",
       "types": "./dist/integrations/limits.d.ts",
       "default": "./dist/integrations/limits.js"
     },
     "./tasks": {
+      "lenso-source": "./src/integrations/tasks.ts",
       "types": "./dist/integrations/tasks.d.ts",
       "default": "./dist/integrations/tasks.js"
     },
     "./scheduler": {
+      "lenso-source": "./src/integrations/scheduler.ts",
       "types": "./dist/integrations/scheduler.d.ts",
       "default": "./dist/integrations/scheduler.js"
     },
     "./pages": {
+      "lenso-source": "./src/pages.ts",
       "types": "./dist/pages.d.ts",
       "default": "./dist/pages.js"
     }
@@ -64,22 +75,23 @@
   "dependencies": {
     "@lenso/auth": "0.3.1",
     "@lenso/console-sdk": "workspace:*",
-    "@lenso/core": "0.3.0",
-    "@lenso/engine": "0.4.0",
-    "@lenso/manage": "0.4.0",
+    "@lenso/core": "0.3.1",
+    "@lenso/engine": "0.5.0",
+    "@lenso/manage": "0.4.1",
     "@orpc/server": "2.0.0-beta.42",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@lenso/api-keys": "0.1.2",
-    "@lenso/audit": "0.2.1",
-    "@lenso/authorization": "0.2.1",
+    "@lenso/api-keys": "0.1.3",
+    "@lenso/audit": "0.3.0",
+    "@lenso/authorization": "0.3.0",
     "@lenso/limits": "0.2.1",
     "@lenso/log": "0.2.1",
     "@lenso/otel": "0.3.0",
-    "@lenso/scheduler": "0.2.1",
-    "@lenso/tasks": "0.3.1",
+    "@lenso/scheduler": "0.3.0",
+    "@lenso/tasks": "0.4.0",
     "@lenso/ui": "0.9.1",
+    "@lenso/web": "0.3.2",
     "@orpc/client": "2.0.0-beta.42",
     "@types/bun": "1.4.2",
     "@types/react": "19.2.18",
@@ -89,12 +101,12 @@
     "typescript": "7.0.2"
   },
   "peerDependencies": {
-    "@lenso/api-keys": "^0.1.1",
-    "@lenso/audit": "^0.2.0",
-    "@lenso/authorization": "^0.2.0",
+    "@lenso/api-keys": "^0.1.3",
+    "@lenso/audit": "^0.3.0",
+    "@lenso/authorization": "^0.3.0",
     "@lenso/limits": "^0.2.0",
-    "@lenso/scheduler": "^0.2.0",
-    "@lenso/tasks": "^0.3.0"
+    "@lenso/scheduler": "^0.3.0",
+    "@lenso/tasks": "^0.4.0"
   },
   "peerDependenciesMeta": {
     "@lenso/api-keys": {

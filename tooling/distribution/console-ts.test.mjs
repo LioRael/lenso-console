@@ -118,12 +118,13 @@ import {createConsoleAuthorizationPolicy} from "@lenso/console/authorization";
 import {createConsoleTasksIntegration} from "@lenso/console/tasks";
 import {createConsoleSchedulerIntegration} from "@lenso/console/scheduler";
 import {createConsoleLimitsBinding} from "@lenso/console/limits";
+import {createConsoleManagementMount} from "@lenso/console/pages";
 import type {ConsoleOptions} from "@lenso/console";
 const factory: (options:ConsoleOptions)=>ReturnType<typeof createConsolePlugin> = createConsolePlugin;
 void [factory, createConsoleAuthentication, consoleConfiguration,
   createConsoleAuditIntegration, createConsoleApiKeyManage, createConsoleApiKeyCredentials,
   createConsoleAuthorizationPolicy, createConsoleTasksIntegration,
-  createConsoleSchedulerIntegration, createConsoleLimitsBinding];
+  createConsoleSchedulerIntegration, createConsoleLimitsBinding, createConsoleManagementMount];
 `
       );
       execFileSync(
@@ -154,7 +155,7 @@ import {defineOperation} from "@lenso/engine/operations";
 import {defineManage} from "@lenso/manage";
 import {createConsolePlugin, type ConsoleIdentity, type ConsoleResource} from "@lenso/console";
 import {createConsoleAuthentication} from "@lenso/console/auth";
-import {createConsoleClient} from "@lenso/console-sdk/transport";
+import {createConsoleClient, createConsoleWorkspaceServices} from "@lenso/console-sdk/transport";
 import {z} from "zod";
 const authentication = definePlugin({id:"auth", setup(ctx) {
   const auth=createAuth(realm("consumer",defineSource({async verify(token:string|null) {
@@ -175,18 +176,34 @@ const plugin=definePlugin({id:"notes",requires:[authentication],setup(ctx) {
   return {async read(input:{message:string},context:{identity:ConsoleIdentity;resource:ConsoleResource}) {
     await auth.enforce(context.identity,context.resource);
     return {message:input.message,subject:context.identity.actor.subjectId};
+  }, async *watch(input:{message:string},context:{identity:ConsoleIdentity;resource:ConsoleResource}) {
+    await auth.enforce(context.identity,context.resource);
+    yield {message:input.message,privatePayload:"not-public"};
   }};
 }});
 const operation=defineOperation({plugin,method:"read",context:true,effect:"read",
   description:"Read a selected service",input:z.object({message:z.string()})});
+const watch=defineOperation({plugin,method:"watch",context:true,effect:"read",
+  description:"Watch a selected service",input:z.object({message:z.string()})});
+const manage=defineManage({plugin,operations:[operation]});
+const digest="a".repeat(64);
+const mount={
+  descriptor:{apiMajor:1 as const,id:"notes-page",title:"Notes",subject:{kind:"console" as const},
+    owner:{instance:"notes",source:"application" as const,trusted:true as const},revision:"1",implementationId:digest,
+    basePath:"/notes",module:"/api/console/v1/pages/notes-page/assets/"+digest+"/page.mjs",styles:[],
+    navigation:{label:"Notes",items:[]},requirements:[{service_id:"notes",capability_id:"notes",descriptor_version:"1",
+      operations:["read","watch"],available:true,required:true,source:"owner" as const}]},
+  services:{notes:{manage,operations:[operation],streams:[{operation:watch,output:z.object({message:z.string()})}]}},
+  asset:async()=>undefined,
+};
 const consolePlugin=createConsolePlugin({
   authentication,management:true,
-  targets:[{id:"app",label:"App",tenantId:"test",plugins:[plugin],manage:[defineManage({plugin,operations:[operation]})]}],
+  targets:[{id:"app",label:"App",tenantId:"test",plugins:[plugin],manage:[manage],mounts:[mount]}],
   binding:(_op,_input,_req,identity,resource)=>({context:{identity,resource}}),
 });
 const app=await startApp({plugins:[authentication,plugin,consolePlugin]});
 try {
-  for (const entry of ["audit","api-keys","authorization","tasks","scheduler","limits"]) {
+  for (const entry of ["audit","api-keys","authorization","tasks","scheduler","limits","pages"]) {
     await import("@lenso/console/"+entry);
   }
   const service=app.get(consolePlugin);
@@ -195,6 +212,15 @@ try {
   const catalog=await client.catalog({});
   const result=await client.invoke({targetId:"app",key:catalog.operations[0]!.key,input:{message:"你好 🌍"}});
   if(JSON.stringify(result)!==JSON.stringify({message:"你好 🌍",subject:"reader"})) throw new Error("Wrong bound result");
+  const headers={authorization:"Bearer fixture","x-lenso-page-owner":"notes","x-lenso-page-revision":"1",
+    "x-lenso-page-implementation":digest,"x-lenso-expected-subject":"reader"};
+  const pages=await service.fetch(new Request("https://console.test/api/console/v1/pages",{headers}));
+  const admitted=await pages!.json();
+  const workspace=createConsoleWorkspaceServices({origin:"https://console.test",headers,mount:admitted.mounts[0],
+    fetch:async(url,init)=>await service.fetch(new Request(url,init))??new Response(null,{status:404})});
+  const items=[];
+  for await(const item of workspace.subscribe("notes","watch",{message:"你好 🌍"})) items.push(item);
+  if(JSON.stringify(items)!==JSON.stringify([{message:"你好 🌍"}])) throw new Error("Wrong streamed DTO");
 } finally {await app.stop();}
 const bundle=await Bun.build({entrypoints:["client.ts"],target:"browser"});
 if(!bundle.success) throw new Error("Browser bundle failed");
@@ -203,15 +229,17 @@ if(/@lenso\\/(core|auth|engine)|node:|bun:sqlite/.test(text)) throw new Error("S
 console.log("packed Console invocation and browser boundary passed");
 `
       );
-      const output = execFileSync("bun", ["probe.ts"], {
-        cwd: temp,
-        encoding: "utf-8",
-        env,
-      });
-      assert.match(
-        output,
-        /packed Console invocation and browser boundary passed/u
-      );
+      for (const conditions of [[], ["--conditions=lenso-source"]]) {
+        const output = execFileSync("bun", [...conditions, "probe.ts"], {
+          cwd: temp,
+          encoding: "utf-8",
+          env,
+        });
+        assert.match(
+          output,
+          /packed Console invocation and browser boundary passed/u
+        );
+      }
     } finally {
       fs.rmSync(temp, { force: true, recursive: true });
     }

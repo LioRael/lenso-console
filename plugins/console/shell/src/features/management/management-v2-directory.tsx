@@ -5,10 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useConsoleLocale } from "../../app/console-locale";
 import { ConsolePageHeader } from "../../components/runtime/console-page-header";
+import { consoleHttpPaths } from "../../lib/console-http-paths";
 import { sessionFetch } from "../../lib/session-fetch";
 import { usePageCatalog } from "../extensions/page-contribution-catalog";
-import { workspacePageHref } from "../extensions/workspace-paths";
 import { settingsPageStyles as page } from "../settings/settings-page.stylex";
+import { managementOperationHref } from "./management-operation-link";
 
 const styles = stylex.create({
   list: { display: "grid", gap: 12, marginTop: 24 },
@@ -40,8 +41,9 @@ export function ManagementV2Directory({ subject }: { subject: string }) {
     queryKey: ["management-v2-directory", subject],
     queryFn: async ({ signal }) => {
       const client = createConsoleClient({
+        url: `${consoleHttpPaths.api_base_path}/console/v2/rpc` as `/${string}`,
         headers: { "X-Lenso-Expected-Subject": subject },
-        fetch: (input, init) => sessionFetch(input, init),
+        fetch: (input, init) => sessionFetch(input, { ...init, signal }),
       });
       const [catalog, targets] = await Promise.all([
         client.catalog({}),
@@ -57,13 +59,6 @@ export function ManagementV2Directory({ subject }: { subject: string }) {
     },
     retry: false,
   });
-
-  const targetHref = (targetId: string, pluginId: string) => {
-    const mount = pages.find(
-      (candidate) => candidate.owner.instance === pluginId
-    );
-    return mount && workspacePageHref(mount, []);
-  };
 
   return (
     <section {...stylex.props(page.page)}>
@@ -92,8 +87,12 @@ export function ManagementV2Directory({ subject }: { subject: string }) {
         {query.isError && (
           <p role="alert">
             {query.error instanceof Error &&
-            "status" in query.error &&
-            (query.error.status === 401 || query.error.status === 403)
+            (("code" in query.error &&
+              ["UNAUTHORIZED", "FORBIDDEN"].includes(
+                String(query.error.code)
+              )) ||
+              ("status" in query.error &&
+                (query.error.status === 401 || query.error.status === 403)))
               ? copy(
                   "Access denied for this account.",
                   "当前账号无权查看操作目录。"
@@ -118,7 +117,7 @@ export function ManagementV2Directory({ subject }: { subject: string }) {
               </p>
             ) : (
               query.data.operations.map((operation) => {
-                const href = targetHref(operation.targetId, operation.pluginId);
+                const href = managementOperationHref(pages, operation);
                 return (
                   <article
                     key={operation.key}
@@ -154,10 +153,17 @@ export function ManagementV2Directory({ subject }: { subject: string }) {
                         ? copy("Required", "需要")
                         : copy("Not required", "不需要")}
                     </p>
-                    {href && (
+                    {href ? (
                       <a {...stylex.props(styles.link)} href={href}>
                         {copy("Open installed service", "打开已安装服务")}
                       </a>
+                    ) : (
+                      <p {...stylex.props(styles.detail)}>
+                        {copy(
+                          "No uniquely installed service page is available for this operation.",
+                          "此操作没有唯一匹配的已安装服务页面。"
+                        )}
+                      </p>
                     )}
                   </article>
                 );

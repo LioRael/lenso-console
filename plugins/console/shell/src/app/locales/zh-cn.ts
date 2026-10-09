@@ -551,4 +551,45 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   "Include {plugin} in the desired Plan": "在目标配置中启用 {plugin}",
   "Reset {field}": "重置{field}",
   "Close {name}": "关闭 {name}",
+  "Access denied for this account. Ask the host administrator for permission to inspect this target.":
+    "此账号无权访问。请联系宿主管理员，申请查看此目标的权限。",
+  "Plugin metadata could not be loaded. Try again to read the current host state.":
+    "无法加载插件元数据。请重试以读取宿主的当前状态。",
+  "{app} does not expose Plugin configuration inspection.":
+    "{app} 未提供插件配置检查功能。",
+  "Reading current host configuration metadata.":
+    "正在读取宿主的当前配置元数据。",
+  "No Plugins available": "没有可用的插件",
+  "This target reports no Plugin instances visible to this account.":
+    "此目标未报告当前账号可见的插件实例。",
+  "No Plugins match this search for {app}.":
+    "在 {app} 中没有匹配此搜索的插件。",
+  "{count} Plugins": "{count} 个插件",
+  "Plugin instance": "插件实例",
+  "Read-only": "只读",
+  resolved: "已解析",
+  unconfigured: "未配置",
+  unavailable: "不可用",
+  environment: "环境变量",
+  file: "文件",
+  inline: "内联",
+  "This Plugin instance is no longer reported by the selected target.":
+    "所选目标已不再报告此插件实例。",
+  "Target: {app} ({target})": "目标：{app} ({target})",
+  "Current startup metadata": "当前启动元数据",
+  "This target reports configuration state and provenance for this instance. Values, schema, defaults and revisions are not exposed.":
+    "此目标报告此实例的配置状态与来源，不提供配置值、结构定义、默认值或修订版本。",
+  "Configuration inspection": "配置检查",
+  Sources: "配置来源",
+  "No configuration sources reported.": "未报告配置来源。",
+  "Field provenance": "字段来源",
+  "No field provenance reported. This does not imply default values.":
+    "未报告字段来源，这不代表使用了默认值。",
+  "No source reported": "未报告来源",
+  "Sensitive (value not exposed)": "敏感字段（不提供值）",
+  "Value not exposed": "不提供值",
+  "Startup configuration is read-only here. Change the application-owned source and restart.":
+    "此处的启动配置为只读。请修改应用管理的配置来源，然后重启应用。",
+  "Change the application-owned configuration source, then restart the application and reload this page.":
+    "请修改应用管理的配置来源，然后重启应用并重新加载此页面。",
 };

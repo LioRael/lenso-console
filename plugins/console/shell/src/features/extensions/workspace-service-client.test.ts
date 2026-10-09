@@ -3,6 +3,11 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { consoleContract } from "../../../../../../packages/console-authoring/src/protocol";
+import {
+  configureSessionReadScope,
+  retireSessionReads,
+  sessionFetch,
+} from "../../lib/session-fetch";
 import type { PageMount } from "./page-contribution-catalog";
 import { createWorkspaceServices } from "./workspace-service-client";
 
@@ -62,12 +67,16 @@ function rpcFetch(
   });
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  retireSessionReads();
+  vi.unstubAllGlobals();
+});
 
 describe("Workspace service client", () => {
   it("isolates the operator endpoint, expected actor, CSRF and retired lifetime", async () => {
     const controller = new AbortController();
     const retire = vi.fn(() => controller.abort());
+    const revalidate = vi.fn(async () => undefined);
     const transport = {
       sourceId: "operations",
       apiBasePath: "/admin/api",
@@ -79,6 +88,7 @@ describe("Workspace service client", () => {
       },
       signal: controller.signal,
       retire,
+      revalidate,
     };
     vi.stubGlobal("window", {
       location: { origin: "https://console.test" },
@@ -106,6 +116,10 @@ describe("Workspace service client", () => {
     );
     expect(new Headers(options?.headers).get("x-csrf-token")).toBe("operator");
     fetch.mockResolvedValue(Response.json({}, { status: 403 }));
+    await expect(services.invoke("welcome", "greet", {})).rejects.toBeDefined();
+    expect(retire).not.toHaveBeenCalled();
+    expect(revalidate).toHaveBeenCalledOnce();
+    fetch.mockResolvedValue(Response.json({}, { status: 401 }));
     await expect(services.invoke("welcome", "greet", {})).rejects.toBeDefined();
     expect(retire).toHaveBeenCalledOnce();
     fetch.mockClear();
@@ -170,9 +184,8 @@ describe("Workspace service client", () => {
     );
     const iterator = stream[Symbol.asyncIterator]();
     await expect(iterator.next()).rejects.toMatchObject({
-      code: "workspace_service_streaming_unsupported",
-      status: 501,
-      message: "Console v2 Manage does not support workspace service streaming",
+      code: "workspace_service_unavailable",
+      status: 503,
     });
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -300,5 +313,207 @@ describe("Workspace service client", () => {
       code: "workspace_service_protocol_error",
       status: 502,
     });
+  });
+
+  // HTTP 200 precedes the terminal error, so sessionFetch's response status
+  // alone cannot retire a revoked stream scope or revalidate object access.
+  it.each([
+    ["ordinary", "UNAUTHORIZED", 401],
+    ["ordinary", "PRECONDITION_FAILED", 412],
+    ["ordinary", "FORBIDDEN", 403],
+    ["external", "UNAUTHORIZED", 401],
+    ["external", "PRECONDITION_FAILED", 412],
+    ["external", "FORBIDDEN", 403],
+  ] as const)(
+    "handles late %s %s without universal logout",
+    async (kind, code, status) => {
+      const controller = new AbortController();
+      const retire = vi.fn(() => controller.abort());
+      const revalidate = vi.fn(async () => undefined);
+      const dispatchEvent = vi.fn();
+      vi.stubGlobal("window", {
+        location: { origin: "https://console.test" },
+        dispatchEvent,
+      });
+      vi.stubGlobal("document", { cookie: "" });
+      configureSessionReadScope("local", revalidate);
+      const prefix = kind === "external" ? "/admin/api" : "/api";
+      const handler = new RPCHandler({
+        workspace: {
+          subscribe: implement(consoleContract.workspace.subscribe).handler(
+            async function* lateErrorStream() {
+              yield { text: "你好 🌍" };
+              throw new ORPCError(code, { message: "private diagnostic" });
+            }
+          ),
+        },
+      });
+      const fetch = vi.fn(
+        async (url: RequestInfo | URL, init?: RequestInit) => {
+          const result = await handler.handle(
+            new Request(new URL(String(url), "https://console.test"), init),
+            { prefix: `${prefix}/console/v2/rpc`, context: {} }
+          );
+          return result.matched
+            ? result.response
+            : new Response(null, { status: 404 });
+        }
+      );
+      vi.stubGlobal("fetch", fetch);
+      const streamingMount: PageMount = {
+        ...mount,
+        requirements: mount.requirements.map((requirement) => ({
+          ...requirement,
+          streaming_operations: ["ticks"],
+        })),
+        ...(kind === "external"
+          ? {
+              transport: {
+                sourceId: "operations",
+                apiBasePath: prefix,
+                subject: "operator-a",
+                readScope: "local",
+                csrf: {
+                  cookie_name: "__Host-operator-csrf",
+                  header_name: "x-csrf-token",
+                },
+                signal: controller.signal,
+                retire,
+                revalidate,
+              },
+            }
+          : {}),
+      };
+      const stream = createWorkspaceServices(streamingMount).subscribe(
+        "welcome",
+        "ticks",
+        {}
+      );
+      const iterator = stream[Symbol.asyncIterator]();
+      expect(await iterator.next()).toEqual({
+        done: false,
+        value: { text: "你好 🌍" },
+      });
+      await expect(iterator.next()).rejects.toMatchObject({
+        code,
+        status,
+        message: `Workspace service welcome/ticks: ${code}`,
+      });
+      if (status === 403) {
+        expect(revalidate).toHaveBeenCalledOnce();
+        expect(retire).not.toHaveBeenCalled();
+        expect(dispatchEvent).not.toHaveBeenCalled();
+      } else if (kind === "external") {
+        expect(retire).toHaveBeenCalledOnce();
+        expect(dispatchEvent).not.toHaveBeenCalled();
+      } else {
+        expect(dispatchEvent).toHaveBeenCalledOnce();
+        expect(dispatchEvent.mock.calls[0]![0].type).toBe(
+          "lenso-session-expired"
+        );
+      }
+    }
+  );
+
+  // SDK cannot cancel a body that sessionFetch rejects before handing it over.
+  it.each(["cancelled", "scope"] as const)(
+    "cancels an unclaimed SSE opening response on %s retirement",
+    async (mode) => {
+      const dispatchEvent = vi.fn();
+      vi.stubGlobal("window", {
+        location: { origin: "https://console.test" },
+        dispatchEvent,
+      });
+      configureSessionReadScope("a".repeat(64), async () => undefined);
+      let resolveResponse!: (response: Response) => void;
+      vi.stubGlobal(
+        "fetch",
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveResponse = resolve;
+          })
+      );
+      const cancel = vi.fn();
+      const response = new Response(new ReadableStream({ cancel }), {
+        headers: {
+          "content-type": "text/event-stream",
+          "x-lenso-read-scope":
+            mode === "scope" ? "b".repeat(64) : "a".repeat(64),
+        },
+      });
+      const controller = new AbortController();
+      const pending = sessionFetch("/api/console/v2/rpc/workspace/subscribe", {
+        signal: controller.signal,
+      });
+      const rejected = expect(pending).rejects.toMatchObject({
+        name: "AbortError",
+      });
+      if (mode === "cancelled") {
+        controller.abort();
+      }
+      resolveResponse(response);
+      await rejected;
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(dispatchEvent).toHaveBeenCalledTimes(mode === "scope" ? 1 : 0);
+    }
+  );
+
+  it("does not let an ordinary stream from a retired request epoch expire the newly admitted account", async () => {
+    const dispatchEvent = vi.fn();
+    const revalidate = vi.fn(async () => undefined);
+    vi.stubGlobal("window", {
+      location: { origin: "https://console.test" },
+      dispatchEvent,
+    });
+    vi.stubGlobal("document", { cookie: "" });
+    configureSessionReadScope("local", revalidate);
+    let finish!: () => void;
+    const wait = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const handler = new RPCHandler({
+      workspace: {
+        subscribe: implement(consoleContract.workspace.subscribe).handler(
+          async function* retiredStream() {
+            yield "old-account";
+            await wait;
+            throw new ORPCError("UNAUTHORIZED");
+          }
+        ),
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      async (url: RequestInfo | URL, init?: RequestInit) => {
+        // This fixture intentionally ignores request cancellation so a late frame
+        // arrives after the account's lifetime has been replaced.
+        const result = await handler.handle(
+          new Request(new URL(String(url), "https://console.test"), {
+            ...init,
+            signal: null,
+          }),
+          { prefix: "/api/console/v2/rpc", context: {} }
+        );
+        return result.matched
+          ? result.response
+          : new Response(null, { status: 404 });
+      }
+    );
+    const services = createWorkspaceServices({
+      ...mount,
+      requirements: mount.requirements.map((requirement) => ({
+        ...requirement,
+        streaming_operations: ["ticks"],
+      })),
+    });
+    const stream = services.subscribe("welcome", "ticks", {});
+    const iterator = stream[Symbol.asyncIterator]();
+    await iterator.next();
+    retireSessionReads();
+    configureSessionReadScope("local", revalidate);
+    finish();
+    await expect(iterator.next()).rejects.toMatchObject({ name: "AbortError" });
+    expect(dispatchEvent).not.toHaveBeenCalled();
+    expect(revalidate).not.toHaveBeenCalled();
   });
 });

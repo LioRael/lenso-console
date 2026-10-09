@@ -4,6 +4,7 @@ import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
 import { contributionAssetUrl } from "../features/extensions/contribution-asset-url";
+import { parsePageCatalog } from "../features/extensions/page-contribution-catalog";
 import { workspacePageHref } from "../features/extensions/workspace-paths";
 import { queryClient } from "../lib/query-client";
 import { sessionFetch } from "../lib/session-fetch";
@@ -118,7 +119,18 @@ test("fixed admin bootstrap keeps login, requests, asset recovery and logout in 
       throw new Error(`Unexpected cross-instance request: ${target}`);
     }
   );
-  vi.stubGlobal("fetch", fetcher);
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const { pathname } = new URL(
+      input instanceof Request ? input.url : String(input),
+      window.location.origin
+    );
+    return pathname.startsWith("/api/") ||
+      pathname.startsWith("/admin/api/") ||
+      pathname.startsWith("/auth/")
+      ? fetcher(input, init)
+      : nativeFetch(input, init);
+  });
   vi.spyOn(document, "cookie", "get").mockReturnValue(
     "__Host-accounts-csrf=account-token; __Host-operators-csrf=operator-token"
   );
@@ -127,8 +139,10 @@ test("fixed admin bootstrap keeps login, requests, asset recovery and logout in 
   const root = createRoot(container);
   try {
     expect(consoleBasePath).toBe("/admin");
-    expect(
-      workspacePageHref(
+    const logicalAsset = `/api/console/v1/pages/admin/assets/${"a".repeat(64)}/workspace.mjs`;
+    const [mount] = parsePageCatalog({
+      schema: "console.page-catalog/1",
+      mounts: [
         {
           id: "admin",
           basePath: "/",
@@ -139,7 +153,8 @@ test("fixed admin bootstrap keeps login, requests, asset recovery and logout in 
             trusted: true,
           },
           revision: "1",
-          module: "module",
+          implementationId: "a".repeat(64),
+          module: logicalAsset,
           styles: [],
           navigation: { label: "Admin", items: [] },
           requirements: [],
@@ -147,9 +162,9 @@ test("fixed admin bootstrap keeps login, requests, asset recovery and logout in 
           title: "Admin",
           access: "administrator",
         },
-        []
-      )
-    ).toBe("/admin/");
+      ],
+    });
+    expect(workspacePageHref(mount!, [])).toBe("/admin/");
     expect(
       parseLoginMethods({
         methods: [
@@ -176,13 +191,13 @@ test("fixed admin bootstrap keeps login, requests, asset recovery and logout in 
         ],
       })
     ).toHaveLength(1);
-    const asset = `/api/console/v1/pages/admin/assets/${"a".repeat(64)}/workspace.mjs`;
-    expect(contributionAssetUrl(asset, false)).toBe(`/admin${asset}`);
+    const asset = mount!.module;
+    expect(contributionAssetUrl(asset, false)).toBe(`/admin${logicalAsset}`);
     const recovered = new URL(
       contributionAssetUrl(asset, true),
       window.location.origin
     );
-    expect(recovered.pathname).toBe(`/admin${asset}`);
+    expect(recovered.pathname).toBe(`/admin${logicalAsset}`);
     expect(recovered.searchParams.has("__lenso_console_recovery")).toBe(true);
     flushSync(() =>
       root.render(
@@ -245,12 +260,12 @@ test("fixed admin bootstrap keeps login, requests, asset recovery and logout in 
       .toBeVisible();
     expect(queryClient.getQueryData(["operator-private"])).toBeUndefined();
     expect(
-      observed.every(
+      observed.filter(
         (target) =>
-          target.startsWith("/admin/api/") ||
-          target.startsWith("/auth/operator/")
+          !target.startsWith("/admin/api/") &&
+          !target.startsWith("/auth/operator/")
       )
-    ).toBe(true);
+    ).toEqual([]);
   } finally {
     root.unmount();
     container.remove();

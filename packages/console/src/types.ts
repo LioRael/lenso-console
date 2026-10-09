@@ -29,6 +29,8 @@ export interface ConsoleIdentity {
 
 export interface ConsoleAuthentication {
   admit(request: Request): void;
+  /** Credential presence only, never verification; invalid credentials must not become public reads. */
+  hasCredentials?(request: Request): boolean;
   authenticate(request: Request): Promise<ConsoleIdentity>;
   enforce(identity: ConsoleIdentity, resource: ConsoleResource): Promise<void>;
   can(identity: ConsoleIdentity, resource: ConsoleResource): Promise<boolean>;
@@ -44,6 +46,7 @@ export interface ConsolePageDescriptor {
   protocol?: "lenso-console-rpc/2";
   id: string;
   title: string;
+  readonly targetId?: string;
   subject: { kind: "console" } | { kind: "app"; appId: string };
   owner: { instance: string; source: "application"; trusted: true };
   revision: string;
@@ -65,6 +68,7 @@ export interface ConsolePageDescriptor {
     capability_id: string;
     descriptor_version: string;
     operations: readonly string[];
+    streaming_operations?: readonly string[];
     available: boolean;
     required: boolean;
     source: "owner" | "subject";
@@ -73,12 +77,14 @@ export interface ConsolePageDescriptor {
 
 export interface ConsoleMount {
   readonly descriptor: ConsolePageDescriptor;
+  readonly placement?: "page" | "global";
   readonly services: Readonly<
     Record<
       string,
       {
         readonly manage: Manage;
         readonly operations: readonly Operation[];
+        readonly streams?: readonly ConsoleStream[];
       }
     >
   >;
@@ -93,6 +99,14 @@ export interface ConsoleMount {
       rotate: ConsoleResource;
     }>;
   };
+}
+
+/** An explicit read subscription, not a finite Manage result or a write channel. */
+export interface ConsoleStream {
+  readonly operation: Operation;
+  /** Owner-selected validation/projection for each public item. */
+  readonly output: Operation["input"];
+  readonly maxItemBytes?: number;
 }
 
 export interface ConsoleTarget {
@@ -115,6 +129,9 @@ export interface ConsoleOptions {
   readonly shellBasePath?: string;
   readonly authBasePath?: string;
   readonly management?: boolean;
+  readonly locale?: Plugin<ConsoleLocaleStore>;
+  /** Independent global-default permission; never inferred from the administrator flag. */
+  readonly localeResource?: ConsoleResource;
   readonly binding: (
     operation: Operation,
     input: unknown,
@@ -136,6 +153,30 @@ export interface ConsoleOptions {
 
 export interface ConsoleService {
   fetch(request: Request): Promise<Response | undefined>;
+  /** Drain this entry's subscriptions only; never stop a borrowed application. */
+  close?(): Promise<void>;
+}
+
+export type ConsoleLocale = "en" | "zh-CN";
+export type ConsoleLanguagePreference = ConsoleLocale | "global";
+
+/** The application owns durable storage, migrations and provider-side identity checks. */
+export interface ConsoleLocaleStore {
+  readDefault(signal: AbortSignal): Promise<ConsoleLocale | null>;
+  readPreference(
+    identity: ConsoleIdentity,
+    signal: AbortSignal
+  ): Promise<ConsoleLanguagePreference>;
+  writePreference(
+    identity: ConsoleIdentity,
+    preference: ConsoleLanguagePreference,
+    signal: AbortSignal
+  ): Promise<void>;
+  writeDefault(
+    identity: ConsoleIdentity,
+    locale: ConsoleLocale | null,
+    signal: AbortSignal
+  ): Promise<void>;
 }
 
 export type ConsoleRuntime = Pick<

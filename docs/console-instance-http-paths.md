@@ -4,6 +4,28 @@ Each Console Plugin Instance keeps one resolved Auth client. `http_paths` expose
 that instance at fixed, same-origin paths; it does not select a realm from a URL
 parameter. Omitted configuration preserves `/`, `/api`, and `/auth`.
 
+## TS descriptor path boundary
+
+`lenso-console-rpc/2` descriptors contain actual deployed, root-local asset
+paths. For `apiBasePath: "/ops/api"`, the backend emits
+`/ops/api/console/v1/pages/<mount>/assets/<digest>/...`. The Shell validates
+against its trusted HTML bootstrap, or the separately admitted source's
+`api_base_path`, not a base URL supplied in the catalog response. SDK calls use
+that same explicit base. There is no new cross-origin credential permission.
+
+The retained Rust `workspace-http/1` producer (including descriptors with no
+protocol field) uses logical `/api` asset paths. The catalog parser is the sole
+compatibility owner: validate their exact mount, digest and relative path first,
+then resolve them under the trusted deployment base. Once parsed, all resource
+loading uses actual paths without further `/api` rewriting. A v2 response cannot
+use this legacy normalization to escape its configured prefix. External mounts
+keep their own API authority even when the ordinary Console base changes.
+
+TS catalogs also carry a server-derived `targetId`, including Console-subject
+pages. A management directory link requires one exact target/owner/operation
+match. A legacy app-subject page may use its verified `appId`; a Console-subject
+descriptor without an explicit target cannot produce a management shortcut.
+
 For the user Console instance, use this configuration excerpt:
 
 ```json

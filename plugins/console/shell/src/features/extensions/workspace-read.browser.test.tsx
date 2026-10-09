@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";
@@ -11,7 +11,11 @@ import {
   useWorkspaceReadClient,
   type PageProps,
 } from "../../../../../../packages/console-authoring/src/index";
-import type { WorkspaceReadOptions } from "../../../../../../packages/console-authoring/src/read";
+import type {
+  WorkspaceReadOptions,
+  WorkspaceReadResult,
+} from "../../../../../../packages/console-authoring/src/read";
+import { WorkspaceServiceError } from "../../../../../../packages/console-authoring/src/transport";
 import { ConsoleQueryClient } from "../../lib/console-query-client";
 import { createWorkspaceReads } from "./workspace-read-client";
 
@@ -30,11 +34,16 @@ type Options = WorkspaceReadOptions<{ cursor: string }, { message: string }>;
 function ReadPage({
   options,
   write,
+  observe,
 }: {
   options: Options;
   write?: () => Promise<string>;
+  observe?: (result: WorkspaceReadResult<{ message: string }>) => void;
 }) {
   const result = useWorkspaceRead(options);
+  useEffect(() => {
+    observe?.(result);
+  }, [observe, result]);
   const reads = useWorkspaceReadClient();
   const [draft, setDraft] = useState("");
   const [writeStatus, setWriteStatus] = useState("idle");
@@ -86,6 +95,7 @@ function mounted() {
   const root = createRoot(container);
   let controller: AbortController | undefined;
   let props: PageProps | undefined;
+  let result: WorkspaceReadResult<{ message: string }> | undefined;
   const binding = (mount = "alpha") => {
     controller = new AbortController();
     const scopeKey = JSON.stringify([
@@ -139,7 +149,13 @@ function mounted() {
       root.render(
         <QueryClientProvider client={client}>
           <WorkspaceScope value={value}>
-            <ReadPage options={options} {...(write ? { write } : {})} />
+            <ReadPage
+              options={options}
+              observe={(readResult) => {
+                result = readResult;
+              }}
+              {...(write ? { write } : {})}
+            />
           </WorkspaceScope>
         </QueryClientProvider>
       )
@@ -155,6 +171,12 @@ function mounted() {
     render,
     leave,
     binding,
+    refetch() {
+      if (!result) {
+        throw new Error("Read page is not mounted");
+      }
+      return result.refetch();
+    },
     dispose() {
       leave();
       root.unmount();
@@ -218,6 +240,127 @@ test("returning pages reuse scoped reads; stale reads keep data and drafts; para
     await vi.waitFor(() =>
       expect(view.client.getQueryCache().getAll()).toHaveLength(1)
     );
+  } finally {
+    view.dispose();
+  }
+});
+
+// Cache reuse and global admission tests above do not cover an object's access
+// changing within the same session. A failed refresh must not retain its DTO.
+test("object denial removes only its snapshot; explicit retry readmits without losing drafts or accepting late reads", async () => {
+  const late = deferred<{ message: string }>();
+  const denied = deferred<{ message: string }>();
+  const admitted = deferred<{ message: string }>();
+  const returned = deferred<{ message: string }>();
+  const forbidden = new WorkspaceServiceError(
+    "Object access denied",
+    "forbidden",
+    403
+  );
+  const read = vi
+    .fn<Options["read"]>()
+    .mockResolvedValueOnce({ message: "Protected object" })
+    .mockRejectedValueOnce(
+      new WorkspaceServiceError("Service unavailable", "unavailable", 503)
+    )
+    .mockReturnValueOnce(late.promise)
+    .mockReturnValueOnce(denied.promise)
+    .mockReturnValueOnce(admitted.promise)
+    .mockRejectedValueOnce(forbidden)
+    .mockReturnValue(returned.promise);
+  const options: Options = {
+    key: "objects.get",
+    params: { cursor: "private" },
+    read,
+    policy: { focus: "always" },
+  };
+  const view = mounted();
+  try {
+    const otherRead = vi.fn(async () => ({ message: "Unrelated object" }));
+    view.render({
+      ...options,
+      params: { cursor: "unrelated" },
+      read: otherRead,
+    });
+    await expect.element(page.getByText("Unrelated object")).toBeVisible();
+    view.render(options);
+    await expect.element(page.getByText("Protected object")).toBeVisible();
+    const draft = page.getByRole("textbox", { name: "Draft" });
+    await draft.fill("unfinished edit");
+    const input = draft.element();
+    await expect(view.refetch()).rejects.toMatchObject({ status: 503 });
+    await expect.element(page.getByText("Protected object")).toBeVisible();
+
+    // Even an unlimited Host retry policy cannot retry an authoritative denial.
+    view.client.setDefaultOptions({ queries: { retry: true, retryDelay: 0 } });
+    view.render(options);
+    const canceled = (async () => {
+      try {
+        await view.refetch();
+      } catch {
+        // Superseded reads may reject, but must never repopulate the cache.
+      }
+    })();
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3));
+    const refusal = view.refetch();
+    const rejected = expect(refusal).rejects.toBe(forbidden);
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(4));
+    denied.reject(forbidden);
+    await rejected;
+    await expect
+      .element(page.getByRole("alert"))
+      .toHaveTextContent("Object access denied");
+    await expect
+      .element(page.getByRole("status", { name: "Read state" }))
+      .toHaveTextContent("Available");
+    await expect
+      .element(page.getByText("Protected object"))
+      .not.toBeInTheDocument();
+    await expect.element(draft).toHaveValue("unfinished edit");
+    expect(draft.element()).toBe(input);
+    const cached = () =>
+      view.client
+        .getQueryCache()
+        .getAll()
+        .map((entry) => entry.state.data);
+    await vi.waitFor(() => {
+      expect(cached()).not.toContainEqual({ message: "Protected object" });
+      expect(cached()).toContainEqual({ message: "Unrelated object" });
+    });
+    late.resolve({ message: "Canceled stale object" });
+    await canceled;
+    view.render(options);
+    window.dispatchEvent(new Event("visibilitychange"));
+    await expect
+      .element(page.getByText("Canceled stale object"))
+      .not.toBeInTheDocument();
+    expect(cached()).not.toContainEqual({ message: "Canceled stale object" });
+    expect(read).toHaveBeenCalledTimes(4);
+
+    const retry = view.refetch();
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(5));
+    admitted.resolve({ message: "Readmitted object" });
+    await retry;
+    await expect.element(page.getByText("Readmitted object")).toBeVisible();
+    await expect.element(page.getByRole("alert")).not.toBeInTheDocument();
+    await expect.element(draft).toHaveValue("unfinished edit");
+    await expect(view.refetch()).rejects.toBe(forbidden);
+    await expect
+      .element(page.getByText("Readmitted object"))
+      .not.toBeInTheDocument();
+    view.leave();
+    view.render(options);
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(7));
+    await expect
+      .element(page.getByText("Readmitted object"))
+      .not.toBeInTheDocument();
+    returned.resolve({ message: "Returned admitted object" });
+    await expect
+      .element(page.getByText("Returned admitted object"))
+      .toBeVisible();
+    expect(otherRead).toHaveBeenCalledOnce();
+    expect(cached()).toContainEqual({ message: "Unrelated object" });
+    expect(view.client.authenticationScope).toBe("a".repeat(64));
   } finally {
     view.dispose();
   }

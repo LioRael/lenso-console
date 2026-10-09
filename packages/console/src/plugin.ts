@@ -12,6 +12,7 @@ export function createConsolePlugin(
     requires: [
       ...new Set([
         options.authentication,
+        ...(options.locale ? [options.locale] : []),
         ...options.targets
           .filter((target) => !target.running)
           .flatMap((target) => target.plugins),
@@ -26,11 +27,13 @@ export function createConsolePlugin(
       const configuration = options.config
         ? context.config!(options.config)
         : {};
-      return createConsoleService(
+      const service = createConsoleService(
         context,
         context.get(options.authentication),
         { ...options, ...configuration }
       );
+      context.onCleanup(() => service.close?.());
+      return service;
     },
   };
 }

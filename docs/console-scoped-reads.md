@@ -46,6 +46,28 @@ Old signals/epochs cannot return data or invalidate a newly admitted scope,
 even if a transport ignores cancellation. Auth scope metadata comes only from
 an admitted session response (`x-lenso-read-scope`), never a page option.
 
+Scope digests are opaque, not sortable revisions. A different valid digest on
+an admitted same-origin API response retires its current epoch and requests an
+authoritative session revalidation; the response itself cannot admit the new
+digest. Epoch and abort checks reject concurrent late responses, so an old
+digest cannot roll back the current scope. Object-level 403 responses request
+revalidation without automatically logging out or discarding a valid account's
+drafts. Failed/changed session admission retires the affected private scope.
+
+An SDK `WorkspaceServiceError` with status 403 also removes the exact denied
+business read's previous DTO without clearing other keys or the account. Active
+observers remain masked and require an explicit successful read to re-admit that
+object. A temporary 503 keeps safe previous data. Denial does not trigger
+automatic retries even if the host's general retry policy is unlimited.
+
+An open, visible Shell revalidates the session on a bounded 60-second interval,
+with a 15-second request timeout, as well as its existing focus/account events.
+Admitted external workspace sources have the same bounded authority check and
+independent lifetime. This provides bounded visibility of idle revocation
+without adding a push channel. Background/browser suspension can delay timers;
+backend authorization is rechecked on every operation and remains the security
+boundary.
+
 The cache is memory-only. Fresh navigation returns use cached data immediately;
 stale returns retain data during background refresh. Only an initial pending
 read without data sets `blocking`; `refreshing` never indicates write success.

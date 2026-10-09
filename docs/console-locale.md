@@ -12,6 +12,30 @@ account's explicit language first, then the configured global default, then a
 supported browser language, then English. `global` means follow the global
 default; clearing the global default enables the browser/product fallback.
 
+### TypeScript host candidate
+
+The TS service preserves these HTTP paths and response semantics. The application
+explicitly selects `ConsoleOptions.locale`, a `Plugin<ConsoleLocaleStore>`, and
+owns its persistence, migration and provider-side identity authorization. Personal
+keys come from the verified Auth actor's `realmId` and `subjectId`, never a body
+field. The local candidate uses a separate SQLite database and does not import
+historical account tables or preferences.
+
+`localeResource` explicitly binds the global permission with action `configure`
+and operation `console.locale.default.manage` to a target, tenant and owner.
+Administrator status alone does not grant it. Personal writes reauthenticate
+after reading their bounded strict-schema body; default writes additionally
+enforce the independent resource immediately before storage. Existing cookie
+Origin/Host and CSRF admission runs first. Providers must preserve these checks
+at their own asynchronous storage boundary.
+
+Public reads expose only the default. Credential presence is determined by the
+selected Auth transport: an invalid session or bearer never falls back to public
+defaults. Without a provider, the snapshot has `available:false` and an explicit
+reason; writes fail with 503. Failed provider operations never report persistence
+success. The Rust capability and migration notes below still describe the
+retained Rust host, not automatically adopted TS bindings.
+
 A verified user may obtain a Console session and enter personal settings with
 an empty workspace allowlist and no administrator, operator, or assistant grant.
 This does not grant access to workspace services or administration APIs. The

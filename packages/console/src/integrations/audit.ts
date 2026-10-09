@@ -3,6 +3,7 @@ import { createScopedAuditManage } from "@lenso/audit/manage";
 import type { Plugin } from "@lenso/core";
 import type { Operation } from "@lenso/engine/operations";
 
+import { isSelectedOperation } from "../operation-selection";
 import type {
   ConsoleIdentity,
   ConsoleOptions,
@@ -38,7 +39,7 @@ export function createConsoleAuditIntegration<P>(
     resource: ConsoleResource
   ) => {
     if (
-      !companion.operations.some((declared) => declared === operation) ||
+      !isSelectedOperation(companion.operations, operation) ||
       resource.action !== "invoke" ||
       resource.pluginId !== companion.plugin.id ||
       resource.operation !== operation.method

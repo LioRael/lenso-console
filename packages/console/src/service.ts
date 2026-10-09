@@ -13,16 +13,27 @@ import {
 } from "@lenso/engine/diagnostics";
 import {
   boundedJson,
+  executeOperation,
+  operationError,
+  validateOperationInput,
   validateOperations,
   type Operation,
 } from "@lenso/engine/operations";
-import { createManageAdapter, defineManage } from "@lenso/manage";
+import {
+  createManageAdapter,
+  createManageSelection,
+  defineManage,
+  type ManageSelection,
+} from "@lenso/manage";
 import { COMMON_ERROR_STATUS_MAP, implement, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { ConsoleRequestError } from "./auth";
+import { ConsoleRequestError, expectedConsoleSubject } from "./auth";
 import { isConsoleOperationError } from "./errors";
+import { createLocaleRoutes } from "./locale";
+import { snapshotOperation } from "./operation-selection";
 import { readRequestBytes } from "./request-body";
+import { subscription } from "./subscription";
 import type {
   ConsoleAuthentication,
   ConsoleIdentity,
@@ -229,6 +240,11 @@ export function createConsoleService(
   auth: ConsoleAuthentication,
   options: ConsoleOptions
 ): ConsoleService {
+  const lifecycle = new AbortController();
+  const subscriptions = new Set<() => Promise<unknown>>();
+  const openings = new Set<Promise<unknown>>();
+  let closing: Promise<void> | undefined;
+  let cleanupFailure: Error | undefined;
   const api = basePath(options.apiBasePath ?? "/api");
   const shell = basePath(options.shellBasePath ?? "/");
   const authBase = basePath(options.authBasePath ?? "/auth");
@@ -255,13 +271,23 @@ export function createConsoleService(
       "Console shell requires an explicit route matcher and response callback."
     );
   }
-  const targets = [...options.targets];
+  const targets = options.targets.map((target) => ({
+    ...target,
+    plugins: [...target.plugins],
+    manage: [...target.manage],
+    mounts: [...(target.mounts ?? [])],
+  }));
+  const locale = createLocaleRoutes(
+    options.locale ? runtime.get(options.locale) : undefined,
+    auth,
+    options.localeResource
+  );
   const targetIds = new Set<string>();
   const mounts = new Map<
     string,
     { target: ConsoleTarget; mount: ConsoleMount }
   >();
-  const selected = new Map<ConsoleTarget, readonly Operation[]>();
+  const selections = new Map<ConsoleTarget, ManageSelection>();
   const mountRoutes: { subject: string; base: string }[] = [];
   for (const target of targets) {
     if (
@@ -290,15 +316,14 @@ export function createConsoleService(
       return [...manage.operations];
     });
     validateOperations(target.plugins, operations);
-    selected.set(target, operations);
-    // Constructing the adapter proves each declaration belongs to this exact runtime.
-    createManageAdapter({
-      running,
-      plugins: target.plugins,
-      operations,
-      binding: () => ({}),
-      canList: () => false,
-    });
+    selections.set(
+      target,
+      createManageSelection({
+        running,
+        plugins: target.plugins,
+        operations,
+      })
+    );
     for (const mount of target.mounts ?? []) {
       if (mount.credentials) {
         for (const operation of ["issue", "rotate"] as const) {
@@ -324,6 +349,7 @@ export function createConsoleService(
               {
                 ...mount.descriptor,
                 protocol: "lenso-console-rpc/2",
+                targetId: target.id,
               },
               environmentSecrets()
             )
@@ -340,6 +366,8 @@ export function createConsoleService(
         ) ||
         !/^[a-f0-9]{64}$/.test(descriptor.implementationId) ||
         !descriptor.revision ||
+        (mount.descriptor.targetId !== undefined &&
+          mount.descriptor.targetId !== target.id) ||
         (descriptor.subject.kind === "app" &&
           descriptor.subject.appId !== target.id)
       ) {
@@ -370,15 +398,78 @@ export function createConsoleService(
           );
         }
         validateOperations([service.manage.plugin], service.operations);
+        const methods = new Set(
+          service.operations.map((operation) => operation.method)
+        );
+        const streams = service.streams ?? [];
+        validateOperations(
+          [service.manage.plugin],
+          streams.map((stream) => stream.operation)
+        );
+        for (const stream of streams) {
+          const { operation } = stream;
+          const budget = stream.maxItemBytes ?? 48 * 1024;
+          if (
+            operation.plugin !== service.manage.plugin ||
+            operation.effect !== "read" ||
+            operation.destructive === true ||
+            operation.confirmation !== undefined ||
+            operation.approval !== undefined ||
+            !stream.output?.["~standard"] ||
+            typeof stream.output["~standard"].validate !== "function" ||
+            stream.output["~standard"].version !== 1 ||
+            methods.has(operation.method) ||
+            operations.some(
+              (finite) =>
+                finite.plugin === operation.plugin &&
+                finite.method === operation.method
+            ) ||
+            !Number.isSafeInteger(budget) ||
+            budget < 1 ||
+            budget > 1024 * 1024
+          ) {
+            throw new Error(
+              "Workspace streams require unique ungated read operations, an item schema and a bounded item budget."
+            );
+          }
+          const installed = running.get(operation.plugin);
+          if (
+            installed === null ||
+            typeof installed !== "object" ||
+            !Object.hasOwn(installed, operation.method) ||
+            typeof Reflect.get(installed, operation.method) !== "function"
+          ) {
+            throw new Error(
+              "Workspace stream must select an installed own service method."
+            );
+          }
+          methods.add(operation.method);
+        }
       }
+      const requirements = new Set<string>();
       for (const requirement of descriptor.requirements) {
         const service = mount.services[requirement.service_id];
+        if (
+          requirements.has(requirement.service_id) ||
+          (service &&
+            requirement.source === "owner" &&
+            service.manage.plugin.id !== mount.descriptor.owner.instance)
+        ) {
+          throw new Error(
+            "Workspace requirements must uniquely bind their declared service owner."
+          );
+        }
+        requirements.add(requirement.service_id);
         if (
           requirement.required &&
           (!requirement.available ||
             !service ||
             requirement.operations.some(
-              (method) => !service.operations.some((op) => op.method === method)
+              (method) =>
+                !service.operations.some((op) => op.method === method) &&
+                !service.streams?.some(
+                  (stream) => stream.operation.method === method
+                )
             ))
         ) {
           throw new Error(
@@ -386,10 +477,23 @@ export function createConsoleService(
           );
         }
       }
+      descriptor.requirements = descriptor.requirements.map((requirement) => ({
+        ...requirement,
+        streaming_operations: (
+          mount.services[requirement.service_id]?.streams ?? []
+        )
+          .filter(
+            (stream) =>
+              requirement.available &&
+              requirement.operations.includes(stream.operation.method)
+          )
+          .map((stream) => stream.operation.method),
+      }));
       const subject =
         descriptor.subject.kind === "console" ? "console" : target.id;
       const routeBase = basePath(descriptor.basePath ?? "/");
       if (
+        mount.placement !== "global" &&
         mountRoutes.some(
           (route) =>
             route.subject === subject && overlaps(route.base, routeBase)
@@ -397,8 +501,32 @@ export function createConsoleService(
       ) {
         throw new Error("Console workspace route ownership overlaps.");
       }
-      mountRoutes.push({ subject, base: routeBase });
-      mounts.set(descriptor.id, { target, mount: { ...mount, descriptor } });
+      if (mount.placement !== "global") {
+        mountRoutes.push({ subject, base: routeBase });
+      }
+      const services = Object.fromEntries(
+        Object.entries(mount.services).map(([id, service]) => [
+          id,
+          Object.freeze({
+            manage: defineManage(service.manage),
+            operations: Object.freeze(
+              service.operations.map(snapshotOperation)
+            ),
+            streams: Object.freeze(
+              (service.streams ?? []).map((stream) =>
+                Object.freeze({
+                  ...stream,
+                  operation: snapshotOperation(stream.operation),
+                })
+              )
+            ),
+          }),
+        ])
+      );
+      mounts.set(descriptor.id, {
+        target,
+        mount: { ...mount, descriptor, services },
+      });
     }
   }
 
@@ -420,58 +548,66 @@ export function createConsoleService(
     }
     return target;
   };
+  const authorizeInvocation = async (
+    target: ConsoleTarget,
+    identity: ConsoleIdentity,
+    operation: Operation,
+    mount?: ConsoleMount
+  ) => {
+    if (mount?.descriptor.access === "administrator") {
+      await auth.enforce(identity, resource(target, "admin", undefined, mount));
+    }
+    await auth.enforce(identity, resource(target, "invoke", operation, mount));
+    if (!writable(operation, target, mount)) {
+      throw failure("FORBIDDEN", 403);
+    }
+  };
+  const bindInvocation = async (
+    target: ConsoleTarget,
+    request: Request,
+    identity: ConsoleIdentity,
+    operation: Operation,
+    input: unknown,
+    mount?: ConsoleMount
+  ) => {
+    checkAbort(request);
+    await authorizeInvocation(target, identity, operation, mount);
+    const binding = await options.binding(
+      operation,
+      input,
+      request,
+      identity,
+      resource(target, "invoke", operation, mount)
+    );
+    checkAbort(request);
+    await authorizeInvocation(target, identity, operation, mount);
+    checkAbort(request);
+    return {
+      ...binding,
+      signal: binding.signal
+        ? AbortSignal.any([request.signal, binding.signal])
+        : request.signal,
+    };
+  };
   const adapter = (
     target: ConsoleTarget,
     request: Request,
     identity: ConsoleIdentity,
-    operations = selected.get(target)!,
+    operations?: readonly Operation[],
     mount?: ConsoleMount
   ) =>
     createManageAdapter({
-      running: target.running ?? runtime,
-      plugins: target.plugins,
-      operations,
+      selection: selections.get(target)!,
       canList: (operation) =>
+        (!operations ||
+          operations.some(
+            (selected) =>
+              selected.plugin === operation.plugin &&
+              selected.method === operation.method
+          )) &&
         auth.can(identity, resource(target, "list", operation, mount)),
-      binding: async (operation, input) => {
-        checkAbort(request);
-        if (mount?.descriptor.access === "administrator") {
-          await auth.enforce(
-            identity,
-            resource(target, "admin", undefined, mount)
-          );
-        }
-        const boundResource = resource(target, "invoke", operation, mount);
-        await auth.enforce(identity, boundResource);
-        if (!writable(operation, target, mount)) {
-          throw failure("FORBIDDEN", 403);
-        }
-        const binding = await options.binding(
-          operation,
-          input,
-          request,
-          identity,
-          boundResource
-        );
-        checkAbort(request);
-        if (mount?.descriptor.access === "administrator") {
-          await auth.enforce(
-            identity,
-            resource(target, "admin", undefined, mount)
-          );
-        }
-        await auth.enforce(identity, boundResource);
-        if (!writable(operation, target, mount)) {
-          throw failure("FORBIDDEN", 403);
-        }
-        checkAbort(request);
-        return {
-          ...binding,
-          signal: binding.signal
-            ? AbortSignal.any([request.signal, binding.signal])
-            : request.signal,
-        };
-      },
+      binding: (operation, input) =>
+        bindInvocation(target, request, identity, operation, input, mount),
     });
   async function invoke(
     target: ConsoleTarget,
@@ -480,7 +616,7 @@ export function createConsoleService(
     input: unknown,
     request: Request,
     identity: ConsoleIdentity,
-    operations = selected.get(target)!,
+    operations?: readonly Operation[],
     mount?: ConsoleMount
   ) {
     checkAbort(request);
@@ -547,19 +683,35 @@ export function createConsoleService(
           if (!(await auth.can(identity, resource(target, "list")))) {
             continue;
           }
-          for (const entry of await adapter(
-            target,
-            request,
-            identity
-          ).catalog()) {
-            const index = /^operation_(0|[1-9][0-9]*)$/.exec(entry.key);
-            const operation = index
-              ? selected.get(target)![Number(index[1])]
-              : undefined;
-            if (!operation) {
-              throw failure("SERVICE_UNAVAILABLE", 503);
+          const entries = await adapter(target, request, identity).catalog();
+          // Manage keys and redacted names are opaque. Project write availability
+          // through the same selection instead of reconstructing its operations.
+          const availableKeys = new Set<string>();
+          if (
+            options.canWrite &&
+            entries.some((entry) => entry.effect !== "read")
+          ) {
+            const availableEntries = await createManageAdapter({
+              selection: selections.get(target)!,
+              canList: (operation) =>
+                writable(operation, target) &&
+                auth.can(identity, resource(target, "list", operation)),
+              binding: (operation, validatedInput) =>
+                bindInvocation(
+                  target,
+                  request,
+                  identity,
+                  operation,
+                  validatedInput
+                ),
+            }).catalog();
+            for (const entry of availableEntries) {
+              availableKeys.add(entry.key);
             }
-            const available = writable(operation, target);
+          }
+          for (const entry of entries) {
+            const available =
+              entry.effect === "read" || availableKeys.has(entry.key);
             operations.push({
               key: `${catalogRevision}:${target.id}:${entry.key}`,
               targetId: target.id,
@@ -607,10 +759,15 @@ export function createConsoleService(
                 {
                   id: plugin.id,
                   targetId: target.id,
-                  configuration: running.configuration?.(plugin) ?? {
-                    state: "unavailable" as const,
-                    fields: [],
-                    sources: [],
+                  configuration: {
+                    ...(running.configuration?.(plugin) ?? {
+                      state: "unavailable" as const,
+                      fields: [],
+                      sources: [],
+                    }),
+                    writable: false,
+                    unavailableReason:
+                      "Startup configuration is read-only here. Change the application-owned source and restart.",
                   },
                 },
                 environmentSecrets()
@@ -649,6 +806,174 @@ export function createConsoleService(
       }
     ),
     workspace: {
+      subscribe: implementation.workspace.subscribe.handler(
+        async ({
+          input,
+          signal: procedureSignal,
+          context: { request, identity, responseHeaders },
+        }) => {
+          let initialized!: () => void;
+          const initialization = new Promise<void>((resolve) => {
+            initialized = resolve;
+          });
+          openings.add(initialization);
+          let operation: Operation | undefined;
+          const controller = new AbortController();
+          const sanitized = new WeakSet<Error>();
+          const sanitize = (error: unknown) => {
+            if (error instanceof Error && sanitized.has(error)) {
+              return error;
+            }
+            const safe = rpcFailure(
+              safeError(operation ? operationError(operation, error) : error),
+              responseHeaders
+            );
+            sanitized.add(safe);
+            return safe;
+          };
+          try {
+            const { target, mount } = workspace(input.mountId, request);
+            const requirement = mount.descriptor.requirements.find(
+              (entry) => entry.service_id === input.service
+            );
+            const service = Object.hasOwn(mount.services, input.service)
+              ? mount.services[input.service]
+              : undefined;
+            const stream = service?.streams?.find(
+              (entry) => entry.operation.method === input.operation
+            );
+            if (
+              !requirement?.available ||
+              !requirement.operations.includes(input.operation) ||
+              !stream
+            ) {
+              throw failure("NOT_FOUND", 404);
+            }
+            ({ operation } = stream);
+            const expected = expectedConsoleSubject(request);
+            if (expected !== null && expected !== identity.actor.subjectId) {
+              throw failure("PRECONDITION_FAILED", 412);
+            }
+            const checkCurrent = async () => {
+              checkAbort(request);
+              lifecycle.signal.throwIfAborted();
+              procedureSignal?.throwIfAborted();
+              workspace(input.mountId, request);
+              const current = await auth.authenticate(request);
+              if (
+                current.actor.subjectId !== identity.actor.subjectId ||
+                current.actor.realmId !== identity.actor.realmId ||
+                current.actor.audience !== identity.actor.audience ||
+                current.actor.kind !== identity.actor.kind ||
+                current.readScope !== identity.readScope
+              ) {
+                throw failure("PRECONDITION_FAILED", 412);
+              }
+              await auth.enforce(
+                current,
+                resource(target, "list", undefined, mount)
+              );
+              await auth.enforce(
+                current,
+                resource(target, "list", stream.operation, mount)
+              );
+              await authorizeInvocation(
+                target,
+                current,
+                stream.operation,
+                mount
+              );
+            };
+            await checkCurrent();
+            jsonInput(input.input);
+            const validated = await validateOperationInput(
+              operation,
+              input.input
+            );
+            const signals = [
+              request.signal,
+              controller.signal,
+              lifecycle.signal,
+            ];
+            if (procedureSignal) {
+              signals.push(procedureSignal);
+            }
+            const entrySignal = AbortSignal.any(signals);
+            const bindingRequest = new Request(request, {
+              signal: entrySignal,
+            });
+            const binding = await bindInvocation(
+              target,
+              bindingRequest,
+              identity,
+              operation,
+              validated,
+              mount
+            );
+            await checkCurrent();
+            const signal = AbortSignal.any([entrySignal, binding.signal]);
+            signal.throwIfAborted();
+            if (operation.context && binding.context === undefined) {
+              throw failure("SERVICE_UNAVAILABLE", 503);
+            }
+            const producer = await executeOperation(
+              target.running ?? runtime,
+              operation,
+              validated,
+              binding.context
+            );
+            if (
+              !producer ||
+              typeof producer !== "object" ||
+              !("next" in producer) ||
+              typeof producer.next !== "function" ||
+              !("return" in producer) ||
+              typeof producer.return !== "function"
+            ) {
+              throw failure("SERVICE_UNAVAILABLE", 503);
+            }
+            const maxBytes = stream.maxItemBytes ?? 48 * 1024;
+            const close = () => iterator.return();
+            const releaseSubscription = (error?: Error) => {
+              subscriptions.delete(close);
+              cleanupFailure ??= error;
+            };
+            const iterator = subscription(
+              producer as AsyncIterator<unknown>,
+              controller,
+              signal,
+              async (value) => {
+                signal.throwIfAborted();
+                await checkCurrent();
+                // Bound the private item before projection as well as its public DTO.
+                boundedJson(value, maxBytes);
+                const projected =
+                  await stream.output["~standard"].validate(value);
+                if (projected.issues) {
+                  throw failure("SERVICE_UNAVAILABLE", 503);
+                }
+                const json = boundedJson(projected.value, maxBytes);
+                const safe = redact(JSON.parse(json), environmentSecrets());
+                boundedJson(safe, maxBytes);
+                signal.throwIfAborted();
+                await checkCurrent();
+                signal.throwIfAborted();
+                return safe;
+              },
+              sanitize,
+              releaseSubscription
+            );
+            subscriptions.add(close);
+            return iterator;
+          } catch (error) {
+            controller.abort();
+            throw sanitize(error);
+          } finally {
+            openings.delete(initialization);
+            initialized();
+          }
+        }
+      ),
       invoke: implementation.workspace.invoke.handler(
         async ({ input, context: { request, identity, responseHeaders } }) => {
           try {
@@ -704,6 +1029,35 @@ export function createConsoleService(
   });
   const prefix: `/${string}` = `${api}/console`;
   return {
+    close() {
+      closing ??= (async () => {
+        const owned = new Set(subscriptions);
+        for (const selection of selections.values()) {
+          selection.close();
+        }
+        lifecycle.abort();
+        await Promise.allSettled(new Set(openings));
+        for (const close of subscriptions) {
+          owned.add(close);
+        }
+        const results = await Promise.allSettled(
+          [...owned].map((close) => close())
+        );
+        const errors = results
+          .filter((result) => result.status === "rejected")
+          .map((result) => result.reason);
+        if (cleanupFailure) {
+          errors.push(cleanupFailure);
+        }
+        if (errors.length) {
+          throw new AggregateError(
+            errors,
+            "Console subscriptions could not close"
+          );
+        }
+      })();
+      return closing;
+    },
     async fetch(request) {
       const path = new URL(request.url).pathname;
       const authRoute = path === authBase || path.startsWith(`${authBase}/`);
@@ -734,10 +1088,32 @@ export function createConsoleService(
           checkAbort(request);
           return response;
         }
+        if (
+          request.method === "GET" &&
+          path === `${prefix}/v1/locale` &&
+          !(auth.hasCredentials
+            ? auth.hasCredentials(request)
+            : request.headers.has("authorization") ||
+              request.headers.has("cookie"))
+        ) {
+          return await locale.snapshot(undefined, request.signal);
+        }
         const identity = await auth.authenticate(request);
         checkAbort(request);
         let response: Response | undefined;
-        if (request.method === "GET" && path === `${prefix}/v1/session`) {
+        if (
+          path === `${prefix}/v1/locale` ||
+          path.startsWith(`${prefix}/v1/locale/`)
+        ) {
+          response = await locale.fetch(
+            request,
+            path.slice(`${prefix}/v1/locale`.length),
+            identity
+          );
+        } else if (
+          request.method === "GET" &&
+          path === `${prefix}/v1/session`
+        ) {
           const session = await auth.session(identity);
           response = Response.json({
             mode: "required",
@@ -748,6 +1124,20 @@ export function createConsoleService(
             human_management_enabled: false,
             management_enabled: options.management === true,
             management_protocol: "lenso-console-rpc/2",
+            capabilities: {
+              locale: options.locale ? "available" : "unavailable",
+              pluginConfiguration: "read-only",
+              pluginConfigurationWrite: {
+                available: false,
+                reason:
+                  "Startup configuration is read-only here. Change the application-owned source and restart.",
+              },
+              agent: {
+                available: false,
+                reason:
+                  "No TS Agent transport is installed; the Rust agent:web workflow is retained.",
+              },
+            },
           });
         } else if (request.method === "GET" && path === `${prefix}/v1/apps`) {
           const permitted = [];
@@ -761,7 +1151,7 @@ export function createConsoleService(
                   )
                 ),
                 scope: "application",
-                pluginConfiguration: false,
+                pluginConfiguration: true,
                 agentId: null,
                 localBundleInstall: false,
               });
@@ -770,15 +1160,16 @@ export function createConsoleService(
           response = Response.json({ apps: permitted });
         } else if (
           request.method === "GET" &&
-          path === `${prefix}/v1/surfaces`
+          [`${prefix}/v1/pages`, `${prefix}/v1/surfaces`].includes(path)
         ) {
-          response = Response.json({
-            schema: "console.page-catalog/1",
-            mounts: [],
-          });
-        } else if (request.method === "GET" && path === `${prefix}/v1/pages`) {
           const visible = [];
           for (const { target, mount } of mounts.values()) {
+            if (
+              (mount.placement === "global") !==
+              (path === `${prefix}/v1/surfaces`)
+            ) {
+              continue;
+            }
             if (
               await auth.can(
                 identity,
@@ -796,25 +1187,46 @@ export function createConsoleService(
               for (const requirement of mount.descriptor.requirements) {
                 const service = mount.services[requirement.service_id];
                 const methods: string[] = [];
-                for (const operation of service?.operations ?? []) {
+                const streamingMethods: string[] = [];
+                const declaredStreams = service?.streams ?? [];
+                for (const operation of [
+                  ...(service?.operations ?? []),
+                  ...declaredStreams.map((stream) => stream.operation),
+                ]) {
                   if (
                     requirement.operations.includes(operation.method) &&
                     writable(operation, target, mount) &&
                     (await auth.can(
                       identity,
                       resource(target, "invoke", operation, mount)
+                    )) &&
+                    (await auth.can(
+                      identity,
+                      resource(target, "list", operation, mount)
                     ))
                   ) {
                     methods.push(operation.method);
+                    if (
+                      declaredStreams.some(
+                        (stream) => stream.operation === operation
+                      )
+                    ) {
+                      streamingMethods.push(operation.method);
+                    }
                   }
                 }
                 requirements.push({
                   ...requirement,
-                  operations: methods.length ? methods : requirement.operations,
+                  operations: methods,
+                  streaming_operations: streamingMethods,
                   available:
                     requirement.available &&
                     options.management === true &&
-                    methods.length > 0,
+                    methods.length > 0 &&
+                    (!requirement.required ||
+                      requirement.operations.every((method) =>
+                        methods.includes(method)
+                      )),
                 });
               }
               const credentials: { issuePath?: string; rotatePath?: string } =

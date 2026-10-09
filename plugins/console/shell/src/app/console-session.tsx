@@ -32,7 +32,12 @@ import {
   subscribeWorkspaceIdentityTransitions,
 } from "../lib/identity-transition";
 import { queryClient } from "../lib/query-client";
-import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
+import {
+  configureSessionCsrf,
+  configureSessionReadScope,
+  retireSessionReads,
+  sessionFetch,
+} from "../lib/session-fetch";
 import { useConsoleLocale, prepareSessionLocale } from "./console-locale";
 import { sessionStyles as styles } from "./console-session.stylex";
 
@@ -114,6 +119,7 @@ export function ConsoleSession({
     workspaceIds: [] as string[],
   });
   const invalidate = useCallback((preserveLogin = false) => {
+    retireSessionReads();
     retireWorkspaceSources();
     generation.current += 1;
     inFlight.current?.controller.abort();
@@ -150,9 +156,29 @@ export function ConsoleSession({
       clearTimeout(retryTimer.current);
       const controller = new AbortController();
       const { signal } = controller;
+      const readSignal = AbortSignal.any([signal, AbortSignal.timeout(15_000)]);
       generation.current += 1;
       const { current } = generation;
       const active = () => current === generation.current && !signal.aborted;
+      const failed = () => {
+        if (!active()) {
+          return;
+        }
+        if (ready.current) {
+          failures.current += 1;
+          const delay = Math.min(30_000, 1000 * 2 ** (failures.current - 1));
+          retryAfter.current = Date.now() + delay;
+          if (failures.current <= 3) {
+            retryTimer.current = setTimeout(() => {
+              if (active()) {
+                void refresh(false);
+              }
+            }, delay);
+          }
+        } else {
+          setState({ kind: "error" });
+        }
+      };
       const read = withIdentityRead(async () => {
         if (!active()) {
           return;
@@ -170,7 +196,7 @@ export function ConsoleSession({
               const methods = await sessionFetch(consoleAuthPath("methods"), {
                 credentials: "same-origin",
                 cache: "no-store",
-                signal,
+                signal: readSignal,
               });
               return methods.ok ? await methods.json() : undefined;
             } catch {
@@ -190,12 +216,13 @@ export function ConsoleSession({
           const response = await sessionFetch("/api/console/v1/session", {
             credentials: "same-origin",
             cache: "no-store",
-            signal,
+            signal: readSignal,
           });
           if (!active()) {
             return;
           }
           if (response.status === 401 || response.status === 403) {
+            retireSessionReads();
             retireWorkspaceSources();
             // Confirmed invalid/denied access retires admitted content before fetching
             // login options. An already-open login form keeps its entered values.
@@ -219,7 +246,8 @@ export function ConsoleSession({
             if (!active()) {
               return;
             }
-            await prepareSessionLocale("anonymous", signal);
+            await prepareSessionLocale("anonymous", readSignal);
+            readSignal.throwIfAborted();
             if (!active()) {
               return;
             }
@@ -234,6 +262,9 @@ export function ConsoleSession({
               throw new Error("Session unavailable");
             }
             const value: unknown = await response.json();
+            if (!active()) {
+              return;
+            }
             if (
               !value ||
               typeof value !== "object" ||
@@ -289,6 +320,7 @@ export function ConsoleSession({
               response.headers.get("x-lenso-read-scope"),
             ]);
             if (ready.current && scope.current !== nextScope) {
+              retireSessionReads();
               retireWorkspaceSources();
               ready.current = false;
               scope.current = undefined;
@@ -302,10 +334,25 @@ export function ConsoleSession({
                 return;
               }
             }
-            await prepareSessionLocale(nextScope, signal);
+            await prepareSessionLocale(nextScope, readSignal);
+            readSignal.throwIfAborted();
             if (active()) {
               queryClient.admitReadScope(
                 response.headers.get("x-lenso-read-scope")
+              );
+              configureSessionReadScope(
+                response.headers.get("x-lenso-read-scope"),
+                async () => {
+                  const epoch = generation.current;
+                  const pending = inFlight.current?.promise;
+                  if (pending) {
+                    await pending;
+                    if (epoch !== generation.current || signal.aborted) {
+                      return;
+                    }
+                  }
+                  await refresh();
+                }
               );
               if (scope.current !== nextScope) {
                 queryClient.clear();
@@ -324,36 +371,14 @@ export function ConsoleSession({
             }
           }
         } catch {
-          if (active()) {
-            if (ready.current) {
-              failures.current += 1;
-              const delay = Math.min(
-                30_000,
-                1000 * 2 ** (failures.current - 1)
-              );
-              retryAfter.current = Date.now() + delay;
-              // Keep an admitted page usable through temporary failures. Stop automatic
-              // retries after three; a later focus may try again after the backoff.
-              if (failures.current <= 3) {
-                retryTimer.current = setTimeout(() => {
-                  if (active()) {
-                    void refresh(false);
-                  }
-                }, delay);
-              }
-            } else {
-              setState({ kind: "error" });
-            }
-          }
+          failed();
         }
-      }, signal);
+      }, readSignal);
       const promise = (async () => {
         try {
           await read;
         } catch {
-          if (active()) {
-            setState({ kind: "error" });
-          }
+          failed();
         }
       })();
       const pending = { controller, promise };
@@ -398,7 +423,18 @@ export function ConsoleSession({
         });
     window.addEventListener("focus", focus);
     window.addEventListener("lenso-session-expired", expired);
+    // Focus is not guaranteed on a long-lived, idle page.
+    const periodic = setInterval(
+      () => {
+        if (Date.now() >= retryAfter.current) {
+          void refresh();
+        }
+      },
+      Math.max(1000, Math.min(freshnessMs, 60_000))
+    );
     return () => {
+      clearInterval(periodic);
+      retireSessionReads();
       generation.current += 1;
       inFlight.current?.controller.abort();
       inFlight.current = undefined;
@@ -408,7 +444,7 @@ export function ConsoleSession({
       window.removeEventListener("focus", focus);
       window.removeEventListener("lenso-session-expired", expired);
     };
-  }, [invalidate, refresh]);
+  }, [freshnessMs, invalidate, refresh]);
   const signOut = useCallback(async () => {
     if (signingOut.current) {
       return;

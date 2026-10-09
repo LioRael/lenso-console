@@ -1,4 +1,9 @@
-import { oc, type, type RouterContractClient } from "@orpc/contract";
+import {
+  asyncIteratorObject,
+  oc,
+  type,
+  type RouterContractClient,
+} from "@orpc/contract";
 import { z } from "zod";
 
 export interface ConsoleOperationDescriptor {
@@ -16,19 +21,9 @@ export interface ConsoleOperationDescriptor {
   unavailableReason?: string;
 }
 
-export interface ConsolePluginDescriptor {
-  id: string;
-  targetId: string;
-  configuration: {
-    state: "unconfigured" | "resolved" | "unavailable";
-    fields: readonly {
-      path: readonly (string | number)[];
-      sourceIds: readonly string[];
-      sensitive: boolean;
-    }[];
-    sources: readonly { id: string; kind: string }[];
-  };
-}
+export type ConsolePluginDescriptor = z.infer<
+  typeof consolePluginDescriptorSchema
+>;
 
 export interface ConsoleTargetDescriptor {
   id: string;
@@ -45,6 +40,8 @@ export const consolePluginDescriptorSchema = z.strictObject({
   targetId: z.string(),
   configuration: z.strictObject({
     state: z.enum(["unconfigured", "resolved", "unavailable"]),
+    writable: z.literal(false).optional(),
+    unavailableReason: z.string().optional(),
     fields: z
       .array(
         z.strictObject({
@@ -65,6 +62,10 @@ export const consolePageDescriptorSchema = z.strictObject({
   protocol: z.literal("lenso-console-rpc/2"),
   id: z.string(),
   title: z.string(),
+  targetId: z
+    .string()
+    .regex(/^[a-z][a-z0-9._-]{0,63}$/)
+    .optional(),
   subject: z.union([
     z.strictObject({ kind: z.literal("console") }),
     z.strictObject({ kind: z.literal("app"), appId: z.string() }),
@@ -115,6 +116,7 @@ export const consolePageDescriptorSchema = z.strictObject({
         capability_id: z.string(),
         descriptor_version: z.string(),
         operations: z.array(z.string()).readonly(),
+        streaming_operations: z.array(z.string()).readonly().optional(),
         available: z.boolean(),
         required: z.boolean(),
         source: z.enum(["owner", "subject"]),
@@ -175,6 +177,16 @@ export const consoleContract = {
         })
       )
       .output(type<unknown>()),
+    subscribe: oc
+      .input(
+        z.strictObject({
+          mountId: z.string(),
+          service: z.string(),
+          operation: z.string(),
+          input: z.unknown(),
+        })
+      )
+      .output(asyncIteratorObject(z.unknown(), z.void())),
   },
 };
 

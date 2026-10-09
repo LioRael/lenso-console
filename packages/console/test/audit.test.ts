@@ -189,6 +189,25 @@ test("Audit binding isolates trusted target scope, pages real rows and rechecks 
       ).rejects.toBeDefined();
     }
     expect(resolved).toBe(0);
+    // Manage now snapshots descriptors. Matching the installed plugin alone
+    // must not admit a detached owner, replacement schema or changed gates.
+    const declared = integration.operations[0]!;
+    for (const operation of [
+      { ...declared, plugin: { ...declared.plugin } },
+      { ...declared, input: { ...declared.input } },
+      { ...declared, confirmation: "required" as const },
+    ]) {
+      await expect(
+        integration.binding(operation, {}, request, identity, {
+          action: "invoke",
+          targetId: target,
+          tenantId: tenant,
+          pluginId: declared.plugin.id,
+          operation: declared.method,
+        })
+      ).rejects.toBeDefined();
+    }
+    expect(resolved).toBe(0);
     const first = (await adapter.invoke(integration.plugin.id, "query", {
       limit: 2,
     })) as AuditPage;

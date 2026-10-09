@@ -898,3 +898,110 @@ test("another identity surface retires cache until its transition completes", as
     peer.close();
   }
 });
+
+test("a successful API revision change retires pending reads without allowing revision rollback", async () => {
+  let revision = "a".repeat(64);
+  let completeOld: ((response: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      if (String(url) === "/auth/methods") {
+        return methods();
+      }
+      if (String(url) === "/api/console/v1/session") {
+        return Response.json(admitted, {
+          headers: { "x-lenso-read-scope": revision },
+        });
+      }
+      if (String(url) === "/api/pending") {
+        return new Promise<Response>((resolve) => {
+          completeOld = resolve;
+        });
+      }
+      return Response.json(
+        { private: true },
+        {
+          headers: { "x-lenso-read-scope": revision },
+        }
+      );
+    })
+  );
+  const mounts = statefulMount();
+  await page
+    .getByRole("textbox", { name: "Workspace draft" })
+    .fill("old draft");
+  queryClient.setQueryData(["private-proof"], "old revision");
+  const old = sessionFetch("/api/pending");
+  const rejected = expect(old).rejects.toMatchObject({ name: "AbortError" });
+  revision = "b".repeat(64);
+  await expect(sessionFetch("/api/changed")).rejects.toMatchObject({
+    name: "AbortError",
+  });
+  await expect.poll(() => queryClient.authenticationScope).toBe(revision);
+  await expect.poll(mounts).toBe(2);
+  completeOld?.(
+    Response.json(
+      {},
+      {
+        headers: { "x-lenso-read-scope": "a".repeat(64) },
+      }
+    )
+  );
+  await rejected;
+  expect(queryClient.authenticationScope).toBe(revision);
+  expect(queryClient.getQueryData(["private-proof"])).toBeUndefined();
+  await expect
+    .element(page.getByRole("textbox", { name: "Workspace draft" }))
+    .toHaveValue("");
+});
+
+test("object denial rechecks the admitted session without logging out or dropping drafts", async () => {
+  let checks = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      if (String(url) === "/auth/methods") {
+        return methods();
+      }
+      if (String(url) === "/api/denied-object") {
+        return new Response(null, { status: 403 });
+      }
+      checks += 1;
+      return Response.json(admitted, {
+        headers: { "x-lenso-read-scope": "a".repeat(64) },
+      });
+    })
+  );
+  const mounts = statefulMount();
+  const draft = page.getByRole("textbox", { name: "Workspace draft" });
+  await draft.fill("keep draft");
+  queryClient.setQueryData(["private-proof"], "keep");
+  const deniedObject = await sessionFetch("/api/denied-object");
+  expect(deniedObject.status).toBe(403);
+  await expect.poll(() => checks).toBe(2);
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  expect(mounts()).toBe(1);
+  expect(queryClient.getQueryData(["private-proof"])).toBe("keep");
+  await expect.element(draft).toHaveValue("keep draft");
+});
+
+test("an idle admitted page observes scope changes without a focus event", async () => {
+  let revision = "a".repeat(64);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) =>
+      String(url) === "/auth/methods"
+        ? methods()
+        : Response.json(admitted, {
+            headers: { "x-lenso-read-scope": revision },
+          })
+    )
+  );
+  const mounts = statefulMount(1000);
+  await page.getByRole("textbox", { name: "Workspace draft" }).fill("old");
+  revision = "b".repeat(64);
+  await expect.poll(mounts, { timeout: 3000 }).toBe(2);
+  await expect
+    .element(page.getByRole("textbox", { name: "Workspace draft" }))
+    .toHaveValue("");
+});

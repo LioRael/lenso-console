@@ -278,7 +278,10 @@ test("Tasks isolate actual jobs, hide cursors/results and gate replay through re
     expect(integration.plugin.requires).toEqual([queuePlugin, authentication]);
     expect(() =>
       integration.binding(
-        { ...integration.operations[0] },
+        {
+          ...integration.operations[0],
+          plugin: { ...integration.plugin },
+        },
         {},
         request,
         identity,

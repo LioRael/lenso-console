@@ -274,6 +274,12 @@ export const consoleHttpPaths = Object.freeze(
 );
 
 export function consoleApiPath(path: string, paths = consoleHttpPaths) {
+  if (
+    within(path, paths.api_base_path) ||
+    path.startsWith(`${paths.api_base_path}?`)
+  ) {
+    return path;
+  }
   return path === "/api" || path.startsWith("/api/") || path.startsWith("/api?")
     ? `${paths.api_base_path}${path.slice("/api".length)}`
     : path;

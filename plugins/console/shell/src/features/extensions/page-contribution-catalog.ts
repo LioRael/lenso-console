@@ -3,13 +3,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { useConsoleSession } from "../../app/console-session";
-import { consoleHttpPaths } from "../../lib/console-http-paths";
+import {
+  consoleHttpPaths,
+  type ConsoleHttpPaths,
+} from "../../lib/console-http-paths";
 import { httpClient, isApiMode } from "../../lib/http-client";
 import {
   withIdentityRead,
   subscribeIdentityTransitions,
   subscribeWorkspaceIdentityTransitions,
 } from "../../lib/identity-transition";
+import { sessionFetch } from "../../lib/session-fetch";
 import { validWorkspaceBasePath, workspaceBasePath } from "./workspace-paths";
 import {
   createWorkspaceServices,
@@ -55,6 +59,7 @@ export type PageMount = {
   index?: readonly string[];
   routes?: readonly (readonly string[])[];
   pageId?: string;
+  targetId?: string;
   implementationId?: string;
   module: string;
   navigation: {
@@ -71,6 +76,7 @@ export type PageMount = {
     capability_id: string;
     descriptor_version: string;
     operations: readonly string[];
+    streaming_operations?: readonly string[];
     required: boolean;
     service_id: string;
     source: "owner" | "subject";
@@ -186,7 +192,10 @@ const demoCatalog: readonly PageMount[] = [
   },
 ];
 
-export function parsePageCatalog(value: unknown): readonly PageMount[] {
+export function parsePageCatalog(
+  value: unknown,
+  paths: Pick<ConsoleHttpPaths, "api_base_path"> = consoleHttpPaths
+): readonly PageMount[] {
   if (
     !value ||
     typeof value !== "object" ||
@@ -199,6 +208,17 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
   }
   const ids = new Set<string>();
   return value.mounts.map((candidate) => {
+    // Retained workspace-http Hosts publish logical /api assets. Only that
+    // protocol may resolve its fixed logical prefix against trusted bootstrap
+    // paths; RPC descriptors already contain their actual deployed URLs.
+    const legacyLogicalAssets =
+      candidate &&
+      typeof candidate === "object" &&
+      (candidate.protocol === undefined ||
+        candidate.protocol === "workspace-http/1") &&
+      typeof candidate.module === "string" &&
+      candidate.module.startsWith("/api/console/v1/pages/");
+    const assetBasePath = legacyLogicalAssets ? "/api" : paths.api_base_path;
     if (
       !candidate ||
       typeof candidate !== "object" ||
@@ -218,12 +238,23 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
         candidate.protocol !== "workspace-http/1") ||
       !("module" in candidate) ||
       typeof candidate.module !== "string" ||
-      !isMountAssetUrl(candidate.module, candidate.id) ||
+      !isMountAssetUrl(
+        candidate.module,
+        candidate.id,
+        assetBasePath,
+        candidate.implementationId
+      ) ||
       !("styles" in candidate) ||
       !Array.isArray(candidate.styles) ||
       !candidate.styles.every(
         (style: unknown) =>
-          typeof style === "string" && isMountAssetUrl(style, candidate.id)
+          typeof style === "string" &&
+          isMountAssetUrl(
+            style,
+            candidate.id,
+            assetBasePath,
+            candidate.implementationId
+          )
       ) ||
       !("navigation" in candidate) ||
       !candidate.navigation ||
@@ -242,12 +273,12 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       ("pageId" in candidate &&
         (typeof candidate.pageId !== "string" ||
           !/^[a-z][a-z0-9._-]{0,63}$/u.test(candidate.pageId))) ||
+      ("targetId" in candidate &&
+        (typeof candidate.targetId !== "string" ||
+          !/^[a-z][a-z0-9._-]{0,63}$/u.test(candidate.targetId))) ||
       ("implementationId" in candidate &&
         (typeof candidate.implementationId !== "string" ||
-          !/^[a-f0-9]{64}$/u.test(candidate.implementationId) ||
-          !candidate.module.startsWith(
-            `/api/console/v1/pages/${candidate.id}/assets/${candidate.implementationId}/`
-          ))) ||
+          !/^[a-f0-9]{64}$/u.test(candidate.implementationId))) ||
       !("requirements" in candidate) ||
       !Array.isArray(candidate.requirements) ||
       !candidate.requirements.every(validRequirement)
@@ -304,10 +335,15 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
         ? { routes: candidate.routes as string[][] }
         : {}),
       ...("pageId" in candidate ? { pageId: candidate.pageId as string } : {}),
+      ...("targetId" in candidate
+        ? { targetId: candidate.targetId as string }
+        : {}),
       ...("implementationId" in candidate
         ? { implementationId: candidate.implementationId as string }
         : {}),
-      module: candidate.module,
+      module: legacyLogicalAssets
+        ? `${paths.api_base_path}${candidate.module.slice("/api".length)}`
+        : candidate.module,
       navigation: {
         items: candidate.navigation.items,
         label: candidate.navigation.label,
@@ -315,7 +351,12 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       owner: candidate.owner,
       requirements: candidate.requirements,
       revision: candidate.revision,
-      styles: candidate.styles,
+      styles: legacyLogicalAssets
+        ? candidate.styles.map(
+            (href: string) =>
+              `${paths.api_base_path}${href.slice("/api".length)}`
+          )
+        : candidate.styles,
       subject: candidate.subject,
       title: candidate.title,
     };
@@ -376,6 +417,10 @@ function validOwner(value: unknown): value is PageMount["owner"] {
 function validRequirement(
   value: unknown
 ): value is PageMount["requirements"][number] {
+  const operations =
+    value && typeof value === "object" && "operations" in value
+      ? value.operations
+      : undefined;
   return (
     !!value &&
     typeof value === "object" &&
@@ -391,11 +436,19 @@ function validRequirement(
     typeof value.descriptor_version === "string" &&
     !!value.descriptor_version.trim() &&
     "operations" in value &&
-    Array.isArray(value.operations) &&
-    value.operations.length > 0 &&
-    value.operations.every(
+    Array.isArray(operations) &&
+    (operations.length > 0 || value.available === false) &&
+    operations.every(
       (operation: unknown) => typeof operation === "string" && !!operation
     ) &&
+    (!("streaming_operations" in value) ||
+      (Array.isArray(value.streaming_operations) &&
+        new Set(value.streaming_operations).size ===
+          value.streaming_operations.length &&
+        value.streaming_operations.every(
+          (operation: unknown) =>
+            typeof operation === "string" && operations.includes(operation)
+        ))) &&
     "required" in value &&
     typeof value.required === "boolean" &&
     "source" in value &&
@@ -437,8 +490,13 @@ function isNavigationItem(
   );
 }
 
-function isMountAssetUrl(value: string, mountId: string): boolean {
-  const prefix = `/api/console/v1/pages/${mountId}/assets/`;
+function isMountAssetUrl(
+  value: string,
+  mountId: string,
+  apiBasePath: string,
+  implementationId: unknown
+): boolean {
+  const prefix = `${apiBasePath}/console/v1/pages/${mountId}/assets/`;
   if (!value.startsWith(prefix)) {
     return false;
   }
@@ -446,6 +504,7 @@ function isMountAssetUrl(value: string, mountId: string): boolean {
   const [digest, ...segments] = relative.split("/");
   return (
     /^[a-f0-9]{64}$/u.test(digest ?? "") &&
+    (implementationId === undefined || digest === implementationId) &&
     segments.length > 0 &&
     segments.every((segment) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(segment))
   );
@@ -476,23 +535,20 @@ async function readPageCatalog(
       }
       await withIdentityRead(async () => {
         const lifetime = AbortSignal.any([signal, transport.signal]);
-        const response = await fetch(
+        const response = await sessionFetch(
           `${source.api_base_path}/console/v1/pages`,
           {
             credentials: "same-origin",
             cache: "no-store",
             signal: lifetime,
             headers: { "x-lenso-expected-subject": transport.subject },
-          }
+          },
+          transport
         );
-        if ([401, 403, 412].includes(response.status)) {
-          transport.retire();
-          return;
-        }
         if (!response.ok) {
           throw new Error("Workspace catalog is unavailable");
         }
-        const foreign = parsePageCatalog(await response.json());
+        const foreign = parsePageCatalog(await response.json(), source);
         lifetime.throwIfAborted();
         for (const mount of foreign) {
           const configured = source.mounts.find(
@@ -516,18 +572,9 @@ async function readPageCatalog(
             ...mount,
             basePath: configured.base_path,
             transport,
-            module: `${source.api_base_path}${mount.module.slice(4)}`,
-            styles: mount.styles.map(
-              (href) => `${source.api_base_path}${href.slice(4)}`
-            ),
           };
-          // Permission probes may deny individual projects for a partially
-          // authorized actor. They cannot retire the whole admitted session.
           const services = createWorkspaceServices(
-            {
-              ...scoped,
-              transport: { ...transport, retireForbidden: false },
-            },
+            scoped,
             lifetime,
             transport.subject
           );

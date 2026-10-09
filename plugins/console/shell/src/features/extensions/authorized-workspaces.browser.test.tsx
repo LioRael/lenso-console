@@ -56,12 +56,12 @@ vi.mock(import("../../lib/http-client"), async (original) => {
   };
 });
 
-function mount(id: string, title: string): PageMount {
+function mount(id: string, title: string, apiBasePath = "/api"): PageMount {
   return {
     apiMajor: 1,
     id,
     title,
-    module: `/api/console/v1/pages/${id}/assets/${"a".repeat(64)}/workspace.mjs`,
+    module: `${apiBasePath}/console/v1/pages/${id}/assets/${"a".repeat(64)}/workspace.mjs`,
     navigation: { label: title, items: [{ label: title, path: [] }] },
     owner: {
       instance: `${id}/default`,
@@ -127,7 +127,7 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
   };
   fixture.ordinary = { schema: "console.page-catalog/1", mounts: [ordinary] };
   const operations: PageMount = {
-    ...mount("operations", "Operations"),
+    ...mount("operations", "Operations", "/admin/api"),
     navigation: {
       label: "Operations",
       items: [
@@ -210,7 +210,7 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
       if (path === "/admin/api/console/v1/pages") {
         return Response.json({
           schema: "console.page-catalog/1",
-          mounts: [operations, mount("undeclared", "Undeclared")],
+          mounts: [operations, mount("undeclared", "Undeclared", "/admin/api")],
         });
       }
       expect(new Headers(init?.headers).get("x-lenso-expected-subject")).toBe(

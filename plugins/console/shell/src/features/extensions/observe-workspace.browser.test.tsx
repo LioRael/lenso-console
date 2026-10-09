@@ -344,13 +344,26 @@ async function httpFixture(
       };
       calls.push(call);
       if (call.operation === "watch_requests") {
+        let open = true;
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
             const signal = init?.signal as AbortSignal;
             streams.push({ controller, signal });
-            signal.addEventListener("abort", () => controller.close(), {
-              once: true,
-            });
+            signal.addEventListener(
+              "abort",
+              () => {
+                if (open) {
+                  open = false;
+                  controller.close();
+                }
+              },
+              {
+                once: true,
+              }
+            );
+          },
+          cancel() {
+            open = false;
           },
         });
         return new Response(stream, {

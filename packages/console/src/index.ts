@@ -6,11 +6,15 @@ export type { ConsoleOperationErrorCode } from "./errors";
 export type {
   ConsoleAuthentication,
   ConsoleIdentity,
+  ConsoleLocale,
+  ConsoleLanguagePreference,
+  ConsoleLocaleStore,
   ConsoleMount,
   ConsoleOptions,
   ConsolePageDescriptor,
   ConsoleResource,
   ConsoleRuntime,
   ConsoleService,
+  ConsoleStream,
   ConsoleTarget,
 } from "./types";

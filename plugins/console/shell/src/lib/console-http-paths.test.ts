@@ -43,6 +43,22 @@ test("fixed instance paths preserve query bytes and reject ambiguous bootstrap a
   }
 });
 
+// /ops/api does not reveal double rewriting when a deployed base itself starts
+// with /api. SDK URLs and logical Ky URLs must converge on the same destination.
+test("deployment path projection is idempotent below the canonical API prefix", () => {
+  const paths = parseConsoleHttpPaths({ api_base_path: "/api/tenant" });
+  const logical = "/api/console/v2/rpc/catalog?target=one%2Ftwo";
+  const deployed = "/api/tenant/console/v2/rpc/catalog?target=one%2Ftwo";
+  expect(consoleApiPath(logical, paths)).toBe(deployed);
+  expect(consoleApiPath(deployed, paths)).toBe(deployed);
+  expect(consoleApiPath("/api/tenant?state=one", paths)).toBe(
+    "/api/tenant?state=one"
+  );
+  expect(consoleApiPath("/api/tenant-other/console", paths)).toBe(
+    "/api/tenant/tenant-other/console"
+  );
+});
+
 test("workspace sources cannot select external or conflicting authority", () => {
   const source = {
     id: "operations",

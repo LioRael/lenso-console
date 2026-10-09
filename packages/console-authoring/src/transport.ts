@@ -77,6 +77,7 @@ export interface ConsoleWorkspaceMount {
     available: boolean;
     service_id: string;
     operations: readonly string[];
+    streaming_operations?: readonly string[];
   }[];
 }
 
@@ -84,6 +85,9 @@ export interface ConsoleWorkspaceServicesOptions extends ConsoleClientOptions {
   mount: ConsoleWorkspaceMount;
   signal?: AbortSignal | undefined;
   expectedSubject?: string | undefined;
+  onStreamError?:
+    | ((error: unknown, signal: AbortSignal | undefined) => void)
+    | undefined;
 }
 
 /** Cancellation discards late results. It cannot roll back a dispatched write. */
@@ -98,7 +102,14 @@ export function createConsoleWorkspaceServices(
       const response = await (options.fetch
         ? options.fetch(url, init, ...args)
         : globalThis.fetch(url, init));
-      init.signal?.throwIfAborted();
+      try {
+        init.signal?.throwIfAborted();
+      } catch (error) {
+        // A supplied Fetch may resolve after cancellation, before oRPC owns
+        // the body. Do not leave that unclaimed stream open.
+        await response.body?.cancel();
+        throw error;
+      }
       return response;
     },
     headers: async (...args) => {
@@ -132,7 +143,8 @@ export function createConsoleWorkspaceServices(
     service: string,
     operation: string,
     input: unknown,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    streaming = false
   ) => {
     const signals = [options.signal, signal].filter(
       (value): value is AbortSignal => !!value
@@ -148,6 +160,17 @@ export function createConsoleWorkspaceServices(
     ) {
       throw new WorkspaceServiceError(
         `Workspace service ${service}/${operation} is not admitted for mount ${mount.id}`,
+        "workspace_service_unavailable",
+        503
+      );
+    }
+    const declaredStream =
+      requirement.streaming_operations?.includes(operation);
+    if (streaming ? !declaredStream : declaredStream) {
+      throw new WorkspaceServiceError(
+        streaming
+          ? `Workspace service ${service}/${operation} has no streaming declaration for mount ${mount.id}`
+          : `Workspace service ${service}/${operation} requires subscribe`,
         "workspace_service_unavailable",
         503
       );
@@ -189,19 +212,94 @@ export function createConsoleWorkspaceServices(
         throw mapWorkspaceError(error, service, operation);
       }
     },
-    async *subscribe<Request, Item>(
+    subscribe<Request, Item>(
       service: string,
       operation: string,
       input: Request,
       callOptions?: { signal?: AbortSignal }
     ): AsyncIterable<Item> {
-      prepare(service, operation, input, callOptions?.signal);
-      yield* [] as Item[];
-      throw new WorkspaceServiceError(
-        "Console v2 Manage does not support workspace service streaming",
-        "workspace_service_streaming_unsupported",
-        501
-      );
+      // Async generators queue return behind a pending next; this wrapper must
+      // cancel the oRPC iterator immediately even while a frame is stalled.
+      return {
+        [Symbol.asyncIterator]() {
+          const controller = new AbortController();
+          let upstream:
+            | Awaited<ReturnType<typeof client.workspace.subscribe>>
+            | undefined;
+          let pending: Promise<void> | undefined;
+          let returning: Promise<unknown> | undefined;
+          let closed = false;
+          let signal: AbortSignal | undefined;
+          const release = async () => {
+            if (upstream) {
+              returning ??= upstream.return();
+              await returning;
+            }
+          };
+          const cancel = async () => {
+            try {
+              await release();
+            } catch {
+              // Cancellation must not replace the stream's terminal error.
+            }
+          };
+          const start = () =>
+            (pending ??= (async () => {
+              signal = prepare(
+                service,
+                operation,
+                input,
+                AbortSignal.any([
+                  controller.signal,
+                  ...(callOptions?.signal ? [callOptions.signal] : []),
+                ]),
+                true
+              );
+              signal?.addEventListener("abort", cancel, { once: true });
+              upstream = await client.workspace.subscribe(
+                { mountId: mount.id, service, operation, input },
+                { signal }
+              );
+              if (closed || signal?.aborted) {
+                await release();
+              }
+              signal?.throwIfAborted();
+            })());
+          return {
+            async next(): Promise<IteratorResult<Item>> {
+              if (closed) {
+                return { done: true, value: undefined };
+              }
+              try {
+                await start();
+                const result = await upstream!.next();
+                signal?.throwIfAborted();
+                if (result.done) {
+                  closed = true;
+                  signal?.removeEventListener("abort", cancel);
+                  return { done: true, value: undefined };
+                }
+                return { done: false, value: result.value as Item };
+              } catch (error) {
+                closed = true;
+                await release().catch(() => undefined);
+                signal?.removeEventListener("abort", cancel);
+                signal?.throwIfAborted();
+                const mapped = mapWorkspaceError(error, service, operation);
+                options.onStreamError?.(mapped, signal);
+                throw mapped;
+              }
+            },
+            async return(): Promise<IteratorResult<Item>> {
+              closed = true;
+              controller.abort();
+              await release();
+              signal?.removeEventListener("abort", cancel);
+              return { done: true, value: undefined };
+            },
+          };
+        },
+      };
     },
   };
 }

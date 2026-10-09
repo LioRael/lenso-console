@@ -3,6 +3,7 @@ import {
   WorkspaceServiceDomainError,
   WorkspaceServiceError,
 } from "../../../../../../packages/console-authoring/src/transport";
+import { consoleHttpPaths } from "../../lib/console-http-paths";
 import { sessionFetch } from "../../lib/session-fetch";
 import type { PageMount } from "./page-contribution-catalog";
 
@@ -49,7 +50,7 @@ export function createLegacyWorkspaceServices(
         503
       );
     }
-    return `${mount.transport?.apiBasePath ?? "/api"}/console/v1/pages/${encodeURIComponent(mount.id)}/services/${encodeURIComponent(service)}/${kind}/${encodeURIComponent(operation)}`;
+    return `${mount.transport?.apiBasePath ?? consoleHttpPaths.api_base_path}/console/v1/pages/${encodeURIComponent(mount.id)}/services/${encodeURIComponent(service)}/${kind}/${encodeURIComponent(operation)}`;
   };
   return {
     async invoke<Request, Response>(

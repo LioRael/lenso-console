@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 
 import { ConsoleOperationError } from "../errors";
+import { isSelectedOperation } from "../operation-selection";
 import type {
   ConsoleAuthentication,
   ConsoleIdentity,
@@ -347,7 +348,7 @@ export function createConsoleTasksIntegration(options: ConsoleTasksOptions) {
     resource: ConsoleResource
   ) => {
     if (
-      !operations.some((declared: Operation) => declared === operation) ||
+      !isSelectedOperation(operations, operation) ||
       resource.action !== "invoke" ||
       resource.pluginId !== plugin.id ||
       resource.operation !== operation.method

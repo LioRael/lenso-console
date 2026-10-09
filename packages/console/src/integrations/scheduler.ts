@@ -6,6 +6,7 @@ import { createSchedulerManage } from "@lenso/scheduler/manage";
 import type { Task } from "@lenso/tasks";
 
 import { ConsoleOperationError } from "../errors";
+import { isSelectedOperation } from "../operation-selection";
 import type {
   ConsoleAuthentication,
   ConsoleIdentity,
@@ -44,7 +45,7 @@ export function createConsoleSchedulerIntegration<A extends Actor>(
     resource: ConsoleResource
   ) => {
     if (
-      !companion.operations.some((declared) => declared === operation) ||
+      !isSelectedOperation(companion.operations, operation) ||
       resource.action !== "invoke" ||
       resource.pluginId !== companion.plugin.id ||
       resource.operation !== operation.method

@@ -269,8 +269,53 @@ export async function readWorkspaceSourceSession(
     ) {
       return current;
     }
-    current?.retire();
+    if (current) {
+      // Digests have no ordering. A concurrent publication cannot be replaced
+      // by an earlier observation; retirement makes the next admission reread.
+      current.retire();
+      return null;
+    }
     const controller = new AbortController();
+    let checking: Promise<void> | undefined;
+    const revalidate = () => {
+      if (controller.signal.aborted) {
+        return Promise.resolve();
+      }
+      if (checking) {
+        return checking;
+      }
+      const checkSignal = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(15_000),
+      ]);
+      checking = (async () => {
+        try {
+          await withIdentityRead(async () => {
+            const currentSubject = await binding(source, account, checkSignal);
+            const currentScope =
+              currentSubject === subject
+                ? await operatorSession(source, subject, checkSignal)
+                : null;
+            controller.signal.throwIfAborted();
+            if (currentSubject !== subject || currentScope !== readScope) {
+              transport.retire();
+            }
+          }, checkSignal);
+        } finally {
+          checking = undefined;
+        }
+      })();
+      return checking;
+    };
+    const periodic = setInterval(() => {
+      void (async () => {
+        try {
+          await revalidate();
+        } catch {
+          // A temporary outage is not authoritative revocation. Retry next interval.
+        }
+      })();
+    }, 60_000);
     const transport: WorkspaceSourceTransport = {
       sourceId: source.id,
       apiBasePath: source.api_base_path,
@@ -278,7 +323,9 @@ export async function readWorkspaceSourceSession(
       readScope,
       csrf,
       signal: controller.signal,
+      revalidate,
       retire: () => {
+        clearInterval(periodic);
         controller.abort();
         if (sessions.get(source.id) === transport) {
           generations.set(source.id, (generations.get(source.id) ?? 0) + 1);

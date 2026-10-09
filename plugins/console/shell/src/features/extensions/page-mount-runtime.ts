@@ -1,4 +1,3 @@
-import { consoleApiPath } from "../../lib/console-http-paths";
 import { contributionAssetUrl } from "./contribution-asset-url";
 import type { PageMount } from "./page-contribution-catalog";
 
@@ -6,8 +5,9 @@ const implementations = new Map<string, Promise<unknown>>();
 
 function implementationKey(mount: PageMount) {
   const [, assetPath] = mount.module.split("/assets/");
+  const [sourcePath] = mount.module.split("/console/v1/pages/");
   return mount.implementationId && assetPath
-    ? `${mount.implementationId}:${assetPath}`
+    ? `${sourcePath}:${mount.implementationId}:${assetPath}`
     : mount.module;
 }
 
@@ -27,10 +27,7 @@ export function loadPageImplementation(
 ): Promise<unknown> {
   const baseKey = implementationKey(mount);
   const moduleUrl = contributionAssetUrl(mount.module, recover);
-  const key =
-    moduleUrl === consoleApiPath(mount.module)
-      ? baseKey
-      : `${baseKey}:recovery`;
+  const key = moduleUrl === mount.module ? baseKey : `${baseKey}:recovery`;
   const cached = implementations.get(key);
   if (cached) {
     return cached;
@@ -66,6 +63,7 @@ export function pageMountScopeKey(
     mount.id,
     mount.owner.instance,
     mount.subject,
+    mount.targetId,
     mount.revision,
     mount.protocol ?? "workspace-http/1",
     mount.implementationId ?? mount.module,
