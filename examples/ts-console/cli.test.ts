@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
+import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
 
@@ -30,9 +31,10 @@ async function start(
   origin: string,
   database: string,
   api: string,
-  auth: string
+  auth: string,
+  config?: string
 ) {
-  const child = spawn("pnpm", [script], {
+  const child = spawn("pnpm", [script, ...(config ? [config] : [])], {
     cwd: path.resolve("."),
     detached: true,
     env: {
@@ -47,6 +49,7 @@ async function start(
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+  const closed = once(child, "close");
   let diagnostics = "";
   child.stderr.on("data", (chunk) => {
     diagnostics += chunk;
@@ -57,10 +60,6 @@ async function start(
   });
   const stop = async () => {
     lines.close();
-    if (child.exitCode !== null) {
-      return;
-    }
-    const exited = once(child, "exit");
     const signal = (name: NodeJS.Signals) => {
       try {
         process.kill(-child.pid!, name);
@@ -71,9 +70,16 @@ async function start(
       }
     };
     signal("SIGTERM");
-    const timeout = setTimeout(() => signal("SIGKILL"), 5000);
+    let forced = false;
+    const timeout = setTimeout(() => {
+      forced = true;
+      signal("SIGKILL");
+    }, 5000);
     try {
-      await exited;
+      // Descendants inherit these pipes. "exit" can precede Bun's cleanup;
+      // "close" waits for their stdio too, without accepting forced shutdown.
+      await closed;
+      expect(forced).toBe(false);
     } finally {
       clearTimeout(timeout);
     }
@@ -102,6 +108,28 @@ test("official built and source commands load the config and serve the original 
   const directory = await mkdtemp(path.join(os.tmpdir(), "ts-console-cli-"));
   const browser = await chromium.launch({ headless: true });
   try {
+    // Wrapper exit can precede Bun's asynchronous cleanup. Keep the listener
+    // alive briefly during cleanup so the existing network assertion catches it.
+    const delayedConfig = path.join(directory, "lenso.config.ts");
+    const applicationUrl = pathToFileURL(
+      path.resolve("examples/ts-console/lenso.config.ts")
+    ).href;
+    await writeFile(
+      delayedConfig,
+      `
+import app, { host } from ${JSON.stringify(applicationUrl)};
+export { host };
+const delay = {
+  id: "test-shutdown-delay",
+  requires: [host.listener],
+  setup(context) {
+    context.onCleanup(() => new Promise(resolve => setTimeout(resolve, 100)));
+    return {};
+  },
+};
+export default { ...app, plugins: [...app.plugins, delay] };
+`
+    );
     for (const [script, api, auth] of [
       ["service:ts", "/api", "/auth"],
       ["service:ts:dev", "/api/tenant", "/operator/auth"],
@@ -112,7 +140,8 @@ test("official built and source commands load the config and serve the original 
         origin,
         path.join(directory, `${script}.sqlite`),
         api,
-        auth
+        auth,
+        script === "service:ts:dev" ? delayedConfig : undefined
       );
       try {
         const context = await browser.newContext({ locale: "en-US" });
