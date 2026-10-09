@@ -1,0 +1,116 @@
+.changeset/console-account-locale.md
+  h_9d56aba080c170 1-6
+Cargo.lock
+  h_9d56aba080c170 2387-2401,2983
+Cargo.toml
+  h_9d56aba080c170 12
+apps/shell/src/app/console-i18n.test.ts
+  h_9d56aba080c170 1,3,6
+apps/shell/src/app/console-i18n.ts
+  h_9d56aba080c170 3-6,9-18,24
+apps/shell/src/app/console-locale.browser.test.tsx
+  h_9d56aba080c170 1-148
+apps/shell/src/app/console-locale.test.ts
+  h_9d56aba080c170 1-55
+apps/shell/src/app/console-locale.tsx
+  h_9d56aba080c170 2,5-6,10-28,30-36,38-83,86-104,106-210,214-229,231-233
+apps/shell/src/app/console-session.tsx
+  h_9d56aba080c170 30,205-206,290
+apps/shell/src/components/runtime/console-navigation-model.ts
+  h_9d56aba080c170 107-109
+apps/shell/src/components/runtime/console-shell.tsx
+  h_9d56aba080c170 106,115,133,159-166,501
+apps/shell/src/features/agent/agent-context-usage.tsx
+  h_9d56aba080c170 4,6,23-28,73
+apps/shell/src/features/agent/agent-message-controls.tsx
+  h_9d56aba080c170 5-6,23,35-38,44
+apps/shell/src/features/agent/agent-trajectory.tsx
+  h_9d56aba080c170 17-21,51,123-124,253,292,333,374,380,386,392,452-453,455-463,466-467
+apps/shell/src/features/extensions/global-ui-runtime.ts
+  h_9d56aba080c170 1-2,23-24
+apps/shell/src/features/extensions/page-contribution-outlet.tsx
+  h_9d56aba080c170 1,87,371-372,376
+apps/shell/src/features/plugins/plugin-inspector.tsx
+  h_9d56aba080c170 17-20,22,1093,1153-1156,1379-1386
+apps/shell/src/features/settings/settings-page.locale.browser.test.tsx
+  h_9d56aba080c170 1-148
+apps/shell/src/features/settings/settings-page.tsx
+  h_9d56aba080c170 91,94,98-99,110-158
+apps/shell/src/routes/__root.tsx
+  h_9d56aba080c170 33
+contracts/crates/lenso-capability-console-locale-store/Cargo.toml
+  h_9d56aba080c170 1-38
+contracts/crates/lenso-capability-console-locale-store/build.rs
+  h_9d56aba080c170 1-38
+contracts/crates/lenso-capability-console-locale-store/capability.json
+  h_9d56aba080c170 1-36
+contracts/crates/lenso-capability-console-locale-store/generated/bindings.ts
+  h_9d56aba080c170 1-446
+contracts/crates/lenso-capability-console-locale-store/schemas/error.json
+  h_9d56aba080c170 1-14
+contracts/crates/lenso-capability-console-locale-store/schemas/read_default-request.json
+  h_9d56aba080c170 1-7
+contracts/crates/lenso-capability-console-locale-store/schemas/read_default-response.json
+  h_9d56aba080c170 1-17
+contracts/crates/lenso-capability-console-locale-store/schemas/read_preference-request.json
+  h_9d56aba080c170 1-21
+contracts/crates/lenso-capability-console-locale-store/schemas/read_preference-response.json
+  h_9d56aba080c170 1-18
+contracts/crates/lenso-capability-console-locale-store/schemas/write_default-request.json
+  h_9d56aba080c170 1-17
+contracts/crates/lenso-capability-console-locale-store/schemas/write_default-response.json
+  h_9d56aba080c170 1-17
+contracts/crates/lenso-capability-console-locale-store/schemas/write_preference-request.json
+  h_9d56aba080c170 1-30
+contracts/crates/lenso-capability-console-locale-store/schemas/write_preference-response.json
+  h_9d56aba080c170 1-18
+contracts/crates/lenso-capability-console-locale-store/src/generated.rs
+  h_9d56aba080c170 1-1202
+contracts/crates/lenso-capability-console-locale-store/src/lib.rs
+  h_9d56aba080c170 1-2
+docs/console-authentication.md
+  h_9d56aba080c170 39-43
+docs/console-locale.md
+  h_9d56aba080c170 1-135
+package.json
+  h_9d56aba080c170 13,18,20
+packages/console-authoring/README.md
+  h_9d56aba080c170 268-290
+packages/console-authoring/compiler/compiler.mjs
+  h_9d56aba080c170 228,245,270
+packages/console-authoring/compiler/typecheck.mjs
+  h_9d56aba080c170 82-83
+packages/console-authoring/package.json
+  h_9d56aba080c170 32-34
+packages/console-authoring/src/i18n.ts
+  h_9d56aba080c170 1-99
+packages/console-authoring/src/index.ts
+  h_9d56aba080c170 44-45,100-103
+packages/console-authoring/src/locale.ts
+  h_9d56aba080c170 1-49
+plugins/console/Cargo.toml
+  h_9d56aba080c170 16
+plugins/console/config.schema.json
+  h_9d56aba080c170 11-15,105-109,135-139,179-183,292-295,298-316
+plugins/console/src/lib.rs
+  h_9d56aba080c170 10,120-121,214-220,322,337-341,365,374,452-471,692,698,720-722,818-824,831-833,861-863,869-878,1326,2207,2465
+plugins/console/src/locale.rs
+  h_9d56aba080c170 1-368
+plugins/console/src/locale/tests.rs
+  h_9d56aba080c170 1-345
+plugins/console/src/session.rs
+  h_9d56aba080c170 114-116,216-218,320-324,353-368,370,615-620
+plugins/console/src/session/tests.rs
+  h_9d56aba080c170 95-102,177-181,212-217,310,320,327-328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "805c0dd0a935080f80effd7a9f6cfa1c5438e269",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

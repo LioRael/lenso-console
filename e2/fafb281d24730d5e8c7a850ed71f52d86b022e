@@ -1,0 +1,33 @@
+AGENTS.md
+  s_3724267b9ee00e::t_ab21a57dbcc8b4 46-52
+plugins/marketplace/app/Cargo.lock
+  s_3724267b9ee00e::t_5da32f36b8e5dc 1305,1307,1321,1323
+plugins/marketplace/app/Cargo.toml
+  s_3724267b9ee00e::t_a51422f3d5ff47 16
+plugins/marketplace/directory/Cargo.lock
+  s_3724267b9ee00e::t_e476f60d021069 740,742,756,758
+plugins/marketplace/directory/Cargo.toml
+  s_3724267b9ee00e::t_a4b657d77baf1d 24
+plugins/marketplace/verify-browser.sh
+  s_3724267b9ee00e::t_7503188fbabcad 29
+plugins/marketplace/web/Cargo.lock
+  s_3724267b9ee00e::t_dadc5ec00d7683 782,784,798,800
+plugins/marketplace/web/Cargo.toml
+  s_3724267b9ee00e::t_32b96753849367 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2fafb281d24730d5e8c7a850ed71f52d86b022e",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

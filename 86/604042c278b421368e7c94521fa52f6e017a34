@@ -1,0 +1,14 @@
+docs/reviews/console-authoring-dx-2026-10-02.md
+  h_9d56aba080c170 11,20,23-33,243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86604042c278b421368e7c94521fa52f6e017a34",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

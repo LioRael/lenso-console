@@ -1,0 +1,14 @@
+apps/shell/src/features/settings/settings-page.locale.browser.test.tsx
+  h_9d56aba080c170 61,63,79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b885afb318018abe1ee71ef337b74b5e39dc84db",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
