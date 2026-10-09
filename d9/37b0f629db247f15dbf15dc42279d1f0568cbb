@@ -1,0 +1,24 @@
+Cargo.lock
+  h_9d56aba080c170 2816-2819
+Cargo.toml
+  h_9d56aba080c170 16
+docs/architecture/optional-assistant-boundary.md
+  h_9d56aba080c170 116-129
+plugins/agent-ai-adapter/Cargo.toml
+  h_9d56aba080c170 1-10
+plugins/agent-ai-adapter/README.md
+  h_9d56aba080c170 1-31
+plugins/agent-ai-adapter/src/lib.rs
+  h_9d56aba080c170 1-358
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d937b0f629db247f15dbf15dc42279d1f0568cbb",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

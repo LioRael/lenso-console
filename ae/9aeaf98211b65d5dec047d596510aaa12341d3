@@ -1,0 +1,34 @@
+.github/fixtures/console-kit-stream/fixture-files.sha256
+  h_9d56aba080c170 1-7
+.github/fixtures/console-kit-stream/fixture/bun.lock
+  h_9d56aba080c170 1-74
+.github/fixtures/console-kit-stream/fixture/contribution.ts
+  h_9d56aba080c170 1-298
+.github/fixtures/console-kit-stream/fixture/driver.mjs
+  h_9d56aba080c170 1-93
+.github/fixtures/console-kit-stream/fixture/package.json
+  h_9d56aba080c170 1-23
+.github/fixtures/console-kit-stream/fixture/plugin.ts
+  h_9d56aba080c170 1-72
+.github/fixtures/console-kit-stream/fixture/tsconfig.json
+  h_9d56aba080c170 1
+.github/fixtures/console-kit-stream/fixture/workspace-service.ts
+  h_9d56aba080c170 1-499
+.github/fixtures/console-kit-stream/freeze.json
+  h_9d56aba080c170 1-29
+.github/fixtures/console-kit-stream/run-linux-stream.sh
+  h_9d56aba080c170 1-28
+.github/workflows/console-kit-stream.yml
+  h_9d56aba080c170 1-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae9aeaf98211b65d5dec047d596510aaa12341d3",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

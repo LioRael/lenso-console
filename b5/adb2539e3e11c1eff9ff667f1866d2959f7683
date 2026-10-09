@@ -1,0 +1,75 @@
+.changeset/console-authoring-dx.md
+  s_50e3beadc1d491::t_1518793e951be0 1-6
+docs/app-console-implementation.md
+  s_50e3beadc1d491::t_f4068cd3d5753f 24
+docs/console-page-contributions.md
+  s_50e3beadc1d491::t_80bf99d65c22a7 23,25
+docs/precompiled-console-host.md
+  s_50e3beadc1d491::t_1cd696cb445aca 9
+examples/app-console/README.md
+  s_50e3beadc1d491::t_83536280be1e86 25-28
+examples/app-console/app/orders/console/orders/[id]/page.tsx
+  s_50e3beadc1d491::t_c7cd141bd9ced3 2-3,5-46,49
+packages/console-authoring/README.md
+  s_50e3beadc1d491::t_dacbc3c20235b1 1,3-6,8,10-15,17-22,24-31,33,35-44,46-49,51-55,57-64,66,68-113,115-120
+packages/console-authoring/author.mjs
+  s_50e3beadc1d491::t_e68c7619175512 1-70
+packages/console-authoring/compiler/client-generation.mjs
+  s_50e3beadc1d491::t_1b682888071051 1-71
+packages/console-authoring/compiler/compiler.mjs
+  s_50e3beadc1d491::t_40faf12da0ce08 165,170,203-208,264,271,283,303
+packages/console-authoring/compiler/router.ts
+  s_50e3beadc1d491::t_c3d21054e83e85 3
+packages/console-authoring/compiler/test/consumer.test.mjs
+  s_50e3beadc1d491::t_58a322c285aa3f 1-150
+packages/console-authoring/compiler/test/services.test.ts
+  s_50e3beadc1d491::t_2774d65f12ea7d 3,8,53-75
+packages/console-authoring/compiler/typecheck.mjs
+  s_50e3beadc1d491::t_d4727db89c9607 2,5-6,8,18-44,70-73,85-90,92-97,104-113
+packages/console-authoring/create-app.mjs
+  s_50e3beadc1d491::t_1d38856a0326e4 24
+packages/console-authoring/development-host.md
+  s_50e3beadc1d491::t_533ae5d7520a66 49
+packages/console-authoring/package.json
+  s_50e3beadc1d491::t_aed73e1e27a0bd 4-17,23-24,27,30-32
+packages/console-authoring/src/client.ts
+  s_50e3beadc1d491::t_f9faae3d8b4256 1-42
+packages/console-authoring/src/server.ts
+  s_50e3beadc1d491::t_7f7c42f6428816 15-17,32,67,69-72,79-84,86-88,92-94
+packages/console-authoring/template/orders/[id]/page.tsx
+  s_50e3beadc1d491::t_9a0ba5ea49d596 2-3,5-46,49
+packages/console-support/Cargo.toml
+  s_50e3beadc1d491::t_d1adb992723f50 14
+pnpm-workspace.yaml
+  s_50e3beadc1d491::t_7f359c7d893e47 3
+scripts/check-console-sdk.mjs
+  s_50e3beadc1d491::t_65b872b730933d 10-15,18
+scripts/package-development-host.mjs
+  s_50e3beadc1d491::t_5c303d318f8117 140,177,184
+service/src/workspace_services.rs
+  s_50e3beadc1d491::t_889f84f6984619 683-709,718-744,863-911
+src/features/extensions/convention-router.browser.test.tsx
+  s_50e3beadc1d491::t_9f834f5607b81f 7-8
+src/features/extensions/page-contribution-outlet.browser.test.tsx
+  s_50e3beadc1d491::t_0ad8f9eada8ed1 1-2,111,147,150-175
+src/features/extensions/page-contribution-outlet.tsx
+  s_50e3beadc1d491::t_2160b16951cf71 98-99,185
+src/features/extensions/workspace-service-client.ts
+  s_50e3beadc1d491::t_07469d5d5547bd 1,9,26,28,69-71,74,102,122,162,181-185,191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5adb2539e3e11c1eff9ff667f1866d2959f7683",
+  "prompts": {},
+  "sessions": {
+    "s_50e3beadc1d491": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f9cb-a005-76d3-8f46-f5efcfd3deb1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

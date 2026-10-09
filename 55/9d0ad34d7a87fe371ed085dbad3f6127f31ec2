@@ -1,0 +1,14 @@
+tooling/distribution/package-development-host.mjs
+  h_9d56aba080c170 4,9,135,137-138,171-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "559d0ad34d7a87fe371ed085dbad3f6127f31ec2",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

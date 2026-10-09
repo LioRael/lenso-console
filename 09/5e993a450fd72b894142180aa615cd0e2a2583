@@ -1,0 +1,14 @@
+apps/shell/src/features/plugins/plugin-scope.browser.test.tsx
+  h_9d56aba080c170 13,35-58,199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "095e993a450fd72b894142180aa615cd0e2a2583",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
