@@ -1,10 +1,12 @@
-import { test, expect } from "bun:test";
+import { test, expect, spyOn } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+
+import { discoverWorkspaces } from "../workspace-discovery.mjs";
 
 const compiler = path.resolve(import.meta.dir, "../compiler.mjs");
 // These protect runtime identity (one React), route matching, and fail-closed
@@ -155,6 +157,29 @@ test("directory and explicit workspaces share one implementation with independen
         fs.readFileSync(path.join(output, "descriptor.json"), "utf-8")
       );
     };
+    // Force the directory order seen on Linux; the existing subprocess assertion
+    // alone cannot expose this regression on a naturally sorted filesystem.
+    const readdir = fs.readdirSync;
+    const enumeration = spyOn(fs, "readdirSync").mockImplementation(
+      (directory, options) => {
+        const items = readdir(directory, options);
+        return directory === entry && options?.withFileTypes
+          ? items.sort((left, right) =>
+              left.name > right.name ? -1 : left.name < right.name ? 1 : 0
+            )
+          : items;
+      }
+    );
+    let discovered;
+    try {
+      discovered = await discoverWorkspaces(entry, request.plugin_id);
+    } finally {
+      enumeration.mockRestore();
+    }
+    expect(discovered.map((workspace) => workspace.id)).toEqual([
+      "admin",
+      "user",
+    ]);
     const directory = compile();
     expect(
       directory.workspaces.map((item) => [item.id, item.path, item.access])

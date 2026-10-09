@@ -57,6 +57,9 @@ export async function discoverWorkspaces(root, pluginId, options = {}) {
   } else {
     const children = fs
       .readdirSync(root, { withFileTypes: true })
+      .sort((left, right) =>
+        left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+      )
       .filter(
         (item) =>
           item.isDirectory() &&
