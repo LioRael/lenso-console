@@ -25,15 +25,19 @@ test("keeps narrow navigation reachable and safe while swapping action scopes", 
   const fixture = await openFixture("dock", 320);
   const { page } = fixture;
   try {
-    const navigation = page.getByRole("navigation", { name: "常用模块" });
+    const navigation = page.getByRole("navigation", {
+      name: "Pinned navigation",
+    });
     await navigation.waitFor({ state: "visible" });
     await assertNoInnerScroll(navigation);
-    await navigation.getByRole("button", { name: "条目", exact: true }).click();
+    await navigation
+      .getByRole("button", { name: "Entries", exact: true })
+      .click();
 
     const firstRecord = page.getByRole("checkbox").nth(0);
     await firstRecord.click();
     const toolbar = page.getByRole("toolbar", {
-      name: "所选条目选择操作",
+      name: "Entries selection actions",
       includeHidden: true,
     });
     await toolbar.waitFor({ state: "attached" });
@@ -51,14 +55,16 @@ test("keeps narrow navigation reachable and safe while swapping action scopes", 
     });
     expect(await toolbar.isVisible()).toBe(true);
     await assertNoInnerScroll(toolbar);
-    await page.getByRole("button", { name: "复制", exact: true }).click();
+    await page.getByRole("button", { name: "Copy", exact: true }).click();
     expect(
-      await page.getByRole("status", { name: "执行结果" }).textContent()
-    ).toBe("复制");
+      await page.getByRole("status", { name: "Action result" }).textContent()
+    ).toBe("Copy");
 
-    await page.getByRole("button", { name: "退出选择" }).click();
+    await page.getByRole("button", { name: "Exit selection" }).click();
     await page.waitForFunction(() => {
-      const element = document.querySelector('nav[aria-label="常用模块"]');
+      const element = document.querySelector(
+        'nav[aria-label="Pinned navigation"]'
+      );
       return element && !element.closest("[inert]");
     });
     expect(await navigation.isVisible()).toBe(true);
@@ -72,7 +78,9 @@ test("keeps narrow navigation reachable and safe while swapping action scopes", 
     await firstRecord.click();
     await firstRecord.click();
     await page.waitForFunction(() => {
-      const element = document.querySelector('nav[aria-label="常用模块"]');
+      const element = document.querySelector(
+        'nav[aria-label="Pinned navigation"]'
+      );
       return element && !element.closest("[inert]");
     });
     await assertNoInnerScroll(navigation);

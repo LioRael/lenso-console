@@ -16,12 +16,12 @@ import {
 const items = [
   {
     id: "collection",
-    label: "集合",
+    label: "Collection",
     icon: <Folder size={16} aria-hidden="true" />,
   },
   {
     id: "entries",
-    label: "条目",
+    label: "Entries",
     icon: <Rows3 size={16} aria-hidden="true" />,
   },
 ];
@@ -46,7 +46,7 @@ function DockFixture() {
     >
       {items.map((item) => (
         <button key={item.id} onClick={() => setActiveId(item.id)}>
-          切换到{item.label}
+          Switch to {item.label}
         </button>
       ))}
       {selected.map((checked, index) => (
@@ -63,14 +63,16 @@ function DockFixture() {
               setSelected(next);
             }}
           />
-          选择条目{index + 1}
+          Select entry {index + 1}
         </label>
       ))}
-      <button onClick={() => setCompact(!compact)}>切换紧凑导航</button>
-      <button onClick={() => setVisible(!visible)}>切换可见性</button>
-      <button onClick={() => setRunning(!running)}>切换执行状态</button>
+      <button onClick={() => setCompact(!compact)}>
+        Toggle compact navigation
+      </button>
+      <button onClick={() => setVisible(!visible)}>Toggle visibility</button>
+      <button onClick={() => setRunning(!running)}>Toggle running state</button>
       <select
-        aria-label="导航位置"
+        aria-label="Navigation position"
         value={position}
         onChange={(event) => setPosition(event.target.value as Position)}
       >
@@ -78,7 +80,7 @@ function DockFixture() {
           <option key={value}>{value}</option>
         ))}
       </select>
-      <output aria-label="执行结果">{invoked}</output>
+      <output aria-label="Action result">{invoked}</output>
       <ConsoleDock
         visible={visible}
         position={position}
@@ -95,27 +97,27 @@ function DockFixture() {
           count
             ? {
                 count,
-                scopeLabel: "所选条目",
+                scopeLabel: "Entries",
                 running,
                 actions: [
                   {
                     id: "copy",
-                    label: "复制",
-                    tooltip: "复制所选条目",
+                    label: "Copy",
+                    tooltip: "Copy selected entries",
                     icon: <Copy size={16} aria-hidden="true" />,
-                    onInvoke: () => setInvoked("复制"),
+                    onInvoke: () => setInvoked("Copy"),
                   },
                   {
                     id: "check",
-                    label: "检查",
+                    label: "Check",
                     icon: <Check size={16} aria-hidden="true" />,
-                    onInvoke: () => setInvoked("检查"),
+                    onInvoke: () => setInvoked("Check"),
                   },
                   {
                     id: "open",
-                    label: "打开",
+                    label: "Open",
                     icon: <Folder size={16} aria-hidden="true" />,
-                    onInvoke: () => setInvoked("打开"),
+                    onInvoke: () => setInvoked("Open"),
                   },
                 ],
                 onExit: () => {

@@ -15,7 +15,7 @@ const styles = stylex.create({
 export function HomePage() {
   return (
     <ConsoleLayout xstyle={styles.layout}>
-      <main {...stylex.props(styles.content)} aria-label="主页" />
+      <main {...stylex.props(styles.content)} aria-label="Home" />
     </ConsoleLayout>
   );
 }
