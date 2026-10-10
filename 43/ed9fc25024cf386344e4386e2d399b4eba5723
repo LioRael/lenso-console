@@ -1,0 +1,48 @@
+examples/security-workspaces/.gitignore
+  h_9d56aba080c170 1
+examples/security-workspaces/Cargo.lock
+  h_9d56aba080c170 1-5307
+examples/security-workspaces/Cargo.toml
+  h_9d56aba080c170 1-70
+examples/security-workspaces/README.md
+  h_9d56aba080c170 1-110
+examples/security-workspaces/src/app-template/plugins/lenso.access-control.console/alpha.toml
+  h_9d56aba080c170 1-8
+examples/security-workspaces/src/app-template/plugins/lenso.access-control.console/beta.toml
+  h_9d56aba080c170 1-8
+examples/security-workspaces/src/app-template/plugins/lenso.access-control.postgres/default.toml
+  h_9d56aba080c170 1-6
+examples/security-workspaces/src/app-template/plugins/lenso.audit-log.console/alpha.toml
+  h_9d56aba080c170 1-13
+examples/security-workspaces/src/app-template/plugins/lenso.audit-log.console/beta.toml
+  h_9d56aba080c170 1-13
+examples/security-workspaces/src/app-template/plugins/lenso.audit-log.postgres/default.toml
+  h_9d56aba080c170 1-7
+examples/security-workspaces/src/app-template/plugins/lenso.auth.account/default.toml
+  h_9d56aba080c170 1-7
+examples/security-workspaces/src/app-template/plugins/lenso.auth.password/default.toml
+  h_9d56aba080c170 1-7
+examples/security-workspaces/src/app-template/plugins/lenso.console.web/console.toml
+  h_9d56aba080c170 1-11
+examples/security-workspaces/src/app-template/plugins/lenso.secrets.env/default.toml
+  h_9d56aba080c170 1-4
+examples/security-workspaces/src/lib.rs
+  h_9d56aba080c170 1-203
+examples/security-workspaces/src/main.rs
+  h_9d56aba080c170 1-59
+examples/security-workspaces/src/postgres_tests.rs
+  h_9d56aba080c170 1-293
+examples/security-workspaces/src/tests.rs
+  h_9d56aba080c170 1-503
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43ed9fc25024cf386344e4386e2d399b4eba5723",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

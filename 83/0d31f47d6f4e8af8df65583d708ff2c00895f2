@@ -1,0 +1,14 @@
+docs/design/reviews/2026-10-02-relay-sidebar-boundary.md
+  h_9d56aba080c170 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "830d31f47d6f4e8af8df65583d708ff2c00895f2",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

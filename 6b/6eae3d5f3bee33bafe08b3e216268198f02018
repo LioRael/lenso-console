@@ -1,0 +1,21 @@
+packages/console-authoring/compiler/test/compiler.test.mjs
+  s_e3dbe949a951a5::t_4b142007bb0fb7 1,9-10,160-182
+packages/console-authoring/compiler/workspace-discovery.mjs
+  s_e3dbe949a951a5::t_66e8b9a1422baf 60-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b6eae3d5f3bee33bafe08b3e216268198f02018",
+  "prompts": {},
+  "sessions": {
+    "s_e3dbe949a951a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11a4a-829c-7a91-8ac5-ef4c67bb9d37",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

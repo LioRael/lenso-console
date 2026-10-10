@@ -1,0 +1,248 @@
+.github/workflows/ci.yml
+  h_9d56aba080c170 36-40,52-53
+README.md
+  h_9d56aba080c170 5-7,20-31,49,54-77
+bun.lock
+  h_9d56aba080c170 9-10,22-23,28,42-69,121-125,129,135,146-199,202-210,213-214,216-266,275,387-398,401-402,415-468,485,493-494,499-504,669-674,707-710,913-914,927-928,1009-1010,1055-1056,1081-1082,1141-1142,1161-1168,1181-1182,1207-1208,1241-1242,1267-1268,1287-1288,1291-1292,1299-1302,1307-1308,1311-1314,1341-1342
+docs/design/console-interaction-direction.md
+  h_9d56aba080c170 150-163
+examples/composed-console/README.md
+  h_9d56aba080c170 1-44
+examples/composed-console/composition.tsx
+  h_9d56aba080c170 1-289
+examples/ts-console/console/authorization/page.tsx
+  h_9d56aba080c170 2-3
+package.json
+  h_9d56aba080c170 7-10,34-36,39,42,45,49,57-58,70-71,76
+packages/auth-console/README.md
+  h_9d56aba080c170 1-129
+packages/auth-console/build.ts
+  h_9d56aba080c170 1-29
+packages/auth-console/package.json
+  h_9d56aba080c170 1-68
+packages/auth-console/src/client.ts
+  h_9d56aba080c170 1-11
+packages/auth-console/src/contracts.ts
+  h_9d56aba080c170 1-70
+packages/auth-console/src/pages.tsx
+  h_9d56aba080c170 1-432
+packages/auth-console/src/react.ts
+  h_9d56aba080c170 1-174
+packages/auth-console/src/server.ts
+  h_9d56aba080c170 1-366
+packages/auth-console/test/auth-console.test.ts
+  h_9d56aba080c170 1-452
+packages/auth-console/test/react.test.ts
+  h_9d56aba080c170 1-114
+packages/auth-console/tsconfig.build.json
+  h_9d56aba080c170 1-11
+packages/auth-console/tsconfig.json
+  h_9d56aba080c170 1-16
+packages/console-authoring/MIGRATION.md
+  h_9d56aba080c170 6-31
+packages/console-authoring/README.md
+  h_9d56aba080c170 126-127,177,180,261,301-303,307-309,315-318
+packages/console-authoring/build.ts
+  h_9d56aba080c170 8
+packages/console-authoring/compiler/compiler.mjs
+  h_9d56aba080c170 40-41,45-46,67-69,91
+packages/console-authoring/compiler/router.ts
+  h_9d56aba080c170 4
+packages/console-authoring/compiler/test/boundary.test.ts
+  h_9d56aba080c170 1-89
+packages/console-authoring/compiler/test/client-boundary.types.ts
+  h_9d56aba080c170 1-31
+packages/console-authoring/compiler/test/compiler.test.mjs
+  h_9d56aba080c170 3,10-11,27-32,36,75-87,94,97-100,102-105,109-131,133-137,149-155,188,192,253-256
+packages/console-authoring/compiler/typecheck.mjs
+  h_9d56aba080c170 10-26,31-33,37-38,71-76
+packages/console-authoring/dev/preview-shell.tsx
+  h_9d56aba080c170 1-8,13,136-140,146-213
+packages/console-authoring/dev/server.mjs
+  h_9d56aba080c170 224-232
+packages/console-authoring/package.json
+  h_9d56aba080c170 29,36-45,119-123,127,133,143,146-223
+packages/console-authoring/service-example/orders/[id]/page.tsx
+  h_9d56aba080c170 1-2
+packages/console-authoring/src/client.ts
+  h_9d56aba080c170 2,6-13
+packages/console-authoring/src/index.ts
+  h_9d56aba080c170 6-8,48-49
+packages/console-authoring/src/react.ts
+  h_9d56aba080c170 1-3
+packages/console-authoring/src/server.ts
+  h_9d56aba080c170 15-20,22-28
+packages/console-authoring/src/service-types.ts
+  h_9d56aba080c170 1-53
+packages/console-authoring/src/transport.ts
+  h_9d56aba080c170 10
+packages/console-dashboard/README.md
+  h_9d56aba080c170 1-300
+packages/console-dashboard/build.ts
+  h_9d56aba080c170 1-5
+packages/console-dashboard/package.json
+  h_9d56aba080c170 1-96
+packages/console-dashboard/src/contract.ts
+  h_9d56aba080c170 1-47
+packages/console-dashboard/src/dashboard.styles.ts
+  h_9d56aba080c170 1-41
+packages/console-dashboard/src/dashboard.tsx
+  h_9d56aba080c170 1-812
+packages/console-dashboard/src/draft.ts
+  h_9d56aba080c170 1-85
+packages/console-dashboard/src/library-styles.js
+  h_9d56aba080c170 1
+packages/console-dashboard/src/library.css
+  h_9d56aba080c170 1-2
+packages/console-dashboard/src/react.tsx
+  h_9d56aba080c170 1-21
+packages/console-dashboard/src/server-audit.ts
+  h_9d56aba080c170 1-267
+packages/console-dashboard/src/server-auth.ts
+  h_9d56aba080c170 1-167
+packages/console-dashboard/src/server.ts
+  h_9d56aba080c170 1-459
+packages/console-dashboard/src/storage/README.md
+  h_9d56aba080c170 1-93
+packages/console-dashboard/src/storage/d1.ts
+  h_9d56aba080c170 1-108
+packages/console-dashboard/src/storage/postgres.ts
+  h_9d56aba080c170 1-185
+packages/console-dashboard/src/storage/schema.ts
+  h_9d56aba080c170 1-19
+packages/console-dashboard/src/storage/shared.ts
+  h_9d56aba080c170 1-192
+packages/console-dashboard/src/storage/sqlite.ts
+  h_9d56aba080c170 1-112
+packages/console-dashboard/src/validation.ts
+  h_9d56aba080c170 1-174
+packages/console-dashboard/src/widgets.ts
+  h_9d56aba080c170 1-54
+packages/console-dashboard/test/auth-audit.test.ts
+  h_9d56aba080c170 1-497
+packages/console-dashboard/test/dashboard.test.ts
+  h_9d56aba080c170 1-352
+packages/console-dashboard/test/storage/contract.ts
+  h_9d56aba080c170 1-283
+packages/console-dashboard/test/storage/d1.test.ts
+  h_9d56aba080c170 1-79
+packages/console-dashboard/test/storage/postgres.test.ts
+  h_9d56aba080c170 1-157
+packages/console-dashboard/test/storage/sqlite.test.ts
+  h_9d56aba080c170 1-87
+packages/console-dashboard/tsconfig.build.json
+  h_9d56aba080c170 1-12
+packages/console-dashboard/tsconfig.json
+  h_9d56aba080c170 1-17
+packages/console-dashboard/vite.config.ts
+  h_9d56aba080c170 1-30
+packages/console-plugin-manager/README.md
+  h_9d56aba080c170 1-24
+packages/console-plugin-manager/build.ts
+  h_9d56aba080c170 1-26
+packages/console-plugin-manager/package.json
+  h_9d56aba080c170 1-47
+packages/console-plugin-manager/src/plugin-manager.tsx
+  h_9d56aba080c170 1-313
+packages/console-plugin-manager/src/react.ts
+  h_9d56aba080c170 1-6
+packages/console-plugin-manager/test/catalog.test.ts
+  h_9d56aba080c170 1-75
+packages/console-plugin-manager/tsconfig.build.json
+  h_9d56aba080c170 1-12
+packages/console-plugin-manager/tsconfig.json
+  h_9d56aba080c170 1-14
+packages/console-react/README.md
+  h_9d56aba080c170 1-88
+packages/console-react/build.ts
+  h_9d56aba080c170 1-26
+packages/console-react/package.json
+  h_9d56aba080c170 1-47
+packages/console-react/src/composition.ts
+  h_9d56aba080c170 1-120
+packages/console-react/src/console-action-scope.tsx
+  h_9d56aba080c170 1-100
+packages/console-react/src/console-activation.ts
+  h_9d56aba080c170 1-40
+packages/console-react/src/console-dock-scroll-intent.ts
+  h_9d56aba080c170 1-49
+packages/console-react/src/console-dock.tsx
+  h_9d56aba080c170 1-463
+packages/console-react/src/console-icon-button.tsx
+  h_9d56aba080c170 1-68
+packages/console-react/src/console-layout.styles.ts
+  h_9d56aba080c170 7-8,21,23-35
+packages/console-react/src/console-layout.tsx
+  h_9d56aba080c170 1-162
+packages/console-react/src/console-model.ts
+  h_9d56aba080c170 1-256
+packages/console-react/src/console-page-context.tsx
+  h_9d56aba080c170 1-99
+packages/console-react/src/console-preferences.ts
+  h_9d56aba080c170 1-204
+packages/console-react/src/console-shell.styles.ts
+  h_9d56aba080c170 1-144
+packages/console-react/src/console-shell.tsx
+  h_9d56aba080c170 1-671
+packages/console-react/src/console-top-edge.tsx
+  h_9d56aba080c170 1-106
+packages/console-react/src/index.ts
+  h_9d56aba080c170 1-13
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 1-229
+packages/console-react/test/browser/fixture.tsx
+  h_9d56aba080c170 1-206
+packages/console-react/test/browser/index.html
+  h_9d56aba080c170 1-11
+packages/console-react/test/composition.types.tsx
+  h_9d56aba080c170 1-43
+packages/console-react/test/console-model.test.ts
+  h_9d56aba080c170 1-156
+packages/console-react/test/css.d.ts
+  h_9d56aba080c170 1
+packages/console-react/test/preferences.test.ts
+  h_9d56aba080c170 1-43
+packages/console-react/tsconfig.build.json
+  h_9d56aba080c170 1-12
+packages/console-react/tsconfig.json
+  h_9d56aba080c170 1-14
+plugins/console/shell/package.json
+  h_9d56aba080c170 18
+plugins/console/shell/src/app/console-admission.tsx
+  h_9d56aba080c170 1,12,106-139,144-170,177-181,222-225,255-259,307-308
+plugins/console/shell/src/components/console/console-dock-scroll-intent.ts
+  h_9d56aba080c170 1-6
+plugins/console/shell/src/components/console/console-dock.tsx
+  h_9d56aba080c170 1-6
+plugins/console/shell/src/components/console/console-icon-button.tsx
+  h_9d56aba080c170 1
+plugins/console/shell/src/components/console/console-layout.tsx
+  h_9d56aba080c170 1-7
+plugins/console/shell/src/components/console/console-page-context.tsx
+  h_9d56aba080c170 1-5
+plugins/console/shell/src/components/console/console-top-edge.tsx
+  h_9d56aba080c170 1-7
+plugins/console/shell/src/routes/__root.tsx
+  h_9d56aba080c170 19
+plugins/console/shell/test/browser/dock.fixture.tsx
+  h_9d56aba080c170 8
+plugins/console/shell/test/browser/layout.fixture.tsx
+  h_9d56aba080c170 6
+plugins/console/shell/test/stylex-preload.ts
+  h_9d56aba080c170 20-23
+tooling/distribution/check-archives.mjs
+  h_9d56aba080c170 43-146
+tooling/distribution/sdk-preview.test.mjs
+  h_9d56aba080c170 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66e6883ffd33bfa4d0cb3cf3e691ad0b018b4b33",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
