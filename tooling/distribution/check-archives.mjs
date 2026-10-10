@@ -76,10 +76,14 @@ try {
       type: "module",
     })
   );
-  execFileSync("bun", ["install", "--ignore-scripts"], {
-    cwd: consumer,
-    stdio: "inherit",
-  });
+  execFileSync(
+    "npm",
+    ["install", "--ignore-scripts", "--no-audit", "--no-fund"],
+    {
+      cwd: consumer,
+      stdio: "inherit",
+    }
+  );
   fs.writeFileSync(
     path.join(consumer, "browser.ts"),
     `
