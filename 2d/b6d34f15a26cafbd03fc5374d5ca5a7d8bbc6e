@@ -1,0 +1,20 @@
+bun.lock
+  h_9d56aba080c170 72
+packages/console/package.json
+  h_9d56aba080c170 3
+tooling/distribution/console-npm.mjs
+  h_9d56aba080c170 28-39,55,301
+tooling/distribution/console-npm.test.mjs
+  h_9d56aba080c170 3,82-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2db6d34f15a26cafbd03fc5374d5ca5a7d8bbc6e",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
