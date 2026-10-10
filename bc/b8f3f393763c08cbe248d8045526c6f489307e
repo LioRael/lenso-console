@@ -1,0 +1,19 @@
+service/src/lib.rs
+  s_50e3beadc1d491::t_94117b2dd120fa 1721-1725
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bcb8f3f393763c08cbe248d8045526c6f489307e",
+  "prompts": {},
+  "sessions": {
+    "s_50e3beadc1d491": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f9cb-a005-76d3-8f46-f5efcfd3deb1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

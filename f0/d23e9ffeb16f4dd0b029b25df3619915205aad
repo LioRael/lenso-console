@@ -1,0 +1,20 @@
+plugins/console/shell/src/components/runtime/console-shell.tsx
+  h_9d56aba080c170 15,118-119,129,131
+plugins/console/shell/src/features/extensions/authorized-workspaces.browser.test.tsx
+  h_9d56aba080c170 176-181,192-209,267-269,273,304-311,318-346,469-471
+plugins/console/shell/src/features/extensions/page-contribution-catalog.ts
+  h_9d56aba080c170 429-446,450-451,459-462,467-470,472-474,481,538-541,543-551,553,556-587,600,658-665
+plugins/console/shell/src/features/extensions/workspace-source-session.ts
+  h_9d56aba080c170 250-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0d23e9ffeb16f4dd0b029b25df3619915205aad",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

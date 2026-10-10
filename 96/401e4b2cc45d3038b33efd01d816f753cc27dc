@@ -1,0 +1,21 @@
+AGENTS.md
+  s_3cd9cc36da2171::t_6b1e02ca6d76e1 33-36,38-39,41-42
+  s_3cd9cc36da2171::t_9c1b8dc16971b3 40
+  s_3cd9cc36da2171::t_ae94293c594487 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96401e4b2cc45d3038b33efd01d816f753cc27dc",
+  "prompts": {},
+  "sessions": {
+    "s_3cd9cc36da2171": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a095d0-f362-76b3-8fc9-7000d6c48e78",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

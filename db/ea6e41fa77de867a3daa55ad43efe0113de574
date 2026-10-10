@@ -1,0 +1,22 @@
+plugins/management/README.md
+  s_f4202e28c6b5b1::t_32a1ffb49c28f5 140-147
+plugins/management/crates/lenso-management-http/src/lib.rs
+  s_f4202e28c6b5b1::t_9aff828e36af18 421-456
+  s_f4202e28c6b5b1::t_1b401bd3dcb1d1 27,31-36,58,61-69,134-136,330-336,368-370,374-375
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dbea6e41fa77de867a3daa55ad43efe0113de574",
+  "prompts": {},
+  "sessions": {
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

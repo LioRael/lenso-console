@@ -1,0 +1,16 @@
+examples/security-workspaces/Cargo.lock
+  h_9d56aba080c170 2092-2106,2416
+tooling/fixtures/console-wasm/Cargo.lock
+  h_9d56aba080c170 781-795,954
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c209f0cc2c68c1818e83acd7f0e70b9e736a8f8",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

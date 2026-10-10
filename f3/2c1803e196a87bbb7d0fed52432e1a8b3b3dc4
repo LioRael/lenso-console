@@ -1,0 +1,58 @@
+contracts/crates/lenso-capability-management-human/src/contract.rs
+  s_f4202e28c6b5b1::t_baaa15560a0824 12,56,77
+plugins/management/crates/lenso-management-authority/src/human.rs
+  s_f4202e28c6b5b1::t_ad0d57b3663256 102,168,183-187,189-195
+  s_f4202e28c6b5b1::t_1a7d74ba87a3ca 27
+  s_f4202e28c6b5b1::t_f360e17baea718 181-182
+  s_f4202e28c6b5b1::t_158ec167ca6b3a 169,196-197,200,205,208-217,226
+plugins/management/crates/lenso-management-authority/src/lib.rs
+  s_f4202e28c6b5b1::t_ad0d57b3663256 249-265,279-280,309-310
+  s_f4202e28c6b5b1::t_1b0b14c0676dd1 5-6
+  s_f4202e28c6b5b1::t_f04ca68e9c738a 311-320,329,332,462,479-482,484-489,500-504
+plugins/management/crates/lenso-management-core/src/lib.rs
+  s_f4202e28c6b5b1::t_baaa15560a0824 85-88,252-253,281,357,629-645,647-657,665-687,813-814
+  s_f4202e28c6b5b1::t_f360e17baea718 646,658-664,858,862
+  s_f4202e28c6b5b1::t_4597a4dc19e941 3,833-834,857,859-861,884
+plugins/management/crates/lenso-management-authority/src/pat.rs
+  s_f4202e28c6b5b1::t_1b0b14c0676dd1 1-75
+  s_f4202e28c6b5b1::t_bff087328bb565 76-378
+plugins/management/crates/lenso-management-authority/tests/native_authority_postgres.rs
+  s_f4202e28c6b5b1::t_832241d835efce 30,37,237-241,259-260,998,1031-1224,1226-1227,1229-1230,1232-1237
+  s_f4202e28c6b5b1::t_a2f92e3e645d46 25,400-408
+  s_f4202e28c6b5b1::t_3288aab51e8ebd 1225,1228,1231
+plugins/management/crates/lenso-management-authority/Cargo.toml
+  s_f4202e28c6b5b1::t_a2f92e3e645d46 33-35
+  s_f4202e28c6b5b1::t_20267c88aea0cb 11,16-17
+contracts/crates/lenso-capability-management-human/capability.json
+  s_f4202e28c6b5b1::t_9f759f48252d13 3
+contracts/crates/lenso-capability-management-human/generated/bindings.ts
+  s_f4202e28c6b5b1::t_2070fb823ca53c 5-6,44,54
+contracts/crates/lenso-capability-management-human/schemas/decide-response.schema.json
+  s_f4202e28c6b5b1::t_b6840d0b1c6165 4,6-8
+contracts/crates/lenso-capability-management-human/schemas/read-intent-response.schema.json
+  s_f4202e28c6b5b1::t_03dd01701ff7ff 5,21-23
+contracts/crates/lenso-capability-management-human/src/generated.rs
+  s_f4202e28c6b5b1::t_d3315c1fbaf320 8-9,19,24-25,31,37-38,70-72,113-115
+plugins/management/Cargo.lock
+  s_f4202e28c6b5b1::t_a1eb12dc83f25b 1073,1080-1082,1116,1120,1186-1201,1235,1264-1280,1430,1435,1437,1440
+plugins/management/crates/lenso-management-core/src/external.rs
+  s_f4202e28c6b5b1::t_e0a25861334a44 1-234
+plugins/management/crates/lenso-management-core/src/tests.rs
+  s_f4202e28c6b5b1::t_76a8006feabda8 684-776
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f32c1803e196a87bbb7d0fed52432e1a8b3b3dc4",
+  "prompts": {},
+  "sessions": {
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
