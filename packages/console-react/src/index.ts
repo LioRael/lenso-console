@@ -7,6 +7,10 @@ export * from "./console-top-edge";
 export * from "./console-page-context";
 export * from "./console-icon-button";
 export * from "./console-dock";
+export {
+  ConsoleDockContent,
+  type ConsoleDockContentProps,
+} from "./console-dock-view";
 export * from "./console-dock-scroll-intent";
 export * from "./console-action-scope";
 export * from "./console-shell";

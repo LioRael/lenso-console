@@ -14,6 +14,7 @@ import {
 } from "react";
 
 import type {
+  ConsoleDockViewReference,
   ConsoleLocalPageProps,
   ConsolePreferences,
   ConsolePreferenceStore,
@@ -23,6 +24,7 @@ import type {
 import { ConsoleActionHost } from "./console-action-scope";
 import { useConsoleActivation } from "./console-activation";
 import { ConsoleDock, type ConsoleDockSelection } from "./console-dock";
+import { ConsoleDockViewHost } from "./console-dock-view";
 import { ConsoleIconButton } from "./console-icon-button";
 import { ConsoleLayout, type ConsoleLayoutProps } from "./console-layout";
 import {
@@ -34,6 +36,7 @@ import {
   moveConsolePin,
   orderedConsolePins,
   visibleConsoleNavigation,
+  visibleConsoleDockViews,
   type ConsoleNavigationItem,
   type ConsoleRoute,
   type ConsoleShellBinding,
@@ -55,6 +58,7 @@ export interface ConsoleShellProps {
   session?: ConsoleSessionAdapter;
   basePath?: string;
   navigationDefaults?: Partial<ConsolePreferences>;
+  dock?: { leading: readonly ConsoleDockViewReference[] };
   preferences?: ConsolePreferenceStore;
   tabsPosition?: ConsolePreferences["position"] | "content";
   topEdge?: ConsoleLayoutProps["topEdge"];
@@ -76,6 +80,14 @@ function subscribeCompactNavigation(listener: () => void) {
 }
 function compactNavigationSnapshot() {
   return window.matchMedia("(max-width: 960px)").matches;
+}
+function subscribeNarrowSidebar(listener: () => void) {
+  const query = window.matchMedia("(max-width: 640px)");
+  query.addEventListener("change", listener);
+  return () => query.removeEventListener("change", listener);
+}
+function narrowSidebarSnapshot() {
+  return window.matchMedia("(max-width: 640px)").matches;
 }
 function Status({
   status,
@@ -228,6 +240,7 @@ export function ConsoleShell({
   session,
   basePath = "/",
   navigationDefaults,
+  dock,
   preferences: store,
   tabsPosition,
   topEdge,
@@ -238,9 +251,14 @@ export function ConsoleShell({
     compactNavigationSnapshot,
     () => false
   );
+  const narrowSidebar = useSyncExternalStore(
+    subscribeNarrowSidebar,
+    narrowSidebarSnapshot,
+    () => false
+  );
   const model = useMemo(
-    () => createConsoleModel(plugins, basePath),
-    [plugins, basePath]
+    () => createConsoleModel(plugins, basePath, dock?.leading),
+    [plugins, basePath, dock?.leading]
   );
   const defaults = useMemo(
     () => defaultConsolePreferences(model.navigation, navigationDefaults),
@@ -401,41 +419,87 @@ export function ConsoleShell({
       </nav>
     ) : null;
   const renderForeground = (selection: ConsoleDockSelection | null) => (
-    <ConsoleLayout.Foreground>
-      {value.mode === "sidebar" && permitted && (
-        <nav {...stylex.props(styles.sidebar)} aria-label="Console navigation">
-          <NavigationList
-            items={navigation}
+    <ConsoleDockViewHost
+      key={scopeKey}
+      items={visibleConsoleDockViews(model.dockViews, session)}
+      pathname={router.pathname}
+      scopeKey={scopeKey}
+      position={value.mode === "sidebar" ? "bottom" : value.position}
+      blocked={!!selection?.running || !!selection?.blocked}
+    >
+      {({ active, entries, restoreFocus }) => (
+        <ConsoleLayout.Foreground>
+          {value.mode === "sidebar" && permitted && (
+            <nav
+              {...stylex.props(styles.sidebar)}
+              aria-label="Console navigation"
+            >
+              {entries.map((entry) => (
+                <Button
+                  key={entry.id}
+                  data-console-dock-entry={entry.id}
+                  disabled={entry.disabled}
+                  onClick={(event) => entry.onInvoke(event.detail === 0)}
+                >
+                  {entry.label}
+                </Button>
+              ))}
+              <NavigationList
+                items={navigation}
+                activeId={activeId}
+                router={router}
+              />
+            </nav>
+          )}
+          <ConsoleDock
+            visible={
+              permitted &&
+              (value.mode === "dock" ||
+                !!selection ||
+                active ||
+                entries.length > 0)
+            }
+            navigationVisible={
+              value.mode === "dock" ||
+              !!selection ||
+              (narrowSidebar && entries.length > 0)
+            }
+            position={value.mode === "sidebar" ? "bottom" : value.position}
+            compact={false}
             activeId={activeId}
-            router={router}
+            items={(value.mode === "sidebar" && narrowSidebar ? [] : pins).map(
+              (item) => ({
+                id: item.id,
+                label: item.label,
+                icon: item.icon ?? <Menu size={16} aria-hidden="true" />,
+              })
+            )}
+            overflow={
+              value.mode === "sidebar" && narrowSidebar
+                ? undefined
+                : {
+                    label: "Expand Dock",
+                    onInvoke: () => changeOpen(true),
+                  }
+            }
+            leading={entries}
+            selection={selection}
+            running={selection?.running ?? false}
+            dockRef={dockRef}
+            onNavigate={(id) => {
+              const item = navigation.find((candidate) => candidate.id === id);
+              if (item) {
+                router.navigate(consoleRouteHref(item.route.pattern));
+              }
+            }}
+            onExpand={() => changeOpen(true)}
+            onFocusDock={() => undefined}
+            onNavigationReady={restoreFocus}
           />
-        </nav>
+          {!inlineTabs && pageNavigation}
+        </ConsoleLayout.Foreground>
       )}
-      <ConsoleDock
-        visible={permitted && (value.mode === "dock" || !!selection)}
-        position={value.mode === "sidebar" ? "bottom" : value.position}
-        compact={false}
-        activeId={activeId}
-        items={pins.map((item) => ({
-          id: item.id,
-          label: item.label,
-          icon: item.icon ?? <Menu size={16} aria-hidden="true" />,
-        }))}
-        overflow={{ label: "Expand Dock", onInvoke: () => changeOpen(true) }}
-        selection={selection}
-        running={selection?.running ?? false}
-        dockRef={dockRef}
-        onNavigate={(id) => {
-          const item = navigation.find((candidate) => candidate.id === id);
-          if (item) {
-            router.navigate(consoleRouteHref(item.route.pattern));
-          }
-        }}
-        onExpand={() => changeOpen(true)}
-        onFocusDock={() => undefined}
-      />
-      {!inlineTabs && pageNavigation}
-    </ConsoleLayout.Foreground>
+    </ConsoleDockViewHost>
   );
   return (
     <Dialog.Root open={directoryOpen} onOpenChange={changeOpen}>
@@ -464,6 +528,7 @@ export function ConsoleShell({
         </ConsoleLayout.Corner>
         <ConsoleActionHost render={renderForeground}>
           <main
+            tabIndex={-1}
             {...stylex.props(
               styles.content,
               value.mode === "sidebar" && styles.sidebarContent,

@@ -6,8 +6,8 @@ export const shellStyles = stylex.create({
     minWidth: 0,
     overflowWrap: "anywhere",
     minHeight: "100dvh",
-    paddingTop: 72,
-    paddingBottom: 112,
+    paddingTop: "max(72px, var(--console-dock-top-clearance, 0px))",
+    paddingBottom: "max(112px, var(--console-dock-bottom-clearance, 0px))",
     paddingInline: 24,
   },
   sidebarContent: {

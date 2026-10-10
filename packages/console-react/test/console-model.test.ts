@@ -7,6 +7,7 @@ import {
   defaultConsolePreferences,
   moveConsolePin,
   orderedConsolePins,
+  visibleConsoleDockViews,
   visibleConsoleNavigation,
 } from "../src/console-model";
 
@@ -153,4 +154,88 @@ test("preserves explicit empty pins, unavailable references and chosen order rat
     })
   ).toEqual([]);
   expect(preferences.pinned).toHaveLength(2);
+});
+
+test("Dock-only local bindings preserve explicit order and use independent admission without fake page IDs", () => {
+  const composer = defineConsolePlugin({
+    id: "composer",
+    pages: {},
+    dockViews: [
+      { id: "draft", label: "Draft", icon: null, component: () => null },
+      { id: "history", label: "History", icon: null, component: () => null },
+    ],
+  });
+  const first = bindConsole(composer, {
+    id: "first",
+    routes: {},
+    services: {},
+  });
+  const second = bindConsole(composer, {
+    id: "second",
+    routes: {},
+    services: {},
+  });
+  const leading = [
+    { bindingId: "second", viewId: "history" },
+    { bindingId: "first", viewId: "draft" },
+  ];
+  const model = createConsoleModel([first, second], "/", leading);
+  expect(model.routes).toEqual([]);
+  expect(model.navigation).toEqual([]);
+  expect(model.dockViews.map((item) => item.reference)).toEqual(leading);
+  expect(
+    visibleConsoleDockViews(model.dockViews, {
+      state: "ready",
+      scopeKey: "allowed",
+      canAccess: () => {
+        throw new Error("Dock admission must not call page admission");
+      },
+      canAccessDockView: (bindingId, viewId) =>
+        bindingId === "first" && viewId === "draft",
+    }).map((item) => item.reference)
+  ).toEqual([leading[1]!]);
+  expect(
+    visibleConsoleDockViews(model.dockViews, {
+      state: "loading",
+      scopeKey: "pending",
+    })
+  ).toEqual([]);
+  expect(createConsoleModel([first]).dockViews).toEqual([]);
+});
+
+test("Dock assembly rejects empty or duplicate local IDs and duplicate or dangling app references", () => {
+  const view = {
+    id: "draft",
+    label: "Draft",
+    icon: null,
+    component: () => null,
+  };
+  const make = (views: (typeof view)[]) =>
+    bindConsole(
+      defineConsolePlugin({
+        id: "composer",
+        pages: {},
+        dockViews: views,
+      }),
+      { id: "local", services: { view }, routes: {} }
+    );
+  for (const views of [
+    [{ ...view, id: "" }],
+    [{ ...view, id: " " }],
+    [view, view],
+  ]) {
+    expect(() => createConsoleModel([make(views)])).toThrow(/Dock view ID/);
+  }
+  const reference = { bindingId: "local", viewId: "draft" };
+  expect(() =>
+    createConsoleModel([make([view])], "/", [reference, reference])
+  ).toThrow(/Duplicate Console Dock reference/);
+  for (const invalid of [
+    { bindingId: "missing", viewId: "draft" },
+    { bindingId: "local", viewId: "missing" },
+  ]) {
+    expect(() => createConsoleModel([make([view])], "/", [invalid])).toThrow(
+      /Unknown Console Dock reference/
+    );
+  }
 });

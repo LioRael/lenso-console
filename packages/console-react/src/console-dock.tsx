@@ -23,6 +23,7 @@ import {
   type RefObject,
 } from "react";
 
+import { useDockProjection } from "./console-dock-projection";
 import { DockShape } from "./console-dock-shape";
 import { dockStyles } from "./console-dock.styles";
 import { ConsoleIconButton } from "./console-icon-button";
@@ -43,15 +44,25 @@ export type ConsoleDockSelection = {
     onInvoke: () => void;
   }[];
   running: boolean;
+  /** Confirmation or other page-owned work that must not permit switching views. */
+  blocked?: boolean;
   onExit: () => void;
 };
 
 export type ConsoleDockProps = {
   visible: boolean;
+  /** Keep rich-content owners mounted when navigation is presented in the sidebar. */
+  navigationVisible?: boolean;
   position: Position;
   compact: boolean;
   activeId: string;
   items: readonly { id: string; label: string; icon: ReactNode }[];
+  leading?: readonly {
+    id: string;
+    label: string;
+    icon: ReactNode;
+    onInvoke: (instant: boolean) => void;
+  }[];
   overflow?: { label: string; onInvoke: () => void; icon?: ReactNode };
   selection: ConsoleDockSelection | null;
   running: boolean;
@@ -60,6 +71,7 @@ export type ConsoleDockProps = {
   onNavigate: (id: string) => void;
   onExpand: () => void;
   onFocusDock: () => void;
+  onNavigationReady?: () => void;
 };
 
 const geometryTransition: Transition = {
@@ -69,6 +81,7 @@ const geometryTransition: Transition = {
 };
 
 const paneEase = [0.23, 1, 0.32, 1] as const;
+const noLeadingEntries: NonNullable<ConsoleDockProps["leading"]> = [];
 
 function subscribeReducedMotion(onChange: () => void) {
   const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -170,6 +183,7 @@ function DockSurface({
   compact,
   activeId,
   items,
+  leading = noLeadingEntries,
   overflow,
   selection,
   running,
@@ -178,8 +192,12 @@ function DockSurface({
   onNavigate,
   onExpand,
   onFocusDock,
+  onNavigationReady,
+  navigationVisible = true,
 }: Omit<ConsoleDockProps, "visible">) {
   const present = useIsPresent();
+  const projection = useDockProjection();
+  const rich = projection?.active;
   const reduced = useSyncExternalStore(
     subscribeReducedMotion,
     reducedMotionSnapshot,
@@ -187,13 +205,43 @@ function DockSurface({
   );
   const pointerIntent = useRef(true);
   const focusAfterExpand = useRef(false);
+  const navigationPointerStarted = useRef(false);
+  const [navigationReady, setNavigationReady] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [capacity, setCapacity] = useState(5);
   const groupId = useId();
   const instant = !!reduced || keyboardInstant || !pointerIntent.current;
   const paneInstant = instant || !mounted;
-  const dockModules = items.slice(0, overflow ? capacity - 1 : capacity);
+  const pinCapacity = Math.max(
+    0,
+    capacity - leading.length - (overflow ? 1 : 0)
+  );
+  const separatorCount =
+    (leading.length > 0 && (items.length > 0 || overflow) ? 1 : 0) +
+    (items.length > 0 && overflow ? 1 : 0);
+  const dockModules = items.slice(0, pinCapacity);
   const activeModule = items.find((module) => module.id === activeId);
+
+  useLayoutEffect(() => {
+    const element = dockRef.current;
+    const notify = () => {
+      if (!rich && element?.dataset.geometryReady === "true") {
+        setNavigationReady(true);
+      }
+    };
+    if (rich) {
+      setNavigationReady(false);
+      navigationPointerStarted.current = false;
+    }
+    element?.addEventListener("console-dock-ready", notify);
+    notify();
+    return () => element?.removeEventListener("console-dock-ready", notify);
+  }, [dockRef, rich]);
+  useLayoutEffect(() => {
+    if (!rich && navigationReady) {
+      onNavigationReady?.();
+    }
+  }, [rich, navigationReady, onNavigationReady]);
 
   useLayoutEffect(() => {
     setMounted(true);
@@ -210,7 +258,13 @@ function DockSurface({
         ? window.innerHeight - 176
         : window.innerWidth - 40;
       setCapacity(
-        Math.max(2, Math.min(5, Math.floor((available - 16 + 4) / (size + 4))))
+        Math.max(
+          2,
+          Math.min(
+            5,
+            Math.floor((available - 16 - separatorCount * 11 + 4) / (size + 4))
+          )
+        )
       );
     };
     updateCapacity();
@@ -220,7 +274,7 @@ function DockSurface({
       window.removeEventListener("resize", updateCapacity);
       coarse.removeEventListener("change", updateCapacity);
     };
-  }, [position]);
+  }, [position, separatorCount]);
   const side =
     position === "top"
       ? "bottom"
@@ -256,7 +310,37 @@ function DockSurface({
   );
   const navigationStyle = stylex.props(
     dockStyles.row,
+    dockStyles.group,
+    leading.length > 0 && dockStyles.extensionNavigation,
     (position === "left" || position === "right") && dockStyles.sideNavigation
+  );
+  const divider = (
+    <span
+      aria-hidden="true"
+      {...stylex.props(
+        dockStyles.divider,
+        (position === "left" || position === "right") && dockStyles.sideDivider
+      )}
+    />
+  );
+  const leadingControls = leading.length > 0 && (
+    <fieldset aria-label="Dock views" {...navigationStyle}>
+      {leading.map((entry) => (
+        <ConsoleIconButton
+          key={entry.id}
+          xstyle={dockStyles.control}
+          glyphXstyle={dockStyles.glyph}
+          label={entry.label}
+          data-console-dock-entry={entry.id}
+          side={side}
+          variant="ghost"
+          disabled={running || !!selection?.blocked}
+          onClick={(event) => entry.onInvoke(event.detail === 0)}
+        >
+          {entry.icon}
+        </ConsoleIconButton>
+      ))}
+    </fieldset>
   );
 
   return (
@@ -277,176 +361,217 @@ function DockSurface({
         <LayoutGroup id={groupId}>
           <DockShape
             position={position}
-            instant={instant}
+            instant={rich?.instant ?? (instant || !!projection?.instant)}
             present={present}
+            visible={navigationVisible || !!rich}
             compact={compact && !selection}
             selection={!!selection}
             dockRef={dockRef}
             onFocusDock={onFocusDock}
           >
-            <AnimatePresence initial={false} mode="sync" custom={paneInstant}>
-              {selection ? (
-                <DockPane
-                  key={selection.activationKey ?? "selection"}
-                  kind="selection"
-                  instant={paneInstant}
-                  position={position}
-                >
-                  <div
-                    {...selectionStyle}
-                    className={`dashboard-dock-selection ${selectionStyle.className}`}
-                    role="toolbar"
-                    aria-label={`${selection.scopeLabel} selection actions`}
-                    aria-busy={selection.running}
+            <div
+              {...stylex.props(
+                dockStyles.navigationOwner,
+                rich && dockStyles.retainedNavigation
+              )}
+              inert={!!rich || !navigationReady}
+              aria-hidden={!!rich || undefined}
+              onPointerDownCapture={() => {
+                navigationPointerStarted.current = !rich && navigationReady;
+              }}
+              onClickCapture={(event) => {
+                if (event.detail > 0 && !navigationPointerStarted.current) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }
+                navigationPointerStarted.current = false;
+              }}
+            >
+              <AnimatePresence initial={false} mode="sync" custom={paneInstant}>
+                {selection ? (
+                  <DockPane
+                    key={selection.activationKey ?? "selection"}
+                    kind="selection"
+                    instant={paneInstant}
+                    position={position}
                   >
-                    <span
-                      {...countStyle}
-                      className={`dashboard-dock-count ${countStyle.className}`}
+                    <div
+                      {...selectionStyle}
+                      className={`dashboard-dock-selection ${selectionStyle.className}`}
+                      role="toolbar"
+                      aria-label={`${selection.scopeLabel} selection actions`}
+                      aria-busy={selection.running}
                     >
-                      {selection.scopeLabel} · {selection.count} selected
-                    </span>
-                    {selection.actions.map((action) => (
+                      {leadingControls}
+                      {leading.length > 0 && divider}
+                      <span
+                        {...countStyle}
+                        className={`dashboard-dock-count ${countStyle.className}`}
+                      >
+                        {selection.scopeLabel} · {selection.count} selected
+                      </span>
+                      {selection.actions.map((action) => (
+                        <ConsoleIconButton
+                          key={action.id}
+                          xstyle={dockStyles.control}
+                          glyphXstyle={dockStyles.glyph}
+                          label={action.label}
+                          tooltip={action.tooltip ?? action.label}
+                          side={side}
+                          variant={action.variant ?? "ghost"}
+                          disabled={selection.running}
+                          onClick={() => action.onInvoke()}
+                        >
+                          {action.icon}
+                        </ConsoleIconButton>
+                      ))}
                       <ConsoleIconButton
-                        key={action.id}
                         xstyle={dockStyles.control}
                         glyphXstyle={dockStyles.glyph}
-                        label={action.label}
-                        tooltip={action.tooltip ?? action.label}
+                        label="Exit selection"
                         side={side}
-                        variant={action.variant ?? "ghost"}
+                        variant="ghost"
                         disabled={selection.running}
-                        onClick={() => action.onInvoke()}
+                        onClick={() => selection.onExit()}
                       >
-                        {action.icon}
+                        <X
+                          {...stylex.props(dockStyles.icon)}
+                          size={16}
+                          aria-hidden="true"
+                        />
                       </ConsoleIconButton>
-                    ))}
+                    </div>
+                  </DockPane>
+                ) : compact ? (
+                  <DockPane
+                    key="compact"
+                    kind="compact"
+                    instant={paneInstant}
+                    position={position}
+                  >
                     <ConsoleIconButton
                       xstyle={dockStyles.control}
                       glyphXstyle={dockStyles.glyph}
-                      label="Exit selection"
-                      side={side}
                       variant="ghost"
-                      disabled={selection.running}
-                      onClick={() => selection.onExit()}
+                      side={side}
+                      data-dashboard-control="compact-handle"
+                      label={
+                        activeModule
+                          ? `Expand navigation, current: ${activeModule.label}`
+                          : "Expand navigation"
+                      }
+                      onClick={(event) => {
+                        pointerIntent.current = event.detail > 0;
+                        focusAfterExpand.current = event.detail === 0;
+                        onExpand();
+                      }}
                     >
-                      <X
-                        {...stylex.props(dockStyles.icon)}
-                        size={16}
-                        aria-hidden="true"
-                      />
+                      {activeModule?.icon ?? (
+                        <Ellipsis size={16} aria-hidden="true" />
+                      )}
                     </ConsoleIconButton>
-                  </div>
-                </DockPane>
-              ) : compact ? (
-                <DockPane
-                  key="compact"
-                  kind="compact"
-                  instant={paneInstant}
-                  position={position}
-                >
-                  <ConsoleIconButton
-                    xstyle={dockStyles.control}
-                    glyphXstyle={dockStyles.glyph}
-                    variant="ghost"
-                    side={side}
-                    data-dashboard-control="compact-handle"
-                    label={
-                      activeModule
-                        ? `Expand navigation, current: ${activeModule.label}`
-                        : "Expand navigation"
-                    }
-                    onClick={(event) => {
-                      pointerIntent.current = event.detail > 0;
-                      focusAfterExpand.current = event.detail === 0;
-                      onExpand();
-                    }}
+                  </DockPane>
+                ) : (
+                  <DockPane
+                    key="navigation"
+                    kind="navigation"
+                    instant={paneInstant}
+                    position={position}
                   >
-                    {activeModule?.icon ?? (
-                      <Ellipsis size={16} aria-hidden="true" />
-                    )}
-                  </ConsoleIconButton>
-                </DockPane>
-              ) : (
-                <DockPane
-                  key="navigation"
-                  kind="navigation"
-                  instant={paneInstant}
-                  position={position}
-                >
-                  <nav
-                    {...navigationStyle}
-                    className={`dashboard-dock-nav ${navigationStyle.className}`}
-                    aria-label="Pinned navigation"
-                  >
-                    {dockModules.map((module) => {
-                      const active = activeId === module.id;
-                      return (
-                        <motion.div
-                          key={module.id}
-                          {...stylex.props(dockStyles.slot)}
-                          className={`dashboard-dock-slot ${stylex.props(dockStyles.slot).className}`}
+                    <nav
+                      {...navigationStyle}
+                      className={`dashboard-dock-nav ${navigationStyle.className}`}
+                      aria-label="Pinned navigation"
+                    >
+                      {leadingControls}
+                      {leading.length > 0 &&
+                        (dockModules.length > 0 || !!overflow) &&
+                        divider}
+                      {dockModules.length > 0 && (
+                        <fieldset
+                          aria-label="Pinned destinations"
+                          {...navigationStyle}
                         >
-                          {active && (
-                            <motion.div
-                              {...stylex.props(dockStyles.indicator)}
-                              className={`dashboard-active-indicator ${stylex.props(dockStyles.indicator).className}`}
-                              layoutId="active-item"
-                              aria-hidden="true"
-                              transition={
-                                instant ? { duration: 0 } : geometryTransition
-                              }
-                            />
-                          )}
+                          {dockModules.map((module) => {
+                            const active = activeId === module.id;
+                            return (
+                              <motion.div
+                                key={module.id}
+                                {...stylex.props(dockStyles.slot)}
+                                className={`dashboard-dock-slot ${stylex.props(dockStyles.slot).className}`}
+                              >
+                                {active && (
+                                  <motion.div
+                                    {...stylex.props(dockStyles.indicator)}
+                                    className={`dashboard-active-indicator ${stylex.props(dockStyles.indicator).className}`}
+                                    layoutId="active-item"
+                                    aria-hidden="true"
+                                    transition={
+                                      instant
+                                        ? { duration: 0 }
+                                        : geometryTransition
+                                    }
+                                  />
+                                )}
+                                <ConsoleIconButton
+                                  xstyle={[
+                                    dockStyles.control,
+                                    dockStyles.slottedControl,
+                                    active && dockStyles.currentControl,
+                                  ]}
+                                  glyphXstyle={dockStyles.glyph}
+                                  label={module.label}
+                                  side={side}
+                                  variant="ghost"
+                                  data-dashboard-control="dock-item"
+                                  aria-current={active ? "page" : undefined}
+                                  disabled={running}
+                                  onClick={(event) => {
+                                    pointerIntent.current = event.detail > 0;
+                                    onNavigate(module.id);
+                                  }}
+                                >
+                                  {module.icon}
+                                </ConsoleIconButton>
+                              </motion.div>
+                            );
+                          })}
+                        </fieldset>
+                      )}
+                      {dockModules.length > 0 && overflow && divider}
+                      {overflow && (
+                        <fieldset
+                          {...stylex.props(dockStyles.group)}
+                          aria-label="Dock directory"
+                        >
                           <ConsoleIconButton
-                            xstyle={[
-                              dockStyles.control,
-                              dockStyles.slottedControl,
-                              active && dockStyles.currentControl,
-                            ]}
+                            xstyle={dockStyles.control}
                             glyphXstyle={dockStyles.glyph}
-                            label={module.label}
+                            label={overflow.label}
                             side={side}
                             variant="ghost"
                             data-dashboard-control="dock-item"
-                            aria-current={active ? "page" : undefined}
                             disabled={running}
                             onClick={(event) => {
                               pointerIntent.current = event.detail > 0;
-                              onNavigate(module.id);
+                              overflow.onInvoke();
                             }}
                           >
-                            {module.icon}
+                            {overflow.icon ?? (
+                              <Ellipsis
+                                {...stylex.props(dockStyles.icon)}
+                                size={16}
+                                aria-hidden="true"
+                              />
+                            )}
                           </ConsoleIconButton>
-                        </motion.div>
-                      );
-                    })}
-                    {overflow && (
-                      <ConsoleIconButton
-                        xstyle={dockStyles.control}
-                        glyphXstyle={dockStyles.glyph}
-                        label={overflow.label}
-                        side={side}
-                        variant="ghost"
-                        data-dashboard-control="dock-item"
-                        disabled={running}
-                        onClick={(event) => {
-                          pointerIntent.current = event.detail > 0;
-                          overflow.onInvoke();
-                        }}
-                      >
-                        {overflow.icon ?? (
-                          <Ellipsis
-                            {...stylex.props(dockStyles.icon)}
-                            size={16}
-                            aria-hidden="true"
-                          />
-                        )}
-                      </ConsoleIconButton>
-                    )}
-                  </nav>
-                </DockPane>
-              )}
-            </AnimatePresence>
+                        </fieldset>
+                      )}
+                    </nav>
+                  </DockPane>
+                )}
+              </AnimatePresence>
+            </div>
           </DockShape>
         </LayoutGroup>
       </MotionConfig>

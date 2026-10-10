@@ -26,7 +26,9 @@ export const dockStyles = stylex.create({
     pointerEvents: "none",
   },
   foreground: {
-    position: "relative",
+    position: "absolute",
+    top: 0,
+    left: 0,
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr)",
     boxSizing: "border-box",
@@ -37,6 +39,16 @@ export const dockStyles = stylex.create({
     paddingBlock: { default: 8, "@media (max-width: 480px)": 20 },
   },
   sideSelectionForeground: { paddingBlock: 20 },
+  richForeground: { padding: 0 },
+  navigationOwner: { width: "max-content", maxWidth: "calc(100vw - 56px)" },
+  retainedNavigation: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    visibility: "hidden",
+    pointerEvents: "none",
+  },
+  projection: { position: "relative", minWidth: 0 },
   shape: {
     position: "absolute",
     top: 0,
@@ -70,8 +82,25 @@ export const dockStyles = stylex.create({
   exitingSideSelectionPane: { top: 20 },
   unavailablePane: { pointerEvents: "none" },
   row: { display: "flex", alignItems: "center", gap: 4 },
+  group: { borderWidth: 0, padding: 0, margin: 0, minWidth: 0 },
+  extensionNavigation: { flexWrap: "wrap", maxWidth: "100%" },
+  divider: {
+    width: 1,
+    height: 20,
+    flexShrink: 0,
+    marginInline: 3,
+    backgroundColor: "var(--border)",
+    pointerEvents: "none",
+  },
+  sideDivider: {
+    width: { default: 20, "@media (max-height: 360px)": 1 },
+    height: { default: 1, "@media (max-height: 360px)": 20 },
+    marginInline: { default: 0, "@media (max-height: 360px)": 3 },
+    marginBlock: { default: 3, "@media (max-height: 360px)": 0 },
+  },
   sideNavigation: {
     flexDirection: { default: "column", "@media (max-height: 360px)": "row" },
+    maxHeight: "calc(100dvh - 176px)",
   },
   selection: {
     display: { default: "flex", "@media (max-width: 480px)": "grid" },

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import type {
   ConsoleBinding,
+  ConsoleDockViewReference,
   ConsoleNavigationReference,
   ConsolePosition,
   ConsolePreferences,
@@ -81,16 +82,33 @@ function routesOverlap(a: string, b: string) {
 }
 export function createConsoleModel(
   bindings: readonly ConsoleShellBinding[],
-  basePath = "/"
+  basePath = "/",
+  leading: readonly ConsoleDockViewReference[] = []
 ) {
   const routes: ConsoleRoute[] = [];
   const navigation: ConsoleNavigationItem[] = [];
+  const views: ConsoleDockViewItem[] = [];
   const bindingIds = new Set<string>();
   for (const binding of bindings) {
     if (!binding.id || bindingIds.has(binding.id)) {
       throw new Error(`Duplicate or empty Console binding ID: ${binding.id}`);
     }
     bindingIds.add(binding.id);
+    const viewIds = new Set<string>();
+    for (const definition of binding.definition.dockViews ?? []) {
+      if (!definition.id.trim() || viewIds.has(definition.id)) {
+        throw new Error(
+          `Duplicate or empty Console Dock view ID: ${binding.id}/${definition.id}`
+        );
+      }
+      viewIds.add(definition.id);
+      views.push({
+        id: JSON.stringify([binding.id, definition.id]),
+        binding,
+        definition,
+        reference: { bindingId: binding.id, viewId: definition.id },
+      });
+    }
     const pageIds = new Set(Object.keys(binding.definition.pages));
     for (const [pageId, path] of Object.entries(binding.routes)) {
       if (!pageIds.has(pageId)) {
@@ -190,7 +208,43 @@ export function createConsoleModel(
       });
     }
   }
-  return { routes, navigation };
+  const seen = new Set<string>();
+  const dockViews = leading.map((reference) => {
+    const key = JSON.stringify([reference.bindingId, reference.viewId]);
+    if (seen.has(key)) {
+      throw new Error(`Duplicate Console Dock reference: ${key}`);
+    }
+    seen.add(key);
+    const item = views.find((view) => view.id === key);
+    if (!item) {
+      throw new Error(`Unknown Console Dock reference: ${key}`);
+    }
+    return item;
+  });
+  return { routes, navigation, dockViews };
+}
+
+export interface ConsoleDockViewItem {
+  id: string;
+  binding: ConsoleShellBinding;
+  definition: NonNullable<
+    ConsoleShellBinding["definition"]["dockViews"]
+  >[number];
+  reference: ConsoleDockViewReference;
+}
+
+export function visibleConsoleDockViews(
+  items: readonly ConsoleDockViewItem[],
+  session?: ConsoleSessionAdapter
+) {
+  if (session && session.state !== "ready") {
+    return [];
+  }
+  return items.filter(
+    (item) =>
+      !session?.canAccessDockView ||
+      session.canAccessDockView(item.reference.bindingId, item.reference.viewId)
+  );
 }
 export function visibleConsoleNavigation(
   items: readonly ConsoleNavigationItem[],

@@ -54,12 +54,111 @@ Changing presentation preferences does not remount pages.
 Low-level hosts can use `useConsoleActivation(scope, parentSignal)` with the
 same lifecycle rule. The SDK's admitted and preview hosts use it as well.
 
+## Local Dock views
+
+Plugins may contribute `dockViews` independently of pages. The app chooses the
+leading order explicitly, not through navigation preferences or installation order.
+Dock-only definitions use `pages: {}` and bindings use `routes: {}`.
+
+```tsx
+import { useRef, useState } from "react";
+import {
+  bindConsole, ConsoleDockContent, ConsoleShell, defineConsolePlugin,
+  type ConsoleDockViewProps,
+} from "@lenso/console-react";
+
+type ComposerServices = { send(text: string, signal: AbortSignal): Promise<void> };
+
+function Composer({ services, signal, activation, dock }: ConsoleDockViewProps<ComposerServices>) {
+  const [draft, setDraft] = useState("");
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  async function send() {
+    if (!activation.isCurrent() || running || !draft.trim()) return;
+    setRunning(true);
+    setError(null);
+    try {
+      await services.send(draft, signal);
+      if (activation.isCurrent()) setDraft("");
+    } catch {
+      if (activation.isCurrent()) setError("Message could not be sent.");
+    } finally {
+      if (activation.isCurrent()) setRunning(false);
+    }
+  }
+  return (
+    <ConsoleDockContent
+      initialFocus={input}
+      beforeExit={() => !running}
+      bar={
+        <form onSubmit={(event) => { event.preventDefault(); void send(); }}>
+          <input ref={input} aria-label="Message" value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onFocus={() => dock.expand()} />
+          <button disabled={running || !draft.trim()}>Send</button>
+        </form>
+      }
+      tray={{ label: "Conversation", content:
+        error ? <p role="alert">{error}</p> : <p role="status">
+          {running ? "Sending message." : "Messages will appear here."}
+        </p>
+      }}
+    />
+  );
+}
+
+const composer = defineConsolePlugin<ComposerServices>({
+  id: "composer", pages: {},
+  dockViews: [{ id: "compose", label: "Composer", icon: composerIcon, component: Composer }],
+});
+const composerBinding = bindConsole(composer, {
+  id: "local-composer", routes: {}, services: composerService,
+});
+
+<ConsoleShell plugins={[composerBinding]} router={hostRouter}
+  dock={{ leading: [{ bindingId: "local-composer", viewId: "compose" }] }} />;
+```
+
+`composerIcon`, `composerService`, and `hostRouter` are supplied by the app.
+This is local React composition, not Agent service installation, remote
+registration, a capability registry, or a server authorization grant.
+`session.canAccessDockView(bindingId, viewId)` is an independent UI projection;
+Dock admission never calls `canAccess` with invented page IDs.
+
+Each admitted view mounts lazily once and retains its owner and bar across
+bar/tray changes, exit, and route changes in the same trusted session. Portals
+preserve providers contributed by the view. `dock.state` is `"inactive"`,
+`"bar"`, or `"tray"` for the current render, not a live getter. Read it from
+the latest props rather than retaining an old render's snapshot in a subscription.
+Controller methods remain lease-checked and operate on the committed presentation;
+`expand()` and `collapse()` return whether a transition was accepted.
+`requestExit("back-button" | "escape" | "navigation")` uses the
+optional `beforeExit` guard. Rejected or failed guards leave the view open;
+late resolutions cannot close a replacement presentation.
+
+Actual route changes close presentation without a guard, retaining the local
+draft. Admission loss, a scope change, or definition/service identity replacement
+revokes the activation, aborts its signal, and discards the old view instance.
+Plugins own business state, server policies, and disposal of subscriptions.
+Stable definitions and service objects avoid accidental identity replacement.
+Shell provides Back and Expand/Collapse controls, focuses `initialFocus` only
+when the bar is ready, and leaves expansion to explicit controls or the plugin's
+real focus handler. Trays are nonmodal, including on narrow screens.
+When a narrow screen hides the sidebar, the contextual Dock retains plugin
+entries without duplicating navigation pins; global navigation keeps its existing
+directory entry.
+
 Pages contribute controlled selection actions with
 `<ConsoleActionScope scopeKey={activation.key} value={selection} />`.
 `selection` is the existing `ConsoleDockSelection` shape: count, scopeLabel,
 actions with onInvoke, running and onExit. The page owns target snapshots,
 confirmation, execution and feedback. The host protects retained callbacks,
 stale cleanup and pointer-down/up across retiring scopes.
+Dock views can temporarily replace selection presentation without clearing it.
+Exit restores the current selection contribution, not a saved snapshot.
+Use `running` during execution and optional `blocked` during confirmation to
+prevent opening another Dock view.
 
 `navigationDefaults` selects initial pins, mode and position. A preference
 snapshot of `null` uses defaults; `pinned: []` intentionally pins nothing.

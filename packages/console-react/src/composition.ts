@@ -28,6 +28,32 @@ export interface ConsolePageDefinition<Services = unknown> {
   component: ComponentType<ConsoleLocalPageProps<Services>>;
 }
 
+export type ConsoleDockViewState = "inactive" | "bar" | "tray";
+export type ConsoleDockExitReason = "back-button" | "escape" | "navigation";
+export interface ConsoleDockController {
+  /** Presentation snapshot for this render; use the latest props when reading state. */
+  readonly state: ConsoleDockViewState;
+  expand(): boolean;
+  collapse(): boolean;
+  requestExit(reason: ConsoleDockExitReason): void;
+}
+export interface ConsoleDockViewProps<Services = unknown> {
+  services: Services;
+  activation: ConsoleActivation;
+  signal: AbortSignal;
+  dock: ConsoleDockController;
+}
+export interface ConsoleDockViewReference {
+  bindingId: string;
+  viewId: string;
+}
+export interface ConsoleDockViewDefinition<Services = unknown> {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  component: ComponentType<ConsoleDockViewProps<Services>>;
+}
+
 export interface ConsolePageGroup {
   label: string;
   defaultPage: string;
@@ -47,6 +73,7 @@ export interface ConsolePluginDefinition<Services = unknown> {
   pages: Readonly<Record<string, ConsolePageDefinition<Services>>>;
   pageGroups?: Readonly<Record<string, ConsolePageGroup>>;
   navigation?: readonly ConsoleNavigationDefinition[];
+  dockViews?: readonly ConsoleDockViewDefinition<Services>[];
 }
 
 export interface ConsoleBinding<Services = unknown> {
@@ -96,6 +123,7 @@ export interface ConsoleSessionAdapter {
   scopeKey: string;
   /** UI projection only. Every server operation still enforces its own policy. */
   canAccess?(bindingId: string, pageId: string): boolean;
+  canAccessDockView?(bindingId: string, viewId: string): boolean;
 }
 
 export interface ConsolePreferences {
