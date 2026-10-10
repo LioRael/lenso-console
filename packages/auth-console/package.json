@@ -1,6 +1,6 @@
 {
   "name": "@lenso/auth-console",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Optional capability-driven Auth Console adapter",
   "license": "MIT",
   "repository": {
@@ -27,6 +27,9 @@
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "bun build.ts",

@@ -1,5 +1,23 @@
 # @lenso/console-sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- 559d0ad: Add `lenso-console-author dev` for single-plugin page development in the official Console Shell, with Vite React Fast Refresh, StyleX updates, explicit example services, and an optional authenticated compatible backend.
+- 559d0ad: Distribute the owner-built Console Shell alongside the compiler through the `@lenso/console-sdk/shell` export. Apps can resolve its asset directory from their ordinary SDK installation instead of building a separate Console checkout.
+- ced80f4: Replace legacy capability providers and generated wire snapshots with current TypeScript Plugin, explicit Manage operations, and owner-bound Console mounts. Keep inferred parse/authorize/handle types and browser-only service projections; add explicitly declared streams and canonical validated Console schemas.
+
+  This pre-1.0 minor release removes `/contribution`, `/workspace-service`, `InvocationContext`, and base64 `InvokeResult` authoring APIs. Regenerate compiled output and register its exact Plugin, Manage declaration, and mounts as described in the SDK migration guide. No registry publication or production deployment is performed by this change.
+
+- c30967b: Add optional scoped Audit, Authorization, API Key, Tasks, Scheduler and Limits backend integrations using host-owned services and explicit Manage selections. Keep credential issue/rotation on separate protected no-store routes, default unsafe actions closed, and preserve trusted error classification and cancellation across pending request-body reads.
+
+  Expose bounded retry estimates through workspace errors and add an explicit protected credential channel. Preserve application-selected page contracts, authoring compilation and scoped reads; remove the previous built-in management pages and their factory. These changes remain a private Console candidate; native runtime assemblies are retired and no registry replacement is claimed.
+
+### Patch Changes
+
+- 559d0ad: Resolve authoring tools through the SDK's declared dependencies in npm and isolated Bun/pnpm installations. Compilation no longer installs packages or copies SDK tools into each page output. The Console development kit includes its locked compiler dependencies.
+
 ## 0.2.0
 
 ### Minor Changes

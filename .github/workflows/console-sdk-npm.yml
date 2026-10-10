@@ -1,4 +1,4 @@
-name: Console SDK npm distribution
+name: Console npm distribution
 
 on:
   workflow_dispatch:
@@ -8,112 +8,80 @@ on:
         type: string
         required: true
       publish:
-        description: Publish the verified SDK archive through npm Trusted Publishing
+        description: Publish the verified public Console archives through npm Trusted Publishing
         type: boolean
         default: false
         required: true
-
 permissions:
   contents: read
-
+concurrency:
+  group: console-npm
+  cancel-in-progress: false
 jobs:
   package:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
-      - name: Verify the exact source
+      - name: Verify the exact main source
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .node-version
-      - name: Install the pinned npm compatibility client
-        run: npm install --global npm@12.2.0 --ignore-scripts
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          test "$GITHUB_REF" = refs/heads/main
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: .bun-version
-      - name: Build the owner Shell into the SDK archive
+      - name: Install disposable PostgreSQL test binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-16
+          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
+      - name: Check the exact public archives in isolated applications
+        env:
+          LENSO_REQUIRE_POSTGRES: "1"
         run: |
           bun install --frozen-lockfile
-          bun run sdk:prepare
-          bun run --cwd packages/console build
-      - name: Pack the owner SDK and record integrity
-        run: |
-          mkdir -p .artifacts/console-sdk
-          archive="$PWD/.artifacts/console-sdk/lenso-console-sdk.tgz"
-          (cd packages/console-authoring && bun pm pack --ignore-scripts --quiet --filename "$archive")
-          bun run - <<'BUN'
-          import assert from "node:assert/strict";
-          import fs from "node:fs";
-          import { createHash } from "node:crypto";
-          import { execFileSync } from "node:child_process";
-          const pkg = JSON.parse(fs.readFileSync("packages/console-authoring/package.json", "utf8"));
-          assert.equal(pkg.name, "@lenso/console-sdk");
-          assert.equal(pkg.exports["./compiler"], "./compiler/compiler.mjs");
-          assert.equal(pkg.exports["./shell"], "./shell/index.html");
-          const filename = "lenso-console-sdk.tgz";
-          const archivePath = `.artifacts/console-sdk/${filename}`;
-          const files = execFileSync("tar", ["-tzf", archivePath], { encoding: "utf8" }).split("\n");
-          for (const file of ["shell/index.html", "compiler/compiler.mjs", "dist/index.js", "dist/index.d.ts"]) {
-            assert.ok(files.includes(`package/${file}`), `Archive is missing ${file}`);
-          }
-          const archive = fs.readFileSync(archivePath);
-          fs.writeFileSync(".artifacts/console-sdk/source.json", JSON.stringify({
-            source_sha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-            name: pkg.name, version: pkg.version, filename,
-            integrity: `sha512-${createHash("sha512").update(archive).digest("base64")}`,
-            sha256: createHash("sha256").update(archive).digest("hex")
-          }, null, 2));
-          BUN
-      - name: Verify the exact archive in a real isolated application
-        run: |
-          archive=$(bun -p 'JSON.parse(require("fs").readFileSync(".artifacts/console-sdk/source.json", "utf8")).filename')
-          export LENSO_AUTHOR_ARCHIVE="$PWD/.artifacts/console-sdk/$archive"
-          bun test tooling/distribution/sdk-shell.test.mjs tooling/distribution/console-ts.test.mjs
+          bun run check
+          bun tooling/distribution/console-npm.mjs pack .artifacts/console-npm
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: console-sdk-npm
-          path: .artifacts/console-sdk/*
+          name: console-npm
+          path: .artifacts/console-npm/*
           if-no-files-found: error
-
   publish:
     if: inputs.publish && github.ref == 'refs/heads/main' && inputs.source_sha == github.sha
     needs: package
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     environment: npm
     permissions:
       contents: read
       id-token: write
+    env:
+      RELEASE_PROTECTED_JOB: npm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: console-sdk-npm
-          path: .artifacts/console-sdk
+          name: console-npm
+          path: .artifacts/console-npm
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .node-version
-          registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@12.2.0 --ignore-scripts
-      - name: Verify and publish only the tested archive
+      - name: Use pinned npm without a fallback token
         run: |
-          node --input-type=module <<'NODE'
-          import assert from "node:assert/strict";
-          import fs from "node:fs";
-          import { createHash } from "node:crypto";
-          const source = JSON.parse(fs.readFileSync(".artifacts/console-sdk/source.json", "utf8"));
-          assert.equal(source.source_sha, process.env.GITHUB_SHA);
-          assert.equal(source.name, "@lenso/console-sdk");
-          const archive = fs.readFileSync(`.artifacts/console-sdk/${source.filename}`);
-          assert.equal(source.integrity, `sha512-${createHash("sha512").update(archive).digest("base64")}`);
-          NODE
-          npm publish .artifacts/console-sdk/*.tgz --access public --provenance --ignore-scripts
-          node tooling/distribution/wait-for-npm-package.mjs .artifacts/console-sdk/*.tgz
+          export NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/console.npmrc"
+          printf '\n' > "$NPM_CONFIG_USERCONFIG"
+          echo "NPM_CONFIG_USERCONFIG=$NPM_CONFIG_USERCONFIG" >> "$GITHUB_ENV"
+          npm install --global npm@12.2.0 --ignore-scripts
+          test "$(npm --version)" = 12.2.0
+      - name: Publish only the verified archives
+        run: node tooling/distribution/console-npm.mjs publish .artifacts/console-npm

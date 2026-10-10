@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Standalone React Console layout and explicitly composed navigation",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LioRael/lenso-console.git",
+    "directory": "packages/console-react"
+  },
   "files": [
     "dist",
     "src",
@@ -19,6 +24,9 @@
       "default": "./dist/index.js"
     },
     "./styles.css": "./dist/styles.css"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "bun build.ts && bun run --bun tsc -p tsconfig.build.json",

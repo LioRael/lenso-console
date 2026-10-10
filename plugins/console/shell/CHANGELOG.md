@@ -1,5 +1,36 @@
 # @lenso/console-web
 
+## 1.22.0
+
+### Minor Changes
+
+- 559d0ad: Discover server-configured workspaces for an already-authorized account in the
+  ordinary Console Shell. Reuse existing Auth exchange, isolate each workspace
+  source's session and CSRF policy, and retire its providers on identity or access
+  changes without granting Console administration.
+
+### Patch Changes
+
+- 559d0ad: Load the Agent homepage only when selected, read session and login methods together,
+  and let the session boundary prepare language once before admitting content.
+  Cache public content-named Shell assets across visits while keeping session HTML
+  uncached and workspace asset admission unchanged.
+  Keep shared StyleX rules in one stylesheet so lazy pages cannot remove login styles.
+  Use the portable configuration schema dialect for workspace sources; Console's
+  canonical identifier, path and permission-field validation remains mandatory.
+- 4f80099: Match the Console top bar and command menu to the Lenso UI documentation style,
+  preserving navigation and keyboard behavior with visible focus, theme-aware
+  overlays, and scrollable results in short windows.
+- b8b04e6: Upgrade the published Lenso UI and tokens to 0.9.0, align the StyleX runtime,
+  and preserve native Menu keyboard navigation and focus return. Preserve the
+  settings Select native focus ring by removing its old shadow override.
+- Updated dependencies [559d0ad]
+- Updated dependencies [559d0ad]
+- Updated dependencies [ced80f4]
+- Updated dependencies [c30967b]
+- Updated dependencies [559d0ad]
+  - @lenso/console-sdk@0.3.0
+
 ## 1.21.0
 
 ### Minor Changes

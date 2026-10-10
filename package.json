@@ -41,7 +41,7 @@
     "typecheck": "bun run typecheck:local",
     "typecheck:local": "bun run --cwd packages/console-react typecheck && bun run --cwd packages/console-dashboard typecheck && bun run --cwd packages/console-plugin-manager typecheck && bun run --cwd packages/auth-console typecheck && bun run --cwd plugins/console/shell typecheck:local",
     "preview": "bun run --cwd plugins/console/shell preview",
-    "test:distribution": "bun test tooling/distribution/sdk-shell.test.mjs tooling/distribution/preview-file-access.test.mjs tooling/distribution/preview-proxy.test.mjs tooling/distribution/wait-for-npm-package.test.mjs",
+    "test:distribution": "bun test tooling/distribution/sdk-shell.test.mjs tooling/distribution/preview-file-access.test.mjs tooling/distribution/preview-proxy.test.mjs tooling/distribution/wait-for-npm-package.test.mjs tooling/distribution/console-npm.test.mjs",
     "check:preflight": "bun tooling/checks/check-environment.mjs && bun run format:check && bun run lint && bun run sdk:build && bun run plugins:build && bun run typecheck:local && bun run sdk:preview && bun run sdk:check && bun run --cwd packages/console typecheck",
     "check:full": "bun run test && bun run --cwd packages/console test && bun run bundle:local && bun run --cwd packages/console build && bun run service:ts:check && bun run sdk:stage && bun tooling/distribution/check-archives.mjs",
     "test:preview": "bun run sdk:preview && bun test tooling/distribution/sdk-preview.test.mjs",

@@ -1,8 +1,13 @@
 {
   "name": "@lenso/console-plugin-manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Optional read-only Console installed plugin catalog",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LioRael/lenso-console.git",
+    "directory": "packages/console-plugin-manager"
+  },
   "files": [
     "dist",
     "src",
@@ -19,6 +24,9 @@
       "default": "./dist/react.js"
     },
     "./styles.css": "./dist/styles.css"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "bun build.ts && bun run --bun tsc -p tsconfig.build.json",

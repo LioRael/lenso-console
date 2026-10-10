@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Optional Console dashboard widgets and revisioned layout storage",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LioRael/lenso-console.git",
+    "directory": "packages/console-dashboard"
+  },
   "files": [
     "dist",
     "src",
@@ -54,6 +59,9 @@
       "default": "./dist/server-audit.js"
     },
     "./styles.css": "./dist/styles.css"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "bun build.ts && bun run --bun tsc -p tsconfig.build.json",
