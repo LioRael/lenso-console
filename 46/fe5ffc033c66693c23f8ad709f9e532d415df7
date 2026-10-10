@@ -1,0 +1,38 @@
+examples/security-workspaces/Cargo.lock
+  h_9d56aba080c170 1787-1806,1820,1846,1863-1879,1910-1937,1945,2713,2716,2718-2719,2724,2727-2728,2731-2733
+examples/security-workspaces/Cargo.toml
+  h_9d56aba080c170 16-18,37-40,62-67,72,77-81
+examples/security-workspaces/README.md
+  h_9d56aba080c170 7-9,14-15,19-21,26-28,34,39-40,46-47,51-53,58-86,123-179,186-189,192
+examples/security-workspaces/src/app-template/plugins/lenso.auth.account.console/default.toml
+  h_9d56aba080c170 1-10
+examples/security-workspaces/src/app-template/plugins/lenso.auth.account/default.toml
+  h_9d56aba080c170 8-25
+examples/security-workspaces/src/app-template/plugins/lenso.auth.password-web-session/default.toml
+  h_9d56aba080c170 1-3
+examples/security-workspaces/src/app-template/plugins/lenso.auth.password/default.toml
+  h_9d56aba080c170 5
+examples/security-workspaces/src/app-template/plugins/lenso.auth.session-console/default.toml
+  h_9d56aba080c170 1-2
+examples/security-workspaces/src/app-template/plugins/lenso.auth.session-renewal/default.toml
+  h_9d56aba080c170 1-3
+examples/security-workspaces/src/app-template/plugins/lenso.console.web/console.toml
+  h_9d56aba080c170 11
+examples/security-workspaces/src/app-template/plugins/lenso.web-ingress/native.toml
+  h_9d56aba080c170 1-4
+examples/security-workspaces/src/auth_tests.rs
+  h_9d56aba080c170 1-540
+examples/security-workspaces/src/lib.rs
+  h_9d56aba080c170 17-18,46-51,101-108,110-122,191-198,229-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46fe5ffc033c66693c23f8ad709f9e532d415df7",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
