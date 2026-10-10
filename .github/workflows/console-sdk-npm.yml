@@ -12,6 +12,14 @@ on:
         type: boolean
         default: false
         required: true
+      package_scope:
+        description: Explicit package set to verify and publish
+        type: choice
+        default: frontend
+        required: true
+        options:
+          - frontend
+          - backend
 permissions:
   contents: read
 concurrency:
@@ -21,6 +29,8 @@ jobs:
   package:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      RELEASE_PACKAGE_SCOPE: ${{ inputs.package_scope }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -49,6 +59,7 @@ jobs:
           bun install --frozen-lockfile
           bun run check
           bun tooling/distribution/console-npm.mjs pack .artifacts/console-npm
+          bun tooling/distribution/console-npm.mjs verify .artifacts/console-npm
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: console-npm
@@ -65,6 +76,7 @@ jobs:
       id-token: write
     env:
       RELEASE_PROTECTED_JOB: npm
+      RELEASE_PACKAGE_SCOPE: ${{ inputs.package_scope }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

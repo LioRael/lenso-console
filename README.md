@@ -71,9 +71,10 @@ schema initialization, revision CAS and mutation replay. Its optional Auth and
 Audit adapters enforce trusted ownership and versioned policy facts, and require
 durable intent acknowledgement before saving. See
 [Dashboard storage and server integration](packages/console-dashboard/README.md).
-The [Auth Console adapter](packages/auth-console/README.md) accepts the framework
-candidate's standard session administration service without importing its backend
-into browser pages. These candidate APIs are not yet a published release.
+The [Auth Console adapter](packages/auth-console/README.md) accepts the released
+Auth session administration service without importing its backend into browser
+pages. The TypeScript server plugin is published separately as `@lenso/console@2`;
+it replaces the retired native launcher and does not install business pages.
 
 For the application-owned local TypeScript host:
 

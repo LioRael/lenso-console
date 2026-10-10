@@ -10,6 +10,7 @@ const names = [
   "console-plugin-manager",
 ];
 const receipt = {
+  package_scope: "frontend",
   packages: names.map((name) => ({
     filename: `lenso-${name}-0.1.0.tgz`,
     name: `@lenso/${name}`,
@@ -40,7 +41,7 @@ test("receipt rejects another source/run, private owners and archive path change
     validateReceipt({ ...receipt, run_attempt: "3" }, env)
   ).toThrow();
   for (const edit of [
-    { name: "@lenso/console" },
+    { name: "@lenso/engine" },
     { filename: "../package.tgz" },
     { version: "0.1.0-beta.1" },
   ]) {
@@ -48,6 +49,34 @@ test("receipt rejects another source/run, private owners and archive path change
     Object.assign(changed.packages[0], edit);
     expect(() => validateReceipt(changed, env)).toThrow();
   }
+});
+
+test("backend release scope accepts only Console and cannot reuse a frontend receipt", () => {
+  const backend = {
+    ...receipt,
+    package_scope: "backend",
+    packages: [
+      {
+        filename: "lenso-console-2.0.0.tgz",
+        name: "@lenso/console",
+        sha256: "b".repeat(64),
+        version: "2.0.0",
+      },
+    ],
+  };
+  const backendEnv = { ...env, RELEASE_PACKAGE_SCOPE: "backend" };
+  expect(() => validateReceipt(backend, backendEnv)).not.toThrow();
+  expect(() => validateReceipt(receipt, backendEnv)).toThrow();
+  expect(() => validateReceipt(backend, env)).toThrow();
+  expect(() =>
+    validateReceipt({ ...backend, packages: receipt.packages }, backendEnv)
+  ).toThrow();
+  expect(() =>
+    validateReceipt(
+      { ...backend, package_scope: "all" },
+      { ...env, RELEASE_PACKAGE_SCOPE: "all" }
+    )
+  ).toThrow();
 });
 
 test("local publication fails before opening a receipt or invoking npm", async () => {

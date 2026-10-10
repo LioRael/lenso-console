@@ -69,7 +69,7 @@
     },
     "packages/console": {
       "name": "@lenso/console",
-      "version": "1.6.0",
+      "version": "2.0.0",
       "dependencies": {
         "@lenso/auth": "0.3.1",
         "@lenso/console-sdk": "workspace:*",

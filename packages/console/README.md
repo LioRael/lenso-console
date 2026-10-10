@@ -1,9 +1,12 @@
 # TypeScript Console plugin
 
 This directory owns Console's sole supported runtime: the TypeScript Lenso
-plugin. It is private and not a published replacement for
-`@lenso/console@1.5.2`. The same version number does not establish registry
-compatibility. Use the exact built archive with the matching SDK candidate.
+plugin. Version 2 replaces the retired native Host launcher with an application-owned
+TypeScript plugin and Fetch service. It is a breaking migration from
+`@lenso/console@1.5.2`: the `lenso-console` executable and platform binary packages
+are no longer provided. Install `@lenso/console@2` with the published
+`@lenso/console-sdk@0.3.0`; browser hosts may separately use
+`@lenso/console-react@0.1.0`. No business page or listener is installed automatically.
 
 `createConsolePlugin` installs into the application's existing Lenso graph.
 `createConsoleService` is the lower-level Fetch adapter. Neither starts an app,
@@ -184,8 +187,8 @@ Console uses normal registry dependencies: Core `0.3.1`, Engine `0.6.0`,
 Manage `0.5.0`, Auth `0.3.1`, Web `0.3.2`, and the optional companion versions
 pinned in `package.json`. Their published package exports have been verified;
 no framework checkout, source alias or locally built framework archive is needed.
-`@lenso/console` itself remains a private workspace package. This is not a claim
-that the backend can be installed from the registry.
+The `@lenso/console@2` archive exports built JavaScript and declarations, with
+optional source entries selected only by the `lenso-source` development condition.
 
 Console prepares one Manage selection per target. Request adapters supply fresh
 listing policy and invocation evidence without rebuilding that selection.

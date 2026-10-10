@@ -2,22 +2,33 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { waitForPackage } from "./wait-for-npm-package.mjs";
 
-const owners = [
-  ["console-authoring", "@lenso/console-sdk"],
-  ["console-react", "@lenso/console-react"],
-  ["console-dashboard", "@lenso/console-dashboard"],
-  ["auth-console", "@lenso/auth-console"],
-  ["console-plugin-manager", "@lenso/console-plugin-manager"],
-];
+const scopes = {
+  backend: [["console", "@lenso/console"]],
+  frontend: [
+    ["console-authoring", "@lenso/console-sdk"],
+    ["console-react", "@lenso/console-react"],
+    ["console-dashboard", "@lenso/console-dashboard"],
+    ["auth-console", "@lenso/auth-console"],
+    ["console-plugin-manager", "@lenso/console-plugin-manager"],
+  ],
+};
+const selectedOwners = (scope) => {
+  assert.ok(Object.hasOwn(scopes, scope), "Unknown Console package scope");
+  return scopes[scope];
+};
 const hash = (bytes, algorithm = "sha256", encoding = "hex") =>
   createHash(algorithm).update(bytes).digest(encoding);
 
 export const validateReceipt = (receipt, env) => {
+  const scope = env.RELEASE_PACKAGE_SCOPE ?? "frontend";
+  assert.equal(receipt.package_scope, scope);
+  const owners = selectedOwners(scope);
   assert.equal(receipt.source_sha, env.GITHUB_SHA);
   assert.equal(receipt.repository, "LioRael/lenso-console");
   assert.equal(env.GITHUB_REPOSITORY, receipt.repository);
@@ -40,6 +51,8 @@ export const validateReceipt = (receipt, env) => {
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 export const pack = (directory, env = process.env) => {
+  const scope = env.RELEASE_PACKAGE_SCOPE ?? "frontend";
+  const owners = selectedOwners(scope);
   assert.equal(
     execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).trim(),
     env.GITHUB_SHA
@@ -66,6 +79,21 @@ export const pack = (directory, env = process.env) => {
     );
     assert.equal(packed.name, name);
     assert.equal(packed.version, manifest.version);
+    assert.ok(!packed.private);
+    assert.equal(packed.publishConfig.access, "public");
+    for (const group of [
+      "dependencies",
+      "peerDependencies",
+      "devDependencies",
+      "optionalDependencies",
+    ]) {
+      for (const spec of Object.values(packed[group] ?? {})) {
+        assert.ok(
+          !/^(?:workspace:|file:|link:)/u.test(spec),
+          `Unresolved ${group} in ${name}`
+        );
+      }
+    }
     assert.equal(packed.license, "MIT");
     assert.equal(
       packed.repository.url,
@@ -79,6 +107,28 @@ export const pack = (directory, env = process.env) => {
       files.some((f) => f.startsWith("package/dist/")),
       `Missing build: ${name}`
     );
+    const checkExport = (target) => {
+      if (typeof target === "string") {
+        assert.ok(target.startsWith("./"));
+        assert.ok(
+          files.includes(`package/${target.slice(2)}`),
+          `Missing export ${name}: ${target}`
+        );
+      } else {
+        for (const value of Object.values(target)) {
+          checkExport(value);
+        }
+      }
+    };
+    checkExport(packed.exports);
+    for (const file of files) {
+      assert.ok(
+        !/(?:^|\/)(?:\.env(?:\.[^/]*)?|\.npmrc|\.git|node_modules|tests?)(?:\/|$)/u.test(
+          file
+        ),
+        `Unexpected package file: ${file}`
+      );
+    }
     if (name === "@lenso/console-sdk") {
       for (const file of [
         "shell/index.html",
@@ -102,6 +152,7 @@ export const pack = (directory, env = process.env) => {
     };
   });
   const receipt = {
+    package_scope: scope,
     packages,
     repository: env.GITHUB_REPOSITORY,
     run_attempt: env.GITHUB_RUN_ATTEMPT,
@@ -113,6 +164,67 @@ export const pack = (directory, env = process.env) => {
     path.join(directory, "source.json"),
     JSON.stringify(receipt, null, 2)
   );
+};
+
+// Verify the exact backend archive with its already published SDK dependency.
+// A workspace SDK archive could hide an unavailable or incompatible public API.
+export const verify = async (directory, env = process.env) => {
+  const receipt = JSON.parse(
+    fs.readFileSync(path.join(directory, "source.json"))
+  );
+  validateReceipt(receipt, env);
+  for (const p of receipt.packages) {
+    const archive = path.resolve(directory, p.filename);
+    assert.equal(hash(fs.readFileSync(archive)), p.sha256);
+    if (p.name !== "@lenso/console") {
+      continue;
+    }
+    const manifest = JSON.parse(
+      execFileSync("tar", ["-xOf", archive, "package/package.json"], {
+        encoding: "utf-8",
+      })
+    );
+    const sdkVersion = manifest.dependencies["@lenso/console-sdk"];
+    assert.match(sdkVersion, /^\d+\.\d+\.\d+$/u);
+    const metadataResponse = await fetch(
+      `https://registry.npmjs.org/@lenso%2Fconsole-sdk/${sdkVersion}`
+    );
+    assert.ok(metadataResponse.ok, "The matching SDK must already be public");
+    const metadata = await metadataResponse.json();
+    assert.equal(metadata.name, "@lenso/console-sdk");
+    assert.equal(metadata.version, sdkVersion);
+    assert.equal(
+      new URL(metadata.dist.tarball).origin,
+      "https://registry.npmjs.org"
+    );
+    const response = await fetch(metadata.dist.tarball);
+    assert.ok(response.ok);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(
+      `sha512-${hash(bytes, "sha512", "base64")}`,
+      metadata.dist.integrity
+    );
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), "console-public-sdk-"));
+    try {
+      const sdkArchive = path.join(temp, "console-sdk.tgz");
+      fs.writeFileSync(sdkArchive, bytes);
+      execFileSync(
+        "bun",
+        ["test", "tooling/distribution/console-ts.test.mjs"],
+        {
+          cwd: root,
+          env: {
+            ...env,
+            LENSO_AUTHOR_ARCHIVE: sdkArchive,
+            LENSO_CONSOLE_ARCHIVE: archive,
+          },
+          stdio: "inherit",
+        }
+      );
+    } finally {
+      fs.rmSync(temp, { force: true, recursive: true });
+    }
+  }
 };
 
 export const publish = async (directory, env = process.env) => {
@@ -196,7 +308,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === import.meta.filename) {
     pack(directory);
   } else if (mode === "publish") {
     await publish(directory);
+  } else if (mode === "verify") {
+    await verify(directory);
   } else {
-    throw new Error("Expected pack or publish mode");
+    throw new Error("Expected pack, verify or publish mode");
   }
 }

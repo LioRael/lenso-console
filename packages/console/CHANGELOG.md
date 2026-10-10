@@ -1,5 +1,15 @@
 # @lenso/console
 
+## 2.0.0
+
+### Major Changes
+
+- Publish the TypeScript Console plugin and Fetch service as the supported runtime.
+  This replaces the native Host launcher and its platform binary dependencies.
+  Applications explicitly supply authentication, service targets, pages and their
+  listener. The zero-business-page React Shell and domain adapters remain separate
+  opt-in packages. Use the matching published Console SDK 0.3.0.
+
 ## 1.6.0
 
 ### Minor Changes
