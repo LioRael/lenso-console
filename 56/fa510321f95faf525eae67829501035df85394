@@ -1,0 +1,37 @@
+.github/workflows/marketplace.yml
+  s_3724267b9ee00e::t_16099efb6d2fbc 6-10,14-18,36
+plugins/marketplace/app/Cargo.toml
+  s_3724267b9ee00e::t_a12347ef5a0a25 20
+plugins/marketplace/catalog/tests/conformance.json
+  s_3724267b9ee00e::t_9701f9dc7c0f8a 16
+plugins/marketplace/catalog/tests/cross-language.mjs
+  s_3724267b9ee00e::t_6bcd08228eb39a 1,3-8,10-15,18-26,28,30
+plugins/marketplace/directory/config.schema.json
+  s_3724267b9ee00e::t_55f10cd54cd8fb 1-10
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/capability.json
+  s_3724267b9ee00e::t_af14b246cf2a33 6-14
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/schemas/read-error.schema.json
+  s_3724267b9ee00e::t_4ab889a2aea8fa 1-4
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/schemas/read-request.schema.json
+  s_3724267b9ee00e::t_06c874d1783ec3 1-6
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/schemas/read-response.schema.json
+  s_3724267b9ee00e::t_c67a92c59a449a 1-7
+plugins/marketplace/web/config.schema.json
+  s_3724267b9ee00e::t_107d99af27dd98 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "56fa510321f95faf525eae67829501035df85394",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

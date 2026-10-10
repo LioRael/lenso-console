@@ -1,0 +1,156 @@
+.changeset/optional-management-backend.md
+  h_9d56aba080c170 1-8
+.gitignore
+  h_9d56aba080c170 5
+package.json
+  h_9d56aba080c170 24,36,39-40,60,63-66
+packages/console-authoring/compiler/typecheck.mjs
+  h_9d56aba080c170 35-36,68-73
+packages/console-authoring/package.json
+  h_9d56aba080c170 36-37
+packages/console-authoring/src/credentials.ts
+  h_9d56aba080c170 1-104
+packages/console-authoring/src/index.ts
+  h_9d56aba080c170 44-45,70-74,93-105
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 97-110
+packages/console-authoring/src/transport.ts
+  h_9d56aba080c170 21-24,28-30,39,41-46,51-53,254-266,270-271
+packages/console/README.md
+  h_9d56aba080c170 70-77,86-193
+packages/console/package.json
+  h_9d56aba080c170 25-52,59-62,65,67-69,74-82,85-87,91-118
+packages/console/pages/api-keys/page.tsx
+  h_9d56aba080c170 1-643
+packages/console/pages/api-keys/schema.test.ts
+  h_9d56aba080c170 1-70
+packages/console/pages/api-keys/schema.ts
+  h_9d56aba080c170 1-25
+packages/console/pages/audit/contract.test.ts
+  h_9d56aba080c170 1-53
+packages/console/pages/audit/contract.ts
+  h_9d56aba080c170 1-87
+packages/console/pages/audit/page.tsx
+  h_9d56aba080c170 1-476
+packages/console/pages/audit/styles.css
+  h_9d56aba080c170 1-91
+packages/console/pages/authorization/page.tsx
+  h_9d56aba080c170 1-139
+packages/console/pages/authorization/schema.ts
+  h_9d56aba080c170 1-36
+packages/console/pages/scheduler/create.tsx
+  h_9d56aba080c170 1-381
+packages/console/pages/scheduler/page.tsx
+  h_9d56aba080c170 1-571
+packages/console/pages/scheduler/schemas.test.ts
+  h_9d56aba080c170 1-81
+packages/console/pages/scheduler/schemas.ts
+  h_9d56aba080c170 1-71
+packages/console/pages/scheduler/task-input.tsx
+  h_9d56aba080c170 1-532
+packages/console/pages/shared.tsx
+  h_9d56aba080c170 1-204
+packages/console/pages/style.d.ts
+  h_9d56aba080c170 1
+packages/console/pages/styles.css
+  h_9d56aba080c170 1-172
+packages/console/pages/tasks/page.tsx
+  h_9d56aba080c170 1-345
+packages/console/pages/tasks/poll.ts
+  h_9d56aba080c170 1-66
+packages/console/pages/tasks/schemas.test.ts
+  h_9d56aba080c170 1-48
+packages/console/pages/tasks/schemas.ts
+  h_9d56aba080c170 1-30
+packages/console/src/errors.ts
+  h_9d56aba080c170 1-53
+packages/console/src/index.ts
+  h_9d56aba080c170 4-5
+packages/console/src/integrations/api-keys.ts
+  h_9d56aba080c170 1-317
+packages/console/src/integrations/audit.ts
+  h_9d56aba080c170 1-63
+packages/console/src/integrations/authorization.ts
+  h_9d56aba080c170 1-152
+packages/console/src/integrations/invocation.ts
+  h_9d56aba080c170 1-31
+packages/console/src/integrations/limits.ts
+  h_9d56aba080c170 1-148
+packages/console/src/integrations/scheduler.ts
+  h_9d56aba080c170 1-66
+packages/console/src/integrations/tasks.ts
+  h_9d56aba080c170 1-366
+packages/console/src/pages.ts
+  h_9d56aba080c170 1-96
+packages/console/src/request-body.ts
+  h_9d56aba080c170 1-48
+packages/console/src/service.ts
+  h_9d56aba080c170 24-25,42-43,48,52-57,62-74,109-111,115,118,121-126,132-133,199-201,303-319,457-467,518,653,684,693,697,700,750,795-834,837-840,855,858,861-866,913-914,921
+packages/console/src/types.ts
+  h_9d56aba080c170 62,87-95
+packages/console/test/audit.test.ts
+  h_9d56aba080c170 1-270
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 13,21,23,112-118,152,221-222,234,293-457
+packages/console/test/browser-host.ts
+  h_9d56aba080c170 1-603
+packages/console/test/fixtures/sqlite-d1.ts
+  h_9d56aba080c170 1-66
+packages/console/test/limits.test.ts
+  h_9d56aba080c170 1-117
+packages/console/test/security.test.ts
+  h_9d56aba080c170 1-474
+packages/console/test/tasks.test.ts
+  h_9d56aba080c170 1-592
+packages/console/tooling/build-pages.mjs
+  h_9d56aba080c170 1-71
+packages/console/tsconfig.json
+  h_9d56aba080c170 9-11,14
+packages/console/tsdown.config.ts
+  h_9d56aba080c170 4-14
+plugins/console/shell/package.json
+  h_9d56aba080c170 21
+plugins/console/shell/src/app/console-session.tsx
+  h_9d56aba080c170 13,54,69-72,109,257-261
+plugins/console/shell/src/components/runtime/console-shell.tsx
+  h_9d56aba080c170 102-104,128-129
+plugins/console/shell/src/features/extensions/page-contribution-catalog.test.ts
+  h_9d56aba080c170 18,28-31
+plugins/console/shell/src/features/extensions/page-contribution-catalog.ts
+  h_9d56aba080c170 1,48,291-294,322-335
+plugins/console/shell/src/features/extensions/page-contribution-outlet.tsx
+  h_9d56aba080c170 1,41,51,98,340,460-464
+plugins/console/shell/src/features/extensions/page-mount-runtime.ts
+  h_9d56aba080c170 73
+plugins/console/shell/src/features/extensions/workspace-credentials.ts
+  h_9d56aba080c170 1-32
+plugins/console/shell/src/features/management/management-page.browser.test.tsx
+  h_9d56aba080c170 9,24-25
+plugins/console/shell/src/features/management/management-page.tsx
+  h_9d56aba080c170 22,98-106
+plugins/console/shell/src/features/management/management-v2-directory.tsx
+  h_9d56aba080c170 1-177
+pnpm-lock.yaml
+  h_9d56aba080c170 166-179,189-190,198-199,201-202,204-205,207-208,257-262,264-268,273-274,276-280,282-289,297-305,312-320,463-465,1024-1083,1085,1096-1119,1124-1126,1128-1130,1132-1134,1136-1149,1157-1168,1176-1214,1224-1231,1267-1270,1275-1356,1627-1629,2655-2658,2733-2735,2743-2745,2763-2766,2777-2779,2822-2916,2933-2935,2947-2949,2987-2989,2998-3000,3115-3117,3139-3142,3200-3203,3338-3341,3541-3543,3548-3550,3580-3586,3682-3695,3727-3729,3772-3774,3784-3786,3825-3827,3872-3875,3928-3931,3938-3940,3990-3995,4010-4013,4045-4048,4069-4072,4376-4378,4897-4906,4908-4919,4921-4930,4934,4939,4941,4945,4947,4950-4964,4967-4981,4991-5040,5061,5063,5116-5119,5122-5215,5366-5367,6293-6294,6362-6363,6368-6369,6380-6383,6394-6395,6424-6428,6435-6438,6448-6449,6499-6500,6511-6512,6675-6676,6691-6696,6738-6739,6836-6837,7255-7256,7259-7260,7279-7284,7390-7425,7448-7449,7526-7530,7537-7538,7593-7594,7669-7675,7747-7748,7753-7754,7787-7794,7806-7807,7849-7850,7867-7870,8123-8124
+pnpm-workspace.yaml
+  h_9d56aba080c170 11-24,45,49-57
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 3,48-69,71-73,114-119,122-125,154,174,188-190
+tooling/distribution/framework-source.json
+  h_9d56aba080c170 3
+tooling/distribution/management-ui.test.mjs
+  h_9d56aba080c170 1-446
+tooling/distribution/prepare-ts-framework.mjs
+  h_9d56aba080c170 21-24,28,30,66-81,100-105,115-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c30967bff2277e523d7c048dd3dcf47ee884d87a",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+src/components/runtime/context-navigation.browser.test.tsx
+  s_f24ec9a17597d4::t_8d6d1769c95e5a 303-307
+docs/design/reviews/2026-10-01-console-two-level-shell.md
+  s_f24ec9a17597d4::t_cdfabdce84d21f 75-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1831de04d16681d2463a79f5d5ce6d015f286866",
+  "prompts": {},
+  "sessions": {
+    "s_f24ec9a17597d4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f748-4186-76d3-a2d5-51e6339d7793",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
