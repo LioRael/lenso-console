@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { publish, validateReceipt } from "./console-npm.mjs";
+import { publish, releaseTag, validateReceipt } from "./console-npm.mjs";
 
 const names = [
   "console-sdk",
@@ -77,6 +77,36 @@ test("backend release scope accepts only Console and cannot reuse a frontend rec
       { ...env, RELEASE_PACKAGE_SCOPE: "all" }
     )
   ).toThrow();
+});
+
+test("backend RC archives use next and cannot become frontend or stable releases", () => {
+  expect(releaseTag("2.0.1-rc.0", "backend")).toBe("next");
+  expect(releaseTag("2.0.0", "backend")).toBe("latest");
+  expect(releaseTag("0.3.0", "frontend")).toBe("latest");
+  for (const [version, scope] of [
+    ["2.0.1-rc.0", "frontend"],
+    ["2.0.1-beta.0", "backend"],
+    ["2.0.1-rc.0+build", "backend"],
+    ["2.0.1", "all"],
+  ]) {
+    expect(() => releaseTag(version, scope)).toThrow();
+  }
+  const rc = {
+    ...receipt,
+    package_scope: "backend",
+    packages: [
+      {
+        filename: "lenso-console-2.0.1-rc.0.tgz",
+        name: "@lenso/console",
+        sha256: "b".repeat(64),
+        version: "2.0.1-rc.0",
+      },
+    ],
+  };
+  expect(() =>
+    validateReceipt(rc, { ...env, RELEASE_PACKAGE_SCOPE: "backend" })
+  ).not.toThrow();
+  expect(() => validateReceipt(rc, env)).toThrow();
 });
 
 test("local publication fails before opening a receipt or invoking npm", async () => {

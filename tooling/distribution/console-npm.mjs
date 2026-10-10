@@ -25,6 +25,18 @@ const selectedOwners = (scope) => {
 const hash = (bytes, algorithm = "sha256", encoding = "hex") =>
   createHash(algorithm).update(bytes).digest(encoding);
 
+export const releaseTag = (version, scope) => {
+  selectedOwners(scope);
+  if (/^\d+\.\d+\.\d+$/u.test(version)) {
+    return "latest";
+  }
+  assert.ok(
+    scope === "backend" && /^\d+\.\d+\.\d+-rc\.\d+$/u.test(version),
+    "Only backend RC versions may use the next release tag"
+  );
+  return "next";
+};
+
 export const validateReceipt = (receipt, env) => {
   const scope = env.RELEASE_PACKAGE_SCOPE ?? "frontend";
   assert.equal(receipt.package_scope, scope);
@@ -40,7 +52,7 @@ export const validateReceipt = (receipt, env) => {
   assert.equal(receipt.packages.length, owners.length);
   for (const [i, p] of receipt.packages.entries()) {
     assert.equal(p.name, owners[i][1]);
-    assert.match(p.version, /^\d+\.\d+\.\d+$/u);
+    releaseTag(p.version, scope);
     assert.equal(
       p.filename,
       `${p.name.replace("@", "").replace("/", "-")}-${p.version}.tgz`
@@ -286,7 +298,7 @@ export const publish = async (directory, env = process.env) => {
           path.join(directory, p.filename),
           "--registry=https://registry.npmjs.org",
           "--access=public",
-          "--tag=latest",
+          `--tag=${releaseTag(p.version, receipt.package_scope)}`,
           "--provenance",
           "--ignore-scripts",
         ],
