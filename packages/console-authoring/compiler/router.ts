@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import type { ErrorProps, LayoutProps, PageProps } from "../src/index";
-import { WorkspaceScope } from "../src/navigation";
+import { WorkspaceScope } from "../src/react";
 
 type Layer = {
   Layout?: React.ComponentType<LayoutProps>;

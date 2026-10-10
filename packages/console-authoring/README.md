@@ -123,7 +123,8 @@ handlers validate and authorize before executing domain code.
 ## Pages and navigation
 
 A page is an ordinary React component. Import `PageProps` or `definePage` from
-`@lenso/console-sdk`; React hooks use the Shell's singleton. Do not import Console
+`@lenso/console-sdk`; import hooks and navigation from `@lenso/console-sdk/react`.
+React hooks use the Shell's singleton. Do not import Console
 source or create another React root. `console/page.tsx` is the Workspace root.
 Static routes precede `[id]`, required `[...path]` and optional `[[...path]]` routes;
 ambiguous patterns fail compilation. Named parameters are strings; catch-all
@@ -173,10 +174,10 @@ Plugin's root declaration. Existing single-root `console/page.tsx` remains valid
 Compiler options `workspaces: [{ entry: "user", path: "/members" }]` select the
 same pipeline with explicit metadata overrides, rather than another compiler.
 
-Use `Link` and `useWorkspace` from `@lenso/console-sdk` for relative links:
+Use `Link` and `useWorkspace` from `@lenso/console-sdk/react` for relative links:
 
 ```tsx
-import { Link, useWorkspace } from "@lenso/console-sdk";
+import { Link, useWorkspace } from "@lenso/console-sdk/react";
 export default function Page() {
   const { mount } = useWorkspace();
   return <section><h1>{mount.owner.instance}</h1><Link to={["details"]}>Details</Link></section>;
@@ -257,7 +258,7 @@ the package's default runtime path.
 
 ## Shared language and Plugin catalogs
 
-Import `useConsoleLocale` from `@lenso/console-sdk/locale`; the Console compiler
+Import `useConsoleLocale` from `@lenso/console-sdk/react/locale`; the Console compiler
 keeps this module external and the Shell supplies its single runtime context.
 Do not store language in a workspace cache key or create another React context.
 The context exposes the effective `locale`, account `preference`, public
@@ -297,17 +298,24 @@ root remains supported.
 Install the SDK and the dependencies your pages import in the plugin's own
 `package.json`. Bun 1.4.2+ is the project runtime; Node is only needed for npm
 compatibility consumers and publishing. Rust, a database and a Console source checkout are unnecessary. The SDK archive includes its page-only
-preview source and Vite/React/StyleX closure, not built-in Console application pages.
+preview source, not built-in Console application pages. Compiler and preview tools
+are optional development dependencies supplied by the application, not part of
+the SDK's browser-client install.
 
 ```sh
 cd plugins/orders
-npm install --save-dev @lenso/console-sdk
-npm install react@19.2.8 react-dom@19.2.8 @lenso/ui @stylexjs/stylex
+npm install --save-dev @lenso/console-sdk typescript @types/react @types/bun
+npm install --save-dev vite @vitejs/plugin-react @stylexjs/unplugin
+npm install react@19.2.8 react-dom@19.2.8 @lenso/console-react @lenso/ui @lenso/tokens @stylexjs/stylex @tanstack/react-query @tanstack/react-router @fontsource-variable/inter @fontsource/roboto-mono
 ./node_modules/.bin/lenso-console-author dev --entry ./console --open
 ```
 
 The same installed executable works after `bun install`; `npm install` is
 supported only for external npm-compatibility consumers.
+Production builds need the TypeScript/type packages but not the preview's
+Vite/StyleX tooling. Pages using the host layout API also install
+`@lenso/console-react`. Server bindings require the optional `@lenso/core`,
+`@lenso/engine`, and `@lenso/manage` peers.
 `--entry`, `--plugin-id` and the existing `workspace.ts` / `page.tsx` / layout,
 loading, error and not-found declarations retain their existing meanings. There
 is no additional project configuration language. Use `--plugin-id` when the

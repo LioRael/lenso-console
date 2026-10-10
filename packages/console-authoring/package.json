@@ -26,11 +26,22 @@
     "dev"
   ],
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "lenso-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./react": {
+      "lenso-source": "./src/react.ts",
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./react/locale": {
+      "lenso-source": "./src/locale.ts",
+      "types": "./dist/locale.d.ts",
+      "default": "./dist/locale.js"
     },
     "./server": {
       "lenso-source": "./src/server.ts",
@@ -105,16 +116,21 @@
     "test": "bun test compiler/test"
   },
   "dependencies": {
+    "@orpc/client": "2.0.0-beta.42",
+    "@orpc/contract": "2.0.0-beta.42",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
     "@base-ui/react": "^1.7.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
+    "@lenso/console-react": "workspace:*",
     "@lenso/core": "0.3.1",
     "@lenso/engine": "0.6.0",
     "@lenso/manage": "0.5.0",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",
-    "@orpc/client": "2.0.0-beta.42",
-    "@orpc/contract": "2.0.0-beta.42",
+    "@orpc/server": "2.0.0-beta.42",
     "@stylexjs/stylex": "0.19.1",
     "@stylexjs/unplugin": "0.19.0",
     "@tanstack/react-query": "^5.101.4",
@@ -124,14 +140,87 @@
     "@vitejs/plugin-react": "^6.0.5",
     "react-dom": "19.2.8",
     "typescript": "7.0.2",
-    "vite": "^8.2.0",
-    "zod": "4.6.5"
-  },
-  "devDependencies": {
-    "@orpc/server": "2.0.0-beta.42"
+    "vite": "^8.2.0"
   },
   "peerDependencies": {
-    "react": "^19.0.0"
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
+    "@lenso/console-react": "^0.1.0",
+    "@lenso/core": "0.3.1",
+    "@lenso/engine": "0.6.0",
+    "@lenso/manage": "0.5.0",
+    "@lenso/tokens": "0.9.1",
+    "@lenso/ui": "0.9.1",
+    "@stylexjs/stylex": "0.19.1",
+    "@stylexjs/unplugin": "0.19.0",
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-router": "^1.170.21",
+    "@types/bun": "1.4.2",
+    "@types/react": "^19.2.18",
+    "@vitejs/plugin-react": "^6.0.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "7.0.2",
+    "vite": "^8.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@fontsource-variable/inter": {
+      "optional": true
+    },
+    "@fontsource/roboto-mono": {
+      "optional": true
+    },
+    "@lenso/console-react": {
+      "optional": true
+    },
+    "@lenso/core": {
+      "optional": true
+    },
+    "@lenso/engine": {
+      "optional": true
+    },
+    "@lenso/manage": {
+      "optional": true
+    },
+    "@lenso/tokens": {
+      "optional": true
+    },
+    "@lenso/ui": {
+      "optional": true
+    },
+    "@stylexjs/stylex": {
+      "optional": true
+    },
+    "@stylexjs/unplugin": {
+      "optional": true
+    },
+    "@tanstack/react-query": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "@tanstack/react-router": {
+      "optional": true
+    },
+    "@types/bun": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    },
+    "@vitejs/plugin-react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "typescript": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
   },
   "engines": {
     "bun": ">=1.4.2",

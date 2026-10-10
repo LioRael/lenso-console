@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 import "@lenso/tokens/styles.css";
+import "@lenso/console-react/styles.css";
 import "../../src/styles.css";
 import { ConsoleLayout } from "../../src/components/console/console-layout";
 import {

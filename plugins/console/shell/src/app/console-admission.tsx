@@ -1,3 +1,4 @@
+import * as consoleReact from "@lenso/console-react";
 import type { PageProps } from "@lenso/console-sdk";
 import {
   ConsoleBrowserMount,
@@ -8,7 +9,7 @@ import {
   type BrowserAdmission,
   type BrowserMount,
 } from "@lenso/console-sdk/browser";
-import * as consoleLocale from "@lenso/console-sdk/locale";
+import * as consoleLocale from "@lenso/console-sdk/react/locale";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
@@ -102,39 +103,68 @@ export function ConsoleAdmittedPage() {
   }
   return (
     <ConsoleLayout>
-      <ConsoleBrowserMount
-        admission={value.admission}
-        mount={mount}
-        key={consoleMountKey(value.admission, mount)}
-      >
-        {(runtime) => (
-          <OwnerPage
-            admission={value.admission!}
-            mount={mount}
-            runtime={runtime}
-            handoff={consoleHandoffForLocation(
-              pendingHandoff,
-              admission,
-              mount,
-              location.href
-            )}
-            onClearHandoff={() => setPendingHandoff(undefined)}
-            onHandoff={(destination, destinationHref, handoff) => {
-              setPendingHandoff(
-                handoff && admission
-                  ? {
-                      admission,
-                      destinationKey: consoleMountKey(admission, destination),
-                      destinationHref,
-                      value: handoff,
-                    }
-                  : undefined
-              );
-            }}
-          />
-        )}
-      </ConsoleBrowserMount>
+      <AdmittedActionHost>
+        <ConsoleBrowserMount
+          admission={value.admission}
+          mount={mount}
+          key={consoleMountKey(value.admission, mount)}
+        >
+          {(runtime) => (
+            <OwnerPage
+              admission={value.admission!}
+              mount={mount}
+              runtime={runtime}
+              handoff={consoleHandoffForLocation(
+                pendingHandoff,
+                admission,
+                mount,
+                location.href
+              )}
+              onClearHandoff={() => setPendingHandoff(undefined)}
+              onHandoff={(destination, destinationHref, handoff) => {
+                setPendingHandoff(
+                  handoff && admission
+                    ? {
+                        admission,
+                        destinationKey: consoleMountKey(admission, destination),
+                        destinationHref,
+                        value: handoff,
+                      }
+                    : undefined
+                );
+              }}
+            />
+          )}
+        </ConsoleBrowserMount>
+      </AdmittedActionHost>
     </ConsoleLayout>
+  );
+}
+
+function AdmittedActionHost({ children }: { children: React.ReactNode }) {
+  const dockRef = React.useRef<HTMLDivElement | null>(null);
+  return (
+    <consoleReact.ConsoleActionHost
+      render={(selection) => (
+        <ConsoleLayout.Foreground>
+          <consoleReact.ConsoleDock
+            visible={!!selection}
+            position="bottom"
+            compact={false}
+            activeId=""
+            items={[]}
+            selection={selection}
+            running={selection?.running ?? false}
+            dockRef={dockRef}
+            onNavigate={() => undefined}
+            onExpand={() => undefined}
+            onFocusDock={() => undefined}
+          />
+        </ConsoleLayout.Foreground>
+      )}
+    >
+      {children}
+    </consoleReact.ConsoleActionHost>
   );
 }
 
@@ -144,7 +174,11 @@ type WorkspaceModule = {
     react: typeof React;
     createElement: typeof React.createElement;
     services: PageProps["services"];
-    modules: { "@lenso/console-sdk/locale": typeof consoleLocale };
+    modules: {
+      "@lenso/console-react": typeof consoleReact;
+      "@lenso/console-sdk/react/locale": typeof consoleLocale;
+      "@lenso/console-sdk/locale": typeof consoleLocale;
+    };
   }): { Page: React.ComponentType<PageProps> };
 };
 
@@ -185,6 +219,10 @@ function OwnerPage({
   const navigate = useNavigate();
   const router = useRouter();
   const { theme } = useConsoleAppearance();
+  const { activation, signal } = consoleReact.useConsoleActivation(
+    location.pathname,
+    runtime.signal
+  );
   React.useEffect(() => {
     let active = true;
     const stylesheets: HTMLLinkElement[] = [];
@@ -214,7 +252,11 @@ function OwnerPage({
         react: React,
         createElement: React.createElement,
         services: runtime.services,
-        modules: { "@lenso/console-sdk/locale": consoleLocale },
+        modules: {
+          "@lenso/console-react": consoleReact,
+          "@lenso/console-sdk/react/locale": consoleLocale,
+          "@lenso/console-sdk/locale": consoleLocale,
+        },
       });
       setPageComponent(() => workspace.Page);
     };
@@ -262,6 +304,8 @@ function OwnerPage({
       <div {...stylex.props(styles.content)}>
         <Page
           {...runtime}
+          activation={activation}
+          signal={signal}
           mount={mount}
           params={{}}
           environment={{ locale: "en", theme }}

@@ -1,8 +1,16 @@
+import {
+  ConsoleActionHost,
+  ConsoleDock,
+  ConsoleLayout,
+  useConsoleActivation,
+} from "@lenso/console-react";
+
+import "@lenso/console-react/styles.css";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   exampleServices,
   isUiPreview,
@@ -125,55 +133,84 @@ function PreviewContent({
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useConsoleAppearance();
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const { activation, signal } = useConsoleActivation(
+    location.pathname,
+    runtime.signal
+  );
   const [handoff, setHandoff] = useState<{
     mountId: string;
     value: PageProps["location"]["handoff"];
   }>();
   return (
-    <PreviewPage
-      {...runtime}
-      environment={{ locale: "en", theme }}
-      location={{
-        segments: location.pathname
-          .slice(mount.basePath.replace(/\/$/u, "").length)
-          .split("/")
-          .filter(Boolean)
-          .map(decodeURIComponent),
-        hash: location.hash,
-        search: location.searchStr,
-        handoff: handoff?.mountId === mount.id ? handoff.value : undefined,
-      }}
-      mount={mount}
-      navigation={{
-        href: (segments) => consoleMountHref(mount, segments),
-        go: (segments) => {
-          setHandoff(undefined);
-          void navigate({ to: consoleMountHref(mount, segments) });
-        },
-        openWorkspace: ({
-          workspaceId,
-          subject,
-          handoff: value,
-          segments = [],
-        }) => {
-          const other = mounts.find(
-            (candidate) =>
-              (candidate.id === workspaceId ||
-                candidate.pageId === workspaceId) &&
-              candidate.subject.kind === subject.kind &&
-              (subject.kind === "console" ||
-                (candidate.subject.kind === "app" &&
-                  candidate.subject.appId === subject.appId))
-          );
-          if (!other) {
-            throw new Error("Workspace is not admitted in this preview");
-          }
-          setHandoff({ mountId: other.id, value });
-          void navigate({ to: consoleMountHref(other, segments) });
-        },
-      }}
-      params={{}}
-    />
+    <ConsoleLayout>
+      <ConsoleActionHost
+        render={(selection) => (
+          <ConsoleLayout.Foreground>
+            <ConsoleDock
+              visible={!!selection}
+              position="bottom"
+              compact={false}
+              activeId=""
+              items={[]}
+              selection={selection}
+              running={selection?.running ?? false}
+              dockRef={dockRef}
+              onNavigate={() => undefined}
+              onExpand={() => undefined}
+              onFocusDock={() => undefined}
+            />
+          </ConsoleLayout.Foreground>
+        )}
+      >
+        <PreviewPage
+          {...runtime}
+          activation={activation}
+          signal={signal}
+          environment={{ locale: "en", theme }}
+          location={{
+            segments: location.pathname
+              .slice(mount.basePath.replace(/\/$/u, "").length)
+              .split("/")
+              .filter(Boolean)
+              .map(decodeURIComponent),
+            hash: location.hash,
+            search: location.searchStr,
+            handoff: handoff?.mountId === mount.id ? handoff.value : undefined,
+          }}
+          mount={mount}
+          navigation={{
+            href: (segments) => consoleMountHref(mount, segments),
+            go: (segments) => {
+              setHandoff(undefined);
+              void navigate({ to: consoleMountHref(mount, segments) });
+            },
+            openWorkspace: ({
+              workspaceId,
+              subject,
+              handoff: value,
+              segments = [],
+            }) => {
+              const other = mounts.find(
+                (candidate) =>
+                  (candidate.id === workspaceId ||
+                    candidate.pageId === workspaceId) &&
+                  candidate.subject.kind === subject.kind &&
+                  (subject.kind === "console" ||
+                    (candidate.subject.kind === "app" &&
+                      candidate.subject.appId === subject.appId))
+              );
+              if (!other) {
+                throw new Error("Workspace is not admitted in this preview");
+              }
+              setHandoff({ mountId: other.id, value });
+              void navigate({ to: consoleMountHref(other, segments) });
+            },
+          }}
+          params={{}}
+        />
+      </ConsoleActionHost>
+    </ConsoleLayout>
   );
 }
 

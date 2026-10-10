@@ -1,0 +1,47 @@
+{
+  "name": "@lenso/console-react",
+  "version": "0.1.0",
+  "description": "Standalone React Console layout and explicitly composed navigation",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "lenso-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "bun build.ts && bun run --bun tsc -p tsconfig.build.json",
+    "typecheck": "bun run --bun tsc --noEmit -p tsconfig.json",
+    "test": "bun test --preload ../../plugins/console/shell/test/stylex-preload.ts"
+  },
+  "dependencies": {
+    "@lenso/tokens": "0.9.1",
+    "@lenso/ui": "0.9.1",
+    "@stylexjs/stylex": "0.19.1",
+    "lucide-react": "^1.28.0",
+    "motion": "^14.0.0"
+  },
+  "devDependencies": {
+    "@stylexjs/unplugin": "0.19.0",
+    "@types/bun": "1.4.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "typescript": "7.0.2",
+    "vite": "^8.2.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

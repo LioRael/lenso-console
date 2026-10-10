@@ -12,15 +12,20 @@ import {
   compiledWorkspaceSchema,
   type ConsolePageAuthoringDescriptor,
 } from "./protocol";
+import type {
+  DeclaredOperation,
+  DeclaredStreamOperation,
+  ServiceDefinitions,
+  WorkspaceOperationContext,
+} from "./service-types";
 
-/** Supplied by the trusted Host binding, never reconstructed from business input. */
-export interface WorkspaceOperationContext {
-  subject: Subject;
-  owner: { instance: string };
-  mountId: string;
-  revision: string;
-  signal: AbortSignal;
-}
+export type {
+  DeclaredOperation,
+  DeclaredStreamOperation,
+  Service,
+  ServiceDefinitions,
+  WorkspaceOperationContext,
+} from "./service-types";
 
 export class WorkspaceServiceError extends Error {
   readonly code:
@@ -51,24 +56,6 @@ export interface Operation<Input = unknown, Output = unknown> {
     context: WorkspaceOperationContext
   ): Output | Promise<Output>;
 }
-export interface DeclaredOperation<Input = unknown, Output = unknown> {
-  readonly interaction: "request";
-  readonly description?: string;
-  readonly effect?: "read" | "write" | "unknown";
-  readonly __types?: { input: Input; output: Output };
-  invoke(context: WorkspaceOperationContext, value: unknown): Promise<Output>;
-}
-export interface DeclaredStreamOperation<Input = unknown, Item = unknown> {
-  readonly interaction: "stream";
-  readonly description?: string;
-  readonly effect: "read";
-  readonly __types?: { input: Input; output: Item };
-  subscribe(
-    context: WorkspaceOperationContext,
-    value: unknown
-  ): AsyncIterable<Item>;
-}
-
 async function admit<Input>(
   declaration: Pick<Operation<Input>, "parse" | "authorize">,
   context: WorkspaceOperationContext,
@@ -145,15 +132,6 @@ export function streamOperation<Input, Item>(
     },
   };
 }
-
-export interface Service {
-  capabilityId: string;
-  version: string;
-  operations: Readonly<
-    Record<string, DeclaredOperation | DeclaredStreamOperation>
-  >;
-}
-export type ServiceDefinitions = Readonly<Record<string, Service>>;
 
 export function defineServices<const Definitions extends ServiceDefinitions>(
   services: Definitions

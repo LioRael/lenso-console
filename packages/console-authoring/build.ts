@@ -5,6 +5,7 @@ await rm(new URL("dist", import.meta.url), { recursive: true, force: true });
 const result = await Bun.build({
   entrypoints: [
     "src/index.ts",
+    "src/react.ts",
     "src/server.ts",
     "src/client.ts",
     "src/protocol.ts",

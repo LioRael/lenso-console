@@ -41,7 +41,7 @@ test("SDK-owned preview mounts author pages, scopes reads and keeps backend admi
   fs.writeFileSync(
     path.join(entry, "page.tsx"),
     `
-import {Link, useWorkspaceRead} from "@lenso/console-sdk";
+import {Link, useWorkspaceRead} from "@lenso/console-sdk/react";
 export default function Page(props) {
   const read=useWorkspaceRead({key:"orders.preview",params:{},read:({signal})=>props.services.invoke("orders","read",{}, {signal})});
   return <section><h2>Authored orders</h2><p>{read.data?.message ?? "Loading example"}</p><Link to={["orders","42"]}>Open order 42</Link><button onClick={()=>props.navigation.openWorkspace({workspaceId:props.mount.id,subject:props.mount.subject,segments:["orders","42"],handoff:{kind:"example.order",payload:"Selected order context"}})}>Open order context</button></section>;

@@ -147,9 +147,20 @@ Installed contribution definitions and user presentation preferences remain sepa
 
 ### Dashboard widget direction
 
-The dashboard is the Console home. Its future content comes from Plugin-contributed widget definitions, with user-created instances and user-controlled layout. A definition has an installed owner, stable owner-local ID, title, admitted renderer, optional configuration schema, and sizing constraints. An instance has its own ID, definition reference, and configuration; multiple instances may use one definition. A versioned dashboard layout stores instance placements and geometry separately.
+Dashboard is an optional application-installed page, not the Console home contract.
+The application chooses its index route. Dashboard owns explicitly selected widget
+definitions, user-created instances and draft layout editing; the core Shell does
+not know the grid or its save protocol. Stable binding and widget IDs identify a
+definition; multiple instances may use it. A versioned document stores instance
+configuration separately from placement geometry.
 
-Removing an instance does not unregister its definition. An unavailable Plugin leaves a recoverable unavailable-instance state rather than silently deleting the user's layout. Preferences must never contain executable asset URLs, establish installed ownership, or grant service access. User/dashboard persistence scope, migration policy, admission protocol, and registration API require a separate integration decision. Existing global page mounts are not implicitly widget definitions. The demo overview has been removed; widget registration and user layout editing are not implemented.
+Removing an instance does not unregister its definition or delete business data.
+Missing definitions leave recoverable unavailable states. Unauthorized renderers
+must not load, and the server redacts hidden configuration while preserving its
+original data during visible edits. Dashboard scope comes from trusted server
+context and saves use revision CAS. Dock preferences are a separate small store.
+Neither store grants service access or stores credentials/executable asset URLs.
+Existing admitted page mounts are not implicitly widget definitions.
 
 ## Current frontend stage
 

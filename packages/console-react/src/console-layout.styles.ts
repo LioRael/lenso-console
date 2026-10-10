@@ -4,6 +4,8 @@ export const layoutStyles = stylex.create({
   root: {
     position: "relative",
     isolation: "isolate",
+    backgroundColor: "var(--background)",
+    color: "var(--foreground)",
   },
   content: {
     position: "relative",
@@ -16,8 +18,21 @@ export const layoutStyles = stylex.create({
     zIndex: 20,
     pointerEvents: "none",
   },
-  corner: {
+  cornerRegion: {
     position: "absolute",
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    maxWidth: "calc(50vw - 40px)",
+    pointerEvents: "auto",
+  },
+  corner: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
     pointerEvents: "auto",
   },
   floating: {

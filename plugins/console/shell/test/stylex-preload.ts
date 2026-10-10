@@ -17,7 +17,10 @@ await plugin({
   name: "console-test-stylex",
   setup(build) {
     build.onLoad(
-      { filter: /\/plugins\/console\/shell\/.*\.[jt]sx?$/ },
+      {
+        filter:
+          /\/(?:plugins\/console\/shell|packages\/console-(?:react|dashboard|plugin-manager))\/.*\.[jt]sx?$/,
+      },
       async ({ path }) => {
         const source = await Bun.file(path).text();
         const result = transformSource

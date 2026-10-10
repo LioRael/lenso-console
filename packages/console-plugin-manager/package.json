@@ -1,0 +1,47 @@
+{
+  "name": "@lenso/console-plugin-manager",
+  "version": "0.1.0",
+  "description": "Optional read-only Console installed plugin catalog",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./react": {
+      "lenso-source": "./src/react.ts",
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "bun build.ts && bun run --bun tsc -p tsconfig.build.json",
+    "typecheck": "bun run --bun tsc --noEmit -p tsconfig.json",
+    "test": "bun test --preload ../../plugins/console/shell/test/stylex-preload.ts"
+  },
+  "dependencies": {
+    "@lenso/console-react": "workspace:*",
+    "@lenso/console-sdk": "workspace:*",
+    "@lenso/tokens": "0.9.1",
+    "@lenso/ui": "0.9.1",
+    "@stylexjs/stylex": "0.19.1"
+  },
+  "devDependencies": {
+    "@stylexjs/unplugin": "0.19.0",
+    "@types/bun": "1.4.2",
+    "@types/react": "^19.2.18",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "7.0.2",
+    "vite": "^8.2.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

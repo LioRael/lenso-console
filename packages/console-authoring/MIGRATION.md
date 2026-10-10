@@ -3,6 +3,32 @@
 The next pre-1.0 minor SDK release replaces the legacy provider API. The browser
 wire protocol remains `lenso-console-rpc/2`.
 
+## Browser and React entrypoints
+
+The SDK root is browser-safe without loading React, server declarations, or the
+compiler. `PageProps`, `LayoutProps`, `ErrorProps`, `definePage`, `defineWorkspace`,
+and pure locale/refresh helpers remain at the root.
+
+Move `Link`, `WorkspaceScope`, `useWorkspace`, `useWorkspaceRead`, and
+`useWorkspaceReadClient` imports to `@lenso/console-sdk/react`. This is a source
+compatibility break: eager root re-exports would load React and defeat the boundary.
+Move locale hooks to `@lenso/console-sdk/react/locale`; the old `/locale` export
+remains an alias for the same context. `/browser` keeps its admission and mount
+APIs and remains a React-dependent compatibility entrypoint.
+
+Applications invoking the compiler must install `typescript`, `@types/react`,
+and `@types/bun` as development dependencies. React pages also require `react`;
+pages importing the shared layout API require `@lenso/console-react`. Server
+installations need `@lenso/core`, `@lenso/engine`, and `@lenso/manage`. Do not rely
+on compiler or UI tooling being installed transitively by the SDK.
+
+Owner-built modules receive `@lenso/console-react` and the locale module through
+the existing `runtime.modules` bridge. They reuse host-owned React and layout/locale
+contexts, not independently bundled copies. Rebuild authored pages after migrating
+imports. This module-sharing mechanism is not a sandbox.
+
+## Service and admission migration
+
 1. Keep `services.ts` declarations using `defineServices` and
    `operation({ parse, authorize, handle })`. Declare operation semantics
    explicitly, for example `effect: "read"`. Undeclared effects remain `unknown`

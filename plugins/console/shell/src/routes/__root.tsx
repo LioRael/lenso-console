@@ -16,6 +16,7 @@ import "@fontsource-variable/inter";
 
 import "@fontsource/roboto-mono/400.css";
 import "@lenso/tokens/styles.css";
+import "@lenso/console-react/styles.css";
 import "../styles.css";
 
 import { ConsoleAppearanceProvider } from "../app/console-appearance";

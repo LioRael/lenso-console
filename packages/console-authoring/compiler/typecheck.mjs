@@ -7,19 +7,35 @@ import { generateClient } from "./client-generation.mjs";
 export async function typecheck({ root, out, authored, imports, checks, sdk }) {
   const directory = path.join(out, "typecheck");
   fs.mkdirSync(directory, { recursive: true });
-  const require = createRequire(import.meta.url);
+  const ownerRequire = createRequire(path.join(root, "package.json"));
+  const kitRequire = createRequire(import.meta.url);
+  const resolve = (specifier) => {
+    // Bun may resolve missing bare packages from its global auto-install cache.
+    // Only installed owner/kit packages belong to the locked authoring graph.
+    for (const require of [ownerRequire, kitRequire]) {
+      for (const searchRoot of require.resolve.paths(specifier)) {
+        const manifest = path.join(searchRoot, specifier);
+        if (fs.existsSync(manifest)) {
+          return fs.realpathSync(manifest);
+        }
+      }
+    }
+    throw new Error(
+      `Installed Console authoring dependency not found: ${specifier}`
+    );
+  };
   let checker;
   let reactTypes;
   let bunTypes;
   try {
-    // Resolve each declared dependency through this package. Their physical
-    // parents differ in ordinary isolated installations; no shared root exists.
-    const manifest = require.resolve("typescript/package.json");
+    // App-local authoring tools also work when the SDK has an isolated install.
+    // The complete development kit remains a fallback for local previews.
+    const manifest = resolve("typescript/package.json");
     const typescript = JSON.parse(fs.readFileSync(manifest, "utf-8"));
     checker = path.resolve(path.dirname(manifest), typescript.bin.tsc);
     fs.accessSync(checker, fs.constants.R_OK);
-    reactTypes = path.dirname(require.resolve("@types/react/package.json"));
-    bunTypes = path.dirname(require.resolve("@types/bun/package.json"));
+    reactTypes = path.dirname(resolve("@types/react/package.json"));
+    bunTypes = path.dirname(resolve("@types/bun/package.json"));
   } catch (error) {
     throw new Error(
       "Console SDK dependencies are missing. Install the application's locked dependencies before building, or reinstall the complete Console development kit.",
@@ -52,6 +68,12 @@ export async function typecheck({ root, out, authored, imports, checks, sdk }) {
           react: [path.join(reactTypes, "index.d.ts")],
           "react/*": [path.join(reactTypes, "*")],
           "@lenso/console-sdk": [sdk],
+          "@lenso/console-sdk/react": [
+            path.join(path.dirname(sdk), "react.ts"),
+          ],
+          "@lenso/console-sdk/react/locale": [
+            path.join(path.dirname(sdk), "locale.ts"),
+          ],
           "@lenso/console-sdk/locale": [
             path.join(path.dirname(sdk), "locale.ts"),
           ],

@@ -1,4 +1,5 @@
-import { useWorkspaceRead, type PageProps } from "@lenso/console-sdk";
+import type { PageProps } from "@lenso/console-sdk";
+import { useWorkspaceRead } from "@lenso/console-sdk/react";
 import { bindServices } from "@lenso/console-sdk/services";
 
 export default function Order({ params, navigation, services }: PageProps) {

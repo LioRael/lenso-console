@@ -15,6 +15,7 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
+    "@lenso/console-react": "workspace:*",
     "@lenso/console-sdk": "workspace:*",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",

@@ -221,8 +221,15 @@ export async function dev({
           }
           if (id.startsWith("@lenso/console-sdk")) {
             const suffix = id.slice("@lenso/console-sdk".length);
-            const file = suffix === "" ? "index" : suffix.slice(1);
-            if (!["index", "locale", "i18n", "client"].includes(file)) {
+            const file =
+              suffix === ""
+                ? "index"
+                : suffix === "/react/locale"
+                  ? "locale"
+                  : suffix.slice(1);
+            if (
+              !["index", "react", "locale", "i18n", "client"].includes(file)
+            ) {
               throw new Error(`Unsupported browser SDK import: ${id}`);
             }
             return path.join(sdk, "src", `${file}.ts`);

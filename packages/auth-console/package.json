@@ -1,0 +1,68 @@
+{
+  "name": "@lenso/auth-console",
+  "version": "0.1.0",
+  "description": "Optional capability-driven Auth Console adapter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LioRael/lenso-console.git",
+    "directory": "packages/auth-console"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build.ts",
+    "typecheck": "bun run --bun tsc --noEmit -p tsconfig.json",
+    "test": "bun test test"
+  },
+  "dependencies": {
+    "@lenso/ui": "0.9.1"
+  },
+  "devDependencies": {
+    "@lenso/auth": "0.3.1",
+    "@lenso/console-react": "workspace:*",
+    "@lenso/core": "0.3.1",
+    "@types/bun": "1.4.2",
+    "@types/react": "^19.2.18",
+    "react": "19.2.8",
+    "typescript": "7.0.2"
+  },
+  "peerDependencies": {
+    "@lenso/auth": "^0.3.1",
+    "@lenso/console-react": "^0.1.0",
+    "@lenso/core": "^0.3.1",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@lenso/auth": {
+      "optional": true
+    },
+    "@lenso/core": {
+      "optional": true
+    },
+    "@lenso/console-react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  }
+}

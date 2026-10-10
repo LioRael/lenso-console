@@ -1,11 +1,14 @@
 import { test, expect, spyOn } from "bun:test";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import * as consoleReact from "../../../console-react/dist/index.js";
+import * as consoleLocale from "../../src/locale";
 import { discoverWorkspaces } from "../workspace-discovery.mjs";
 
 const compiler = path.resolve(import.meta.dir, "../compiler.mjs");
@@ -21,10 +24,16 @@ test("compiled pages use Shell React and match dynamic routes after static route
     fs.mkdirSync(path.join(entry, "orders/new"), { recursive: true });
     fs.mkdirSync(output);
     fs.mkdirSync(temporaryCacheRoot);
+    fs.mkdirSync(path.join(entry, "node_modules/@lenso"), { recursive: true });
+    fs.symlinkSync(
+      path.resolve(import.meta.dir, "../../../console-react"),
+      path.join(entry, "node_modules/@lenso/console-react"),
+      "dir"
+    );
     fs.writeFileSync(path.join(entry, "package.json"), '{"private":true}');
     fs.writeFileSync(
       path.join(entry, "page.tsx"),
-      'import {useState,createContext} from "react"; const Context=createContext(null); export default function Page(){const [n]=useState(7); return <h1>{n}</h1>;}'
+      'import {useState} from "react"; import {ConsoleLayout} from "@lenso/console-react"; import {definePage,type PageProps} from "@lenso/console-sdk"; import {useWorkspaceRead} from "@lenso/console-sdk/react"; import {useConsoleLocale} from "@lenso/console-sdk/react/locale"; export default definePage(function Page(props:PageProps){const [n]=useState(7);const locale=useConsoleLocale();const read=useWorkspaceRead({key:"proof",params:{id:props.params.id},read:async()=>({count:7})});return <><ConsoleLayout.Corner area="topLeft"><button>Corner</button></ConsoleLayout.Corner><ConsoleLayout.Foreground><button>Foreground</button></ConsoleLayout.Foreground><h1>{n}:{locale.locale}:{read.data?.count}</h1></>;});'
     );
     fs.writeFileSync(
       path.join(entry, "orders/[id]/page.tsx"),
@@ -63,22 +72,69 @@ test("compiled pages use Shell React and match dynamic routes after static route
     expect(JSON.parse(result.stdout.toString()).schema).toBe(
       "lenso.convention-compiled.v1"
     );
+    // A temp owner has no installation: global Bun cache packages must not
+    // shadow the kit's locked types or produce unusable native type roots.
+    const kitRequire = createRequire(import.meta.url);
+    const editor = JSON.parse(
+      fs.readFileSync(path.join(output, "tsconfig.authoring.json"), "utf-8")
+    );
+    expect(editor.compilerOptions.typeRoots).toEqual(
+      ["react", "bun"].map((name) =>
+        path.dirname(
+          path.dirname(kitRequire.resolve(`@types/${name}/package.json`))
+        )
+      )
+    );
     const descriptor = JSON.parse(
       fs.readFileSync(path.join(output, "descriptor.json"), "utf-8")
     );
     const module = await import(
       `data:text/javascript;base64,${descriptor.assets[0].content_base64}`
     );
+    const renderedTypes = new Set();
     const { Page } = module.createWorkspace({
       react: React,
-      createElement: React.createElement,
+      createElement(type, ...args) {
+        renderedTypes.add(type);
+        return React.createElement(type, ...args);
+      },
       services: {},
+      modules: {
+        "@lenso/console-react": consoleReact,
+        "@lenso/console-sdk/react/locale": consoleLocale,
+      },
     });
     const render = (segments) =>
       renderToStaticMarkup(
-        React.createElement(Page, { location: { segments } })
+        React.createElement(
+          consoleLocale.ConsoleLocaleProvider,
+          {
+            value: { locale: "zh-CN" },
+          },
+          React.createElement(
+            consoleReact.ConsoleLayout,
+            null,
+            React.createElement(Page, {
+              location: { segments },
+              reads: {
+                useRead: () => ({
+                  data: { count: 9 },
+                  error: null,
+                  blocking: false,
+                  refreshing: false,
+                  refetch: async () => undefined,
+                }),
+                invalidate: async () => undefined,
+              },
+            })
+          )
+        )
       );
-    expect(render([])).toContain("7");
+    expect(render([])).toContain("7:zh-CN:9");
+    // Without host namespace identity these slots have a different context and
+    // throw even though they are beneath the real host ConsoleLayout provider.
+    expect(renderedTypes.has(consoleReact.ConsoleLayout.Corner)).toBe(true);
+    expect(renderedTypes.has(consoleReact.ConsoleLayout.Foreground)).toBe(true);
     expect(render([])).toContain("Console layout");
     expect(render(["files", "a", "b"])).toContain("a/b");
     expect(render(["orders", "42"])).toContain("42");
@@ -90,6 +146,13 @@ test("compiled pages use Shell React and match dynamic routes after static route
     const invalid = compile();
     expect(invalid.exitCode).not.toBe(0);
     expect(invalid.stderr.toString()).toContain("not assignable");
+    fs.writeFileSync(
+      path.join(entry, "page.tsx"),
+      'import {useWorkspaceRead} from "@lenso/console-sdk"; export default function Page(){return null;}'
+    );
+    const rootHook = compile();
+    expect(rootHook.exitCode).not.toBe(0);
+    expect(rootHook.stderr.toString()).toContain("no exported member");
     fs.writeFileSync(
       path.join(entry, "page.tsx"),
       "export default function Page(){return null;}"
@@ -122,11 +185,11 @@ test("directory and explicit workspaces share one implementation with independen
       fs.mkdirSync(path.join(entry, workspace, "details"), { recursive: true });
       fs.writeFileSync(
         path.join(entry, workspace, "page.tsx"),
-        'import {Link,useWorkspace} from "@lenso/console-sdk"; export default function Page(){const {mount}=useWorkspace();return <section><h1>{mount.owner.instance}</h1><Link to={["details"]}>Details</Link></section>; }'
+        'import {Link,useWorkspace} from "@lenso/console-sdk/react"; export default function Page(){const {mount}=useWorkspace();return <section><h1>{mount.owner.instance}</h1><Link to={["details"]}>Details</Link></section>; }'
       );
       fs.writeFileSync(
         path.join(entry, workspace, "not-found.tsx"),
-        'import {Link,useWorkspace} from "@lenso/console-sdk"; export default function NotFound(){const {mount}=useWorkspace(); return <Link to={[]}>{mount.owner.instance} home</Link>;}'
+        'import {Link,useWorkspace} from "@lenso/console-sdk/react"; export default function NotFound(){const {mount}=useWorkspace(); return <Link to={[]}>{mount.owner.instance} home</Link>;}'
       );
       fs.writeFileSync(
         path.join(entry, workspace, "details/page.tsx"),
@@ -187,6 +250,10 @@ test("directory and explicit workspaces share one implementation with independen
       ["admin", "/admin/", "administrator"],
       ["user", "/console/", "member"],
     ]);
+    // Exact revisions must survive identical builds, not only equal routing.
+    const repeated = compile();
+    expect(repeated.assets).toEqual(directory.assets);
+    expect(repeated.revision).toBe(directory.revision);
     const explicit = compile({
       workspaces: [{ entry: "admin" }, { entry: "user" }],
     });

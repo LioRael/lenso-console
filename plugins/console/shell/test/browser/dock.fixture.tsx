@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 import "@lenso/tokens/styles.css";
+import "@lenso/console-react/styles.css";
 import "../../src/styles.css";
 import { ConsoleAppearanceProvider } from "../../src/app/console-appearance";
 import {

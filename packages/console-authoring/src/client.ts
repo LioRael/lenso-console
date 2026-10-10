@@ -1,9 +1,16 @@
-import type { WorkspaceServices } from "./index";
 import type {
+  WorkspaceServices,
   DeclaredOperation,
   DeclaredStreamOperation,
   ServiceDefinitions,
-} from "./server";
+} from "./service-types";
+
+export type {
+  WorkspaceServices,
+  DeclaredOperation,
+  DeclaredStreamOperation,
+  ServiceDefinitions,
+} from "./service-types";
 
 export type ServiceClient<Definitions extends ServiceDefinitions> = {
   readonly [Service in keyof Definitions]: {

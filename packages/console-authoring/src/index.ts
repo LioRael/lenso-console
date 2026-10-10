@@ -3,8 +3,10 @@ import type * as React from "react";
 import type { ConsolePageDescriptor } from "./protocol";
 import type { WorkspaceReads } from "./read";
 import type { ReadRefreshPolicy } from "./read-refresh";
+import type { WorkspaceServices } from "./service-types";
 
-export { useWorkspaceRead, useWorkspaceReadClient } from "./read";
+export type { WorkspaceServices } from "./service-types";
+
 export type {
   ReadValue,
   ReadSnapshot,
@@ -15,7 +17,6 @@ export type {
 } from "./read";
 
 export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
-export { Link, useWorkspace, WorkspaceScope } from "./navigation";
 export {
   deriveReadRefreshState,
   resolveReadRefreshPolicy,
@@ -25,21 +26,6 @@ export type {
   ReadRefreshQueryOptions,
 } from "./read-refresh";
 
-/** A browser-local service alias, admitted by the owning Plugin and Host. */
-export interface WorkspaceServices {
-  invoke<Request = unknown, Response = unknown>(
-    service: string,
-    operation: string,
-    input: Request,
-    options?: { signal?: AbortSignal }
-  ): Promise<Response>;
-  subscribe<Request = unknown, Item = unknown>(
-    service: string,
-    operation: string,
-    input: Request,
-    options?: { signal?: AbortSignal }
-  ): AsyncIterable<Item>;
-}
 export type Subject = ConsolePageDescriptor["subject"];
 
 /** Page view projection also supports local preview and older Host props. */
@@ -59,6 +45,8 @@ export type PageMount = Pick<
 };
 
 export interface PageProps {
+  /** Supplied by current hosts; older hosts still expose the request signal. */
+  activation?: { readonly key: string; isCurrent(): boolean };
   /** Optional protected one-time credential channel, never a scoped read or Manage result. */
   credentials?: WorkspaceCredentials;
   /** Optional Host-owned placement for a Plugin's workspace navigation. */

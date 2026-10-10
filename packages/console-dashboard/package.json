@@ -1,0 +1,96 @@
+{
+  "name": "@lenso/console-dashboard",
+  "version": "0.1.0",
+  "description": "Optional Console dashboard widgets and revisioned layout storage",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "lenso-source": "./src/contract.ts",
+      "types": "./dist/contract.d.ts",
+      "default": "./dist/contract.js"
+    },
+    "./react": {
+      "lenso-source": "./src/react.tsx",
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./server": {
+      "lenso-source": "./src/server.ts",
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./server/sqlite": {
+      "lenso-source": "./src/storage/sqlite.ts",
+      "types": "./dist/storage/sqlite.d.ts",
+      "default": "./dist/storage/sqlite.js"
+    },
+    "./server/postgres": {
+      "lenso-source": "./src/storage/postgres.ts",
+      "types": "./dist/storage/postgres.d.ts",
+      "default": "./dist/storage/postgres.js"
+    },
+    "./server/d1": {
+      "lenso-source": "./src/storage/d1.ts",
+      "types": "./dist/storage/d1.d.ts",
+      "default": "./dist/storage/d1.js"
+    },
+    "./server/auth": {
+      "lenso-source": "./src/server-auth.ts",
+      "types": "./dist/server-auth.d.ts",
+      "default": "./dist/server-auth.js"
+    },
+    "./server/audit": {
+      "lenso-source": "./src/server-audit.ts",
+      "types": "./dist/server-audit.d.ts",
+      "default": "./dist/server-audit.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "bun build.ts && bun run --bun tsc -p tsconfig.build.json",
+    "typecheck": "bun run --bun tsc --noEmit -p tsconfig.json",
+    "test": "bun test --preload ../../plugins/console/shell/test/stylex-preload.ts"
+  },
+  "dependencies": {
+    "@lenso/console-react": "workspace:*",
+    "@lenso/tokens": "0.9.1",
+    "@lenso/ui": "0.9.1",
+    "@stylexjs/stylex": "0.19.1",
+    "react-grid-layout": "2.3.0",
+    "react-resizable": "3.2.0"
+  },
+  "devDependencies": {
+    "@lenso/audit": "0.3.1",
+    "@lenso/auth": "0.3.1",
+    "@stylexjs/unplugin": "0.19.0",
+    "@types/bun": "1.4.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "miniflare": "5.20261006.0-alpha",
+    "typescript": "7.0.2",
+    "vite": "^8.2.0"
+  },
+  "peerDependencies": {
+    "@lenso/audit": "^0.3.1",
+    "@lenso/auth": "^0.3.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@lenso/auth": {
+      "optional": true
+    },
+    "@lenso/audit": {
+      "optional": true
+    }
+  }
+}

@@ -6,8 +6,8 @@ import {
 } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 
-import type { WorkspaceServices } from "./index";
 import type { ConsoleClient, ConsolePageDescriptor } from "./protocol";
+import type { WorkspaceServices } from "./service-types";
 
 export type ConsoleClientOptions = Pick<
   ConstructorParameters<typeof RPCLink>[0],

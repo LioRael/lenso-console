@@ -1,5 +1,6 @@
 import type { RoleSnapshot } from "@lenso/authorization";
-import { definePage, useWorkspaceRead } from "@lenso/console-sdk";
+import { definePage } from "@lenso/console-sdk";
+import { useWorkspaceRead } from "@lenso/console-sdk/react";
 import { Button } from "@lenso/ui/button";
 
 export default definePage(({ services }) => {
