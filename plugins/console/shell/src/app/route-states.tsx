@@ -9,9 +9,9 @@ import { routeStateStyles as styles } from "./route-states.stylex";
 
 export const RoutePending = () => (
   <RouteState
-    description="正在准备工作台内容。"
+    description="Preparing workspace content."
     icon={<LoaderCircle aria-hidden="true" size={18} />}
-    title="正在加载 Console"
+    title="Loading Console"
   />
 );
 
@@ -20,12 +20,12 @@ export const RouteNotFound = () => (
     action={
       <LensoLink render={<Link to="/" />}>
         <House aria-hidden="true" size={14} />
-        返回工作台
+        Back to workspace
       </LensoLink>
     }
-    description="此页面已移除或不存在。请返回新的工作台。"
+    description="This page does not exist or has been removed. Return to the workspace."
     icon={<House aria-hidden="true" size={18} />}
-    title="页面不存在"
+    title="Page not found"
   />
 );
 
@@ -35,12 +35,12 @@ export const RouteError = () => {
     <RouteState
       action={
         <Button onClick={() => void router.invalidate()} variant="primary">
-          重新加载
+          Reload
         </Button>
       }
-      description="工作台未能加载。请重新加载；若问题仍在，请检查本地开发日志。"
+      description="The workspace could not load. Reload to try again. If the problem persists, check the local development logs."
       icon={<AlertTriangle aria-hidden="true" size={18} />}
-      title="工作台加载失败"
+      title="Unable to load workspace"
     />
   );
 };

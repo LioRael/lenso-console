@@ -296,14 +296,14 @@ function DockSurface({
                     {...selectionStyle}
                     className={`dashboard-dock-selection ${selectionStyle.className}`}
                     role="toolbar"
-                    aria-label={`${selection.scopeLabel}选择操作`}
+                    aria-label={`${selection.scopeLabel} selection actions`}
                     aria-busy={selection.running}
                   >
                     <span
                       {...countStyle}
                       className={`dashboard-dock-count ${countStyle.className}`}
                     >
-                      {selection.scopeLabel} · {selection.count} 条
+                      {selection.scopeLabel} · {selection.count} selected
                     </span>
                     {selection.actions.map((action) => (
                       <ConsoleIconButton
@@ -323,7 +323,7 @@ function DockSurface({
                     <ConsoleIconButton
                       xstyle={dockStyles.control}
                       glyphXstyle={dockStyles.glyph}
-                      label="退出选择"
+                      label="Exit selection"
                       side={side}
                       variant="ghost"
                       disabled={selection.running}
@@ -352,8 +352,8 @@ function DockSurface({
                     data-dashboard-control="compact-handle"
                     label={
                       activeModule
-                        ? `展开导航，当前为${activeModule.label}`
-                        : "展开导航"
+                        ? `Expand navigation, current: ${activeModule.label}`
+                        : "Expand navigation"
                     }
                     onClick={(event) => {
                       pointerIntent.current = event.detail > 0;
@@ -376,7 +376,7 @@ function DockSurface({
                   <nav
                     {...navigationStyle}
                     className={`dashboard-dock-nav ${navigationStyle.className}`}
-                    aria-label="常用模块"
+                    aria-label="Pinned navigation"
                   >
                     {dockModules.map((module) => {
                       const active = activeId === module.id;

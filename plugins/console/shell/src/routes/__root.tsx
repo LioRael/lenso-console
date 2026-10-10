@@ -80,7 +80,7 @@ export const Route = createRootRoute({
       },
       {
         name: "description",
-        content: "Lenso Console 内容优先工作台。",
+        content: "A content-first workspace for Lenso Console.",
       },
       { title: "Lenso Console" },
     ],
