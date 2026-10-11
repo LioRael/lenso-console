@@ -1,0 +1,25 @@
+AGENTS.md
+  s_3724267b9ee00e::t_9d8674bb60fc79 47,49-51
+docs/plugin-marketplace-presentation.md
+  s_3724267b9ee00e::t_f7e979d58dfb24 3
+docs/plugin-marketplace-v1.md
+  s_3724267b9ee00e::t_49c712f0a11d72 1,3,5,7
+docs/plugin-marketplace.md
+  s_3724267b9ee00e::t_bc7b6b10e97520 1,3,5,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6bcd82cabf413ea775d217eaad6587f0029b2064",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

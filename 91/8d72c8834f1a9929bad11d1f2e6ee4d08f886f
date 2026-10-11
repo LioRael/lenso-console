@@ -1,0 +1,14 @@
+src/components/runtime/context-navigation.browser.test.tsx
+  h_9d56aba080c170 92,95-100,113-114,116-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "918d72c8834f1a9929bad11d1f2e6ee4d08f886f",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
