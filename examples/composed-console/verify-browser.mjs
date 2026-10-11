@@ -1051,6 +1051,25 @@ try {
   const light = await page
     .locator("body")
     .evaluate((node) => getComputedStyle(node).backgroundColor);
+  await button("Dark theme").hover();
+  await page
+    .getByRole("tooltip", { exact: true, name: "Use dark theme" })
+    .waitFor();
+  await page.mouse.move(0, 0);
+  await page
+    .getByRole("tooltip", { exact: true, name: "Use dark theme" })
+    .waitFor({ state: "hidden" });
+  await button("Sample preview").focus();
+  await page.keyboard.press("Tab");
+  assert.equal(
+    await button("Dark theme").evaluate(
+      (element) => document.activeElement === element
+    ),
+    true
+  );
+  await page
+    .getByRole("tooltip", { exact: true, name: "Use dark theme" })
+    .waitFor();
   await button("Dark theme").click();
   const dark = await page
     .locator("body")

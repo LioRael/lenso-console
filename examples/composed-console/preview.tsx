@@ -176,13 +176,26 @@ function Preview() {
                 </Popover.Positioner>
               </Popover.Portal>
             </Popover.Root>
-            <Button
-              variant="outline"
-              aria-pressed={dark}
-              onClick={() => setDark(!dark)}
-            >
-              Dark theme
-            </Button>
+            <Tooltip.Root>
+              <Tooltip.Trigger
+                render={
+                  <Button
+                    variant="outline"
+                    aria-pressed={dark}
+                    onClick={() => setDark(!dark)}
+                  />
+                }
+              >
+                Dark theme
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Positioner side="top" sideOffset={8}>
+                  <Tooltip.Popup>
+                    {dark ? "Use light theme" : "Use dark theme"}
+                  </Tooltip.Popup>
+                </Tooltip.Positioner>
+              </Tooltip.Portal>
+            </Tooltip.Root>
           </aside>
         </ConsoleLayout.Corner>
       </ComposedConsole>

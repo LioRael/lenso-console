@@ -32,6 +32,7 @@ export function DockShape({
   present,
   compact,
   selection,
+  contentKey,
   dockRef,
   onFocusDock,
   progress: readiness,
@@ -41,11 +42,15 @@ export function DockShape({
   present: boolean;
   compact: boolean;
   selection: boolean;
+  contentKey?: string;
   dockRef: RefObject<HTMLDivElement | null>;
   onFocusDock: () => void;
   progress: MotionValue<number>;
 }>) {
   const foregroundRef = useRef<HTMLDivElement>(null);
+  const measuredContentKey = useRef(contentKey);
+  const revealing = useRef(false);
+  const preserveSelection = useRef(false);
   const visual = useRef<Geometry | null>(null);
   const target = useRef<Geometry | null>(null);
   const controller = useRef<ReturnType<typeof animate> | null>(null);
@@ -57,6 +62,14 @@ export function DockShape({
   const centerOpacity = useMotionValue(0);
   const clipPath = useMotionValue("inset(0)");
   const visibility = useMotionValue<"hidden" | "visible">("hidden");
+
+  useLayoutEffect(() => {
+    if (measuredContentKey.current !== contentKey) {
+      measuredContentKey.current = contentKey;
+      revealing.current = true;
+    }
+    preserveSelection.current = selection && !revealing.current;
+  });
 
   // All shape pieces and the hit-test clip share one frame of geometry.
   const paint = useCallback(
@@ -121,6 +134,9 @@ export function DockShape({
       previousTarget.x === next.x &&
       previousTarget.y === next.y;
     if (unchanged && !instant) {
+      if (readiness.get() === 1) {
+        revealing.current = false;
+      }
       return;
     }
     controller.current?.stop();
@@ -135,22 +151,28 @@ export function DockShape({
     if (!from || instant || settled) {
       paint(next);
       readiness.set(1);
+      revealing.current = false;
     } else {
       // Rebase the clip to the new natural box before the first animated frame.
       paint(from);
       progress.set(0);
-      readiness.set(0);
+      readiness.set(preserveSelection.current ? 1 : 0);
       controller.current = animate(progress, 1, {
         duration: 0.21,
         ease: [0.23, 1, 0.32, 1],
         onUpdate: (value) => {
-          readiness.set(Math.max(0, (value - 0.6) / 0.4));
+          readiness.set(
+            preserveSelection.current ? 1 : Math.max(0, (value - 0.6) / 0.4)
+          );
           paint({
             width: from.width + (next.width - from.width) * value,
             height: from.height + (next.height - from.height) * value,
             x: from.x + (next.x - from.x) * value,
             y: from.y + (next.y - from.y) * value,
           });
+        },
+        onComplete: () => {
+          revealing.current = false;
         },
       });
     }

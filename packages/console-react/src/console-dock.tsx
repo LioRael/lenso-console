@@ -607,10 +607,10 @@ function DockSurface({
             dockRef={dockRef}
             onFocusDock={onFocusDock}
             progress={surfaceProgress}
+            contentKey={paneKey}
             {...(shared
               ? {
                   expanded: !!directory || !!rich?.expanded,
-                  contentKey: paneKey,
                 }
               : {})}
           >
@@ -764,6 +764,7 @@ function DockSurface({
                             {...stylex.props(
                               dockStyles.row,
                               dockStyles.group,
+                              dockStyles.leadingGroup,
                               (position === "left" || position === "right") &&
                                 dockStyles.sideNavigation
                             )}

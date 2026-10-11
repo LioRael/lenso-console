@@ -1589,6 +1589,73 @@ test("projects a plugin Dock with staged focus, preserved drafts, selection rest
     await composer.waitFor();
     expect(await composer.getAttribute("data-identity")).toBe("original");
     expect(await composer.inputValue()).toBe("Plugin state resized");
+    // Composer-only restoration cannot prove that the exact secondary tray
+    // control survives Command, without an intermediate initial-input focus.
+    const trayAction = page.getByRole("button", {
+      name: "Conversation action",
+    });
+    for (const [reducedMotion, dismissal] of [
+      ["no-preference", "keyboard"],
+      ["no-preference", "pointer"],
+      ["reduce", "keyboard"],
+      ["reduce", "pointer"],
+    ] as const) {
+      await page.emulateMedia({ reducedMotion });
+      await trayAction.focus();
+      await composer.evaluate((element) => {
+        let focused = 0;
+        const lifetime = new AbortController();
+        element.addEventListener(
+          "focus",
+          () => {
+            focused += 1;
+          },
+          { signal: lifetime.signal }
+        );
+        Object.assign(element, {
+          finishFocusTrace() {
+            lifetime.abort();
+            return focused;
+          },
+        });
+      });
+      await trayAction.press("Meta+k");
+      const commandSearch = page.getByRole("searchbox", {
+        name: "Search commands",
+      });
+      await commandSearch.waitFor();
+      if (dismissal === "keyboard") {
+        await commandSearch.press("Escape");
+      } else {
+        await page
+          .getByRole("button", { name: "Close Command", exact: true })
+          .click();
+      }
+      await page.waitForFunction(
+        () =>
+          document.querySelector<HTMLElement>("[data-dashboard-dock]")?.dataset
+            .geometryReady === "true"
+      );
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          })
+      );
+      expect(
+        await trayAction.evaluate(
+          (element) => document.activeElement === element
+        )
+      ).toBe(true);
+      expect(
+        await composer.evaluate((element) =>
+          (
+            element as HTMLElement & { finishFocusTrace(): number }
+          ).finishFocusTrace()
+        )
+      ).toBe(0);
+    }
+    await page.emulateMedia({ reducedMotion: "no-preference" });
     await page
       .getByRole("button", { name: "Select record", exact: true })
       .click();
@@ -2044,6 +2111,81 @@ test("keeps page boundary controls unobstructed by measured plugin Dock clearanc
     await end.focus();
     await waitForHit(end);
     expect(await hit(end)).toBe(true);
+    expect(errors).toEqual([]);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}, 60_000);
+
+// A single admitted view cannot reveal clipping of explicitly ordered leading
+// entries, which the navigation-only directory cannot recover.
+test("keeps eight admitted Dock views and navigation reachable on coarse screens", async () => {
+  const server = await createServer({
+    configFile: false,
+    root: fileURLToPath(new URL("../..", import.meta.url)),
+    optimizeDeps: { include: ["@lenso/ui", "@lenso/ui/**", "liquid-gooey"] },
+    server: { host: "127.0.0.1", port: 0 },
+  });
+  await server.listen();
+  const browser = await chromium.launch();
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    reducedMotion: "reduce",
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await page.goto(
+      `${server.resolvedUrls!.local[0]}test/browser/index.html?dock&many-dock`
+    );
+    const entries = page
+      .getByRole("group", { name: "Dock views", exact: true })
+      .getByRole("button");
+    await entries.first().waitFor();
+    expect(
+      await page.evaluate(() => matchMedia("(pointer: coarse)").matches)
+    ).toBe(true);
+    expect(await entries.count()).toBe(8);
+    expect(
+      await page
+        .getByRole("navigation", { name: "Pinned navigation" })
+        .evaluate((element) => element.scrollWidth <= element.clientWidth + 1)
+    ).toBe(true);
+    for (const control of [
+      ...(await entries.all()),
+      page.getByRole("button", { name: "Expand Dock", exact: true }),
+    ]) {
+      expect(
+        await control.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          return (
+            rect.left >= 0 &&
+            rect.right <= innerWidth &&
+            rect.top >= 0 &&
+            rect.bottom <= innerHeight &&
+            element.contains(
+              document.elementFromPoint(
+                rect.x + rect.width / 2,
+                rect.y + rect.height / 2
+              )
+            )
+          );
+        })
+      ).toBe(true);
+    }
+    await entries.last().click();
+    await page.getByLabel("Plugin draft").waitFor();
+    await page
+      .getByRole("button", { name: "Back to navigation", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Expand Dock", exact: true })
+      .click();
+    await page
+      .getByRole("dialog", { name: "Console navigation", exact: true })
+      .waitFor();
     expect(errors).toEqual([]);
   } finally {
     await browser.close();

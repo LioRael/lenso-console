@@ -28,7 +28,9 @@ const items = [
 
 function DockFixture() {
   const [activeId, setActiveId] = useState("collection");
-  const [selected, setSelected] = useState<boolean[]>([false, false]);
+  const [selected, setSelected] = useState<boolean[]>(
+    Array.from({ length: 10 }, () => false)
+  );
   const [instant, setInstant] = useState(false);
   const [compact, setCompact] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -121,7 +123,7 @@ function DockFixture() {
                   },
                 ],
                 onExit: () => {
-                  setSelected([false, false]);
+                  setSelected(Array.from({ length: 10 }, () => false));
                   selectionFocus.current?.focus();
                 },
               }

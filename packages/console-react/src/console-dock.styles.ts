@@ -98,6 +98,11 @@ export const dockStyles = stylex.create({
   retainedNavigation: { position: "absolute", visibility: "hidden" },
   hiddenFrame: { visibility: "hidden" },
   group: { borderWidth: 0, margin: 0, padding: 0, minWidth: 0 },
+  leadingGroup: {
+    flexWrap: "wrap",
+    maxWidth: "100%",
+    maxHeight: "calc(100dvh - 176px)",
+  },
   pane: { minWidth: 0 },
   exitingPane: {
     position: "absolute",
