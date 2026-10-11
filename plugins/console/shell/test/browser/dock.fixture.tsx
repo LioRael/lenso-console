@@ -25,6 +25,7 @@ const items = [
     icon: <Rows3 size={16} aria-hidden="true" />,
   },
 ];
+const viewIcon = <Folder size={16} />;
 
 function DockFixture() {
   const [activeId, setActiveId] = useState("collection");
@@ -37,6 +38,8 @@ function DockFixture() {
   const [running, setRunning] = useState(false);
   const [position, setPosition] = useState<Position>("bottom");
   const [invoked, setInvoked] = useState("");
+  const [replacement, setReplacement] = useState(false);
+  const [viewCalls, setViewCalls] = useState({ old: 0, current: 0 });
   const dockRef = useRef<HTMLDivElement>(null);
   const selectionFocus = useRef<HTMLInputElement | null>(null);
   const count = selected.filter(Boolean).length;
@@ -83,7 +86,27 @@ function DockFixture() {
         ))}
       </select>
       <output aria-label="Action result">{invoked}</output>
+      <button data-replace-view onClick={() => setReplacement(true)}>
+        Replace view callback
+      </button>
+      <output aria-label="View calls">{JSON.stringify(viewCalls)}</output>
       <ConsoleDock
+        leading={
+          location.hash === "#freshness"
+            ? Array.from({ length: 8 }, (_, index) => ({
+                id: `view-${index}`,
+                label: `View ${index}`,
+                icon: viewIcon,
+                disabled: false,
+                onInvoke: () =>
+                  setViewCalls((value) => ({
+                    ...value,
+                    [replacement ? "current" : "old"]:
+                      value[replacement ? "current" : "old"] + 1,
+                  })),
+              }))
+            : []
+        }
         visible={visible}
         position={position}
         compact={compact}

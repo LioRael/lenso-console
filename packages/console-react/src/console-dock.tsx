@@ -264,18 +264,17 @@ function DockViewOverflow({
         }
         const request = pending.current;
         pending.current = null;
-        if (
-          !request ||
-          committed.current.running ||
-          !committed.current.entries.some(
-            (entry) => entry.id === request.entry.id && !entry.disabled
-          )
-        ) {
+        // A stable view ID resolves to its current enabled handler after closing,
+        // never the callback captured before a parent update.
+        const currentEntry = committed.current.entries.find(
+          (entry) => entry.id === request?.entry.id && !entry.disabled
+        );
+        if (!request || committed.current.running || !currentEntry) {
           return;
         }
         // Finish menu focus management before the view owns the same surface.
         trigger.current?.focus({ preventScroll: true });
-        request.entry.onInvoke(request.instant);
+        currentEntry.onInvoke(request.instant);
       }}
     >
       <Menu.Trigger

@@ -4,6 +4,40 @@ import type { Locator } from "playwright";
 
 import { openFixture } from "./server";
 
+test("uses the current enabled view handler after overflow closes", async () => {
+  const fixture = await openFixture("dock", 320);
+  const { page } = fixture;
+  try {
+    await page.goto(`${page.url()}#freshness`);
+    await page.reload();
+    await page
+      .getByRole("button", { name: "More Dock views", exact: true })
+      .click();
+    const option = page.getByRole("menuitem", { name: "View 7", exact: true });
+    await option.waitFor();
+    await option.evaluate((element) => {
+      element.addEventListener(
+        "click",
+        () => {
+          setTimeout(() => {
+            document
+              .querySelector<HTMLButtonElement>("button[data-replace-view]")!
+              .click();
+          }, 0);
+        },
+        { once: true }
+      );
+    });
+    await option.click();
+    await page.waitForTimeout(400);
+    expect(await page.getByLabel("View calls").textContent()).toBe(
+      '{"old":0,"current":1}'
+    );
+  } finally {
+    await fixture.close();
+  }
+});
+
 async function assertNoInnerScroll(control: Locator) {
   const geometry = await control.evaluate((element) => {
     const dock = element.closest<HTMLElement>("[data-dashboard-dock]")!;
