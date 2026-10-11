@@ -1,9 +1,20 @@
 import { Button } from "@lenso/ui/button";
-import { Modal as Dialog } from "@lenso/ui/modal";
+import { Popover } from "@lenso/ui/popover";
+import { Tabs } from "@lenso/ui/tabs";
+import { Tooltip } from "@lenso/ui/tooltip";
 import * as stylex from "@stylexjs/stylex";
-import { ArrowDown, ArrowUp, Menu, Pin, X } from "lucide-react";
+import {
+  Menu,
+  Search,
+  Settings2,
+  PanelLeft,
+  LayoutGrid,
+  X,
+} from "lucide-react";
 import {
   Component,
+  memo,
+  useId,
   useMemo,
   useLayoutEffect,
   useRef,
@@ -21,19 +32,29 @@ import type {
   ConsoleRouterAdapter,
   ConsoleSessionAdapter,
 } from "./composition";
-import { ConsoleActionHost } from "./console-action-scope";
+import {
+  ConsoleActionHost,
+  type ConsolePageContribution,
+} from "./console-action-scope";
 import { useConsoleActivation } from "./console-activation";
+import { ConsoleCommand, useConsoleCommandFocus } from "./console-command";
+import { ConsoleContextBar } from "./console-context-bar";
 import { ConsoleDock, type ConsoleDockSelection } from "./console-dock";
+import {
+  useConsoleCommandKey,
+  useConsoleLongPress,
+} from "./console-dock-interactions";
+import {
+  consoleDockPresets,
+  withConsoleDockPresets,
+} from "./console-dock-presets";
 import { ConsoleDockViewHost } from "./console-dock-view";
 import { ConsoleIconButton } from "./console-icon-button";
 import { ConsoleLayout, type ConsoleLayoutProps } from "./console-layout";
 import {
-  consolePositions,
-  consoleReferenceKey,
   consoleRouteHref,
   createConsoleModel,
   defaultConsolePreferences,
-  moveConsolePin,
   orderedConsolePins,
   visibleConsoleNavigation,
   visibleConsoleDockViews,
@@ -41,6 +62,11 @@ import {
   type ConsoleRoute,
   type ConsoleShellBinding,
 } from "./console-model";
+import {
+  ConsoleNavigationEditor,
+  ConsolePresetSwitcher,
+  ConsolePresetCollection,
+} from "./console-navigation-editor";
 import { useConsolePreferences } from "./console-preferences";
 import { shellStyles as styles } from "./console-shell.styles";
 
@@ -62,7 +88,11 @@ export interface ConsoleShellProps {
   preferences?: ConsolePreferenceStore;
   tabsPosition?: ConsolePreferences["position"] | "content";
   topEdge?: ConsoleLayoutProps["topEdge"];
+  /** Also show the corner entry while the Dock already provides navigation. */
+  navigationButton?: boolean;
   renderStatus?: (status: ConsoleShellStatus) => ReactNode;
+  /** Host-owned layout contributions, such as an environment marker. */
+  children?: ReactNode;
 }
 const statusLabels: Record<ConsoleShellStatus, string> = {
   empty: "No pages are installed.",
@@ -73,14 +103,6 @@ const statusLabels: Record<ConsoleShellStatus, string> = {
   "authentication-required": "Sign in to continue.",
   unavailable: "Console is unavailable.",
 };
-function subscribeCompactNavigation(listener: () => void) {
-  const query = window.matchMedia("(max-width: 960px)");
-  query.addEventListener("change", listener);
-  return () => query.removeEventListener("change", listener);
-}
-function compactNavigationSnapshot() {
-  return window.matchMedia("(max-width: 960px)").matches;
-}
 function subscribeNarrowSidebar(listener: () => void) {
   const query = window.matchMedia("(max-width: 640px)");
   query.addEventListener("change", listener);
@@ -118,7 +140,7 @@ class PageBoundary extends Component<
   }
 }
 function interceptNavigation(
-  event: MouseEvent<HTMLAnchorElement>,
+  event: MouseEvent<HTMLElement>,
   router: ConsoleRouterAdapter,
   href: string
 ) {
@@ -133,7 +155,7 @@ function interceptNavigation(
     router.navigate(href);
   }
 }
-function ActivePage({
+function ActivePageMount({
   route,
   params,
   routes,
@@ -194,39 +216,81 @@ function ActivePage({
   );
 }
 
+// A projection update must not re-render its publisher and republish an inline value.
+const ActivePage = memo(ActivePageMount);
+
 function NavigationList({
   items,
   activeId,
   router,
   onNavigate,
+  sidebar = false,
+  directory = false,
+  onEdit,
 }: {
   items: readonly ConsoleNavigationItem[];
   activeId: string;
   router: ConsoleRouterAdapter;
   onNavigate?: () => void;
+  sidebar?: boolean;
+  directory?: boolean;
+  onEdit?: () => void;
 }) {
+  const longPress = useConsoleLongPress(onEdit);
   return (
-    <ul {...stylex.props(styles.list)}>
+    <ul {...stylex.props(styles.list, directory && styles.directoryList)}>
       {items.map((item) => {
         const href = consoleRouteHref(item.route.pattern);
+        const destination = (
+          <a
+            {...stylex.props(
+              styles.link,
+              sidebar && styles.sidebarLink,
+              directory && styles.directoryLink,
+              item.id === activeId && styles.activeLink
+            )}
+            href={href}
+            aria-current={item.id === activeId ? "page" : undefined}
+            {...longPress}
+            onClick={(event) => {
+              interceptNavigation(event, router, href);
+              if (event.defaultPrevented) {
+                onNavigate?.();
+              }
+            }}
+          >
+            {(sidebar || directory) && (
+              <span
+                aria-hidden="true"
+                {...stylex.props(styles.destinationIcon)}
+              >
+                {item.icon ?? <LayoutGrid size={20} />}
+              </span>
+            )}
+            <span {...stylex.props(styles.destinationLabel)}>{item.label}</span>
+          </a>
+        );
         return (
-          <li key={item.id}>
-            <a
-              {...stylex.props(
-                styles.link,
-                item.id === activeId && styles.activeLink
-              )}
-              href={href}
-              aria-current={item.id === activeId ? "page" : undefined}
-              onClick={(event) => {
-                interceptNavigation(event, router, href);
-                if (event.defaultPrevented) {
-                  onNavigate?.();
-                }
-              }}
-            >
-              {item.label}
-            </a>
+          <li
+            key={item.id}
+            data-console-launcher-item={item.id}
+            {...stylex.props(styles.launcherTile)}
+          >
+            {item.tooltip ? (
+              <Tooltip.Root>
+                <Tooltip.Trigger render={destination} />
+                <Tooltip.Portal>
+                  <Tooltip.Positioner
+                    side={sidebar ? "right" : "top"}
+                    sideOffset={8}
+                  >
+                    <Tooltip.Popup>{item.tooltip}</Tooltip.Popup>
+                  </Tooltip.Positioner>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            ) : (
+              destination
+            )}
           </li>
         );
       })}
@@ -244,13 +308,10 @@ export function ConsoleShell({
   preferences: store,
   tabsPosition,
   topEdge,
+  navigationButton = false,
   renderStatus,
+  children,
 }: ConsoleShellProps) {
-  const compactNavigation = useSyncExternalStore(
-    subscribeCompactNavigation,
-    compactNavigationSnapshot,
-    () => false
-  );
   const narrowSidebar = useSyncExternalStore(
     subscribeNarrowSidebar,
     narrowSidebarSnapshot,
@@ -268,18 +329,108 @@ export function ConsoleShell({
   const preference = useConsolePreferences(store, scopeKey, defaults);
   const { value } = preference;
   const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const dockView = commandOpen
+    ? "command"
+    : directoryOpen
+      ? "launcher"
+      : "navigation";
+  const [customizing, setCustomizing] = useState(false);
+  const [editDraft, setEditDraft] = useState<ConsolePreferences | null>(null);
   const [query, setQuery] = useState("");
+  const directoryId = useId();
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const commandRef = useRef<HTMLInputElement | null>(null);
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const customizeRef = useRef<HTMLButtonElement | null>(null);
+  const settingsRef = useRef<HTMLButtonElement | null>(null);
+  const editingPresentation = useRef(false);
+  const [editAnnouncement, setEditAnnouncement] = useState("");
+  const [presentation, setPresentation] = useState(false);
+  const viewChanged = useRef(false);
+  useLayoutEffect(() => {
+    if (viewChanged.current) {
+      viewChanged.current = false;
+      (customizing
+        ? presentation
+          ? dockRef.current?.querySelector<HTMLSelectElement>("select")
+          : dockRef.current?.querySelector<HTMLButtonElement>(
+              'button[aria-label^="Drag "], button[aria-label="Add destinations"]'
+            )
+        : editingPresentation.current
+          ? settingsRef.current
+          : customizeRef.current
+      )?.focus({
+        preventScroll: true,
+      });
+    }
+  }, [customizing, presentation]);
+  const changeView = (settings: boolean, presentationOnly = false) => {
+    if (settings && (!preference.loaded || preference.busy)) {
+      return;
+    }
+    viewChanged.current = true;
+    if (settings) {
+      editingPresentation.current = presentationOnly;
+    }
+    setEditDraft(settings ? value : null);
+    setCustomizing(settings);
+    setPresentation(presentationOnly);
+    setEditAnnouncement("");
+  };
+  const [directoryMount, setDirectoryMount] = useState<HTMLDivElement | null>(
+    null
+  );
+  const pointerIntent = useRef(true);
   const returnFocus = useRef<HTMLElement | null>(null);
+  const commandFocus = useConsoleCommandFocus(commandOpen, dockRef, () =>
+    directoryOpen
+      ? customizing
+        ? customizeRef.current
+        : searchRef.current
+      : null
+  );
+  const resolveCommandFocus = commandFocus.resolve;
+  const openCommand = () => {
+    if (commandOpen) {
+      commandRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    pointerIntent.current = false;
+    const previous = commandFocus.capture();
+    if (!directoryOpen) {
+      returnFocus.current = previous;
+    }
+    setCommandOpen(true);
+  };
+  const closeCommand = () => {
+    commandFocus.restore();
+    setCommandOpen(false);
+  };
+  useConsoleCommandKey(
+    !session || session.state === "ready",
+    openCommand,
+    dockRef
+  );
   useLayoutEffect(() => {
     setDirectoryOpen(false);
+    setCommandOpen(false);
+    setCustomizing(false);
+    setEditDraft(null);
     setQuery("");
     returnFocus.current = null;
   }, [scopeKey, session?.state]);
-  const dockRef = useRef<HTMLDivElement | null>(null);
-  const dragIndex = useRef<number | null>(null);
   const navigation = visibleConsoleNavigation(model.navigation, session);
   const pins = orderedConsolePins(navigation, value);
-  const pinnedIds = new Set(pins.map((item) => item.id));
+  const presetDocument = consoleDockPresets(value);
+  const selectPreset = (id: string) => {
+    if (preference.busy || !preference.loaded || customizing) {
+      return;
+    }
+    const next = withConsoleDockPresets(value, presetDocument.presets, id);
+    preference.change(next);
+    void preference.save(next);
+  };
   const match = model.routes
     .map((route) => ({
       route,
@@ -310,6 +461,9 @@ export function ConsoleShell({
     status = "forbidden";
   }
   const changeOpen = (open: boolean) => {
+    if (customizing && !open) {
+      return;
+    }
     if (open) {
       returnFocus.current =
         document.activeElement instanceof HTMLElement
@@ -319,32 +473,12 @@ export function ConsoleShell({
     setDirectoryOpen(open);
     if (!open) {
       setQuery("");
-      requestAnimationFrame(() => {
-        const target = returnFocus.current?.isConnected
-          ? returnFocus.current
-          : document.querySelector<HTMLElement>(
-              '[aria-label="Console navigation"]'
-            );
-        target?.focus();
-      });
+      setCustomizing(false);
+      setEditDraft(null);
     }
   };
   const update = (next: Partial<ConsolePreferences>) =>
     preference.change({ ...value, ...next });
-  const togglePin = (item: ConsoleNavigationItem) => {
-    const present = value.pinned.some(
-      (reference) => consoleReferenceKey(reference) === item.id
-    );
-    update({
-      pinned: present
-        ? value.pinned.filter(
-            (reference) => consoleReferenceKey(reference) !== item.id
-          )
-        : [...value.pinned, item.reference],
-    });
-  };
-  const reorder = (from: number, to: number) =>
-    update({ pinned: moveConsolePin(value.pinned, from, to) });
   const group =
     match && routeAllowed
       ? Object.values(match.route.binding.definition.pageGroups ?? {}).find(
@@ -358,17 +492,8 @@ export function ConsoleShell({
       ? (group.relatedPages?.[match.route.pageId]?.activeTab ??
         match.route.pageId)
       : "";
-  const placement =
-    tabsPosition ??
-    (value.position === "top"
-      ? "bottom"
-      : value.position === "left"
-        ? "right"
-        : value.position === "right"
-          ? "left"
-          : "top");
-  const inlineTabs =
-    compactNavigation || value.mode === "sidebar" || placement === "content";
+  const placement = tabsPosition ?? "top";
+  const inlineTabs = placement === "content";
   const tabStyle =
     placement === "bottom"
       ? styles.tabsBottom
@@ -387,38 +512,67 @@ export function ConsoleShell({
       : [];
   const pageNavigation =
     visibleTabs.length > 1 && group && match ? (
-      <nav
-        {...stylex.props(
+      <Tabs.Root
+        value={activeTab}
+        render={<nav aria-label={`${group.label} pages`} />}
+        orientation={
+          placement === "left" || placement === "right"
+            ? "vertical"
+            : "horizontal"
+        }
+        xstyle={[
           styles.tabs,
-          inlineTabs ? styles.inlineTabs : tabStyle
-        )}
-        aria-label={group.label}
+          inlineTabs ? styles.inlineTabs : tabStyle,
+          value.mode === "sidebar" &&
+            (placement === "top" || placement === "bottom") &&
+            styles.mainCenteredTabs,
+          !inlineTabs && styles.contextTabs,
+        ]}
       >
-        {visibleTabs.map((tab) => {
-          const route = model.routes.find(
-            (item) =>
-              item.binding.id === match.route.binding.id &&
-              item.pageId === tab.page
-          )!;
-          const href = consoleRouteHref(route.pattern, match.params!);
-          return (
-            <a
-              key={tab.page}
-              {...stylex.props(
-                styles.link,
-                activeTab === tab.page && styles.activeLink
-              )}
-              aria-current={activeTab === tab.page ? "page" : undefined}
-              href={href}
-              onClick={(event) => interceptNavigation(event, router, href)}
-            >
-              {tab.label}
-            </a>
-          );
-        })}
-      </nav>
+        <Tabs.ListContainer>
+          <Tabs.List
+            aria-label={group.label}
+            activateOnFocus={false}
+            xstyle={
+              placement !== "left" && placement !== "right"
+                ? styles.horizontalTabList
+                : undefined
+            }
+          >
+            {visibleTabs.map((tab) => {
+              const route = model.routes.find(
+                (item) =>
+                  item.binding.id === match.route.binding.id &&
+                  item.pageId === tab.page
+              )!;
+              const href = consoleRouteHref(route.pattern, match.params!);
+              return (
+                <Tabs.Tab
+                  key={tab.page}
+                  value={tab.page}
+                  nativeButton={false}
+                  render={<a href={href}>{tab.label}</a>}
+                  xstyle={
+                    placement !== "left" && placement !== "right"
+                      ? styles.horizontalTab
+                      : undefined
+                  }
+                  aria-current={activeTab === tab.page ? "page" : undefined}
+                  onClick={(event) => interceptNavigation(event, router, href)}
+                >
+                  {tab.label}
+                </Tabs.Tab>
+              );
+            })}
+            <Tabs.Indicator />
+          </Tabs.List>
+        </Tabs.ListContainer>
+      </Tabs.Root>
     ) : null;
-  const renderForeground = (selection: ConsoleDockSelection | null) => (
+  const renderForeground = (
+    selection: ConsoleDockSelection | null,
+    page: ConsolePageContribution | null
+  ) => (
     <ConsoleDockViewHost
       key={scopeKey}
       items={visibleConsoleDockViews(model.dockViews, session)}
@@ -426,14 +580,27 @@ export function ConsoleShell({
       scopeKey={scopeKey}
       position={value.mode === "sidebar" ? "bottom" : value.position}
       blocked={!!selection?.running || !!selection?.blocked}
+      suspended={
+        !!selection?.running ||
+        !!selection?.blocked ||
+        dockView !== "navigation"
+      }
     >
       {({ active, entries, restoreFocus }) => (
         <ConsoleLayout.Foreground>
+          {selection && !navigationButton && value.mode === "dock" && (
+            <ConsoleLayout.Corner area="topLeft">
+              {navigationEntry}
+            </ConsoleLayout.Corner>
+          )}
           {value.mode === "sidebar" && permitted && (
             <nav
               {...stylex.props(styles.sidebar)}
               aria-label="Console navigation"
             >
+              <Button variant="ghost" onClick={openCommand}>
+                Command <kbd>⌘K</kbd>
+              </Button>
               {entries.map((entry) => (
                 <Button
                   key={entry.id}
@@ -448,22 +615,29 @@ export function ConsoleShell({
                 items={navigation}
                 activeId={activeId}
                 router={router}
+                sidebar
               />
             </nav>
           )}
           <ConsoleDock
+            key={scopeKey}
             visible={
               permitted &&
               (value.mode === "dock" ||
                 !!selection ||
+                dockView !== "navigation" ||
                 active ||
                 entries.length > 0)
             }
             navigationVisible={
               value.mode === "dock" ||
               !!selection ||
+              dockView !== "navigation" ||
+              active ||
               (narrowSidebar && entries.length > 0)
             }
+            leading={entries}
+            onNavigationReady={restoreFocus}
             position={value.mode === "sidebar" ? "bottom" : value.position}
             compact={false}
             activeId={activeId}
@@ -471,6 +645,9 @@ export function ConsoleShell({
               (item) => ({
                 id: item.id,
                 label: item.label,
+                ...(item.tooltip === undefined
+                  ? {}
+                  : { tooltip: item.tooltip }),
                 icon: item.icon ?? <Menu size={16} aria-hidden="true" />,
               })
             )}
@@ -479,13 +656,38 @@ export function ConsoleShell({
                 ? undefined
                 : {
                     label: "Expand Dock",
-                    onInvoke: () => changeOpen(true),
+                    onInvoke: () => changeOpen(!directoryOpen),
+                    expanded: directoryOpen,
+                    controls: directoryOpen ? directoryId : undefined,
                   }
             }
-            leading={entries}
             selection={selection}
             running={selection?.running ?? false}
             dockRef={dockRef}
+            instant={!pointerIntent.current}
+            directory={dockView === "navigation" ? null : directory(page)}
+            presets={{
+              names:
+                permitted && preference.loaded
+                  ? presetDocument.presets.map((preset) => preset.name)
+                  : [],
+              activeIndex: presetDocument.presets.findIndex(
+                (preset) => preset.id === presetDocument.activeId
+              ),
+              onSelect: (index, keyboard) => {
+                if (keyboard) {
+                  pointerIntent.current = false;
+                }
+                const preset = presetDocument.presets[index];
+                if (preset) {
+                  selectPreset(preset.id);
+                }
+              },
+            }}
+            onEdit={() => {
+              changeOpen(true);
+              changeView(true);
+            }}
             onNavigate={(id) => {
               const item = navigation.find((candidate) => candidate.id === id);
               if (item) {
@@ -494,39 +696,47 @@ export function ConsoleShell({
             }}
             onExpand={() => changeOpen(true)}
             onFocusDock={() => undefined}
-            onNavigationReady={restoreFocus}
           />
-          {!inlineTabs && pageNavigation}
+          <ConsoleContextBar
+            {...(page?.context ? { context: page.context } : {})}
+            fallback={inlineTabs ? null : pageNavigation}
+            router={router}
+            sidebar={value.mode === "sidebar"}
+            instant={!pointerIntent.current}
+            position={placement}
+          />
         </ConsoleLayout.Foreground>
       )}
     </ConsoleDockViewHost>
   );
-  return (
-    <Dialog.Root open={directoryOpen} onOpenChange={changeOpen}>
-      <ConsoleLayout {...(topEdge ? { topEdge } : {})}>
-        <ConsoleLayout.Corner area="topLeft">
-          <Dialog.Trigger
-            render={
-              <ConsoleIconButton
-                label="Console navigation"
-                onClick={() => changeOpen(true)}
-              >
-                <Menu size={16} aria-hidden="true" />
-              </ConsoleIconButton>
-            }
-          />
-          {routeAllowed &&
-            match?.route.binding.definition.pages[match.route.pageId]
-              ?.title && (
-              <span {...stylex.props(styles.location)}>
-                {
-                  match.route.binding.definition.pages[match.route.pageId]!
-                    .title
-                }
-              </span>
-            )}
-        </ConsoleLayout.Corner>
-        <ConsoleActionHost render={renderForeground}>
+  const navigationEntry = (
+    <Popover.Trigger
+      render={
+        <ConsoleIconButton label="Console navigation">
+          <Menu size={16} aria-hidden="true" />
+        </ConsoleIconButton>
+      }
+    />
+  );
+  const layout = (
+    <ConsoleLayout
+      {...(topEdge ? { topEdge } : {})}
+      onPointerDownCapture={() => {
+        pointerIntent.current = true;
+      }}
+      onKeyDownCapture={() => {
+        pointerIntent.current = false;
+      }}
+    >
+      <ConsoleLayout.Corner
+        area="topLeft"
+        xstyle={value.mode === "sidebar" ? styles.sidebarCorner : undefined}
+      >
+        {(value.mode === "sidebar" || navigationButton || !permitted) &&
+          navigationEntry}
+      </ConsoleLayout.Corner>
+      <ConsoleActionHost render={renderForeground}>
+        {(page) => (
           <main
             tabIndex={-1}
             {...stylex.props(
@@ -539,24 +749,28 @@ export function ConsoleShell({
                 value.position === "right" &&
                 styles.clearRightDock,
               !!pageNavigation &&
+                !page?.context &&
                 !inlineTabs &&
                 placement === "left" &&
                 styles.clearLeftTabs,
               !!pageNavigation &&
+                !page?.context &&
                 !inlineTabs &&
                 placement === "right" &&
                 styles.clearRightTabs,
               !!pageNavigation &&
+                !page?.context &&
                 !inlineTabs &&
                 placement === "top" &&
                 styles.clearTopTabs,
               !!pageNavigation &&
+                !page?.context &&
                 !inlineTabs &&
                 placement === "bottom" &&
                 styles.clearBottomTabs
             )}
           >
-            {inlineTabs && pageNavigation}
+            {inlineTabs && !page?.context && pageNavigation}
             {status ? (
               <Status status={status} render={renderStatus} />
             ) : (
@@ -580,157 +794,307 @@ export function ConsoleShell({
               )
             )}
           </main>
-        </ConsoleActionHost>
-        <Dialog.Portal>
-          <Dialog.Backdrop />
-          <Dialog.Viewport>
-            <Dialog.Popup
-              xstyle={[styles.tray(value.position), styles.narrowTray]}
+        )}
+      </ConsoleActionHost>
+      {children}
+    </ConsoleLayout>
+  );
+  const directory = (page: ConsolePageContribution | null) => (
+    <div ref={setDirectoryMount}>
+      {directoryMount && (
+        <Popover.Portal container={directoryMount}>
+          <Popover.Positioner
+            style={{
+              position: "relative",
+              top: 0,
+              left: 0,
+              transform: "none",
+              width: "100%",
+              opacity: 1,
+            }}
+            xstyle={styles.trayPositioner}
+          >
+            <Popover.Popup
+              id={directoryId}
+              data-console-dock-view={dockView}
+              aria-label={commandOpen ? "Command" : "Console navigation"}
+              initialFocus={commandOpen ? commandRef : searchRef}
+              finalFocus={() =>
+                commandOpen && resolveCommandFocus()
+                  ? resolveCommandFocus()
+                  : value.mode === "sidebar"
+                    ? document.querySelector<HTMLElement>(
+                        'button[aria-label="Console navigation"]'
+                      )
+                    : returnFocus.current?.isConnected
+                      ? returnFocus.current
+                      : document.querySelector<HTMLElement>(
+                          'button[aria-label="Console navigation"], button[aria-label="Expand Dock"]'
+                        )
+              }
+              xstyle={styles.tray}
             >
-              <div {...stylex.props(styles.directory)}>
-                <div {...stylex.props(styles.controls)}>
-                  <Dialog.Title>Console navigation</Dialog.Title>
-                  <ConsoleIconButton
-                    label="Close navigation"
-                    onClick={() => changeOpen(false)}
-                  >
-                    <X size={16} aria-hidden="true" />
-                  </ConsoleIconButton>
-                </div>
-                <input
-                  {...stylex.props(styles.search)}
-                  aria-label="Search navigation"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-                <NavigationList
-                  items={navigation.filter((item) =>
-                    item.label
-                      .toLocaleLowerCase()
-                      .includes(query.toLocaleLowerCase())
-                  )}
-                  activeId={activeId}
-                  router={router}
-                  onNavigate={() => changeOpen(false)}
-                />
-                <h2>Pinned navigation</h2>
-                <ul {...stylex.props(styles.list)}>
-                  {pins.map((item) => {
-                    const index = value.pinned.findIndex(
-                      (reference) => consoleReferenceKey(reference) === item.id
-                    );
-                    return (
-                      // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Native list-item drag/drop has equivalent labelled keyboard reorder buttons below.
-                      <li
-                        key={item.id}
-                        {...stylex.props(styles.row)}
-                        draggable
-                        onDragStart={() => {
-                          dragIndex.current = index;
-                        }}
-                        onDragEnd={() => {
-                          dragIndex.current = null;
-                        }}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          if (dragIndex.current !== null) {
-                            reorder(dragIndex.current, index);
-                          }
-                          dragIndex.current = null;
-                        }}
-                      >
-                        <span>{item.label}</span>
-                        <ConsoleIconButton
-                          label={`Move ${item.label} earlier`}
-                          disabled={index === 0}
-                          onClick={() => reorder(index, index - 1)}
+              {commandOpen && command(page)}
+              {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Bubble Escape from child controls without making the content wrapper a focusable widget. */}
+              <div
+                hidden={commandOpen}
+                inert={commandOpen}
+                {...stylex.props(
+                  styles.directory,
+                  customizing && styles.editingDirectory,
+                  commandOpen && styles.hiddenContent
+                )}
+                onKeyDown={(event) => {
+                  // Portalled menus own Escape before the editor does.
+                  if (!event.currentTarget.contains(event.target as Node)) {
+                    return;
+                  }
+                  if (
+                    event.key === "Escape" &&
+                    customizing &&
+                    !event.defaultPrevented
+                  ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!preference.busy) {
+                      changeView(false);
+                    }
+                  }
+                }}
+              >
+                {!customizing && (
+                  <div {...stylex.props(styles.trayHeader)}>
+                    <label {...stylex.props(styles.searchField)}>
+                      <Search size={18} aria-hidden="true" />
+                      <input
+                        ref={searchRef}
+                        {...stylex.props(styles.search)}
+                        aria-label="Search navigation"
+                        placeholder="Find a destination"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                      />
+                    </label>
+                    <ConsoleIconButton
+                      label="Close navigation"
+                      variant="ghost"
+                      xstyle={styles.trayClose}
+                      onClick={() => changeOpen(false)}
+                    >
+                      <X size={16} aria-hidden="true" />
+                    </ConsoleIconButton>
+                  </div>
+                )}
+                {!customizing && (
+                  <>
+                    {preference.error && !customizing && (
+                      <div {...stylex.props(styles.controls)}>
+                        <p role="alert">{preference.error}</p>
+                        <Button
+                          variant="outline"
+                          disabled={preference.busy}
+                          onClick={() => preference.reload()}
                         >
-                          <ArrowUp size={16} aria-hidden="true" />
-                        </ConsoleIconButton>
-                        <ConsoleIconButton
-                          label={`Move ${item.label} later`}
-                          disabled={index === value.pinned.length - 1}
-                          onClick={() => reorder(index, index + 1)}
-                        >
-                          <ArrowDown size={16} aria-hidden="true" />
-                        </ConsoleIconButton>
-                        <Button onClick={() => togglePin(item)}>
-                          Unpin {item.label}
+                          Reload preferences
                         </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <div {...stylex.props(styles.controls)}>
-                  {navigation
-                    .filter((item) => !pinnedIds.has(item.id))
-                    .map((item) => (
-                      <Button key={item.id} onClick={() => togglePin(item)}>
-                        <Pin size={16} aria-hidden="true" /> Pin {item.label}
-                      </Button>
-                    ))}
-                </div>
-                <div {...stylex.props(styles.controls)}>
-                  <label>
-                    Navigation mode{" "}
-                    <select
-                      value={value.mode}
-                      onChange={(event) =>
-                        update({
-                          mode: event.target
-                            .value as ConsolePreferences["mode"],
-                        })
-                      }
+                      </div>
+                    )}
+                    <section
+                      aria-label="Destinations"
+                      {...stylex.props(styles.launcher)}
                     >
-                      <option value="dock">Dock</option>
-                      <option value="sidebar">Sidebar</option>
-                    </select>
-                  </label>
-                  <label>
-                    Dock position{" "}
-                    <select
-                      value={value.position}
-                      onChange={(event) =>
-                        update({
-                          position: event.target
-                            .value as ConsolePreferences["position"],
-                        })
-                      }
+                      {!query && pins.length > 0 && (
+                        <>
+                          <h3 {...stylex.props(styles.moduleTitle)}>
+                            In this preset
+                          </h3>
+                          <NavigationList
+                            items={pins}
+                            activeId={activeId}
+                            router={router}
+                            directory
+                            onNavigate={() => changeOpen(false)}
+                            onEdit={() => changeView(true)}
+                          />
+                        </>
+                      )}
+                      <h3 {...stylex.props(styles.moduleTitle)}>
+                        {query ? "Search results" : "All destinations"}
+                      </h3>
+                      <NavigationList
+                        items={navigation.filter(
+                          (item) =>
+                            (query ||
+                              !pins.some((pin) => pin.id === item.id)) &&
+                            item.label
+                              .toLocaleLowerCase()
+                              .includes(query.toLocaleLowerCase())
+                        )}
+                        activeId={activeId}
+                        router={router}
+                        directory
+                        onNavigate={() => changeOpen(false)}
+                        onEdit={() => changeView(true)}
+                      />
+                      {!navigation.some((item) =>
+                        item.label
+                          .toLocaleLowerCase()
+                          .includes(query.toLocaleLowerCase())
+                      ) && (
+                        <output {...stylex.props(styles.empty)}>
+                          {query
+                            ? "No matching destinations."
+                            : "No destinations are available."}
+                        </output>
+                      )}
+                    </section>
+                    <section
+                      aria-label="Quick controls"
+                      {...stylex.props(styles.quickControls)}
                     >
-                      {consolePositions.map((position) => (
-                        <option key={position} value={position}>
-                          {position}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button onClick={() => preference.reset()}>
-                    Reset navigation
-                  </Button>
-                  {store && (
-                    <>
                       <Button
+                        variant="ghost"
+                        onClick={openCommand}
+                        xstyle={styles.quickControl}
+                      >
+                        <Search size={18} aria-hidden="true" />
+                        Command <kbd>⌘K</kbd>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          const next = {
+                            ...value,
+                            mode: value.mode === "dock" ? "sidebar" : "dock",
+                          } satisfies ConsolePreferences;
+                          update(next);
+                          void preference.save(next);
+                        }}
+                        disabled={
+                          customizing || preference.busy || !preference.loaded
+                        }
+                        xstyle={styles.quickControl}
+                      >
+                        {value.mode === "dock" ? (
+                          <PanelLeft size={18} aria-hidden="true" />
+                        ) : (
+                          <LayoutGrid size={18} aria-hidden="true" />
+                        )}
+                        {value.mode === "dock" ? "Use sidebar" : "Use Dock"}
+                      </Button>
+                      <ConsolePresetSwitcher
+                        value={value}
                         disabled={preference.busy || !preference.loaded}
-                        onClick={() => void preference.save()}
+                        onSelect={selectPreset}
+                      />
+                      <Button
+                        ref={customizeRef}
+                        variant="ghost"
+                        onClick={() => changeView(true)}
+                        disabled={!preference.loaded || preference.busy}
+                        xstyle={styles.quickControl}
                       >
-                        Save preferences
+                        <Settings2 size={18} aria-hidden="true" />
+                        Customize navigation
                       </Button>
                       <Button
-                        disabled={preference.busy}
-                        onClick={() => preference.reload()}
+                        ref={settingsRef}
+                        variant="ghost"
+                        xstyle={styles.quickControl}
+                        disabled={!preference.loaded || preference.busy}
+                        onClick={() => changeView(true, true)}
                       >
-                        Reload preferences
+                        Navigation settings
                       </Button>
-                    </>
-                  )}
-                </div>
-                {preference.error && <p role="alert">{preference.error}</p>}
+                    </section>
+                  </>
+                )}
+                {customizing && editDraft && (
+                  <ConsoleNavigationEditor
+                    value={editDraft}
+                    busy={preference.busy}
+                    loaded={preference.loaded}
+                    error={preference.error}
+                    presentation={presentation}
+                    onChange={setEditDraft}
+                    onCancel={() => changeView(false)}
+                    onSave={async () => {
+                      if (await preference.save(editDraft)) {
+                        changeView(false);
+                      }
+                    }}
+                    onReload={() => {
+                      changeView(false);
+                      preference.reload();
+                    }}
+                  >
+                    <div {...stylex.props(styles.launcher)}>
+                      <ConsolePresetCollection
+                        value={editDraft}
+                        items={navigation}
+                        busy={preference.busy}
+                        suspended={commandOpen}
+                        onChange={setEditDraft}
+                        announce={setEditAnnouncement}
+                      />
+                    </div>
+                    <output
+                      aria-live="polite"
+                      {...stylex.props(styles.editHint)}
+                    >
+                      {editAnnouncement}
+                    </output>
+                  </ConsoleNavigationEditor>
+                )}
               </div>
-            </Dialog.Popup>
-          </Dialog.Viewport>
-        </Dialog.Portal>
-      </ConsoleLayout>
-    </Dialog.Root>
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      )}
+    </div>
+  );
+  const command = (page: ConsolePageContribution | null) => (
+    <ConsoleCommand
+      inputRef={commandRef}
+      onClose={closeCommand}
+      destinations={navigation.map((item) => ({
+        id: item.id,
+        label: item.label,
+        onInvoke() {
+          router.navigate(consoleRouteHref(item.route.pattern));
+          closeCommand();
+        },
+      }))}
+      presets={presetDocument.presets.map((preset) => ({
+        id: preset.id,
+        label: preset.name,
+        disabled: preference.busy || !preference.loaded || customizing,
+        onInvoke() {
+          selectPreset(preset.id);
+          closeCommand();
+        },
+      }))}
+      actions={(page?.commands ?? []).map((action) => ({
+        ...action,
+        onInvoke() {
+          closeCommand();
+          action.onInvoke();
+        },
+      }))}
+    />
+  );
+  return (
+    <Popover.Root
+      open={dockView !== "navigation"}
+      onOpenChange={(open) => {
+        if (commandOpen && !open) {
+          closeCommand();
+        } else {
+          changeOpen(open);
+        }
+      }}
+    >
+      {layout}
+    </Popover.Root>
   );
 }

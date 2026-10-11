@@ -5,7 +5,48 @@ import type {
   ConsolePreferenceSnapshot,
   ConsolePreferenceStore,
 } from "./composition";
+import {
+  consoleDockPresets,
+  withConsoleDockPresets,
+} from "./console-dock-presets";
 import { consolePositions, consoleReferenceKey } from "./console-model";
+
+function projectPins(input: unknown): ConsolePreferences["pinned"] {
+  if (!Array.isArray(input) || input.length > 1000) {
+    throw new TypeError("Invalid Console navigation references");
+  }
+  const seen = new Set<string>();
+  return input.map((rawReference: unknown) => {
+    if (
+      !rawReference ||
+      typeof rawReference !== "object" ||
+      Array.isArray(rawReference)
+    ) {
+      throw new TypeError("Invalid Console navigation reference");
+    }
+    const ref = rawReference as Record<string, unknown>;
+    if (
+      typeof ref.bindingId !== "string" ||
+      !ref.bindingId ||
+      ref.bindingId.length > 256 ||
+      typeof ref.navigationId !== "string" ||
+      !ref.navigationId ||
+      ref.navigationId.length > 256
+    ) {
+      throw new TypeError("Invalid Console navigation reference");
+    }
+    const reference = {
+      bindingId: ref.bindingId,
+      navigationId: ref.navigationId,
+    };
+    const key = consoleReferenceKey(reference);
+    if (seen.has(key)) {
+      throw new TypeError("Duplicate Console navigation reference");
+    }
+    seen.add(key);
+    return reference;
+  });
+}
 
 export function projectConsolePreferenceSnapshot(
   input: unknown
@@ -43,38 +84,63 @@ export function projectConsolePreferenceSnapshot(
   ) {
     throw new TypeError("Invalid Console preferences");
   }
-  const seen = new Set<string>();
-  const pinned = value.pinned.map((rawReference: unknown) => {
-    if (
-      !rawReference ||
-      typeof rawReference !== "object" ||
-      Array.isArray(rawReference)
-    ) {
-      throw new TypeError("Invalid Console navigation reference");
-    }
-    const ref = rawReference as Record<string, unknown>;
-    if (
-      typeof ref.bindingId !== "string" ||
-      !ref.bindingId ||
-      ref.bindingId.length > 256 ||
-      typeof ref.navigationId !== "string" ||
-      !ref.navigationId ||
-      ref.navigationId.length > 256
-    ) {
-      throw new TypeError("Invalid Console navigation reference");
-    }
-    const reference = {
-      bindingId: ref.bindingId,
-      navigationId: ref.navigationId,
+  const base: ConsolePreferences = {
+    mode,
+    position,
+    pinned: projectPins(value.pinned),
+  };
+  if (value.dockPresets === undefined) {
+    const migrated = consoleDockPresets(base);
+    return {
+      revision: snapshot.revision,
+      value: withConsoleDockPresets(base, migrated.presets, migrated.activeId),
     };
-    const key = consoleReferenceKey(reference);
-    if (seen.has(key)) {
-      throw new TypeError("Duplicate Console navigation reference");
+  }
+  if (
+    !value.dockPresets ||
+    typeof value.dockPresets !== "object" ||
+    Array.isArray(value.dockPresets)
+  ) {
+    throw new TypeError("Invalid Dock presets");
+  }
+  const document = value.dockPresets as Record<string, unknown>;
+  if (
+    document.version !== 1 ||
+    typeof document.activeId !== "string" ||
+    !Array.isArray(document.presets) ||
+    document.presets.length < 1 ||
+    document.presets.length > 50
+  ) {
+    throw new TypeError("Invalid Dock preset version or active preset");
+  }
+  const ids = new Set<string>();
+  const presets = document.presets.map((raw: unknown) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new TypeError("Invalid Dock preset");
     }
-    seen.add(key);
-    return reference;
+    const preset = raw as Record<string, unknown>;
+    if (
+      typeof preset.id !== "string" ||
+      !preset.id ||
+      preset.id.length > 256 ||
+      ids.has(preset.id) ||
+      typeof preset.name !== "string" ||
+      !preset.name.trim() ||
+      preset.name.length > 80
+    ) {
+      throw new TypeError("Invalid Dock preset identity");
+    }
+    ids.add(preset.id);
+    return {
+      id: preset.id,
+      name: preset.name.trim(),
+      pinned: projectPins(preset.pinned),
+    };
   });
-  return { revision: snapshot.revision, value: { mode, position, pinned } };
+  return {
+    revision: snapshot.revision,
+    value: withConsoleDockPresets(base, presets, document.activeId),
+  };
 }
 
 export function useConsolePreferences(
@@ -89,6 +155,7 @@ export function useConsolePreferences(
   const [draft, setDraft] = useState<ConsolePreferences | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
   const [loaded, setLoaded] = useState(!store);
   const [reloadKey, setReloadKey] = useState(0);
   const epoch = useRef<{
@@ -116,6 +183,7 @@ export function useConsolePreferences(
     const initialDefaults = scopedDefaults.current.value;
     setSnapshot({ revision: "", value: initialDefaults });
     setBusy(false);
+    saving.current = false;
     setLoaded(!store);
     if (store) {
       void (async () => {
@@ -146,24 +214,29 @@ export function useConsolePreferences(
   // Prevent the old user's preferences appearing during the scope-change render.
   const sameScope = epoch.current?.scopeKey === scopeKey;
   const value = sameScope ? (draft ?? snapshot.value ?? defaults) : defaults;
-  const save = async () => {
+  const save = async (next: ConsolePreferences = value): Promise<boolean> => {
     const { current } = epoch;
     if (
-      !store ||
       !current ||
       current.scopeKey !== scopeKey ||
       current.controller.signal.aborted ||
-      busy ||
+      saving.current ||
       !loaded
     ) {
-      return;
+      return false;
     }
+    if (!store) {
+      setSnapshot({ revision: "", value: next });
+      setDraft(null);
+      return true;
+    }
+    saving.current = true;
     setBusy(true);
     setError(null);
     try {
       const projected = projectConsolePreferenceSnapshot({
         revision: snapshot.revision,
-        value,
+        value: next,
       });
       const result = projectConsolePreferenceSnapshot(
         await store.save(
@@ -171,12 +244,18 @@ export function useConsolePreferences(
           { signal: current.controller.signal }
         )
       );
-      if (result.value === null) {
+      if (
+        result.value === null ||
+        JSON.stringify(result.value) !== JSON.stringify(projected.value)
+      ) {
         throw new Error("A preference save must preserve explicit values");
       }
       if (!current.controller.signal.aborted) {
         setSnapshot(result);
-        setDraft((latest) => (latest === value ? null : latest));
+        setDraft((latest) =>
+          latest === value || latest === next ? null : latest
+        );
+        return true;
       }
     } catch {
       if (!current.controller.signal.aborted) {
@@ -187,9 +266,11 @@ export function useConsolePreferences(
       }
     } finally {
       if (!current.controller.signal.aborted) {
+        saving.current = false;
         setBusy(false);
       }
     }
+    return false;
   };
   return {
     value,

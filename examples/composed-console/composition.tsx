@@ -11,6 +11,7 @@ import {
 import { pluginManagerConsole } from "@lenso/console-plugin-manager/react";
 import {
   ConsoleActionScope,
+  ConsolePageScope,
   ConsoleLayout,
   ConsoleIconButton,
   ConsoleShell,
@@ -21,6 +22,13 @@ import {
   type ConsoleRouterAdapter,
   type ConsoleSessionAdapter,
 } from "@lenso/console-react";
+import {
+  ContactRound,
+  KeyRound,
+  ShoppingBag,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface OrdersClient {
@@ -74,7 +82,9 @@ function OrdersPage(props: ConsoleLocalPageProps<OrdersServices>) {
       setPending(true);
       setError(undefined);
       await props.services.archive({ ids }, { signal: props.signal });
+      const updatedRows = await props.services.list({ signal: props.signal });
       if (props.activation.isCurrent()) {
+        setRows(updatedRows);
         setSelected([]);
       }
     } catch {
@@ -90,12 +100,25 @@ function OrdersPage(props: ConsoleLocalPageProps<OrdersServices>) {
   }
   return (
     <section aria-label="Orders">
+      <ConsolePageScope
+        scopeKey={props.activation.key}
+        value={{
+          commands: [
+            {
+              id: "clear-filter",
+              label: "Clear order filter",
+              disabled: !filter,
+              onInvoke: () => setFilter(""),
+            },
+          ],
+        }}
+      />
       <ConsoleLayout.Corner area="topRight">
         <ConsoleIconButton
           label="Clear order filter"
           onClick={() => setFilter("")}
         >
-          <span aria-hidden="true">×</span>
+          <X size={16} aria-hidden="true" />
         </ConsoleIconButton>
       </ConsoleLayout.Corner>
       <ConsoleActionScope
@@ -155,13 +178,69 @@ function OrdersPage(props: ConsoleLocalPageProps<OrdersServices>) {
                 {row.id}
               </label>{" "}
               {row.status}{" "}
-              <a href={props.navigation.href("detail", { id: row.id })}>
+              <a
+                href={props.navigation.href("detail", { id: row.id })}
+                onClick={(event) => {
+                  if (
+                    event.button === 0 &&
+                    !event.metaKey &&
+                    !event.ctrlKey &&
+                    !event.altKey &&
+                    !event.shiftKey
+                  ) {
+                    event.preventDefault();
+                    props.navigation.go("detail", { id: row.id });
+                  }
+                }}
+              >
                 Details
               </a>
             </li>
           ))}
       </ul>
     </section>
+  );
+}
+
+function OrderDetail(props: ConsoleLocalPageProps<OrdersServices>) {
+  const [status, setStatus] = useState<string>();
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await props.services.list({ signal: props.signal });
+        if (!cancelled && props.activation.isCurrent()) {
+          setStatus(rows.find((row) => row.id === props.params.id)?.status);
+        }
+      } catch {
+        if (!cancelled && props.activation.isCurrent()) {
+          setStatus("Status unavailable");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [props.services, props.signal, props.activation, props.params.id]);
+  return (
+    <>
+      <ConsolePageScope
+        scopeKey={props.activation.key}
+        value={{
+          context: {
+            kind: "object",
+            label: "Order",
+            ...(props.params.id ? { id: props.params.id } : {}),
+            ...(status ? { status } : {}),
+            return: {
+              label: "Return to orders",
+              onInvoke: () => props.navigation.go("manage"),
+            },
+          },
+        }}
+      />
+      <h1>Order {props.params.id}</h1>
+    </>
   );
 }
 
@@ -173,7 +252,7 @@ const ordersUI = defineConsolePlugin<OrdersServices>({
     analytics: { title: "Orders by status", component: OrdersPage },
     detail: {
       title: "Order detail",
-      component: ({ params }) => <h1>Order {params.id}</h1>,
+      component: OrderDetail,
     },
   },
   pageGroups: {
@@ -193,6 +272,7 @@ const ordersUI = defineConsolePlugin<OrdersServices>({
       id: "orders",
       group: "orders",
       label: "Orders",
+      icon: <ShoppingBag size={20} aria-hidden="true" />,
       defaultPlacement: "primary",
     },
   ],
@@ -202,6 +282,7 @@ export interface ComposedConsoleProps {
   router: ConsoleRouterAdapter;
   session: ConsoleSessionAdapter;
   preferences?: ConsolePreferenceStore;
+  children?: React.ReactNode;
   orders: OrdersClient;
   confirmArchive(ids: readonly string[]): Promise<boolean>;
   workforce: AuthConsoleClient;
@@ -231,6 +312,23 @@ export function ComposedConsole(props: ComposedConsoleProps) {
       id: "auth.workforce",
       label: "Workforce",
       client: props.workforce,
+      navigation: {
+        info: {
+          label: "Workforce",
+          tooltip: "Inspect workforce authentication information",
+          icon: <UsersRound size={20} aria-hidden="true" />,
+        },
+        sessions: {
+          label: "Workforce sessions",
+          tooltip: "Review and revoke workforce sign-in sessions",
+          icon: <KeyRound size={20} aria-hidden="true" />,
+        },
+        subjects: {
+          label: "Workforce subjects",
+          tooltip: "Browse workforce authentication subjects",
+          icon: <ContactRound size={20} aria-hidden="true" />,
+        },
+      },
       routes: {
         info: "/workforce",
         sessions: "/workforce/sessions",
@@ -242,6 +340,23 @@ export function ComposedConsole(props: ComposedConsoleProps) {
       id: "auth.customers",
       label: "Customers",
       client: props.customers,
+      navigation: {
+        info: {
+          label: "Customers",
+          tooltip: "Inspect customer authentication information",
+          icon: <UsersRound size={20} aria-hidden="true" />,
+        },
+        sessions: {
+          label: "Customer sessions",
+          tooltip: "Review and revoke customer sign-in sessions",
+          icon: <KeyRound size={20} aria-hidden="true" />,
+        },
+        subjects: {
+          label: "Customer subjects",
+          tooltip: "Browse customer authentication subjects",
+          icon: <ContactRound size={20} aria-hidden="true" />,
+        },
+      },
       routes: {
         info: "/customers",
         sessions: "/customers/sessions",
@@ -284,6 +399,8 @@ export function ComposedConsole(props: ComposedConsoleProps) {
       session={props.session}
       {...(props.preferences ? { preferences: props.preferences } : {})}
       navigationDefaults={{ mode: "dock", position: "bottom" }}
-    />
+    >
+      {props.children}
+    </ConsoleShell>
   );
 }

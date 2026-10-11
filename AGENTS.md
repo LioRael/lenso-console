@@ -18,6 +18,11 @@ Registry publication and OCI writes still require explicit release authorization
 
 ## Agent skills
 
+For Console plugin or page development, start with
+[Console plugin development](.agents/skills/console-plugin-development/SKILL.md).
+It routes directory authoring, scoped page interactions, and Dashboard widgets;
+check the consuming host before using an exported presentation API.
+
 ### Issue tracker
 
 Issues and PRDs are tracked in the central `LioRael/lenso` GitHub repository.

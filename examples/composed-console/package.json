@@ -1,0 +1,18 @@
+{
+  "name": "lenso-composed-console-preview",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@lenso/auth-console": "workspace:*",
+    "@lenso/console-dashboard": "workspace:*",
+    "@lenso/console-plugin-manager": "workspace:*",
+    "@lenso/console-react": "workspace:*",
+    "@lenso/console-sdk": "workspace:*",
+    "@lenso/tokens": "0.9.1",
+    "@lenso/ui": "0.9.1",
+    "@stylexjs/stylex": "0.19.1",
+    "lucide-react": "^1.28.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}

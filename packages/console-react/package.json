@@ -37,6 +37,7 @@
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",
     "@stylexjs/stylex": "0.19.1",
+    "liquid-gooey": "^0.2.2",
     "lucide-react": "^1.28.0",
     "motion": "^14.0.0"
   },

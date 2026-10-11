@@ -63,7 +63,10 @@ export interface ConsolePageGroup {
 
 export type ConsoleNavigationDefinition = {
   id: string;
+  /** Concise visible and accessible destination name, independent of page title. */
   label: string;
+  /** Supplemental hover/focus description. Defaults to label in icon-only views. */
+  tooltip?: string;
   icon?: ReactNode;
   defaultPlacement?: "primary" | "more";
 } & ({ page: string; group?: never } | { group: string; page?: never });
@@ -126,10 +129,22 @@ export interface ConsoleSessionAdapter {
   canAccessDockView?(bindingId: string, viewId: string): boolean;
 }
 
+export interface ConsoleDockPreset {
+  id: string;
+  name: string;
+  pinned: readonly ConsoleNavigationReference[];
+}
+
 export interface ConsolePreferences {
   pinned: readonly ConsoleNavigationReference[];
   mode: "dock" | "sidebar";
   position: ConsolePosition;
+  /** Version 1 migrates legacy pins to Default. pinned mirrors the active preset. */
+  dockPresets?: {
+    version: 1;
+    activeId: string;
+    presets: readonly ConsoleDockPreset[];
+  };
 }
 
 export interface ConsolePreferenceSnapshot {

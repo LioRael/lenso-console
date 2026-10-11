@@ -1,4 +1,5 @@
 import { Modal } from "@lenso/ui/modal";
+import { Popover } from "@lenso/ui/popover";
 import React, {
   createContext,
   useContext,
@@ -10,8 +11,10 @@ import { createRoot } from "react-dom/client";
 
 import {
   ConsoleActionScope,
-  ConsoleDockContent,
+  ConsoleActionHost,
+  ConsolePageScope,
   ConsoleShell,
+  ConsoleDockContent,
   bindConsole,
   defineConsolePlugin,
 } from "../../dist/index.js";
@@ -19,7 +22,11 @@ import type {
   ConsoleLocalPageProps,
   ConsoleDockViewProps,
   ConsolePreferenceSnapshot,
+  ConsolePreferences,
 } from "../../src/composition";
+import type { ConsolePageContribution } from "../../src/console-action-scope";
+
+import "@fontsource-variable/inter";
 
 import "@lenso/tokens/styles.css";
 import "../../../../plugins/console/shell/src/styles.css";
@@ -31,6 +38,7 @@ const dockControllers: ConsoleDockViewProps["dock"][] = [];
 const dockSignals: AbortSignal[] = [];
 const DockContext = createContext("missing");
 const dockFixture = new URLSearchParams(location.search).has("dock");
+const clearanceFixture = new URLSearchParams(location.search).has("clearance");
 let composerMounts = 0;
 let resolveExit: ((allow: boolean) => void) | undefined;
 let guardExit = false;
@@ -47,7 +55,12 @@ function sampleGeometry() {
 }
 let mounts = 0;
 let actions = 0;
+let blocked = false;
+let changeRecordSelection: ((value: boolean) => void) | null = null;
+let changeRecordOverlay: ((value: boolean) => void) | null = null;
+let changeRecordReturn: ((value: boolean) => void) | null = null;
 let revision = 0;
+let preferenceSeed = 0;
 let conflict = false;
 let snapshot: ConsolePreferenceSnapshot = { revision: "initial", value: null };
 const store = {
@@ -67,38 +80,135 @@ const store = {
   },
 };
 function Records({ activation, signal, navigation }: ConsoleLocalPageProps) {
-  const [selected, setSelected] = useState(false);
+  const [selected, setSelected] = useState<number[]>([]);
   const [running, setRunning] = useState(false);
   const [text, setText] = useState("");
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [returnAvailable, setReturnAvailable] = useState(true);
+  const [context, setContext] = useState<
+    "fallback" | "hidden" | "object" | "tabs"
+  >("fallback");
   useLayoutEffect(() => {
     mounts += 1;
     activations.push(activation);
     signals.push(signal);
+    const change = (value: boolean) => {
+      if (activation.isCurrent()) {
+        setSelected(value ? [1] : []);
+      }
+    };
+    changeRecordSelection = change;
+    changeRecordOverlay = setOverlayOpen;
+    changeRecordReturn = setReturnAvailable;
+    return () => {
+      if (changeRecordSelection === change) {
+        changeRecordSelection = null;
+        changeRecordOverlay = null;
+        changeRecordReturn = null;
+      }
+    };
   }, [activation, signal]);
   return (
     <>
+      {clearanceFixture && (
+        <input
+          aria-label="First page control"
+          style={{ display: "block", marginInline: "auto" }}
+        />
+      )}
       <h1>Records page</h1>
+      {dockFixture && (
+        <button onClick={() => setRunning((value) => !value)}>
+          Toggle selection execution
+        </button>
+      )}
+      <Popover.Root open={overlayOpen} onOpenChange={setOverlayOpen}>
+        <Popover.Trigger>Record overlay</Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Positioner>
+            <Popover.Popup aria-label="Record overlay" initialFocus={false}>
+              <button>Overlay action</button>
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
+      <ConsolePageScope
+        scopeKey={activation.key}
+        value={{
+          commands: [
+            {
+              id: "clear-draft",
+              label: "Clear record draft",
+              disabled: !text,
+              onInvoke: () => setText(""),
+            },
+          ],
+          ...(context === "fallback"
+            ? {}
+            : {
+                context:
+                  context === "hidden"
+                    ? { kind: "hidden" as const }
+                    : context === "object"
+                      ? {
+                          kind: "object" as const,
+                          label: "Current record",
+                          id: "42",
+                          status: "Draft",
+                          ...(returnAvailable && {
+                            return: {
+                              label: "Return to record tabs",
+                              onInvoke: () => setContext("fallback"),
+                            },
+                          }),
+                        }
+                      : {
+                          kind: "tabs" as const,
+                          label: "Contributed views",
+                          activeId: "records",
+                          tabs: [
+                            {
+                              id: "records",
+                              label: "Contributed records",
+                              href: navigation.href("records"),
+                            },
+                            {
+                              id: "history",
+                              label: "Contributed history",
+                              href: navigation.href("history"),
+                            },
+                          ],
+                        },
+              }),
+        }}
+      />
+      {(["fallback", "hidden", "object", "tabs"] as const).map((mode) => (
+        <button key={mode} onClick={() => setContext(mode)}>
+          {mode} context
+        </button>
+      ))}
       <input
         aria-label="Persistent draft"
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
-      <button onClick={() => setSelected(true)}>Select record</button>
-      {dockFixture && (
-        <>
-          <button onClick={() => setRunning((value) => !value)}>
-            Toggle selection execution
-          </button>
-          <select
-            size={2}
-            aria-label="Inline record options"
-            defaultValue="current"
-          >
-            <option value="current">Current records</option>
-            <option value="archived">Archived records</option>
-          </select>
-        </>
-      )}
+      <button onClick={() => setSelected([1])}>Select record</button>
+      {[1, 2, 3].map((id) => (
+        <label key={id}>
+          <input
+            type="checkbox"
+            checked={selected.includes(id)}
+            onChange={(event) =>
+              setSelected((current) =>
+                event.target.checked
+                  ? [...current, id]
+                  : current.filter((item) => item !== id)
+              )
+            }
+          />
+          Select record {id}
+        </label>
+      ))}
       <a
         href={navigation.href("detail", { id: "42" })}
         onClick={(event) => {
@@ -111,9 +221,9 @@ function Records({ activation, signal, navigation }: ConsoleLocalPageProps) {
       <ConsoleActionScope
         scopeKey={activation.key}
         value={
-          selected
+          selected.length
             ? {
-                count: 1,
+                count: selected.length,
                 scopeLabel: "Records",
                 running,
                 actions: [
@@ -126,11 +236,22 @@ function Records({ activation, signal, navigation }: ConsoleLocalPageProps) {
                     },
                   },
                 ],
-                onExit: () => setSelected(false),
+                onExit: () => setSelected([]),
               }
             : null
         }
       />
+      {clearanceFixture && (
+        <>
+          <div style={{ height: 2000 }} />
+          <button
+            style={{ display: "block", marginInline: "auto" }}
+            onClick={() => setText("End reached")}
+          >
+            End page action
+          </button>
+        </>
+      )}
     </>
   );
 }
@@ -214,6 +335,9 @@ function TestConversation() {
         Conversation action
       </button>
       {details && <p>Test conversation details</p>}
+      {clearanceFixture && (
+        <div style={{ height: details ? 280 : 440 }}>Long conversation</div>
+      )}
       <Modal.Root>
         <Modal.Trigger render={<button>Open plugin dialog</button>} />
         <Modal.Portal>
@@ -251,7 +375,28 @@ const definition = defineConsolePlugin({
   pages: {
     records: { component: Records },
     history: { component: () => <h1>History page</h1> },
-    detail: { component: () => <h1>Detail page</h1> },
+    detail: {
+      component: ({ activation, navigation }: ConsoleLocalPageProps) => (
+        <>
+          <ConsolePageScope
+            scopeKey={activation.key}
+            value={{
+              context: {
+                kind: "object",
+                label: "Record",
+                id: "42",
+                status: "Ready",
+                return: {
+                  label: "Return to records",
+                  onInvoke: () => navigation.go("records"),
+                },
+              },
+            }}
+          />
+          <h1>Detail page</h1>
+        </>
+      ),
+    },
   },
   pageGroups: {
     records: {
@@ -284,12 +429,117 @@ const binding = bindConsole(definition, {
   routes: { records: "/records", history: "/history", detail: "/records/:id" },
   services: {},
 });
+const capturedPages: ConsolePageContribution[] = [];
+let pageInvocations = 0;
+let pageProbeActive = false;
+function CapturePage({ page }: { page: ConsolePageContribution | null }) {
+  useLayoutEffect(() => {
+    pageProbeActive = !!page;
+    if (page) {
+      capturedPages.push(page);
+    }
+  }, [page]);
+  return null;
+}
+function PageLeaseProbe() {
+  const [key, setKey] = useState("first");
+  const lifetime = useRef(new AbortController()).current;
+  const [mounted, setMounted] = useState(true);
+  const [replacement, setReplacement] = useState(false);
+  Object.assign(window, {
+    pageLeaseProbe: {
+      change: setKey,
+      abort: () => lifetime.abort(),
+      unmount: () => setMounted(false),
+      replace: () => setReplacement(true),
+      unmountAll: () => {
+        setMounted(false);
+        setReplacement(false);
+      },
+      invoke: (index: number) => {
+        const page = capturedPages[index]!;
+        page.commands?.[0]?.onInvoke();
+        if (page.context && page.context.kind !== "hidden") {
+          page.context.return?.onInvoke();
+        }
+      },
+      snapshot: () => ({
+        count: capturedPages.length,
+        invocations: pageInvocations,
+        active: pageProbeActive,
+      }),
+    },
+  });
+  return (
+    <ConsoleActionHost
+      signal={lifetime.signal}
+      render={(_, page) => <CapturePage page={page} />}
+    >
+      {mounted && (
+        <ConsolePageScope
+          scopeKey={key}
+          value={{
+            commands: [
+              {
+                id: "probe",
+                label: "Probe",
+                onInvoke: () => {
+                  pageInvocations += 1;
+                },
+              },
+            ],
+            context: {
+              kind: "object",
+              label: "Probe",
+              return: {
+                label: "Return",
+                onInvoke: () => {
+                  pageInvocations += 1;
+                },
+              },
+            },
+          }}
+        />
+      )}
+      {replacement && (
+        <ConsolePageScope
+          scopeKey="replacement"
+          value={{
+            commands: [
+              {
+                id: "replacement",
+                label: "Replacement",
+                onInvoke: () => {
+                  pageInvocations += 1;
+                },
+              },
+            ],
+            context: {
+              kind: "object",
+              label: "Replacement",
+              return: {
+                label: "Return",
+                onInvoke: () => {
+                  pageInvocations += 1;
+                },
+              },
+            },
+          }}
+        />
+      )}
+    </ConsoleActionHost>
+  );
+}
+
 function Fixture() {
   const [pathname, setPathname] = useState("/console/records");
   const [scopeKey, setScopeKey] = useState("first");
   const [allow, setAllow] = useState(true);
   const [allowDock, setAllowDock] = useState(true);
   const [version, setVersion] = useState(0);
+  const [tabsPosition, setTabsPosition] = useState<
+    ConsolePreferences["position"] | "content"
+  >("top");
   Object.assign(window, {
     shellFixture: {
       snapshot: () => ({
@@ -303,6 +553,11 @@ function Fixture() {
       }),
       conflict: (value: boolean) => {
         conflict = value;
+      },
+      seedPreferences: (value: ConsolePreferences) => {
+        snapshot = { revision: "seeded", value };
+        preferenceSeed += 1;
+        setScopeKey(`seeded-preferences-${preferenceSeed}`);
       },
       scope: (value: string) => setScopeKey(value),
       allow: (value: boolean) => setAllow(value),
@@ -320,7 +575,7 @@ function Fixture() {
       },
       crashDock: () => crashDock?.(),
       beginGeometrySamples: () => {
-        sampledDock = document.querySelector("[data-dashboard-dock]");
+        sampledDock = document.querySelector("[data-dashboard-dock-surface]");
         geometrySamples.clear();
         sampleGeometry();
       },
@@ -328,11 +583,19 @@ function Fixture() {
         cancelAnimationFrame(geometryFrame);
         const result = {
           sameSurface:
-            sampledDock === document.querySelector("[data-dashboard-dock]"),
+            sampledDock ===
+            document.querySelector("[data-dashboard-dock-surface]"),
           distinctSizes: geometrySamples.size,
         };
         sampledDock = null;
         return result;
+      },
+      tabsPosition: setTabsPosition,
+      selection: (value: boolean) => changeRecordSelection?.(value),
+      overlay: (value: boolean) => changeRecordOverlay?.(value),
+      returnAvailable: (value: boolean) => changeRecordReturn?.(value),
+      block: (value: boolean) => {
+        blocked = value;
       },
     },
   });
@@ -353,6 +616,7 @@ function Fixture() {
           : undefined
       }
       basePath="/console"
+      tabsPosition={tabsPosition}
       preferences={store}
       session={{
         state: "ready",
@@ -362,7 +626,11 @@ function Fixture() {
       }}
       router={{
         pathname,
-        navigate: setPathname,
+        navigate: (path) => {
+          if (!blocked) {
+            setPathname(path);
+          }
+        },
         match: (pattern, path) => {
           const names: string[] = [];
           const regexp = new RegExp(
@@ -382,10 +650,25 @@ function Fixture() {
     />
   );
 }
-createRoot(document.getElementById("root")!).render(<Fixture />);
+createRoot(document.getElementById("root")!).render(
+  <>
+    <Fixture />
+    <PageLeaseProbe />
+  </>
+);
 declare global {
   interface Window {
+    pageLeaseProbe: {
+      abort(): void;
+      change(value: string): void;
+      unmount(): void;
+      replace(): void;
+      unmountAll(): void;
+      invoke(index: number): void;
+      snapshot(): { count: number; invocations: number; active: boolean };
+    };
     shellFixture: {
+      seedPreferences(value: ConsolePreferences): void;
       snapshot(): {
         mounts: number;
         actions: number;
@@ -408,6 +691,11 @@ declare global {
       crashDock(): void;
       beginGeometrySamples(): void;
       endGeometrySamples(): { sameSurface: boolean; distinctSizes: number };
+      tabsPosition(value: ConsolePreferences["position"] | "content"): void;
+      selection(value: boolean): void;
+      overlay(value: boolean): void;
+      returnAvailable(value: boolean): void;
+      block(value: boolean): void;
     };
   }
 }

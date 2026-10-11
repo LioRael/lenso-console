@@ -82,6 +82,18 @@ import { authConsole } from "@lenso/auth-console/react";
 const customerAuthBinding = authConsole({
   id: "customer-auth-production",
   client: existingSdkAuthConsoleClient,
+  label: "Customers",
+  navigation: {
+    info: {
+      label: "Customers",
+      tooltip: "Inspect customer authentication information",
+    },
+    sessions: {
+      label: "Customer sessions",
+      tooltip: "Review and revoke customer sign-in sessions",
+    },
+    subjects: { label: "Customer subjects" },
+  },
   routes: {
     info: "/customer-auth",
     sessions: "/customer-auth/sessions",
@@ -97,6 +109,14 @@ are server-derived UI projections, never authorization grants. Only a supported
 method with an explicit host route contributes a page/navigation destination.
 Detail links require the detail route; revoke controls require the revoke capability
 and method. There is no user CRUD page. Two bindings retain independent clients/routes.
+
+`label` still qualifies page titles, for example `Customers: Sessions`.
+For backward compatibility, navigation without explicit overrides still uses
+those qualified titles. `navigation.info`, `.sessions`, and `.subjects` may
+override `label`, `tooltip`, `icon`, and `defaultPlacement` independently.
+The explicit destination label is both visible and accessible; tooltip text
+never substitutes for it. Overrides cannot add unsupported destinations or
+turn the parameterized session detail into global navigation.
 
 The return value is an ordinary `ConsoleBinding`, using only type imports from
 `@lenso/console-react`. No server Plugin is passed to browser code. The host owns

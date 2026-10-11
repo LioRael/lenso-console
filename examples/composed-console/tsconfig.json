@@ -1,0 +1,6 @@
+{
+  "extends": "../../plugins/console/shell/tsconfig.json",
+  "compilerOptions": { "allowImportingTsExtensions": true },
+  "include": ["./*.ts", "./*.tsx"],
+  "exclude": ["dist"]
+}

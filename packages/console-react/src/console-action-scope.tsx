@@ -12,35 +12,102 @@ import {
 
 import type { ConsoleDockSelection } from "./console-dock";
 
+export type ConsoleTaskContext =
+  | { kind: "hidden" }
+  | {
+      kind: "tabs";
+      label: string;
+      activeId: string;
+      tabs: readonly { id: string; label: string; href: string }[];
+      return?: { label: string; onInvoke(): void };
+    }
+  | {
+      kind: "object";
+      label: string;
+      id?: string;
+      status?: string;
+      return?: { label: string; onInvoke(): void };
+    };
+
+export interface ConsolePageCommand {
+  id: string;
+  label: string;
+  disabled?: boolean;
+  /** Opt-in presentation of an existing page action, including its guards/confirmation. */
+  onInvoke(): void;
+}
+
+export interface ConsolePageContribution {
+  context?: ConsoleTaskContext;
+  commands?: readonly ConsolePageCommand[];
+}
+
 type Contribution = { owner: object; value: ConsoleDockSelection };
+type PageContribution = { owner: object; value: ConsolePageContribution };
 const ActionHost = createContext<{
   publish(contribution: Contribution): () => void;
+  publishPage(contribution: PageContribution): () => void;
+  isCurrentSelection(owner: object): boolean;
+  isCurrentPage(owner: object): boolean;
 } | null>(null);
 
 export function ConsoleActionHost({
   children,
   render,
+  signal,
 }: {
-  children: ReactNode;
-  render(selection: ConsoleDockSelection | null): ReactNode;
+  signal?: AbortSignal;
+  children: ReactNode | ((page: ConsolePageContribution | null) => ReactNode);
+  render(
+    selection: ConsoleDockSelection | null,
+    page: ConsolePageContribution | null
+  ): ReactNode;
 }) {
   const [contribution, setContribution] = useState<Contribution | null>(null);
+  const [page, setPage] = useState<PageContribution | null>(null);
+  const selectionOwner = useRef<object | null>(null);
+  const pageOwner = useRef<object | null>(null);
   const host = useMemo(
     () => ({
       publish(next: Contribution) {
+        selectionOwner.current = next.owner;
         setContribution(next);
-        return () =>
+        return () => {
+          if (selectionOwner.current === next.owner) {
+            selectionOwner.current = null;
+          }
           setContribution((current) =>
             current?.owner === next.owner ? null : current
           );
+        };
+      },
+      publishPage(next: PageContribution) {
+        pageOwner.current = next.owner;
+        setPage(next);
+        return () => {
+          if (pageOwner.current === next.owner) {
+            pageOwner.current = null;
+          }
+          setPage((current) =>
+            current?.owner === next.owner ? null : current
+          );
+        };
+      },
+      isCurrentPage(owner: object) {
+        return !signal?.aborted && pageOwner.current === owner;
+      },
+      isCurrentSelection(owner: object) {
+        return !signal?.aborted && selectionOwner.current === owner;
       },
     }),
-    []
+    [signal]
   );
   return (
     <ActionHost.Provider value={host}>
-      {children}
-      {render(contribution?.value ?? null)}
+      {typeof children === "function"
+        ? children(page?.value ?? null)
+        : children}
+      {render(contribution?.value ?? null, page?.value ?? null)}
     </ActionHost.Provider>
   );
 }
@@ -81,7 +148,11 @@ export function ConsoleActionScope({
       actions: value.actions.map((action) => ({
         ...action,
         onInvoke: () => {
-          if (lease.live && !committed.current?.running) {
+          if (
+            lease.live &&
+            host.isCurrentSelection(lease) &&
+            !committed.current?.running
+          ) {
             committed.current?.actions
               .find((item) => item.id === action.id)
               ?.onInvoke();
@@ -89,12 +160,89 @@ export function ConsoleActionScope({
         },
       })),
       onExit: () => {
-        if (lease.live && !committed.current?.running) {
+        if (
+          lease.live &&
+          host.isCurrentSelection(lease) &&
+          !committed.current?.running
+        ) {
           committed.current?.onExit();
         }
       },
     };
     return host.publish({ owner: lease, value: selection });
   }, [host, lease, value, ownerId, scopeKey]);
+  return children;
+}
+
+/** One active page projection. Persistent forms and data stay owned by the page. */
+export function ConsolePageScope({
+  scopeKey,
+  value,
+  children,
+}: {
+  scopeKey: string;
+  value: ConsolePageContribution;
+  children?: ReactNode;
+}) {
+  const host = useContext(ActionHost);
+  if (!host) {
+    throw new Error("ConsolePageScope requires ConsoleShell.");
+  }
+  const lease = useMemo(() => ({ live: false, scopeKey }), [scopeKey]);
+  const committed = useRef(value);
+  useInsertionEffect(() => {
+    committed.current = value;
+    lease.live = true;
+    return () => {
+      lease.live = false;
+    };
+  }, [lease, value]);
+  useLayoutEffect(() => {
+    const { context } = value;
+    const projected: ConsolePageContribution = {
+      ...(context
+        ? {
+            context:
+              context.kind !== "hidden" && context.return
+                ? {
+                    ...context,
+                    return: {
+                      label: context.return.label,
+                      onInvoke() {
+                        const current = committed.current.context;
+                        if (
+                          lease.live &&
+                          host.isCurrentPage(lease) &&
+                          current &&
+                          current.kind !== "hidden"
+                        ) {
+                          current.return?.onInvoke();
+                        }
+                      },
+                    },
+                  }
+                : context,
+          }
+        : {}),
+      commands:
+        value.commands?.map((command) => ({
+          ...command,
+          onInvoke() {
+            const current = committed.current.commands?.find(
+              (item) => item.id === command.id
+            );
+            if (
+              lease.live &&
+              host.isCurrentPage(lease) &&
+              current &&
+              !current.disabled
+            ) {
+              current.onInvoke();
+            }
+          },
+        })) ?? [],
+    };
+    return host.publishPage({ owner: lease, value: projected });
+  }, [host, lease, value]);
   return children;
 }

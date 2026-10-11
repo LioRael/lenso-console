@@ -70,6 +70,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
       "packages/console",
       process.env.LENSO_CONSOLE_ARCHIVE
     );
+    const react = consumeArchive("packages/console-react");
     fs.writeFileSync(
       path.join(temp, "package.json"),
       JSON.stringify({
@@ -79,6 +80,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
           "@lenso/auth": "0.3.1",
           "@lenso/authorization": "0.3.1",
           "@lenso/console": backend.spec,
+          "@lenso/console-react": react.spec,
           "@lenso/console-sdk": sdk.spec,
           "@lenso/core": "0.3.1",
           "@lenso/limits": "0.2.1",
@@ -89,6 +91,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
           "@types/react": "19.2.18",
           "drizzle-orm": "0.45.3",
           react: "19.2.8",
+          "react-dom": "19.2.8",
           typescript: "7.0.2",
         },
         private: true,
@@ -102,6 +105,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
     for (const [name, archive] of [
       ["@lenso/console", backend],
       ["@lenso/console-sdk", sdk],
+      ["@lenso/console-react", react],
     ]) {
       assert.equal(
         installed.packages[`node_modules/${name}`].integrity,
@@ -142,10 +146,11 @@ export default defineServices({orders:{
     );
     const page = `import type {PageProps} from "@lenso/console-sdk";
 import {bindServices} from "@lenso/console-sdk/services";
+import {ConsolePageScope} from "@lenso/console-react";
 export default function Page(props:PageProps) {
   const client=bindServices(props.services);
   void client.orders.read({id:"42"}).then(order=>order.title.toUpperCase());
-  return <h1>Authored notes</h1>;
+  return <ConsolePageScope scopeKey={props.activation!.key} value={{context:{kind:"hidden"},commands:[]}}><h1>Authored notes</h1></ConsolePageScope>;
 }`;
     fs.writeFileSync(path.join(entry, "page.tsx"), page);
     const authorArgs = [
@@ -157,6 +162,7 @@ export default function Page(props:PageProps) {
       "notes.owner",
     ];
     run("bun", [cli, "build", ...authorArgs]);
+    run("bun", [cli, "check", ...authorArgs]);
     const descriptor = JSON.parse(
       fs.readFileSync(path.join(output, "descriptor.json"), "utf-8")
     );
@@ -192,7 +198,8 @@ export default function Page(props:PageProps) {
 
     fs.writeFileSync(
       path.join(temp, "check.ts"),
-      `import {createConsolePlugin,consoleConfiguration} from "@lenso/console";
+      `import {ConsoleInteractionHost} from "@lenso/console-react";
+import {createConsolePlugin,consoleConfiguration} from "@lenso/console";
 import {createConsoleAuthentication} from "@lenso/console/auth";
 import {createConsoleAuditIntegration} from "@lenso/console/audit";
 import {createConsoleApiKeyManage,createConsoleApiKeyCredentials} from "@lenso/console/api-keys";
@@ -200,7 +207,7 @@ import {createConsoleAuthorizationPolicy} from "@lenso/console/authorization";
 import {createConsoleTasksIntegration} from "@lenso/console/tasks";
 import {createConsoleSchedulerIntegration} from "@lenso/console/scheduler";
 import {createConsoleLimitsBinding} from "@lenso/console/limits";
-void [createConsolePlugin,consoleConfiguration,createConsoleAuthentication,
+void [ConsoleInteractionHost,createConsolePlugin,consoleConfiguration,createConsoleAuthentication,
   createConsoleAuditIntegration,createConsoleApiKeyManage,createConsoleApiKeyCredentials,
   createConsoleAuthorizationPolicy,createConsoleTasksIntegration,
   createConsoleSchedulerIntegration,createConsoleLimitsBinding];`

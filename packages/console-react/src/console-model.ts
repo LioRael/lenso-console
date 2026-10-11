@@ -8,6 +8,7 @@ import type {
   ConsolePreferences,
   ConsoleSessionAdapter,
 } from "./composition";
+import { withConsoleDockPresets } from "./console-dock-presets";
 
 // bindConsole captures each component/services pairing before collection erasure.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,6 +24,7 @@ export interface ConsoleNavigationItem {
   id: string;
   reference: ConsoleNavigationReference;
   label: string;
+  tooltip?: string;
   icon: ReactNode;
   placement: "primary" | "more";
   route: ConsoleRoute;
@@ -196,6 +198,7 @@ export function createConsoleModel(
         id: consoleReferenceKey(reference),
         reference,
         label: item.label,
+        ...(item.tooltip === undefined ? {} : { tooltip: item.tooltip }),
         icon: item.icon,
         placement: item.defaultPlacement ?? "more",
         route,
@@ -246,6 +249,7 @@ export function visibleConsoleDockViews(
       session.canAccessDockView(item.reference.bindingId, item.reference.viewId)
   );
 }
+
 export function visibleConsoleNavigation(
   items: readonly ConsoleNavigationItem[],
   session?: ConsoleSessionAdapter
@@ -263,7 +267,7 @@ export function defaultConsolePreferences(
   items: readonly ConsoleNavigationItem[],
   defaults?: Partial<ConsolePreferences>
 ): ConsolePreferences {
-  return {
+  const value: ConsolePreferences = {
     pinned:
       defaults?.pinned ??
       items
@@ -272,6 +276,13 @@ export function defaultConsolePreferences(
     mode: defaults?.mode ?? "dock",
     position: defaults?.position ?? "bottom",
   };
+  return defaults?.dockPresets
+    ? withConsoleDockPresets(
+        value,
+        defaults.dockPresets.presets,
+        defaults.dockPresets.activeId
+      )
+    : value;
 }
 export function orderedConsolePins(
   items: readonly ConsoleNavigationItem[],

@@ -183,6 +183,8 @@ test("Dock-only local bindings preserve explicit order and use independent admis
   expect(model.routes).toEqual([]);
   expect(model.navigation).toEqual([]);
   expect(model.dockViews.map((item) => item.reference)).toEqual(leading);
+  expect(model.dockViews[1]!.binding.services).toBe(first.services);
+  expect(model.dockViews[1]!.definition).toBe(composer.dockViews![0]);
   expect(
     visibleConsoleDockViews(model.dockViews, {
       state: "ready",
@@ -212,11 +214,7 @@ test("Dock assembly rejects empty or duplicate local IDs and duplicate or dangli
   };
   const make = (views: (typeof view)[]) =>
     bindConsole(
-      defineConsolePlugin({
-        id: "composer",
-        pages: {},
-        dockViews: views,
-      }),
+      defineConsolePlugin({ id: "composer", pages: {}, dockViews: views }),
       { id: "local", services: { view }, routes: {} }
     );
   for (const views of [

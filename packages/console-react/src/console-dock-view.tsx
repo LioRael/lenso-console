@@ -118,6 +118,7 @@ export function ConsoleDockViewHost({
   scopeKey,
   position,
   blocked,
+  suspended = false,
   children,
 }: {
   items: readonly ConsoleDockViewItem[];
@@ -125,6 +126,8 @@ export function ConsoleDockViewHost({
   scopeKey: string;
   position: ConsolePosition;
   blocked: boolean;
+  /** Hide projection for a Shell overlay without discarding the retained view. */
+  suspended?: boolean;
   children(input: {
     active: boolean;
     restoreFocus(): void;
@@ -242,7 +245,7 @@ export function ConsoleDockViewHost({
   return (
     <ConsoleDockProjectionProvider>
       {children({
-        active: !!active,
+        active: !!active && !suspended,
         restoreFocus,
         entries: items.map((item) => ({
           id: item.id,
@@ -297,7 +300,9 @@ export function ConsoleDockViewHost({
             key={JSON.stringify([scopeKey, item.id])}
             item={item}
             position={position}
-            presentation={active?.item.id === item.id ? active : null}
+            presentation={
+              !suspended && active?.item.id === item.id ? active : null
+            }
             onChange={(expected, expanded) => {
               if (committed.current === expected) {
                 setPresentation({ ...expected, expanded });
@@ -372,8 +377,7 @@ function DockViewOwner({
         if (!activation.isCurrent() || !current.presentation?.expanded) {
           return false;
         }
-        // An explicit collapse returns to the editable bar even when the click
-        // moved focus from the tray onto the Shell's collapse control first.
+        // Explicit collapse restores the editable bar after focus moved to its control.
         registration.current?.focusBar();
         current.onChange(current.presentation, false);
         return true;
@@ -490,16 +494,10 @@ const styles = stylex.create({
     padding: 8,
     boxSizing: "border-box",
   },
-  bottom: {
-    flexDirection: "column-reverse",
-  },
+  bottom: { flexDirection: "column-reverse" },
   top: { flexDirection: "column" },
-  left: {
-    flexDirection: "column-reverse",
-  },
-  right: {
-    flexDirection: "column-reverse",
-  },
+  left: { flexDirection: "column-reverse" },
+  right: { flexDirection: "column-reverse" },
   hidden: { display: "none" },
   collapsedTray: { position: "absolute", bottom: "100%", left: 8, right: 8 },
   collapsedTopTray: { bottom: "auto", top: "100%" },
@@ -542,7 +540,10 @@ export function ConsoleDockContent({
     keyboardInstant ||
     (!!presentation?.instant && readyFor !== presentation.token);
   const active = !!presentation;
-  const ready = active && (instant || readyFor === presentation?.token);
+  const ready =
+    active &&
+    projection?.active?.token === presentation?.token &&
+    (instant || readyFor === presentation?.token);
   const trayRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const focusPending = useRef(false);
@@ -550,6 +551,9 @@ export function ConsoleDockContent({
   const previousActive = useRef(false);
   const setProjection = projection?.setActive;
   const setInstant = projection?.setInstant;
+  useInsertionEffect(() => {
+    pointerStarted.current = false;
+  }, [presentation]);
   useLayoutEffect(() => {
     const element = surfaceRef.current;
     if (!active || !element || !setProjection || !presentation) {
@@ -610,17 +614,42 @@ export function ConsoleDockContent({
     }
     previousActive.current = active;
     if (ready && focusPending.current) {
-      focusPending.current = false;
-      if (
-        document.activeElement === presentation?.opener ||
-        document.activeElement === document.body ||
-        surfaceRef.current?.contains(document.activeElement)
-      ) {
-        (
-          initialFocus.current ??
-          surfaceRef.current?.querySelector<HTMLElement>("button")
-        )?.focus({ preventScroll: true });
-      }
+      // A sidebar's hidden frame becomes visible in the projection commit.
+      // Focus after that commit, not while a sibling layout effect is rebasing it.
+      let frame = 0;
+      const focus = () => {
+        if (!focusPending.current) {
+          return;
+        }
+        const surface = surfaceRef.current;
+        if (
+          !surface ||
+          surface.closest("[inert]") ||
+          getComputedStyle(surface).visibility === "hidden" ||
+          surface.getClientRects().length === 0
+        ) {
+          frame = requestAnimationFrame(focus);
+          return;
+        }
+        if (
+          document.activeElement === presentation?.opener ||
+          document.activeElement === document.body ||
+          surfaceRef.current?.contains(document.activeElement)
+        ) {
+          const target =
+            initialFocus.current ??
+            surfaceRef.current?.querySelector<HTMLElement>("button");
+          target?.focus({ preventScroll: true });
+          focusPending.current = document.activeElement !== target;
+          if (focusPending.current) {
+            frame = requestAnimationFrame(focus);
+          }
+        } else {
+          focusPending.current = false;
+        }
+      };
+      frame = requestAnimationFrame(focus);
+      return () => cancelAnimationFrame(frame);
     }
   }, [active, ready, initialFocus, presentation, registration]);
   useLayoutEffect(() => {
@@ -630,6 +659,7 @@ export function ConsoleDockContent({
     const cancelFocus = (event: Event) => {
       if (
         event.target instanceof Node &&
+        event.target !== document.body &&
         !surfaceRef.current?.contains(event.target) &&
         event.target !== presentation?.opener
       ) {
@@ -644,36 +674,96 @@ export function ConsoleDockContent({
     };
   }, [active, presentation?.opener]);
   useLayoutEffect(() => {
-    if (!active) {
+    if (!active || (position !== "top" && position !== "bottom")) {
       return;
     }
     const surface = surfaceRef.current;
     const root = surface?.closest<HTMLElement>(".console-layout");
+    if (!surface || !root) {
+      return;
+    }
     const clearance =
       position === "top"
         ? "--console-dock-top-clearance"
         : "--console-dock-bottom-clearance";
-    const update = () => {
-      if (!surface || !root) {
+    const viewport = window.visualViewport;
+    let focusFrame = 0;
+    const revealFocus = () => {
+      if (
+        surface.closest("[inert]") ||
+        getComputedStyle(surface).visibility === "hidden"
+      ) {
         return;
       }
+      const target = root.ownerDocument.activeElement;
+      if (
+        !(target instanceof HTMLElement) ||
+        !root.querySelector(".console-layout-content")?.contains(target)
+      ) {
+        return;
+      }
+      const bounds = target.getBoundingClientRect();
       const rect = surface.getBoundingClientRect();
+      const start = viewport?.offsetTop ?? 0;
+      const end = start + (viewport?.height ?? window.innerHeight);
+      const top = position === "top" ? rect.bottom + 16 : start;
+      const bottom = position === "bottom" ? rect.top - 16 : end;
+      if (bounds.top >= top && bounds.bottom <= bottom) {
+        return;
+      }
+      // Scroll margins apply to document and nested scrollers without changing
+      // another host's document-wide scroll padding.
+      const previousTop = target.style.scrollMarginTop;
+      const previousBottom = target.style.scrollMarginBottom;
+      target.style.scrollMarginTop = `${Math.max(0, top)}px`;
+      target.style.scrollMarginBottom = `${Math.max(0, window.innerHeight - bottom)}px`;
+      target.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "instant",
+      });
+      target.style.scrollMarginTop = previousTop;
+      target.style.scrollMarginBottom = previousBottom;
+    };
+    const update = () => {
+      const rect = surface.getBoundingClientRect();
+      const available =
+        surface.getClientRects().length > 0 &&
+        getComputedStyle(surface).visibility !== "hidden" &&
+        !surface.closest("[inert]");
       const size =
         position === "top"
           ? rect.bottom + 16
           : window.innerHeight - rect.top + 16;
-      root.style.setProperty(clearance, `${size}px`);
+      root.style.setProperty(
+        clearance,
+        `${available ? Math.max(0, size) : 0}px`
+      );
+      cancelAnimationFrame(focusFrame);
+      if (available) {
+        // Let padding changes and scroll anchoring settle before revealing focus.
+        focusFrame = requestAnimationFrame(() => {
+          focusFrame = requestAnimationFrame(revealFocus);
+        });
+      }
     };
     const observer = new ResizeObserver(update);
-    if (surface) {
-      observer.observe(surface);
-    }
+    observer.observe(surface);
+    root.addEventListener("focusin", revealFocus);
+    window.addEventListener("resize", update);
+    viewport?.addEventListener("resize", update);
+    viewport?.addEventListener("scroll", update);
     update();
     return () => {
       observer.disconnect();
-      root?.style.removeProperty(clearance);
+      cancelAnimationFrame(focusFrame);
+      root.removeEventListener("focusin", revealFocus);
+      window.removeEventListener("resize", update);
+      viewport?.removeEventListener("resize", update);
+      viewport?.removeEventListener("scroll", update);
+      root.style.removeProperty(clearance);
     };
-  }, [active, position]);
+  }, [active, position, ready]);
   useLayoutEffect(() => {
     if (!active) {
       return;
@@ -685,9 +775,30 @@ export function ConsoleDockContent({
       if (!surfaceRef.current || !viewport) {
         return;
       }
-      surfaceRef.current.style.maxHeight = `${Math.max(0, viewport.height - 100)}px`;
+      const rect = surfaceRef.current.getBoundingClientRect();
+      const main = surfaceRef.current
+        .closest(".console-layout")
+        ?.querySelector("main");
+      const contentStyle = main ? getComputedStyle(main) : null;
+      const oppositeClearance = Number(
+        (
+          (position === "top"
+            ? contentStyle?.paddingBottom
+            : contentStyle?.paddingTop) ?? "0"
+        ).replace("px", "")
+      );
+      // Retain room for a touch-sized page control and its focus clearance
+      // beyond the host's opposite-edge chrome.
+      const reserve = Math.max(100, oppositeClearance + 64);
+      const inset =
+        position === "top"
+          ? Math.max(0, rect.top - viewport.offsetTop)
+          : position === "bottom"
+            ? Math.max(0, viewport.offsetTop + viewport.height - rect.bottom)
+            : 0;
+      surfaceRef.current.style.maxHeight = `${Math.max(0, viewport.height - inset - reserve)}px`;
       if (trayRef.current) {
-        trayRef.current.style.maxHeight = `${Math.max(0, viewport.height - 168)}px`;
+        trayRef.current.style.maxHeight = `${Math.max(0, viewport.height - inset - reserve - 68)}px`;
       }
     };
     update();
@@ -696,12 +807,10 @@ export function ConsoleDockContent({
     return () => {
       viewport?.removeEventListener("resize", update);
       viewport?.removeEventListener("scroll", update);
-      surface?.style.removeProperty("bottom");
-      surface?.style.removeProperty("top");
       surface?.style.removeProperty("max-height");
       trayElement?.style.removeProperty("max-height");
     };
-  }, [active, position]);
+  }, [active, position, ready]);
   useLayoutEffect(() => {
     if (!active) {
       return;
@@ -714,7 +823,7 @@ export function ConsoleDockContent({
       ) {
         return;
       }
-      // Lenso's document-level overlay listeners consume Escape before it reaches window.
+      // Lenso's document-level overlay listeners consume Escape before window.
       event.preventDefault();
       setKeyboardInstant(true);
       setInstant?.(true);
@@ -731,7 +840,7 @@ export function ConsoleDockContent({
     return null;
   }
   return createPortal(
-    <motion.div
+    <div
       ref={surfaceRef}
       {...stylex.props(
         styles.surface,
@@ -743,13 +852,6 @@ export function ConsoleDockContent({
       }
       inert={!ready}
       aria-hidden={!active || undefined}
-      initial={instant ? false : { opacity: 0 }}
-      animate={{ opacity: active ? 1 : 0 }}
-      transition={{
-        duration: instant ? 0 : 0.13,
-        delay: instant ? 0 : 0.08,
-        ease: [0.23, 1, 0.32, 1],
-      }}
       onPointerDownCapture={() => {
         setKeyboardInstant(false);
         setInstant?.(false);
@@ -815,7 +917,7 @@ export function ConsoleDockContent({
       >
         {tray?.content}
       </motion.section>
-    </motion.div>,
+    </div>,
     projection.target
   );
 }

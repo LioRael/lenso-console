@@ -15,3 +15,4 @@ export * from "./console-dock-scroll-intent";
 export * from "./console-action-scope";
 export * from "./console-shell";
 export * from "./console-model";
+export * from "./console-interaction-host";

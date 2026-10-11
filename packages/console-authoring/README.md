@@ -363,6 +363,12 @@ Origin or synthesizes credentials, and rejects foreign-origin writes. Redirects
 and Secure/Domain cookie policies remain the backend's policy. `--backend` and
 `--examples` are mutually exclusive.
 
+Console Auth uses one exact trusted public origin. For backend preview, configure
+an explicit development deployment with the preview's public origin (including
+when a trusted reverse proxy routes to an internal listener). A backend configured
+only for another production origin correctly rejects RPC POSTs, including reads.
+The preview does not widen that policy.
+
 `check` and `build` remain the production validation/artifact commands. The
 preview server and Vite client are not included in their generated plugin output
 or in the production Shell assets. SDK release staging runs `bun run sdk:prepare`;
@@ -371,5 +377,14 @@ normal consumers use the complete published archive, not repository aliases.
 Preview uses the SDK-owned page outlet and scoped-read runtime, with shared
 appearance and transport primitives only. It does not bundle the removed Agent,
 Plugins, Settings or management pages. Locale defaults to English without
-pretending to persist preferences. `bun run test:preview` exercises authored-page
-navigation, explicit example reads and unauthenticated TS backend refusal.
+pretending to persist preferences. Updated candidate preview and admitted hosts
+consume `ConsolePageScope` commands and hidden/tabs/object/explicit-return task
+context through the shared `ConsoleInteractionHost`. Command uses the actual
+Dock, preserves page/selection state and exposes only opt-in page actions; global
+destinations and presets remain host-owned. SDK navigation uses segment arrays.
+Older host artifacts that render selection only need an actual host update,
+not merely a newer page import.
+
+`bun run test:preview` checks/builds authored source through the public executable
+and exercises compiled production admission, example preview, authenticated
+same-public-origin backend preview and unauthenticated backend refusal.

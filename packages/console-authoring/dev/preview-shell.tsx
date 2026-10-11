@@ -1,6 +1,5 @@
 import {
-  ConsoleActionHost,
-  ConsoleDock,
+  ConsoleInteractionHost,
   ConsoleLayout,
   useConsoleActivation,
 } from "@lenso/console-react";
@@ -10,7 +9,7 @@ import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   exampleServices,
   isUiPreview,
@@ -133,7 +132,6 @@ function PreviewContent({
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useConsoleAppearance();
-  const dockRef = useRef<HTMLDivElement | null>(null);
   const { activation, signal } = useConsoleActivation(
     location.pathname,
     runtime.signal
@@ -144,24 +142,16 @@ function PreviewContent({
   }>();
   return (
     <ConsoleLayout>
-      <ConsoleActionHost
-        render={(selection) => (
-          <ConsoleLayout.Foreground>
-            <ConsoleDock
-              visible={!!selection}
-              position="bottom"
-              compact={false}
-              activeId=""
-              items={[]}
-              selection={selection}
-              running={selection?.running ?? false}
-              dockRef={dockRef}
-              onNavigate={() => undefined}
-              onExpand={() => undefined}
-              onFocusDock={() => undefined}
-            />
-          </ConsoleLayout.Foreground>
-        )}
+      <ConsoleInteractionHost
+        signal={signal}
+        router={{
+          pathname: location.pathname,
+          navigate: (href) => {
+            signal.throwIfAborted();
+            setHandoff(undefined);
+            void navigate({ to: href });
+          },
+        }}
       >
         <PreviewPage
           {...runtime}
@@ -182,6 +172,7 @@ function PreviewContent({
           navigation={{
             href: (segments) => consoleMountHref(mount, segments),
             go: (segments) => {
+              signal.throwIfAborted();
               setHandoff(undefined);
               void navigate({ to: consoleMountHref(mount, segments) });
             },
@@ -191,6 +182,7 @@ function PreviewContent({
               handoff: value,
               segments = [],
             }) => {
+              signal.throwIfAborted();
               const other = mounts.find(
                 (candidate) =>
                   (candidate.id === workspaceId ||
@@ -209,7 +201,7 @@ function PreviewContent({
           }}
           params={{}}
         />
-      </ConsoleActionHost>
+      </ConsoleInteractionHost>
     </ConsoleLayout>
   );
 }

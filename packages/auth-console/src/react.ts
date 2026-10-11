@@ -1,6 +1,7 @@
 import type {
   ConsoleActivation,
   ConsoleBinding,
+  ConsoleNavigationDefinition,
   ConsolePageDefinition,
 } from "@lenso/console-react";
 import { createElement } from "react";
@@ -18,6 +19,18 @@ export function authConsole(options: {
   readonly routes: Partial<Record<AuthConsolePage, string>>;
   readonly pages?: Partial<
     Record<AuthConsolePage, ConsolePageDefinition<AuthConsoleClient>>
+  >;
+  /** Destination names/descriptions; page titles and the binding label stay independent. */
+  readonly navigation?: Partial<
+    Record<
+      Exclude<AuthConsolePage, "session">,
+      Partial<
+        Pick<
+          ConsoleNavigationDefinition,
+          "label" | "tooltip" | "icon" | "defaultPlacement"
+        >
+      >
+    >
   >;
 }): ConsoleBinding<AuthConsoleClient> {
   const { client } = options;
@@ -95,6 +108,7 @@ export function authConsole(options: {
           id: page,
           page,
           label: pages[page]!.title ?? page,
+          ...options.navigation?.[page as Exclude<AuthConsolePage, "session">],
         })),
     },
     routes,

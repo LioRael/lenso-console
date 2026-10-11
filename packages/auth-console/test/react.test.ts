@@ -42,6 +42,9 @@ test("unsupported capabilities contribute no pages, routes or navigation", () =>
       session: "/sessions/:id",
       subjects: "/subjects",
     },
+    navigation: {
+      sessions: { label: "Hidden", tooltip: "Must remain absent" },
+    },
   });
   expect(binding.definition.pages).toEqual({});
   expect(binding.routes).toEqual({});
@@ -57,8 +60,15 @@ test("bindings capture independent clients and hide detail links without a detai
   });
   const b = authConsole({
     id: "b",
+    label: "Customers",
     client: createClient("b"),
     routes: { sessions: "/b/sessions", session: "/b/sessions/:id" },
+    navigation: {
+      sessions: {
+        label: "Customer sessions",
+        tooltip: "Review customer sign-ins",
+      },
+    },
   });
   const aSessions = await a.services.listSessions!();
   const bSessions = await b.services.listSessions!();
@@ -68,6 +78,11 @@ test("bindings capture independent clients and hide detail links without a detai
   expect(b.services.capabilities.sessionDetail).toBe(true);
   expect(a.services.revokeSession).toBeUndefined();
   expect(a.definition.pages.subjects).toBeUndefined();
+  // Existing title coverage cannot catch a description becoming the visible destination name.
+  expect(a.definition.navigation![0]!.label).toBe("Sessions");
+  expect(b.definition.pages.sessions!.title).toBe("Customers: Sessions");
+  expect(b.definition.navigation![0]!.label).toBe("Customer sessions");
+  expect(b.definition.navigation![0]!.tooltip).toBe("Review customer sign-ins");
 });
 
 // Legacy array-client tests do not catch omitted domain pages or dropped cancellation/CAS options.
@@ -100,6 +115,7 @@ test("paginated bindings preserve labels, cursors, cancellation and captured rev
     routes: { sessions: "/a/sessions", session: "/a/sessions/:id" },
   });
   expect(binding.definition.pages.sessions!.title).toBe("Customer A: Sessions");
+  expect(binding.definition.navigation![0]!.label).toBe("Customer A: Sessions");
   expect(binding.services.listSessions).toBeUndefined();
   const { signal } = new AbortController();
   await binding.services.listSessionPage!(

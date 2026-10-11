@@ -103,13 +103,13 @@ export function ConsoleAdmittedPage() {
   }
   return (
     <ConsoleLayout>
-      <AdmittedActionHost>
-        <ConsoleBrowserMount
-          admission={value.admission}
-          mount={mount}
-          key={consoleMountKey(value.admission, mount)}
-        >
-          {(runtime) => (
+      <ConsoleBrowserMount
+        admission={value.admission}
+        mount={mount}
+        key={consoleMountKey(value.admission, mount)}
+      >
+        {(runtime) => (
+          <AdmittedActionHost signal={runtime.signal}>
             <OwnerPage
               admission={value.admission!}
               mount={mount}
@@ -134,37 +134,35 @@ export function ConsoleAdmittedPage() {
                 );
               }}
             />
-          )}
-        </ConsoleBrowserMount>
-      </AdmittedActionHost>
+          </AdmittedActionHost>
+        )}
+      </ConsoleBrowserMount>
     </ConsoleLayout>
   );
 }
 
-function AdmittedActionHost({ children }: { children: React.ReactNode }) {
-  const dockRef = React.useRef<HTMLDivElement | null>(null);
+function AdmittedActionHost({
+  children,
+  signal,
+}: {
+  children: React.ReactNode;
+  signal: AbortSignal;
+}) {
+  const location = useLocation();
+  const navigate = useNavigate();
   return (
-    <consoleReact.ConsoleActionHost
-      render={(selection) => (
-        <ConsoleLayout.Foreground>
-          <consoleReact.ConsoleDock
-            visible={!!selection}
-            position="bottom"
-            compact={false}
-            activeId=""
-            items={[]}
-            selection={selection}
-            running={selection?.running ?? false}
-            dockRef={dockRef}
-            onNavigate={() => undefined}
-            onExpand={() => undefined}
-            onFocusDock={() => undefined}
-          />
-        </ConsoleLayout.Foreground>
-      )}
+    <consoleReact.ConsoleInteractionHost
+      signal={signal}
+      router={{
+        pathname: location.pathname,
+        navigate: (href) => {
+          signal.throwIfAborted();
+          void navigate({ to: href });
+        },
+      }}
     >
       {children}
-    </consoleReact.ConsoleActionHost>
+    </consoleReact.ConsoleInteractionHost>
   );
 }
 
@@ -322,7 +320,7 @@ function OwnerPage({
           navigation={{
             href: (segments) => consoleMountHref(mount, segments),
             go: (segments) => {
-              runtime.signal.throwIfAborted();
+              signal.throwIfAborted();
               onClearHandoff();
               void navigate({ to: consoleMountHref(mount, segments) });
             },
@@ -332,7 +330,7 @@ function OwnerPage({
               segments = [],
               handoff: next,
             }) => {
-              runtime.signal.throwIfAborted();
+              signal.throwIfAborted();
               const other = admission.mounts.find(
                 (candidate) =>
                   (candidate.id === workspaceId ||

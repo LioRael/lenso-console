@@ -1,7 +1,8 @@
 # Console frontend development
 
-`bun run dev` runs the existing Vite loop. The local Agentation toolbar is enabled
-after hydration only in development; no MCP endpoint or webhook is configured.
+`bun run dev` runs the existing Vite loop. For local Agentation feedback, use the
+separate [composed preview](../../../../../examples/composed-console/README.md)
+with `bun run dev:composed`; the Shell does not mount a feedback toolbar.
 
 For an application-owned TS service, configure `VITE_CONSOLE_MODE=api`,
 `VITE_CONSOLE_DEV_MODE=production` and `VITE_API_BASE_URL` with the backend origin.

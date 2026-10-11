@@ -11,12 +11,10 @@ export async function openFixture(fixture: "dock" | "layout", width: number) {
     configFile: false,
     root: fileURLToPath(new URL("../..", import.meta.url)),
     optimizeDeps: {
-      include: [
-        "@lenso/ui/tooltip",
-        "@lenso/ui/button",
-        "use-sync-external-store/shim",
-        "use-sync-external-store/shim/with-selector",
-      ],
+      // Linked Console exports load both the UI barrel and subpaths. Prebundle
+      // that boundary so React Aria's shim/index.js and Base UI's shim imports
+      // both receive CJS interop, as in the Shell client configuration.
+      include: ["@lenso/ui", "@lenso/ui/**"],
     },
     plugins: [react(), consoleStylex()],
     server: { host: "127.0.0.1", port: 0 },
