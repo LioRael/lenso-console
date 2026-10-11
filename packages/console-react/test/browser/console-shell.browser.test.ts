@@ -1581,7 +1581,12 @@ test("projects a plugin Dock with staged focus, preserved drafts, selection rest
     expect(await composer.inputValue()).toBe("Plugin state resized");
     await waitForComposerFocus();
     // Command yields the same measured surface without discarding plugin draft.
-    await composer.press("Meta+k");
+    const commandKey = (await page.evaluate(() =>
+      /Mac|iPhone|iPad/.test(navigator.platform)
+    ))
+      ? "Meta+k"
+      : "Control+k";
+    await composer.press(commandKey);
     await page.getByRole("dialog", { name: "Command", exact: true }).waitFor();
     await page
       .getByRole("dialog", { name: "Command", exact: true })
@@ -1619,7 +1624,7 @@ test("projects a plugin Dock with staged focus, preserved drafts, selection rest
           },
         });
       });
-      await trayAction.press("Meta+k");
+      await trayAction.press(commandKey);
       const commandSearch = page.getByRole("searchbox", {
         name: "Search commands",
       });
@@ -2000,7 +2005,12 @@ test("keeps page boundary controls unobstructed by measured plugin Dock clearanc
       "End reached"
     );
     expect(await hit(end)).toBe(true);
-    await page.getByLabel("Plugin draft").press("Meta+k");
+    const commandKey = (await page.evaluate(() =>
+      /Mac|iPhone|iPad/.test(navigator.platform)
+    ))
+      ? "Meta+k"
+      : "Control+k";
+    await page.getByLabel("Plugin draft").press(commandKey);
     await page.getByRole("dialog", { name: "Command", exact: true }).waitFor();
     await page.waitForFunction(
       () =>
