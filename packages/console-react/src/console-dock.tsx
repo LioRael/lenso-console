@@ -1,3 +1,4 @@
+import { Menu, ThemeScope } from "@lenso/ui";
 import type { ButtonRootProps } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { ChevronLeft, ChevronRight, Ellipsis, X } from "lucide-react";
@@ -19,6 +20,7 @@ import {
 import {
   useEffect,
   useId,
+  useInsertionEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -219,6 +221,107 @@ function DockPane({
     >
       {children}
     </motion.div>
+  );
+}
+
+function DockViewOverflow({
+  entries,
+  side,
+  running,
+}: {
+  entries: NonNullable<ConsoleDockProps["leading"]>;
+  side: "top" | "bottom" | "left" | "right";
+  running: boolean;
+}) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const pending = useRef<{
+    entry: NonNullable<ConsoleDockProps["leading"]>[number];
+    instant: boolean;
+  } | null>(null);
+  const committed = useRef({ entries, running });
+  useInsertionEffect(() => {
+    committed.current = { entries, running };
+    if (running) {
+      pending.current = null;
+    }
+  });
+  useInsertionEffect(
+    () => () => {
+      pending.current = null;
+    },
+    []
+  );
+  return (
+    <Menu.Root
+      onOpenChange={(open) => {
+        if (open) {
+          pending.current = null;
+        }
+      }}
+      onOpenChangeComplete={(open) => {
+        if (open) {
+          return;
+        }
+        const request = pending.current;
+        pending.current = null;
+        if (
+          !request ||
+          committed.current.running ||
+          !committed.current.entries.some(
+            (entry) => entry.id === request.entry.id && !entry.disabled
+          )
+        ) {
+          return;
+        }
+        // Finish menu focus management before the view owns the same surface.
+        trigger.current?.focus({ preventScroll: true });
+        request.entry.onInvoke(request.instant);
+      }}
+    >
+      <Menu.Trigger
+        render={
+          <ConsoleIconButton
+            ref={trigger}
+            label="More Dock views"
+            side={side}
+            variant="ghost"
+            xstyle={dockStyles.control}
+            disabled={running}
+          />
+        }
+      >
+        <Ellipsis size={16} aria-hidden="true" />
+      </Menu.Trigger>
+      <ThemeScope xstyle={dockStyles.portalScope}>
+        <Menu.Portal>
+          <Menu.Positioner
+            side={side}
+            sideOffset={8}
+            xstyle={dockStyles.viewPositioner}
+          >
+            <Menu.Popup
+              aria-label="More Dock views"
+              xstyle={dockStyles.viewMenu}
+              finalFocus={trigger}
+            >
+              {entries.map((entry) => (
+                <Menu.Item
+                  key={entry.id}
+                  xstyle={dockStyles.viewItem}
+                  disabled={running || entry.disabled}
+                  closeOnClick
+                  onClick={(event) => {
+                    pending.current = { entry, instant: event.detail === 0 };
+                  }}
+                >
+                  {entry.label}
+                </Menu.Item>
+              ))}
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </ThemeScope>
+    </Menu.Root>
   );
 }
 
@@ -437,9 +540,22 @@ function DockSurface({
     !!projection?.instant;
   const paneInstant = instant || !mounted;
   const hasOverflow = !!overflow;
+  const leadingCapacity = Math.max(
+    0,
+    capacity - (overflow ? 1 : 0) - (held ? 2 : 0)
+  );
+  const visibleLeading = leading.slice(
+    0,
+    leading.length > leadingCapacity
+      ? Math.max(0, leadingCapacity - 1)
+      : leading.length
+  );
+  const remainingLeading = leading.slice(visibleLeading.length);
+  const leadingSlots =
+    visibleLeading.length + (remainingLeading.length ? 1 : 0);
   const dockModules = items.slice(
     0,
-    Math.max(0, capacity - leading.length - (overflow ? 1 : 0) - (held ? 2 : 0))
+    Math.max(0, capacity - leadingSlots - (overflow ? 1 : 0) - (held ? 2 : 0))
   );
   const activeModule = items.find((module) => module.id === activeId);
 
@@ -492,13 +608,29 @@ function DockSurface({
   useEffect(() => {
     const coarse = window.matchMedia("(pointer: coarse)");
     const updateCapacity = () => {
-      const size = coarse.matches ? 44 : 36;
+      const anchor = anchorRef.current;
+      if (!anchor) {
+        return;
+      }
+      const style = getComputedStyle(anchor);
+      const size = Number(
+        style.getPropertyValue("--dock-control-size").trim().replace("px", "")
+      );
+      const padding = Number.parseFloat;
+      const viewport = window.visualViewport;
       const vertical =
         (position === "left" || position === "right") &&
         window.innerHeight > 360;
       const available = vertical
-        ? window.innerHeight - 176
-        : window.innerWidth - 40;
+        ? Math.min(
+            anchor.clientHeight,
+            viewport?.height ?? window.innerHeight
+          ) -
+          padding(style.paddingTop) -
+          padding(style.paddingBottom)
+        : Math.min(anchor.clientWidth, viewport?.width ?? window.innerWidth) -
+          padding(style.paddingLeft) -
+          padding(style.paddingRight);
       setCapacity(
         Math.max(
           2,
@@ -518,9 +650,11 @@ function DockSurface({
     };
     updateCapacity();
     window.addEventListener("resize", updateCapacity);
+    window.visualViewport?.addEventListener("resize", updateCapacity);
     coarse.addEventListener("change", updateCapacity);
     return () => {
       window.removeEventListener("resize", updateCapacity);
+      window.visualViewport?.removeEventListener("resize", updateCapacity);
       coarse.removeEventListener("change", updateCapacity);
     };
   }, [position, hasOverflow, leading.length]);
@@ -625,6 +759,14 @@ function DockSurface({
                 navigationPointerStarted.current = !rich && navigationReady;
               }}
               onClickCapture={(event) => {
+                // Portalled menus own their item lifecycle; this guard only
+                // retires pointer sequences on the physical navigation pane.
+                if (
+                  event.target instanceof Node &&
+                  !event.currentTarget.contains(event.target)
+                ) {
+                  return;
+                }
                 if (
                   projection &&
                   !directory &&
@@ -657,7 +799,7 @@ function DockSurface({
                       aria-label={`${selection.scopeLabel} selection actions`}
                       aria-busy={selection.running}
                     >
-                      {leading.map((entry) => (
+                      {visibleLeading.map((entry) => (
                         <ConsoleIconButton
                           key={entry.id}
                           xstyle={dockStyles.control}
@@ -676,6 +818,13 @@ function DockSurface({
                           {entry.icon}
                         </ConsoleIconButton>
                       ))}
+                      {remainingLeading.length > 0 && (
+                        <DockViewOverflow
+                          entries={remainingLeading}
+                          side={side}
+                          running={selection.running || !!selection.blocked}
+                        />
+                      )}
                       <span
                         {...countStyle}
                         className={`dashboard-dock-count ${countStyle.className}`}
@@ -764,12 +913,11 @@ function DockSurface({
                             {...stylex.props(
                               dockStyles.row,
                               dockStyles.group,
-                              dockStyles.leadingGroup,
                               (position === "left" || position === "right") &&
                                 dockStyles.sideNavigation
                             )}
                           >
-                            {leading.map((entry) => (
+                            {visibleLeading.map((entry) => (
                               <ConsoleIconButton
                                 key={entry.id}
                                 xstyle={dockStyles.control}
@@ -786,6 +934,13 @@ function DockSurface({
                                 {entry.icon}
                               </ConsoleIconButton>
                             ))}
+                            {remainingLeading.length > 0 && (
+                              <DockViewOverflow
+                                entries={remainingLeading}
+                                side={side}
+                                running={running}
+                              />
+                            )}
                           </fieldset>
                           {(dockModules.length > 0 || overflow) && (
                             <span

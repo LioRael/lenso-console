@@ -53,10 +53,13 @@ chooses leading order explicitly through `ConsoleShell.dock.leading`, separately
 from navigation preferences and installation order. Dock-only definitions use
 `pages: {}` and bindings use `routes: {}`.
 
-Leading controls retain the application's explicit order and wrap within the
-available Dock space. They are not truncated by navigation pin capacity or
-hidden in the navigation-only directory. The directory entry remains reachable;
-the Dock does not add an internal horizontal scroller.
+Leading controls retain the application's explicit order. Capacity reserves the
+navigation-directory entry and, when needed, a **More Dock views** entry.
+That separate menu keeps remaining views available in order, including with no
+navigation pins or during selection. It uses a themed portal outside the Dock
+clip; views are not lost in the navigation-only directory. Capacity follows the
+actual control size, safe-area padding, and available viewport axis. The Dock
+does not add an internal horizontal scroller.
 
 ```tsx
 import { useRef, useState } from "react";

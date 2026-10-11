@@ -2120,7 +2120,7 @@ test("keeps page boundary controls unobstructed by measured plugin Dock clearanc
 
 // A single admitted view cannot reveal clipping of explicitly ordered leading
 // entries, which the navigation-only directory cannot recover.
-test("keeps eight admitted Dock views and navigation reachable on coarse screens", async () => {
+test("keeps admitted Dock views reachable through bounded overflow on coarse screens", async () => {
   const server = await createServer({
     configFile: false,
     root: fileURLToPath(new URL("../..", import.meta.url)),
@@ -2136,56 +2136,155 @@ test("keeps eight admitted Dock views and navigation reachable on coarse screens
   });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- Keep this fixture's physical hit proof beside its overflow scenarios.
+  const hit = (control: Locator) =>
+    control.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.left >= 0 &&
+        rect.right <= innerWidth &&
+        rect.top >= 0 &&
+        rect.bottom <= innerHeight &&
+        element.contains(
+          document.elementFromPoint(
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2
+          )
+        )
+      );
+    });
   try {
-    await page.goto(
-      `${server.resolvedUrls!.local[0]}test/browser/index.html?dock&many-dock`
-    );
-    const entries = page
-      .getByRole("group", { name: "Dock views", exact: true })
-      .getByRole("button");
-    await entries.first().waitFor();
-    expect(
-      await page.evaluate(() => matchMedia("(pointer: coarse)").matches)
-    ).toBe(true);
-    expect(await entries.count()).toBe(8);
-    expect(
-      await page
-        .getByRole("navigation", { name: "Pinned navigation" })
-        .evaluate((element) => element.scrollWidth <= element.clientWidth + 1)
-    ).toBe(true);
-    for (const control of [
-      ...(await entries.all()),
-      page.getByRole("button", { name: "Expand Dock", exact: true }),
-    ]) {
-      expect(
-        await control.evaluate((element) => {
-          const rect = element.getBoundingClientRect();
-          return (
-            rect.left >= 0 &&
-            rect.right <= innerWidth &&
-            rect.top >= 0 &&
-            rect.bottom <= innerHeight &&
-            element.contains(
-              document.elementFromPoint(
-                rect.x + rect.width / 2,
-                rect.y + rect.height / 2
-              )
+    for (const count of [8, 32]) {
+      for (const position of ["bottom", "top", "left", "right"] as const) {
+        await page.setViewportSize({
+          width: 390,
+          height: position === "left" || position === "right" ? 400 : 844,
+        });
+        await page.goto(
+          `${server.resolvedUrls!.local[0]}test/browser/index.html?dock&many-dock&dock-count=${count}`
+        );
+        await page.evaluate(
+          (placement) =>
+            window.shellFixture.seedPreferences({
+              mode: "dock",
+              position: placement,
+              pinned: [],
+            }),
+          position
+        );
+        const moreViews = page.getByRole("button", {
+          name: "More Dock views",
+          exact: true,
+        });
+        const expand = page.getByRole("button", {
+          name: "Expand Dock",
+          exact: true,
+        });
+        await moreViews.waitFor();
+        await page.waitForFunction(
+          () =>
+            document.querySelector<HTMLElement>("[data-dashboard-dock]")
+              ?.dataset.geometryReady === "true"
+        );
+        expect(
+          await page.evaluate(() => matchMedia("(pointer: coarse)").matches)
+        ).toBe(true);
+        const entries = page
+          .getByRole("group", { name: "Dock views", exact: true })
+          .getByRole("button");
+        const entryNames = await entries.evaluateAll((nodes) =>
+          nodes.map((node) => node.getAttribute("aria-label")!)
+        );
+        const visibleNames = entryNames.filter(
+          (name) => name !== "More Dock views"
+        );
+        for (const control of [...(await entries.all()), expand]) {
+          expect(await hit(control)).toBe(true);
+        }
+        expect(
+          await page
+            .getByRole("navigation", { name: "Pinned navigation" })
+            .evaluate(
+              (element) => element.scrollWidth <= element.clientWidth + 1
             )
-          );
-        })
-      ).toBe(true);
+        ).toBe(true);
+        await moreViews.click();
+        const menu = page.getByRole("menu", {
+          name: "More Dock views",
+          exact: true,
+        });
+        const options = menu.getByRole("menuitem");
+        await options.first().waitFor();
+        expect([...visibleNames, ...(await options.allTextContents())]).toEqual(
+          Array.from({ length: count }, (_, index) =>
+            index ? `Test Agent ${index + 1}` : "Test Agent"
+          )
+        );
+        await options.first().focus();
+        await page.keyboard.press("End");
+        expect(await hit(options.last())).toBe(true);
+        await page.keyboard.press("Escape");
+        await menu.waitFor({ state: "hidden" });
+        expect(
+          await moreViews.evaluate(
+            (element) => document.activeElement === element
+          )
+        ).toBe(true);
+        await moreViews.click();
+        if (position === "left" || position === "top") {
+          await options.first().focus();
+          await page.keyboard.press("End");
+          await page.keyboard.press("Enter");
+        } else {
+          await options.last().click();
+        }
+        await page.waitForFunction(
+          () =>
+            document.activeElement?.getAttribute("aria-label") ===
+            "Plugin draft"
+        );
+        await page
+          .getByRole("button", { name: "Back to navigation", exact: true })
+          .click();
+        await moreViews.waitFor();
+        await page.waitForFunction(
+          (element) => document.activeElement === element,
+          await moreViews.elementHandle()
+        );
+        expect(
+          await moreViews.evaluate(
+            (element) => document.activeElement === element
+          )
+        ).toBe(true);
+        await expand.click();
+        await page
+          .getByRole("dialog", { name: "Console navigation", exact: true })
+          .waitFor();
+      }
     }
-    await entries.last().click();
-    await page.getByLabel("Plugin draft").waitFor();
+    await page.keyboard.press("Escape");
     await page
-      .getByRole("button", { name: "Back to navigation", exact: true })
+      .getByRole("button", { name: "More Dock views", exact: true })
       .click();
+    const retiredOption = await page
+      .getByRole("menuitem", { name: "Test Agent 32", exact: true })
+      .elementHandle();
+    const mountsBeforeRevocation = await page.evaluate(
+      () => window.shellFixture.snapshot().composerMounts
+    );
+    await page.evaluate(() => window.shellFixture.allowDock(false));
     await page
-      .getByRole("button", { name: "Expand Dock", exact: true })
-      .click();
-    await page
-      .getByRole("dialog", { name: "Console navigation", exact: true })
-      .waitFor();
+      .getByRole("button", { name: "More Dock views", exact: true })
+      .waitFor({ state: "hidden" });
+    await retiredOption!.evaluate((element) =>
+      (element as HTMLElement).click()
+    );
+    expect(
+      await page.evaluate(() => window.shellFixture.snapshot().composerMounts)
+    ).toBe(mountsBeforeRevocation);
+    expect(
+      await page.getByRole("textbox", { name: "Plugin draft" }).count()
+    ).toBe(0);
     expect(errors).toEqual([]);
   } finally {
     await browser.close();

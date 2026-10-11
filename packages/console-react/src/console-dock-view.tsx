@@ -143,10 +143,14 @@ export function ConsoleDockViewHost({
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [visited, setVisited] = useState<ReadonlySet<string>>(() => new Set());
   const exitRequest = useRef<ExitRequest | null>(null);
+  const restoreFrame = useRef(0);
   const pendingFocus = useRef<{
     itemId: string;
+    item: ConsoleDockViewItem;
     opener: HTMLElement | null;
     previous: Element | null;
+    scopeKey: string;
+    expires: number;
   } | null>(null);
   const active =
     presentation &&
@@ -166,21 +170,35 @@ export function ConsoleDockViewHost({
     lifetime.current = true;
     return () => {
       lifetime.current = false;
+      cancelAnimationFrame(restoreFrame.current);
     };
   }, []);
   useLayoutEffect(() => {
     if (presentation && !active) {
       pendingFocus.current = {
         itemId: presentation.item.id,
+        item: presentation.item,
         opener: presentation.opener,
         previous: document.activeElement,
+        scopeKey,
+        expires: performance.now() + 1000,
       };
       setPresentation(null);
     }
-  }, [active, presentation]);
-  const restoreFocus = () => {
+  }, [active, presentation, scopeKey]);
+  const restoreFocus = (): void => {
     const pending = pendingFocus.current;
     if (!pending || !lifetime.current || committed.current) {
+      return;
+    }
+    if (
+      pending.scopeKey !== admission.current.scopeKey ||
+      !admission.current.items.some((item) =>
+        sameViewIdentity(item, pending.item)
+      ) ||
+      performance.now() >= pending.expires
+    ) {
+      pendingFocus.current = null;
       return;
     }
     if (
@@ -222,8 +240,22 @@ export function ConsoleDockViewHost({
         element.getClientRects().length > 0
     );
     if (target) {
-      target.focus({ preventScroll: true });
-      pendingFocus.current = null;
+      if (getComputedStyle(target).visibility !== "hidden") {
+        target.focus({ preventScroll: true });
+      }
+      if (document.activeElement === target) {
+        pendingFocus.current = null;
+        cancelAnimationFrame(restoreFrame.current);
+        restoreFrame.current = 0;
+      } else if (!restoreFrame.current) {
+        // Retained controls may be laid out before their visibility is painted.
+        // Keep the request until focus really succeeds; all lease/user guards
+        // are rechecked on the next frame.
+        restoreFrame.current = requestAnimationFrame(() => {
+          restoreFrame.current = 0;
+          restoreFocus();
+        });
+      }
     }
   };
   const close = (expected: Presentation) => {
@@ -232,8 +264,11 @@ export function ConsoleDockViewHost({
     }
     pendingFocus.current = {
       itemId: expected.item.id,
+      item: expected.item,
       opener: expected.opener,
       previous: document.activeElement,
+      scopeKey,
+      expires: performance.now() + 1000,
     };
     setPresentation(null);
   };
@@ -242,6 +277,15 @@ export function ConsoleDockViewHost({
       restoreFocus();
     }
   });
+  useLayoutEffect(() => {
+    const cancel = () => {
+      pendingFocus.current = null;
+      cancelAnimationFrame(restoreFrame.current);
+      restoreFrame.current = 0;
+    };
+    document.addEventListener("pointerdown", cancel, true);
+    return () => document.removeEventListener("pointerdown", cancel, true);
+  }, []);
   return (
     <ConsoleDockProjectionProvider>
       {children({

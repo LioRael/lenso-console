@@ -98,11 +98,15 @@ export const dockStyles = stylex.create({
   retainedNavigation: { position: "absolute", visibility: "hidden" },
   hiddenFrame: { visibility: "hidden" },
   group: { borderWidth: 0, margin: 0, padding: 0, minWidth: 0 },
-  leadingGroup: {
-    flexWrap: "wrap",
-    maxWidth: "100%",
-    maxHeight: "calc(100dvh - 176px)",
+  portalScope: { display: "contents" },
+  viewPositioner: { zIndex: 50, maxWidth: "calc(100vw - 32px)" },
+  viewMenu: {
+    minWidth: 180,
+    maxWidth: "min(280px, calc(100vw - 32px))",
+    maxHeight: "min(320px, var(--available-height))",
+    overflowY: "auto",
   },
+  viewItem: { minHeight: 44, whiteSpace: "normal", overflowWrap: "anywhere" },
   pane: { minWidth: 0 },
   exitingPane: {
     position: "absolute",

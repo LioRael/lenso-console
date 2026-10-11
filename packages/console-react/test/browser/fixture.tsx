@@ -39,6 +39,9 @@ const dockSignals: AbortSignal[] = [];
 const DockContext = createContext("missing");
 const dockFixture = new URLSearchParams(location.search).has("dock");
 const manyDockViews = new URLSearchParams(location.search).has("many-dock");
+const dockViewCount = manyDockViews
+  ? Number(new URLSearchParams(location.search).get("dock-count") ?? 8)
+  : 1;
 const clearanceFixture = new URLSearchParams(location.search).has("clearance");
 let composerMounts = 0;
 let resolveExit: ((allow: boolean) => void) | undefined;
@@ -357,7 +360,7 @@ function TestConversation() {
 const dockDefinition = defineConsolePlugin({
   id: "test-dock",
   pages: {},
-  dockViews: Array.from({ length: manyDockViews ? 8 : 1 }, (_, index) => ({
+  dockViews: Array.from({ length: dockViewCount }, (_, index) => ({
     id: index ? `compose-${index + 1}` : "compose",
     label: index ? `Test Agent ${index + 1}` : "Test Agent",
     icon: <span aria-hidden="true">A</span>,
