@@ -148,6 +148,44 @@ console.log("Optional Console archives: declarations, empty Shell, native SQLite
 `
   );
   execFileSync("bun", ["verify.mjs"], { cwd: consumer, stdio: "inherit" });
+  // Source-level binding tests never render published JSX against production React.
+  // This catches packages accidentally emitting jsxDEV, which is undefined there.
+  fs.writeFileSync(
+    path.join(consumer, "verify-production-auth.mjs"),
+    `
+import assert from "node:assert/strict";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import { authConsole } from "@lenso/auth-console/react";
+const binding = authConsole({
+  id: "archive-proof",
+  client: {
+    capabilities: { info: true, sessionList: true, sessionDetail: true, sessionRevoke: false, subjects: true },
+    async info() { return { realm: "test", source: "archive", policy: "read-only" }; },
+    async listSessions() { return []; },
+    async readSession() { return null; },
+    async listSubjects() { return []; },
+  },
+  routes: { info: "/info", sessions: "/sessions", session: "/sessions/:id", subjects: "/subjects" },
+});
+for (const page of Object.values(binding.definition.pages)) {
+  const html = renderToString(React.createElement(page.component, {
+    services: binding.services,
+    activation: { key: "archive-proof", isCurrent: () => true },
+    signal: new AbortController().signal,
+    params: { id: "test" },
+    navigation: { href: () => "/", go() {} },
+  }));
+  assert.ok(html.length > 0);
+}
+console.log("Packed Auth Console: all four pages rendered with production React");
+`
+  );
+  execFileSync("node", ["verify-production-auth.mjs"], {
+    cwd: consumer,
+    env: { ...process.env, NODE_ENV: "production" },
+    stdio: "inherit",
+  });
   for (const [command, args] of [
     ["bun", ["run", "test:conventions"]],
     ["bun", ["run", "service:boundary"]],

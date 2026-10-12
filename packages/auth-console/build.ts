@@ -22,6 +22,8 @@ const result = await Bun.build({
   target: "browser",
   packages: "external",
   splitting: true,
+  // Published pages must run with React's production runtime, where jsxDEV is absent.
+  jsx: { runtime: "automatic", development: false },
 });
 if (!result.success) {
   console.error(result.logs);

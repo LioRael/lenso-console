@@ -1,5 +1,11 @@
 # @lenso/auth-console
 
+## 1.0.1
+
+### Patch Changes
+
+- Build published Auth Console pages with the production React JSX runtime so production applications can render them without a consumer compatibility transform.
+
 ## 1.0.0
 
 ### Minor Changes

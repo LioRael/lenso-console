@@ -59,7 +59,7 @@
     },
     "packages/auth-console": {
       "name": "@lenso/auth-console",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "@lenso/ui": "0.9.1",
       },
