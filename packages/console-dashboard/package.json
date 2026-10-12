@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-dashboard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Optional Console dashboard widgets and revisioned layout storage",
   "license": "MIT",
   "repository": {

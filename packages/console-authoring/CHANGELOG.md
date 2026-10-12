@@ -1,5 +1,11 @@
 # @lenso/console-sdk
 
+## 1.1.0
+
+### Minor Changes
+
+- f23b059: Add a login-only admission entry that shares strict session and page validation with the management protocol, without initializing management RPC, query cache, or router dependencies. Existing browser and protocol exports remain compatible.
+
 ## 1.0.0
 
 ### Minor Changes

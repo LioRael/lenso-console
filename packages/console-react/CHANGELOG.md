@@ -1,5 +1,13 @@
 # @lenso/console-react
 
+## 0.3.0
+
+### Minor Changes
+
+- f23b059: Expose a login-only stylesheet for hosts that defer the admitted workspace. Source
+  consumers delegate both stylesheet entries to their StyleX compiler, avoiding a
+  duplicate precompiled aggregate while retaining the existing full default sheet.
+
 ## 0.2.0
 
 ### Minor Changes

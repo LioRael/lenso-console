@@ -1,5 +1,12 @@
 # @lenso/console
 
+## 2.1.1
+
+### Patch Changes
+
+- Updated dependencies [f23b059]
+  - @lenso/console-sdk@1.1.0
+
 ## 2.1.0
 
 ### Minor Changes

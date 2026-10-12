@@ -1,5 +1,11 @@
 # @lenso/auth-console
 
+## 1.0.2
+
+### Patch Changes
+
+- Accept the compatible Console React 0.3 line while retaining support for 0.2.
+
 ## 1.0.1
 
 ### Patch Changes
