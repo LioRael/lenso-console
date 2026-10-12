@@ -341,7 +341,7 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
     productionPage.on("pageerror", (error) => errors.push(error.message));
     await productionPage.goto(`${productionOrigin}/orders`);
     await productionPage
-      .getByRole("heading", { name: "Sign in to Console", exact: true })
+      .getByRole("heading", { exact: true, name: "Sign in to Console" })
       .waitFor();
     assert.equal(
       await productionPage
@@ -556,7 +556,8 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
       .getByRole("heading", { exact: true, name: "Authored orders" })
       .waitFor();
     const revoked = await productionPage.evaluate(async () => {
-      const discovery = await (await fetch("/auth/methods")).json();
+      const discoveryResponse = await fetch("/auth/methods");
+      const discovery = await discoveryResponse.json();
       const prefix = `${discovery.csrf.cookie_name}=`;
       const csrf = document.cookie
         .split(";")
@@ -640,8 +641,8 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
       0
     );
     const retry = page.getByRole("button", {
-      name: "Retry admission",
       exact: true,
+      name: "Retry admission",
     });
     await retry.focus();
     await retry.press("Enter");
