@@ -340,7 +340,15 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
     const productionPage = await browser.newPage();
     productionPage.on("pageerror", (error) => errors.push(error.message));
     await productionPage.goto(`${productionOrigin}/orders`);
-    await productionPage.getByRole("alert").waitFor();
+    await productionPage
+      .getByRole("heading", { name: "Sign in to Console", exact: true })
+      .waitFor();
+    assert.equal(
+      await productionPage
+        .getByText("Real admitted data", { exact: true })
+        .count(),
+      0
+    );
     const authenticate = (current) =>
       current.evaluate(
         async ({ subject, password }) => {
@@ -518,6 +526,9 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
       entry,
       port: backendPort,
     });
+    // Loopback cookies span ports, and both hosts share the persistent session store.
+    // Start this deployment's unauthenticated proof without the prior host's cookie.
+    await productionPage.context().clearCookies();
     await productionPage.goto(`http://127.0.0.1:${backendPort}/orders`);
     await productionPage.getByRole("alert").waitFor();
     assert.equal(await authenticate(productionPage), 204);
@@ -545,13 +556,15 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
       .getByRole("heading", { exact: true, name: "Authored orders" })
       .waitFor();
     const revoked = await productionPage.evaluate(async () => {
+      const discovery = await (await fetch("/auth/methods")).json();
+      const prefix = `${discovery.csrf.cookie_name}=`;
       const csrf = document.cookie
         .split(";")
         .map((cookie) => cookie.trim())
-        .find((cookie) => cookie.startsWith("__Host-lenso-csrf="))
-        ?.split("=")[1];
-      const response = await fetch("/auth/logout", {
-        headers: { "x-csrf-token": csrf ?? "" },
+        .find((cookie) => cookie.startsWith(prefix))
+        ?.slice(prefix.length);
+      const response = await fetch(discovery.session.logout, {
+        headers: { [discovery.csrf.header_name]: csrf ?? "" },
         method: "POST",
       });
       return response.status;
@@ -626,7 +639,10 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
       await page.getByText("Explicit example data", { exact: true }).count(),
       0
     );
-    const retry = page.getByRole("button", { name: "Retry admission" });
+    const retry = page.getByRole("button", {
+      name: "Retry admission",
+      exact: true,
+    });
     await retry.focus();
     await retry.press("Enter");
     await page.getByRole("alert").waitFor();
