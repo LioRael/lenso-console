@@ -1,5 +1,24 @@
 # @lenso/console
 
+## 2.1.0
+
+### Minor Changes
+
+- 9f0e444: Delegate interactive authentication and session HTTP handling to the selected
+  Auth instance. Add typed login UI/session admission, retain operation enforcement
+  and stale-read retirement, and exercise the persistent local SQLite example.
+
+  Use published Auth 0.5.0 for the interactive/http/browser contracts, including
+  session-source provenance and non-destructive early renewal. Update the optional
+  Auth Console and Dashboard adapters to the matching Auth peer range.
+  Align Manage 0.5.2 and the published Audit, Authorization, ApiKeys and Scheduler
+  companions with their Auth 0.5.0 peer requirements for clean archive consumers.
+
+### Patch Changes
+
+- Updated dependencies [9f0e444]
+  - @lenso/console-sdk@1.0.0
+
 ## 2.0.0
 
 ### Major Changes
