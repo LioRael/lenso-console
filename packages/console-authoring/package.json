@@ -114,7 +114,12 @@
       "types": "./dist/browser-query-client.d.ts",
       "default": "./dist/browser-query-client.js"
     },
-    "./shell": "./shell/index.html"
+    "./shell": "./shell/index.html",
+    "./admission": {
+      "lenso-source": "./src/browser-admission.ts",
+      "types": "./dist/browser-admission.d.ts",
+      "default": "./dist/browser-admission.js"
+    }
   },
   "publishConfig": {
     "access": "public"

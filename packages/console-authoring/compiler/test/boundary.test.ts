@@ -87,3 +87,22 @@ test("typed client contracts do not resolve server framework packages", () => {
     expect(trace).not.toContain(`Resolving module '${name}`);
   }
 });
+
+// A login-only host must not initialize the management contract or transport.
+// The root/client boundary tests cannot detect those browser-safe dependencies.
+test("admission bundles without management RPC, query cache, or router runtimes", async () => {
+  const result = await Bun.build({
+    entrypoints: [
+      new URL("../../src/browser-admission.ts", import.meta.url).pathname,
+    ],
+    target: "browser",
+    format: "esm",
+    packages: "external",
+    minify: true,
+  });
+  expect(result.success).toBe(true);
+  const code = await result.outputs[0]!.text();
+  for (const dependency of ["@orpc/", "@tanstack/", "@lenso/manage"]) {
+    expect(code).not.toContain(dependency);
+  }
+});

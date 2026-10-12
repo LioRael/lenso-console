@@ -16,6 +16,7 @@ const result = await Bun.build({
     "src/i18n.ts",
     "src/http-paths.ts",
     "src/browser.tsx",
+    "src/browser-admission.ts",
     "src/browser-session-fetch.ts",
     "src/browser-query-client.ts",
     "src/authentication.ts",

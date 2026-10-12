@@ -1,0 +1,2 @@
+/* Source consumers extract StyleX from their actual module graph. Importing the
+   compiled aggregate here would duplicate rules and eagerly load Shell styles. */

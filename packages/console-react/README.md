@@ -5,6 +5,15 @@ Import `@lenso/tokens/styles.css` and `@lenso/console-react/styles.css` in the h
 The published JavaScript contains lowered StyleX styles; consumers do not need
 to compile the package's source.
 
+Hosts with a separate login entry can import
+`@lenso/console-react/login/styles.css` there and load the complete
+`@lenso/console-react/styles.css` with the admitted workspace. The login sheet
+contains the login surface and shared layout, without Shell or Dock rules.
+With the `lenso-source` export condition, both stylesheet entries defer to the
+host's StyleX extraction instead of duplicating precompiled rules. That host
+must extract styles for its actual module graph and load lazy component styles
+before revealing those components.
+
 ```tsx
 import { bindConsole, ConsoleShell, defineConsolePlugin } from "@lenso/console-react";
 import "@lenso/tokens/styles.css";

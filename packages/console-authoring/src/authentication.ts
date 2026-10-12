@@ -1,7 +1,7 @@
 import type { AuthDiscovery, LoginMethod } from "@lenso/auth/browser";
 
-import { parseSessionCsrf, sessionFetch } from "./browser-session-fetch";
 import { consoleHttpPaths } from "./http-paths";
+import { parseSessionCsrf, sessionFetch } from "./session-fetch";
 
 export {
   broadcastConsoleSessionChange,

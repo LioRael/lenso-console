@@ -388,3 +388,9 @@ not merely a newer page import.
 `bun run test:preview` checks/builds authored source through the public executable
 and exercises compiled production admission, example preview, authenticated
 same-public-origin backend preview and unauthenticated backend refusal.
+
+Login-only hosts can import `useConsoleAdmission` and its admission/mount types
+from `@lenso/console-sdk/admission`. This entry validates the same session and
+page catalog schemas as the management protocol, without initializing the
+management RPC contract, workspace transport, query cache, or router. Existing
+`@lenso/console-sdk/browser` imports remain supported for mounted pages.
