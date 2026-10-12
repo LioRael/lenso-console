@@ -1,6 +1,18 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import {
+  broadcastConsoleSessionChange,
+  consoleAuthenticationError,
+  ConsoleAuthenticationError,
+  onConsoleSessionChange,
+  parseConsoleAuthDiscovery,
+  safeConsoleReturnPath,
+  submitConsoleAuthAction,
+  type ConsoleAuthDiscovery,
+  type ConsoleAuthenticationState,
+  type ConsoleLoginMethod,
+} from "./authentication";
 import { ConsoleQueryClient } from "./browser-query-client";
 import { createWorkspaceReads } from "./browser-reads";
 import {
@@ -11,11 +23,16 @@ import {
   sessionFetch,
 } from "./browser-session-fetch";
 import { consoleHttpPaths } from "./http-paths";
+import {
+  subscribeIdentityTransitions,
+  withIdentityTransition,
+} from "./identity-transition";
 import type { PageProps } from "./index";
 import {
   type consolePageDescriptorSchema,
   consolePageCatalogSchema,
   consoleSessionSchema,
+  type ConsoleSession,
 } from "./protocol";
 
 export type BrowserMount = ReturnType<
@@ -27,6 +44,8 @@ export type BrowserAdmission = {
   mounts: readonly BrowserMount[];
   subject: string;
   readScope: string;
+  /** Logical retirement precedes React unmount, including retained page handles. */
+  signal?: AbortSignal;
 };
 
 const allMounts = (mounts: readonly BrowserMount[]) => mounts;
@@ -40,22 +59,53 @@ export function useConsoleAdmission(
   const [attempt, setAttempt] = useState(0);
   const [admission, setAdmission] = useState<BrowserAdmission>();
   const [admissionError, setAdmissionError] = useState<Error>();
+  const [discovery, setDiscovery] = useState<ConsoleAuthDiscovery>();
+  const [session, setSession] = useState<ConsoleSession>();
+  const [state, setState] = useState<ConsoleAuthenticationState>("loading");
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<Error>();
+  const operation = useRef<AbortController | undefined>(undefined);
+  const lease = useRef<AbortController | undefined>(undefined);
+  const activationEpoch = useRef(0);
+  const epoch = activationEpoch.current;
+  const previouslyAdmitted = useRef(false);
   useEffect(() => {
     const lifetime = new AbortController();
+    lease.current = lifetime;
     let admitted = false;
-    const retire = () => {
+    const retire = (
+      reason: "expired" | "forbidden" = "expired",
+      preserveAction = false
+    ) => {
+      activationEpoch.current += 1;
       lifetime.abort();
+      if (!preserveAction) {
+        operation.current?.abort();
+        operation.current = undefined;
+        setBusy(false);
+      }
       retireSessionReads();
       setAdmission(undefined);
-      setAdmissionError(
-        new Error(
-          "The backend session changed. Authenticate with the application owner, then retry."
-        )
-      );
+      if (reason === "expired") {
+        setSession(undefined);
+      }
+      setState(preserveAction ? "loading" : reason);
+      setAdmissionError(new ConsoleAuthenticationError(reason));
     };
-    window.addEventListener("lenso-session-expired", retire);
+    const expired = () => retire();
+    window.addEventListener("lenso-session-expired", expired);
+    const stopStorage = onConsoleSessionChange(expired);
+    const stopTransitions = subscribeIdentityTransitions((phase, remote) => {
+      if (phase === "begin") {
+        retire("expired", !remote && operation.current !== undefined);
+      }
+    });
     setAdmission(undefined);
+    setSession(undefined);
     setAdmissionError(undefined);
+    setActionError(undefined);
+    setDiscovery(undefined);
+    setState("loading");
     const sessionPath = `${consoleHttpPaths.api_base_path}/console/v1/session`;
     const request = async (path: string) => {
       const response = await sessionFetch(path, {
@@ -64,15 +114,28 @@ export function useConsoleAdmission(
         signal: lifetime.signal,
       });
       if (!response.ok) {
+        let explicitlyExpired = false;
+        if (response.status === 401) {
+          try {
+            const problem = await response.json();
+            explicitlyExpired = problem.code === "session_expired";
+          } catch {
+            lifetime.signal.throwIfAborted();
+          }
+        }
         if (
           admitted &&
           path === sessionPath &&
-          [401, 412].includes(response.status)
+          [401, 403, 412].includes(response.status)
         ) {
-          retire();
+          retire(response.status === 403 ? "forbidden" : "expired");
         }
-        throw new Error(
-          "Console requires an authenticated authorized backend session."
+        throw consoleAuthenticationError(
+          path === `${consoleHttpPaths.auth_base_path}/methods` &&
+            response.status === 403
+            ? 503
+            : response.status,
+          previouslyAdmitted.current || explicitlyExpired
         );
       }
       return response;
@@ -81,8 +144,15 @@ export function useConsoleAdmission(
     const onFocus = async () => {
       try {
         await revalidate?.();
-      } catch {
-        // A network outage does not establish session revocation.
+      } catch (error) {
+        if (!lifetime.signal.aborted) {
+          setState("unavailable");
+          setAdmissionError(
+            error instanceof Error
+              ? error
+              : new ConsoleAuthenticationError("unavailable")
+          );
+        }
       }
     };
     window.addEventListener("focus", onFocus);
@@ -90,10 +160,16 @@ export function useConsoleAdmission(
       const methods = await request(
         `${consoleHttpPaths.auth_base_path}/methods`
       );
-      configureSessionCsrf(await methods.json());
-      const session = await request(sessionPath);
-      const identity = consoleSessionSchema.parse(await session.json());
-      const readScope = session.headers.get("x-lenso-read-scope");
+      const metadata = await methods.json();
+      lifetime.signal.throwIfAborted();
+      const available = parseConsoleAuthDiscovery(metadata);
+      configureSessionCsrf(available);
+      setDiscovery(available);
+      const sessionResponse = await request(sessionPath);
+      const identity = consoleSessionSchema.parse(await sessionResponse.json());
+      lifetime.signal.throwIfAborted();
+      setSession(identity);
+      const readScope = sessionResponse.headers.get("x-lenso-read-scope");
       if (
         identity.authenticated !== true ||
         typeof identity.subject !== "string" ||
@@ -102,10 +178,23 @@ export function useConsoleAdmission(
       ) {
         throw new Error("Backend session metadata is unavailable.");
       }
+      if (!identity.console_access) {
+        throw new ConsoleAuthenticationError("forbidden");
+      }
       revalidate = async () => {
         const current = await request(sessionPath);
-        if (current.headers.get("x-lenso-read-scope") !== readScope) {
+        const currentSession = consoleSessionSchema.parse(await current.json());
+        lifetime.signal.throwIfAborted();
+        if (!currentSession.console_access) {
+          retire("forbidden");
+        } else if (
+          current.headers.get("x-lenso-read-scope") !== readScope ||
+          currentSession.subject !== identity.subject
+        ) {
           retire();
+        } else {
+          setState("authenticated");
+          setAdmissionError(undefined);
         }
       };
       configureSessionReadScope(readScope, revalidate);
@@ -123,10 +212,13 @@ export function useConsoleAdmission(
       assertConsoleMountPaths(selectedMounts);
       lifetime.signal.throwIfAborted();
       admitted = true;
+      previouslyAdmitted.current = true;
+      setState("authenticated");
       setAdmission({
         mounts: selectedMounts,
         subject: identity.subject,
         readScope,
+        signal: lifetime.signal,
       });
     };
     const initialize = async () => {
@@ -139,22 +231,161 @@ export function useConsoleAdmission(
               ? error
               : new Error("Backend admission failed.")
           );
+          setState(
+            error instanceof ConsoleAuthenticationError
+              ? error.state
+              : "unavailable"
+          );
         }
       }
     };
     void initialize();
     return () => {
       lifetime.abort();
+      lease.current = undefined;
+      activationEpoch.current += 1;
+      operation.current?.abort();
+      operation.current = undefined;
       retireSessionReads();
       configureSessionCsrf(undefined);
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener("lenso-session-expired", retire);
+      window.removeEventListener("lenso-session-expired", expired);
+      stopStorage();
+      stopTransitions();
     };
   }, [attempt, selectMounts]);
+  async function act(
+    action: string,
+    input: unknown,
+    kind: "login" | "logout" | "renew" = "login"
+  ) {
+    const logout = kind === "logout";
+    if (
+      !lease.current ||
+      activationEpoch.current !== epoch ||
+      operation.current
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    operation.current = controller;
+    setBusy(true);
+    setActionError(undefined);
+    const subject = session?.subject;
+    if (logout) {
+      lease.current.abort();
+      retireSessionReads();
+      setAdmission(undefined);
+      setSession(undefined);
+      setState("loading");
+    }
+    try {
+      await withIdentityTransition(
+        () =>
+          submitConsoleAuthAction(action, input, controller.signal, subject),
+        controller.signal
+      );
+      controller.signal.throwIfAborted();
+      broadcastConsoleSessionChange();
+      if (logout) {
+        previouslyAdmitted.current = false;
+      }
+      setAttempt((value) => value + 1);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        const failure =
+          error instanceof ConsoleAuthenticationError &&
+          (logout || state === "authenticated") &&
+          error.state === "unauthenticated"
+            ? new ConsoleAuthenticationError("expired")
+            : error instanceof Error
+              ? error
+              : new ConsoleAuthenticationError("unavailable");
+        setActionError(failure);
+        if (
+          kind === "renew" &&
+          !(
+            failure instanceof ConsoleAuthenticationError &&
+            failure.state === "expired"
+          )
+        ) {
+          // The write lock retired admission before dispatch. A rejected renewal
+          // is not proof of expiry; only a fresh session read can re-admit it.
+          setAttempt((value) => value + 1);
+          return;
+        }
+        setState(
+          failure instanceof ConsoleAuthenticationError &&
+            failure.state === "expired"
+            ? "expired"
+            : logout || state === "authenticated"
+              ? "unavailable"
+              : state
+        );
+      }
+    } finally {
+      if (operation.current === controller) {
+        operation.current = undefined;
+        setBusy(false);
+      }
+    }
+  }
   return {
     admission,
     error: admissionError,
-    retry: () => setAttempt((value) => value + 1),
+    state,
+    discovery,
+    session,
+    busy,
+    actionError,
+    login: (method: ConsoleLoginMethod, input: unknown) => {
+      if (!discovery?.methods.includes(method) || method.kind === "redirect") {
+        return Promise.reject(new TypeError("Login method is not installed."));
+      }
+      return act(method.action, input);
+    },
+    redirect: (
+      method: ConsoleLoginMethod,
+      returnTo?: string,
+      allowedRoots?: readonly string[]
+    ) => {
+      if (
+        activationEpoch.current !== epoch ||
+        operation.current ||
+        !discovery?.methods.includes(method) ||
+        method.kind !== "redirect"
+      ) {
+        return;
+      }
+      const url = new URL(method.action, window.location.origin);
+      url.searchParams.set(
+        "return_to",
+        safeConsoleReturnPath(returnTo, allowedRoots)
+      );
+      window.location.assign(url.href);
+    },
+    logout: () =>
+      discovery?.session?.logout
+        ? act(discovery.session.logout, {}, "logout")
+        : Promise.reject(new TypeError("Logout is not installed.")),
+    renew: () =>
+      discovery?.session?.renew
+        ? act(discovery.session.renew, {}, "renew")
+        : Promise.reject(new TypeError("Renewal is not installed.")),
+    cancel: () => {
+      if (activationEpoch.current !== epoch) {
+        return;
+      }
+      operation.current?.abort();
+      operation.current = undefined;
+      setBusy(false);
+      setAttempt((value) => value + 1);
+    },
+    retry: () => {
+      if (activationEpoch.current === epoch) {
+        setAttempt((value) => value + 1);
+      }
+    },
   };
 }
 
@@ -231,8 +462,16 @@ export function ConsoleBrowserMount({
     props: Pick<PageProps, "services" | "reads" | "signal">;
   }>();
   useEffect(() => {
+    if (admission.signal?.aborted) {
+      return;
+    }
     const lifetime = new AbortController();
     const query = new ConsoleQueryClient();
+    const retire = () => {
+      lifetime.abort();
+      query.clear();
+    };
+    admission.signal?.addEventListener("abort", retire, { once: true });
     query.admitReadScope(admission.readScope);
     const services = createSessionWorkspaceServices({
       mount,
@@ -247,8 +486,8 @@ export function ConsoleBrowserMount({
     });
     setRuntime({ query, props: { services, reads, signal: lifetime.signal } });
     return () => {
-      lifetime.abort();
-      query.clear();
+      admission.signal?.removeEventListener("abort", retire);
+      retire();
     };
   }, [admission, mount]);
   if (!runtime || runtime.props.signal.aborted) {

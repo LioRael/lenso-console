@@ -1,5 +1,6 @@
 import * as consoleReact from "@lenso/console-react";
 import type { PageProps } from "@lenso/console-sdk";
+import type { ConsoleLoginMethod } from "@lenso/console-sdk/authentication";
 import {
   ConsoleBrowserMount,
   consoleMountHref,
@@ -13,7 +14,7 @@ import * as consoleLocale from "@lenso/console-sdk/react/locale";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import { House } from "lucide-react";
+import { House, LogOut, RefreshCw } from "lucide-react";
 import * as React from "react";
 
 import { ConsoleIconButton } from "../components/console/console-icon-button";
@@ -58,13 +59,73 @@ export function consoleHandoffForLocation(
 
 export function ConsoleAdmissionProvider({
   children,
+  login,
 }: {
   children: React.ReactNode;
+  login?: Pick<
+    consoleReact.ConsoleLoginProps<ConsoleLoginMethod>,
+    "renderers" | "renderPage"
+  > & {
+    allowedReturnRoots?: readonly string[];
+  };
 }) {
   const value = useConsoleAdmission();
+  const location = useLocation();
   return (
     <AdmissionContext.Provider value={value}>
-      {children}
+      {value.state === "authenticated" && value.admission ? (
+        <ConsoleLayout
+          key={`${value.admission.subject}:${value.admission.readScope}`}
+        >
+          {(value.discovery?.session?.logout ||
+            value.discovery?.session?.renew) && (
+            <ConsoleLayout.Corner area="topRight">
+              {value.discovery.session.logout && (
+                <ConsoleIconButton
+                  label="Sign out"
+                  tooltip="Sign out"
+                  disabled={value.busy}
+                  onClick={() => void value.logout()}
+                >
+                  <LogOut aria-hidden="true" size={18} />
+                </ConsoleIconButton>
+              )}
+              {value.discovery.session.renew && (
+                <ConsoleIconButton
+                  label="Renew session"
+                  tooltip="Renew session"
+                  disabled={value.busy}
+                  onClick={() => void value.renew()}
+                >
+                  <RefreshCw aria-hidden="true" size={18} />
+                </ConsoleIconButton>
+              )}
+            </ConsoleLayout.Corner>
+          )}
+          {value.actionError && <p role="alert">{value.actionError.message}</p>}
+          {children}
+        </ConsoleLayout>
+      ) : (
+        <consoleReact.ConsoleLogin
+          {...login}
+          state={value.state}
+          methods={value.discovery?.methods ?? []}
+          busy={value.busy}
+          error={value.actionError}
+          onPassword={(method, input) => void value.login(method, input)}
+          onCustom={(method, input) => void value.login(method, input)}
+          onRedirect={(method) =>
+            value.redirect(method, location.href, login?.allowedReturnRoots)
+          }
+          onRetry={() => value.retry()}
+          onCancel={() => value.cancel()}
+          onLogout={
+            value.discovery?.session?.logout
+              ? () => void value.logout()
+              : undefined
+          }
+        />
+      )}
     </AdmissionContext.Provider>
   );
 }
@@ -102,42 +163,40 @@ export function ConsoleAdmittedPage() {
     return <RouteNotFound />;
   }
   return (
-    <ConsoleLayout>
-      <ConsoleBrowserMount
-        admission={value.admission}
-        mount={mount}
-        key={consoleMountKey(value.admission, mount)}
-      >
-        {(runtime) => (
-          <AdmittedActionHost signal={runtime.signal}>
-            <OwnerPage
-              admission={value.admission!}
-              mount={mount}
-              runtime={runtime}
-              handoff={consoleHandoffForLocation(
-                pendingHandoff,
-                admission,
-                mount,
-                location.href
-              )}
-              onClearHandoff={() => setPendingHandoff(undefined)}
-              onHandoff={(destination, destinationHref, handoff) => {
-                setPendingHandoff(
-                  handoff && admission
-                    ? {
-                        admission,
-                        destinationKey: consoleMountKey(admission, destination),
-                        destinationHref,
-                        value: handoff,
-                      }
-                    : undefined
-                );
-              }}
-            />
-          </AdmittedActionHost>
-        )}
-      </ConsoleBrowserMount>
-    </ConsoleLayout>
+    <ConsoleBrowserMount
+      admission={value.admission}
+      mount={mount}
+      key={consoleMountKey(value.admission, mount)}
+    >
+      {(runtime) => (
+        <AdmittedActionHost signal={runtime.signal}>
+          <OwnerPage
+            admission={value.admission!}
+            mount={mount}
+            runtime={runtime}
+            handoff={consoleHandoffForLocation(
+              pendingHandoff,
+              admission,
+              mount,
+              location.href
+            )}
+            onClearHandoff={() => setPendingHandoff(undefined)}
+            onHandoff={(destination, destinationHref, handoff) => {
+              setPendingHandoff(
+                handoff && admission
+                  ? {
+                      admission,
+                      destinationKey: consoleMountKey(admission, destination),
+                      destinationHref,
+                      value: handoff,
+                    }
+                  : undefined
+              );
+            }}
+          />
+        </AdmittedActionHost>
+      )}
+    </ConsoleBrowserMount>
   );
 }
 

@@ -98,6 +98,15 @@ export function createConsoleService(
     );
   }
   if (
+    auth.httpPaths &&
+    (auth.httpPaths.discovery !== `${authBase}/methods` ||
+      auth.httpPaths.owned.some((path) => !path.startsWith(`${authBase}/`)))
+  ) {
+    throw new Error(
+      "Auth binding paths must match the configured Console Auth namespace."
+    );
+  }
+  if (
     (options.shell !== undefined || options.shellMatches !== undefined) &&
     (typeof options.shell !== "function" ||
       typeof options.shellMatches !== "function")
@@ -704,12 +713,18 @@ export function createConsoleService(
           path === `${prefix}/v1/session`
         ) {
           const session = await auth.session(identity);
+          const access = await Promise.all(
+            targets.map((target) =>
+              auth.can(identity, resource(target, "session"))
+            )
+          );
           response = Response.json(
             consoleSessionSchema.parse({
               mode: "required",
               authenticated: true,
               subject: identity.actor.subjectId,
               ...session,
+              console_access: access.some(Boolean),
               assistant_enabled: false,
               human_management_enabled: false,
               management_enabled: options.management === true,

@@ -94,6 +94,19 @@ Preparation also compiles the existing authorization inspection page. The host
 admits its owner-built assets and exact Manage operation; the Shell loads the page
 only after session and catalog authorization.
 
+The default Shell now signs in through this host's cookie adapter and offers
+logout without installing Auth administration pages. Use the configured subject
+as Account and your local operator token as Password in this demo. Auth uses its
+existing SQLite session store in a separate `${databasePath}.auth` database;
+sessions survive host restarts. This is not a production account policy.
+For a locally replaced login page or extra trusted entry, see
+[`ApplicationConsoleGate`](examples/ts-console/login.tsx) and the
+[browser authentication contract](packages/console/README.md#default-browser-login-and-session).
+
+This integration uses published `@lenso/auth@0.5.0`, including its browser,
+interactive and HTTP entries. Dependencies resolve from the registry without
+temporary local source links.
+
 Supply your own `LENSO_TS_TOKEN` in the process environment before serving.
 Do not commit credentials. The local host defaults to `http://127.0.0.1:3100`;
 see the [backend guide](packages/console/README.md) for authentication and

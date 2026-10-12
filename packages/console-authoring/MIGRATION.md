@@ -5,6 +5,36 @@ wire protocol remains `lenso-console-rpc/2`.
 
 ## Browser and React entrypoints
 
+### Login/session contract
+
+The session projection now requires `console_access: boolean`, evaluated by
+the Console server using the host's `session` resource policy, independently of
+`administrator` and per-action permissions. Rebuild the SDK and backend together;
+older session DTOs are rejected as unavailable, not silently admitted.
+Custom session transports must supply the field from trusted policy.
+
+Browser method descriptors are now the typed `password | redirect | custom`
+union owned by the browser-safe `@lenso/auth/browser` entry and re-exported by
+`@lenso/console-sdk/authentication` and `@lenso/console/auth`.
+Replace arbitrary kind strings with `custom` plus a local `renderer` key.
+Replace Console `browser.handlers`/`discover` with the selected Auth HTTP
+`binding`. Install `passwordLogin` over the same managed session owner or
+`externalEntry` over the existing external owner. Configure paths, CSRF, session
+operations and return roots in Auth, not duplicated application route handlers.
+Existing verification-only bearer configuration remains supported but advertises
+no interactive methods.
+
+Use published `@lenso/auth@0.5.0` with these entries. Console, SDK and workspace
+dependency pins use that release; the optional Auth Console and Dashboard
+adapters require its `^0.5.0` peer range. Install from the committed lockfile
+without local source links.
+
+`useConsoleAdmission` retains `admission`, `error`, and `retry`, and adds distinct
+states, discovery, session projection, login/redirect/logout/manual renewal and
+cancellation. The shipped Shell now guards its home as well as admitted pages.
+Optional `auth-console` installation is unrelated to that guard. Local full-page
+replacements use `ConsoleLogin.renderPage`, not an unauthenticated Plugin mount.
+
 The SDK root is browser-safe without loading React, server declarations, or the
 compiler. `PageProps`, `LayoutProps`, `ErrorProps`, `definePage`, `defineWorkspace`,
 and pure locale/refresh helpers remain at the root.

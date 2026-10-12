@@ -57,6 +57,7 @@ export function safeError(error: unknown): BoundaryError {
       const code = {
         bad_request: "BAD_REQUEST",
         unauthorized: "UNAUTHORIZED",
+        session_expired: "UNAUTHORIZED",
         forbidden: "FORBIDDEN",
         session_changed: "PRECONDITION_FAILED",
         service_unavailable: "SERVICE_UNAVAILABLE",
@@ -69,11 +70,14 @@ export function safeError(error: unknown): BoundaryError {
         FORBIDDEN: 403,
         REAUTHENTICATION_REQUIRED: 401,
         SERVICE_UNAVAILABLE: 503,
+        RENEWAL_NOT_DUE: 409,
       }[cause.code];
       return failure(
         cause.code === "REAUTHENTICATION_REQUIRED"
           ? "UNAUTHORIZED"
-          : cause.code,
+          : cause.code === "RENEWAL_NOT_DUE"
+            ? "CONFLICT"
+            : cause.code,
         status
       );
     }

@@ -1,7 +1,12 @@
 import { afterEach, expect, test } from "bun:test";
 
 import { audience, createAuth, realm, type Actor } from "@lenso/auth";
-import { bearerEvidence } from "@lenso/auth/fetch";
+import { authCookie, createAuthHttpBinding } from "@lenso/auth/http";
+import {
+  externalEntry,
+  passwordLogin,
+  type InteractiveLogin,
+} from "@lenso/auth/interactive";
 import { sessionSource } from "@lenso/auth/session-source";
 import {
   createManagedSessions,
@@ -15,7 +20,6 @@ import {
   createConsoleAuthentication,
   expectedConsoleSubject,
   requireConsoleRequest,
-  type ConsoleBrowserAuthAdapter,
   type ConsoleRequestPolicy,
 } from "../src/auth";
 import type { ConsoleResource } from "../src/types";
@@ -33,8 +37,6 @@ afterEach(async () => {
 const origin = "https://console.example.test";
 const bearerPolicy = { origin, credentialMode: "bearer" } as const;
 const cookiePolicy = { origin, credentialMode: "cookie" } as const;
-const bearerCredential = (input: Request) =>
-  bearerEvidence({ request: input }).evidence;
 const resource: ConsoleResource = {
   action: "invoke",
   targetId: "workspace-a",
@@ -49,7 +51,7 @@ const request = (
 
 function fixture(
   requestPolicy: ConsoleRequestPolicy = bearerPolicy,
-  browser?: ConsoleBrowserAuthAdapter
+  login?: readonly InteractiveLogin[]
 ) {
   const records = new Map<string, { subject: string }>([
     ["first", { subject: "alice" }],
@@ -97,8 +99,14 @@ function fixture(
     policy: ({ membership, resource: target }) =>
       membership.workspaces.includes(target.targetId) &&
       target.action !== "admin",
-    requestPolicy,
-    evidence: (input) => new Headers(input.headers),
+    binding: createAuthHttpBinding({
+      access,
+      requestPolicy,
+      evidence: (input) => new Headers(input.headers),
+      methodsPath: "/auth/methods",
+      returnRoots: ["/console"],
+      login,
+    }),
     permissionRevision: () => revision,
     session: (actor) => {
       const grant = grants.get(actor.subjectId);
@@ -107,7 +115,6 @@ function fixture(
         workspace_ids: grant?.workspaces ?? [],
       };
     },
-    browser,
   });
   return {
     service,
@@ -320,6 +327,48 @@ test("absent browser owner advertises no login and does not pretend logout or re
   ).toBeUndefined();
 });
 
+// Existing POST handlers do not prove navigation-based identity-provider handoff.
+test("redirect methods dispatch the mounted host GET handler and preserve its redirect", async () => {
+  const f = fixture(cookiePolicy, [
+    externalEntry({
+      descriptor: {
+        id: "company",
+        kind: "redirect",
+        label: "Company account",
+        action: "/auth/company",
+      },
+      async start(_input, context) {
+        expect(context.returnPath).toBe("/console/records");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: "https://identity.example.test/authorize",
+          },
+        });
+      },
+    }),
+  ]);
+  const response = await f.service.fetch(
+    request({}, "/auth/company?return_to=/console/records")
+  );
+  expect(response?.status).toBe(302);
+  expect(response?.headers.get("location")).toBe(
+    "https://identity.example.test/authorize"
+  );
+  const wrongMethod = await f.service.fetch(
+    request(
+      {
+        origin,
+        cookie: "__Host-lenso-csrf=csrf",
+        "x-csrf-token": "csrf",
+      },
+      "/auth/company",
+      "POST"
+    )
+  );
+  expect(wrongMethod?.status).toBe(405);
+});
+
 test("request cancellation preserves the exact caller reason rather than returning 503", async () => {
   const f = fixture();
   const controller = new AbortController();
@@ -343,7 +392,7 @@ test("request cancellation preserves the exact caller reason rather than returni
   );
 });
 
-test("mounted host handlers actually renew/revoke managed sessions and preserve owner Set-Cookie", async () => {
+test("Auth binding rotates/revokes sessions and retires Console identity proofs", async () => {
   let time = 1000;
   const records = new Map<string, SessionRecord<string>>();
   const store: SessionStore<string> = {
@@ -403,6 +452,7 @@ test("mounted host handlers actually renew/revoke managed sessions and preserve 
       return true;
     },
   };
+  let invocations = 0;
   const sessions = createManagedSessions({
     realmId: "host-realm",
     store,
@@ -410,10 +460,12 @@ test("mounted host handlers actually renew/revoke managed sessions and preserve 
     lifetime: { idle: 100, absolute: 500, renewAfter: 20 },
     subjectActive: async (subject) => subject === "alice",
     login: {
-      verify: async (proof: string) =>
-        proof === "disposable-test-proof"
+      verify: async (proof: { identifier: string; password: string }) => {
+        invocations += 1;
+        return proof.password === "disposable-test-proof"
           ? { status: "verified", subjectId: "alice" }
-          : { status: "rejected" },
+          : { status: "rejected" };
+      },
     },
   });
   const auth = createAuth(realm("host-realm", sessions.source), {
@@ -424,119 +476,89 @@ test("mounted host handlers actually renew/revoke managed sessions and preserve 
     await sessions.close();
     records.clear();
   });
-  let invocations = 0;
+  const access = auth.for(audience("console"));
+  const binding = createAuthHttpBinding({
+    access,
+    requestPolicy: cookiePolicy,
+    evidence: (input) => authCookie(input, "__Host-lenso-session"),
+    methodsPath: "/auth/methods",
+    returnRoots: ["/console"],
+    sessions,
+    renewPath: "/auth/renew",
+    logoutPath: "/auth/logout",
+    login: [
+      passwordLogin({
+        id: "test",
+        label: "Disposable test owner",
+        path: "/auth/login",
+        sessions,
+      }),
+    ],
+  });
   const service = createConsoleAuthentication({
-    access: auth.for(audience("console")),
+    access,
+    binding,
     policy: () => true,
-    requestPolicy: bearerPolicy,
-    evidence: bearerCredential,
     permissionRevision: () => "1",
     session: () => ({ administrator: false, workspace_ids: [] }),
-    browser: {
-      methodsPath: "/auth/methods",
-      methods: [
-        {
-          id: "test",
-          kind: "password",
-          label: "Disposable test owner",
-          action: "/auth/login",
-        },
-      ],
-      handlers: [
-        {
-          path: "/auth/login",
-          method: "POST",
-          async handle(input) {
-            invocations += 1;
-            const issued = await sessions.issue(await input.text(), {
-              signal: input.signal,
-            });
-            return new Response(null, {
-              status: 204,
-              headers: {
-                "set-cookie": `__Host-lenso-session=${issued.credential}; Secure; HttpOnly; Path=/`,
-              },
-            });
-          },
-        },
-        {
-          path: "/auth/renew",
-          method: "POST",
-          authenticated: true,
-          async handle(input) {
-            invocations += 1;
-            const renewed = await sessions.renew(bearerCredential(input)!, {
-              signal: input.signal,
-            });
-            return new Response(null, {
-              status: 204,
-              headers: {
-                "set-cookie": `__Host-lenso-session=${renewed.credential}; Secure; HttpOnly; Path=/`,
-              },
-            });
-          },
-        },
-        {
-          path: "/auth/logout",
-          method: "POST",
-          authenticated: true,
-          async handle(input) {
-            invocations += 1;
-            await sessions.revoke(bearerCredential(input)!, {
-              signal: input.signal,
-            });
-            return new Response(null, {
-              status: 204,
-              headers: {
-                "set-cookie":
-                  "__Host-lenso-session=; Secure; HttpOnly; Path=/; Max-Age=0",
-              },
-            });
-          },
-        },
-      ],
-    },
   });
-  await expect(
-    service.fetch(
+  expect(
+    (await service.fetch(
       request(
         { origin: "https://attacker.example.test" },
         "/auth/login",
         "POST"
       )
-    )
-  ).rejects.toMatchObject({ status: 403 });
+    ))!.status
+  ).toBe(403);
   expect(invocations).toBe(0);
   const login = await service.fetch(
     new Request(`${origin}/auth/login`, {
       method: "POST",
-      headers: { origin },
-      body: "disposable-test-proof",
+      headers: {
+        origin,
+        cookie: "__Host-lenso-csrf=csrf",
+        "x-csrf-token": "csrf",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        identifier: "alice",
+        password: "disposable-test-proof",
+      }),
     })
   );
   const token = /__Host-lenso-session=([^;]+)/.exec(
     login!.headers.get("set-cookie")!
   )![1]!;
   const identity = await service.authenticate(
-    request({ authorization: `Bearer ${token}` })
+    request({ cookie: `__Host-lenso-session=${token}` })
   );
-  await expect(
-    service.fetch(
+  expect(
+    (await service.fetch(
       request(
         {
           origin,
-          authorization: `Bearer ${token}`,
+          cookie: `__Host-lenso-session=${token}; __Host-lenso-csrf=csrf`,
+          "x-csrf-token": "csrf",
           "x-lenso-expected-subject": "bob",
         },
         "/auth/logout",
         "POST"
       )
-    )
-  ).rejects.toMatchObject({ status: 412 });
+    ))!.status
+  ).toBe(412);
   expect(invocations).toBe(1);
   time = 1021;
   const renewal = await service.fetch(
-    request({ origin, authorization: `Bearer ${token}` }, "/auth/renew", "POST")
+    request(
+      {
+        origin,
+        cookie: `__Host-lenso-session=${token}; __Host-lenso-csrf=csrf`,
+        "x-csrf-token": "csrf",
+      },
+      "/auth/renew",
+      "POST"
+    )
   );
   expect(renewal!.status).toBe(204);
   const rotated = /__Host-lenso-session=([^;]+)/.exec(
@@ -545,11 +567,15 @@ test("mounted host handlers actually renew/revoke managed sessions and preserve 
   expect(rotated).not.toBe(token);
   expect(await service.can(identity, resource)).toBe(false);
   const current = await service.authenticate(
-    request({ authorization: `Bearer ${rotated}` })
+    request({ cookie: `__Host-lenso-session=${rotated}` })
   );
   const logout = await service.fetch(
     request(
-      { origin, authorization: `Bearer ${rotated}` },
+      {
+        origin,
+        cookie: `__Host-lenso-session=${rotated}; __Host-lenso-csrf=csrf`,
+        "x-csrf-token": "csrf",
+      },
       "/auth/logout",
       "POST"
     )
@@ -557,6 +583,6 @@ test("mounted host handlers actually renew/revoke managed sessions and preserve 
   expect(logout!.headers.get("set-cookie")).toContain("Max-Age=0");
   expect(await service.can(current, resource)).toBe(false);
   await expect(
-    service.authenticate(request({ authorization: `Bearer ${rotated}` }))
+    service.authenticate(request({ cookie: `__Host-lenso-session=${rotated}` }))
   ).rejects.toMatchObject({ status: 401 });
 });

@@ -197,6 +197,15 @@ test("owned host authenticates, invokes the original SDK, persists locale and cl
         .get(restarted.locale)
         .readPreference(identity, new AbortController().signal)
     ).toBe("en");
+    const restoredSession = await request("/operator/api/console/v1/session", {
+      headers,
+    });
+    expect(restoredSession.status).toBe(200);
+    const logout = await request("/operator/auth/logout", {
+      method: "POST",
+      headers,
+    });
+    expect(logout.status).toBe(204);
     const retiredSession = await request("/operator/api/console/v1/session", {
       headers,
     });

@@ -40,7 +40,7 @@
     "@lenso/ui": "0.9.1"
   },
   "devDependencies": {
-    "@lenso/auth": "0.3.1",
+    "@lenso/auth": "0.5.0",
     "@lenso/console-react": "workspace:*",
     "@lenso/core": "0.3.1",
     "@types/bun": "1.4.2",
@@ -49,7 +49,7 @@
     "typescript": "7.0.2"
   },
   "peerDependencies": {
-    "@lenso/auth": "^0.3.1",
+    "@lenso/auth": "^0.5.0",
     "@lenso/console-react": "^0.1.0",
     "@lenso/core": "^0.3.1",
     "react": "^19.0.0"

@@ -1,8 +1,10 @@
+import { broadcastConsoleSessionChange } from "./browser-session-events";
 import {
   consoleApiPath,
   isConsoleApiPath,
   mapConsoleApiRequest,
 } from "./http-paths";
+import { withIdentityRead } from "./identity-transition";
 import {
   createConsoleWorkspaceServices,
   WorkspaceServiceError,
@@ -131,7 +133,7 @@ export async function sessionFetch(
         scope.retire();
       } else {
         retireSessionReads();
-        window.dispatchEvent(new Event("lenso-session-expired"));
+        broadcastConsoleSessionChange();
       }
     } else if (status === 403) {
       // Revalidation may queue behind the caller's shared identity lock.
@@ -160,7 +162,14 @@ export async function sessionFetch(
       options = { ...options, headers };
     }
   }
-  const response = await fetch(mappedInput, options);
+  const fetchRequest = () => fetch(mappedInput, options);
+  const response =
+    local && (["GET", "HEAD"].includes(method) || scopedApi)
+      ? await withIdentityRead(
+          fetchRequest,
+          options?.signal ?? requestSignal ?? new AbortController().signal
+        )
+      : await fetchRequest();
   try {
     // Some transports resolve after cancellation. A retired request cannot expire
     // the current session or return data to its former consumer.

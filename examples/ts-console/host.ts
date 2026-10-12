@@ -96,10 +96,7 @@ export async function createHost(config: HostConfiguration) {
     port: Number(new URL(config.origin).port),
     ingress(request) {
       try {
-        requireConsoleRequest(request, {
-          origin: config.origin,
-          credentialMode: "cookie",
-        });
+        requireConsoleRequest(request, local.requestPolicy);
         return undefined;
       } catch (error) {
         return consoleRequestErrorResponse(error, request.signal);

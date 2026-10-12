@@ -54,6 +54,7 @@ function authentication(authBase = "/auth") {
   const state = {
     enabled: true,
     north: true,
+    consoleAccess: true,
     admitted: 0,
     localeDefault: false,
     kind: "user" as "user" | "service",
@@ -91,7 +92,9 @@ function authentication(authBase = "/auth") {
         );
       const service = createConsoleAuthentication({
         access,
-        policy: ({ membership }) => membership.allowed,
+        policy: ({ membership, resource }) =>
+          membership.allowed &&
+          (resource.action !== "session" || state.consoleAccess),
         requestPolicy: { origin, credentialMode: "bearer" },
         evidence: (request) =>
           request.headers.get("authorization")?.slice(7) ?? null,
@@ -995,11 +998,22 @@ test("management is opt-in, page files do not install mounts, and REST sessions 
       mode: "required",
       authenticated: true,
       subject: "alice",
+      console_access: true,
       administrator: false,
       assistant_enabled: false,
       human_management_enabled: false,
       management_enabled: false,
     });
+    // A verified identity and its metadata cannot substitute for entry policy.
+    auth.state.consoleAccess = false;
+    const forbiddenSession = await get("/admin/api/console/v1/session");
+    expect(forbiddenSession?.status).toBe(200);
+    expect(await forbiddenSession?.json()).toMatchObject({
+      authenticated: true,
+      subject: "alice",
+      console_access: false,
+    });
+    auth.state.consoleAccess = true;
     const pages = await get("/admin/api/console/v1/pages");
     expect(await pages?.json()).toEqual({
       schema: "console.page-catalog/1",
@@ -1213,6 +1227,7 @@ test("startup refuses detached Manage owners, unadmitted workspace operations an
     "Console workspace route ownership overlaps.",
     "Workspace requirements must uniquely bind their declared service owner.",
     "Workspace operation aliases must uniquely name admitted methods without collisions.",
+    "Auth binding paths must match the configured Console Auth namespace.",
   ];
   for (const [index, targets] of [
     [{ ...target("north", instance), manage: [detached.manage] }],
@@ -1276,9 +1291,11 @@ test("startup refuses detached Manage owners, unadmitted workspace operations an
         ],
       },
     ],
+    [target("north", instance)],
   ].entries()) {
     const consolePlugin = createConsolePlugin({
       authentication: auth.plugin,
+      ...(index === 5 ? { authBasePath: "/alternate/auth" } : {}),
       targets,
       binding: bound,
     });

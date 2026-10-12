@@ -174,6 +174,7 @@ export const consoleSessionSchema = z.strictObject({
   mode: z.literal("required"),
   authenticated: z.literal(true),
   subject: z.string(),
+  console_access: z.boolean(),
   administrator: z.boolean(),
   workspace_ids: z.array(z.string()).readonly(),
   assistant_enabled: z.literal(false),

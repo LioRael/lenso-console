@@ -6,6 +6,14 @@ import {
   type PolicyContext,
 } from "@lenso/auth";
 import {
+  AuthHttpError,
+  createAuthHttpBinding,
+  expectedAuthSubject,
+  requireAuthRequest,
+  type AuthHttpBinding,
+  type AuthRequestPolicy,
+} from "@lenso/auth/http";
+import {
   definePlugin,
   type Plugin,
   type PluginContext,
@@ -17,9 +25,12 @@ import type {
   ConsoleResource,
 } from "./types";
 
+export type { LoginMethod as ConsoleLoginMethod } from "@lenso/auth/browser";
+
 const errors = {
   bad_request: [400, "Invalid Console request"],
   unauthorized: [401, "Authentication required"],
+  session_expired: [401, "Session expired"],
   forbidden: [403, "Access denied"],
   session_changed: [412, "Session changed"],
   service_unavailable: [503, "Authentication unavailable"],
@@ -41,14 +52,17 @@ function safeError(error: unknown): ConsoleRequestError {
   if (error instanceof ConsoleRequestError) {
     return error;
   }
+  if (error instanceof AuthHttpError) {
+    return new ConsoleRequestError(error.code);
+  }
   if (error instanceof AuthError) {
     if (error.code === "FORBIDDEN") {
       return new ConsoleRequestError("forbidden");
     }
-    if (
-      error.code === "UNAUTHORIZED" ||
-      error.code === "REAUTHENTICATION_REQUIRED"
-    ) {
+    if (error.code === "REAUTHENTICATION_REQUIRED") {
+      return new ConsoleRequestError("session_expired");
+    }
+    if (error.code === "UNAUTHORIZED") {
       return new ConsoleRequestError("unauthorized");
     }
   }
@@ -71,80 +85,14 @@ export function consoleRequestErrorResponse(
   );
 }
 
-export interface ConsoleRequestPolicy {
-  readonly origin: string;
-  readonly credentialMode: "bearer" | "cookie";
-  readonly sessionCookieName?: `__Host-${string}`;
-  readonly csrfCookieName?: `__Host-${string}`;
-}
-
-function cookie(request: Request, name: string): string | null {
-  const matches = (request.headers.get("cookie") ?? "")
-    .split(";")
-    .map((part) => part.trim())
-    .filter((part) => part.split("=")[0] === name);
-  if (matches.length > 1) {
-    throw new ConsoleRequestError("bad_request");
-  }
-  if (!matches.length) {
-    return null;
-  }
-  const value = matches[0]!.slice(name.length + 1);
-  if (
-    !matches[0]!.startsWith(`${name}=`) ||
-    !value ||
-    /[\s,;]/u.test(value) ||
-    hasControlCharacter(value)
-  ) {
-    throw new ConsoleRequestError("bad_request");
-  }
-  return value;
-}
-
-function singleHeader(request: Request, name: string): string | null {
-  const value = request.headers.get(name);
-  if (
-    value !== null &&
-    (!value || /[,]/u.test(value) || hasControlCharacter(value))
-  ) {
-    throw new ConsoleRequestError("bad_request");
-  }
-  return value;
-}
-
-function hasControlCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const code = character.codePointAt(0)!;
-    return code <= 0x1f || code === 0x7f;
-  });
-}
+export type ConsoleRequestPolicy = AuthRequestPolicy;
 
 export function expectedConsoleSubject(request: Request): string | null {
-  const subject = singleHeader(request, "x-lenso-expected-subject");
-  if (subject !== null && (!subject.trim() || subject.length > 256)) {
-    throw new ConsoleRequestError("bad_request");
+  try {
+    return expectedAuthSubject(request);
+  } catch (error) {
+    throw safeError(error);
   }
-  return subject;
-}
-
-function names(policy: ConsoleRequestPolicy) {
-  if (
-    policy.credentialMode !== "bearer" &&
-    policy.credentialMode !== "cookie"
-  ) {
-    throw new TypeError(
-      "Console requires explicit bearer or cookie credential selection"
-    );
-  }
-  const session = policy.sessionCookieName ?? "__Host-lenso-session";
-  const csrf = policy.csrfCookieName ?? "__Host-lenso-csrf";
-  if (
-    ![session, csrf].every((name) => /^__Host-[A-Za-z0-9_-]+$/.test(name)) ||
-    session === csrf
-  ) {
-    throw new TypeError("Console requires distinct __Host cookie names");
-  }
-  return { session, csrf };
 }
 
 /** Transport must also call this for matched public shell/assets before dispatch. */
@@ -152,72 +100,12 @@ export function requireConsoleRequest(
   request: Request,
   policy: ConsoleRequestPolicy
 ): void {
-  request.signal.throwIfAborted();
-  const configured = new URL(policy.origin);
-  if (
-    configured.origin !== policy.origin ||
-    !["http:", "https:"].includes(configured.protocol)
-  ) {
-    throw new TypeError("Console requires an exact HTTP origin");
+  try {
+    requireAuthRequest(request, policy);
+  } catch (error) {
+    request.signal.throwIfAborted();
+    throw safeError(error);
   }
-  const url = new URL(request.url);
-  const host = singleHeader(request, "host");
-  const origin = singleHeader(request, "origin");
-  if (
-    url.origin !== configured.origin ||
-    (host !== null && host !== configured.host) ||
-    (origin !== null && origin !== configured.origin)
-  ) {
-    throw new ConsoleRequestError("forbidden");
-  }
-  const selected = names(policy);
-  const session = cookie(request, selected.session);
-  const csrf = cookie(request, selected.csrf);
-  const authorization = singleHeader(request, "authorization");
-  const csrfHeader = singleHeader(request, "x-csrf-token");
-  expectedConsoleSubject(request);
-  if (authorization !== null && !/^Bearer [^\s,]+$/i.test(authorization)) {
-    throw new ConsoleRequestError("unauthorized");
-  }
-  if (
-    (authorization !== null && session !== null) ||
-    (policy.credentialMode === "cookie" && authorization !== null) ||
-    (policy.credentialMode === "bearer" && session !== null)
-  ) {
-    throw new ConsoleRequestError("bad_request");
-  }
-  if (
-    policy.credentialMode === "cookie" &&
-    !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
-    (origin !== configured.origin ||
-      request.headers.get("sec-fetch-site") === "cross-site" ||
-      csrf === null ||
-      csrfHeader === null ||
-      csrf !== csrfHeader)
-  ) {
-    throw new ConsoleRequestError("forbidden");
-  }
-}
-
-export interface ConsoleLoginMethod {
-  readonly id: string;
-  readonly kind: string;
-  readonly label: string;
-  readonly action: string;
-}
-
-export interface ConsoleBrowserAuthAdapter {
-  readonly methodsPath: string;
-  readonly methods: readonly ConsoleLoginMethod[];
-  /** Optional host discovery/bootstrap owner; its response, including cookies, is untouched. */
-  readonly discover?: (request: Request) => Promise<Response>;
-  /** Real host-owned login/logout/renew handlers, mounted explicitly, never synthesized. */
-  readonly handlers: readonly {
-    readonly path: string;
-    readonly method: string;
-    readonly authenticated?: boolean;
-    readonly handle: (request: Request) => Promise<Response>;
-  }[];
 }
 
 export interface ConsoleAuthenticationOptions<
@@ -229,8 +117,11 @@ export interface ConsoleAuthenticationOptions<
 > {
   readonly access: Access<R, E, S, A, ConsoleResource, M>;
   readonly policy: Policy<PolicyContext<Actor<R, S, A>, ConsoleResource, M>>;
-  readonly requestPolicy: ConsoleRequestPolicy;
-  readonly evidence: (request: Request) => E | Promise<E>;
+  /** The designated Auth instance owns transport and interactive capabilities. */
+  readonly binding?: AuthHttpBinding<R, E, A>;
+  /** Verification-only compatibility configuration; no interactive host handlers. */
+  readonly requestPolicy?: ConsoleRequestPolicy;
+  readonly evidence?: (request: Request) => E | Promise<E>;
   /** Safe permission revision only. Never return credentials, session IDs or tokens. */
   readonly permissionRevision: (
     actor: Actor<R, S, A>,
@@ -242,7 +133,6 @@ export interface ConsoleAuthenticationOptions<
   ) =>
     | { administrator: boolean; workspace_ids: readonly string[] }
     | Promise<{ administrator: boolean; workspace_ids: readonly string[] }>;
-  readonly browser?: ConsoleBrowserAuthAdapter;
   /** Empty discovery still permits explicitly configured standalone bearer clients. */
   readonly methodsPath?: string;
 }
@@ -258,55 +148,27 @@ export function createConsoleAuthentication<
     ConsoleIdentity,
     { actor: Actor<R, S, A>; request: Request }
   >();
-  const requestPolicy = Object.freeze({ ...options.requestPolicy });
-  names(requestPolicy);
-  const origin = new URL(requestPolicy.origin);
-  if (
-    origin.origin !== requestPolicy.origin ||
-    !["http:", "https:"].includes(origin.protocol)
-  ) {
-    throw new TypeError("Console requires an exact HTTP origin");
-  }
-  const methodsPath =
-    options.browser?.methodsPath ?? options.methodsPath ?? "/auth/methods";
-  const handlers =
-    options.browser?.handlers.map((handler) => Object.freeze({ ...handler })) ??
-    [];
-  const methods =
-    options.browser?.methods.map((method) => Object.freeze({ ...method })) ??
-    [];
-  const paths = [methodsPath, ...handlers.map((handler) => handler.path)];
-  if (
-    paths.some(
-      (path) =>
-        !path.startsWith("/") ||
-        path.startsWith("//") ||
-        new URL(path, origin).pathname !== path
-    )
-  ) {
-    throw new TypeError("Auth mounts require exact local paths");
+  if (!options.binding && (!options.requestPolicy || !options.evidence)) {
+    throw new TypeError("Console requires a designated Auth binding");
   }
   if (
-    handlers.some(
-      (handler, index) =>
-        handler.path === methodsPath ||
-        handlers
-          .slice(0, index)
-          .some(
-            (other) =>
-              other.path === handler.path && other.method === handler.method
-          )
-    )
+    options.binding &&
+    (options.requestPolicy || options.evidence || options.methodsPath)
   ) {
-    throw new TypeError("Duplicate auth mount");
+    throw new TypeError(
+      "Configure credentials on the designated Auth binding only"
+    );
   }
-  if (
-    methods.some(
-      (method) => !handlers.some((handler) => handler.path === method.action)
-    )
-  ) {
-    throw new TypeError("Login methods require a mounted host handler");
-  }
+  const binding =
+    options.binding ??
+    createAuthHttpBinding({
+      access: options.access,
+      requestPolicy: options.requestPolicy!,
+      evidence: options.evidence!,
+      methodsPath: options.methodsPath ?? "/auth/methods",
+      returnRoots: ["/console"],
+    });
+  binding.assertAccess(options.access);
   async function guarded<T>(
     request: Request,
     work: () => Promise<T>
@@ -338,20 +200,25 @@ export function createConsoleAuthentication<
     });
   }
   const service: ConsoleAuthentication & { admit(request: Request): void } = {
+    httpPaths: Object.freeze({
+      discovery: binding.methodsPath,
+      owned: Object.freeze(binding.routes.map((route) => route.path)),
+    }),
     admit(request) {
-      requireConsoleRequest(request, requestPolicy);
+      try {
+        binding.admit(request);
+      } catch (error) {
+        throw safeError(error);
+      }
     },
     hasCredentials(request) {
-      return (
-        request.headers.has("authorization") ||
-        cookie(request, names(requestPolicy).session) !== null
-      );
+      return binding.hasCredentials(request);
     },
     async authenticate(request) {
       return guarded(request, async () => {
-        requireConsoleRequest(request, requestPolicy);
+        binding.admit(request);
         const actor = await options.access.required(
-          await options.evidence(request),
+          await binding.evidence(request),
           { signal: request.signal }
         );
         const expected = expectedConsoleSubject(request);
@@ -413,7 +280,7 @@ export function createConsoleAuthentication<
       }
       return guarded(stored.request, async () => {
         const current = await options.access.required(
-          await options.evidence(stored.request),
+          await binding.evidence(stored.request),
           { signal: stored.request.signal }
         );
         if (
@@ -439,50 +306,7 @@ export function createConsoleAuthentication<
       });
     },
     async fetch(request) {
-      const path = new URL(request.url).pathname;
-      if (!paths.includes(path)) {
-        return undefined;
-      }
-      return guarded(request, async () => {
-        requireConsoleRequest(request, requestPolicy);
-        if (path === methodsPath && request.method === "GET") {
-          if (options.browser?.discover) {
-            return options.browser.discover(request);
-          }
-          return Response.json(
-            {
-              methods,
-              ...(requestPolicy.credentialMode === "cookie"
-                ? {
-                    csrf: {
-                      cookie_name: names(requestPolicy).csrf,
-                      header_name: "x-csrf-token",
-                    },
-                  }
-                : {}),
-            },
-            { headers: { "cache-control": "no-store" } }
-          );
-        }
-        const handler = handlers.find(
-          (entry) => entry.path === path && entry.method === request.method
-        );
-        if (!handler) {
-          return new Response(null, { status: 405 });
-        }
-        if (
-          !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
-          (request.headers.get("origin") !== requestPolicy.origin ||
-            request.headers.get("sec-fetch-site") === "cross-site")
-        ) {
-          throw new ConsoleRequestError("forbidden");
-        }
-        // Even public login handlers must check an expected subject if the caller supplies one.
-        if (handler.authenticated || expectedConsoleSubject(request) !== null) {
-          await service.authenticate(request);
-        }
-        return handler.handle(request);
-      });
+      return guarded(request, () => binding.fetch(request));
     },
   };
   return Object.freeze(service);

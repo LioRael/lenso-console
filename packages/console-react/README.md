@@ -46,6 +46,42 @@ may select another edge or `"content"`; `topEdge` forwards the existing layout
 effect options. Fixed corner rows compose multiple `Corner` children without
 overlapping independent contributions or losing their React context.
 
+### Login presentation
+
+`ConsoleLogin` is the default, replaceable login/status surface. It needs no
+Plugin binding or Auth-domain import. A host supplies admission state, discovered
+method descriptors, and callbacks; the SDK's `useConsoleAdmission` in
+`@lenso/console-sdk/browser` supplies those for cookie-backed Console hosts.
+Standalone `ConsoleShell` remains presentation-only: applications choose their
+authentication guard explicitly.
+
+Password entries use Lenso UI inputs with browser autofill. Redirect entries call
+the host redirect callback. `renderers` selects trusted local components by custom
+`renderer` key or built-in method kind. A renderer calls `onCustom(method, input)`
+for a host-owned POST flow; discovery never supplies executable UI.
+`renderPage(props)` replaces the whole login/status page, including forbidden and
+unavailable states, rather than installing an Auth administration page:
+
+```tsx
+<ApplicationConsoleGate
+  login={{
+    allowedReturnRoots: ["/console"],
+    renderers: { "device-code": (method, props) => (
+      <DeviceCodeLogin method={method} onSubmit={(input) => props.onCustom?.(method, input)} />
+    ) },
+    renderPage: (props) => <ApplicationSignIn {...props} />,
+  }}
+>
+  {(session) => <ApplicationWorkspace session={session} />}
+</ApplicationConsoleGate>
+```
+
+`ApplicationConsoleGate` is the checked local example in
+`examples/ts-console/login.tsx`; the named custom components above are supplied
+by the consuming application. Remove `renderPage` to retain the default surface
+and use only the extra entry. Custom UI must retain cancellation, visible errors,
+keyboard access, and the unavailable-versus-unauthenticated distinction.
+
 ### Local Dock views
 
 Plugins may contribute `dockViews` independently of pages. The application

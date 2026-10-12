@@ -107,14 +107,99 @@ startup metadata only, not values, opaque revisions, live updates or writability
 
 ## Auth and SDK
 
-Auth integration borrows a host Access view, evidence extractor, current membership
-policy, permission revision and session projection. Browser login, discovery,
-renewal and logout are explicitly supplied host handlers; their response headers
-are preserved. There is no User table or built-in password provider.
+Auth integration borrows the application's designated Auth HTTP binding and an
+Access view from that exact Auth instance/audience, current membership policy,
+permission revision and session projection. Auth owns credential transport,
+discovery, interactive login and session operations. Console owns admission and
+per-operation enforcement. There is no User table or built-in account provider.
+
+Console and the SDK depend on published `@lenso/auth@0.5.0`, which includes
+the `/browser`, `/interactive` and `/http` entries. That release enforces the
+selected session source and reports early renewal as `RENEWAL_NOT_DUE` (HTTP
+409), without retiring a valid session. No temporary source links are required.
 
 Cookie mode requires distinct `__Host-` cookies, exact Origin and double-submit
 CSRF. Bearer mode requires the host-issued Authorization credential. JSON actors,
 roles and approvals are not evidence. Expected-subject mismatches remain HTTP 412.
+
+### Default browser login and session
+
+The shipped Shell gates its home and admitted pages with SDK session admission.
+It does not install `auth-console`: that optional package owns Auth administration
+(information, subjects, and managed sessions), not the sign-in page.
+`createConsoleAuthentication` uses the application's existing Auth Access view;
+there is no second identity client or fixed User model.
+
+The `LoginMethod` union from `@lenso/auth/browser` is re-exported as
+`ConsoleLoginMethod`. Auth explicitly installs `passwordLogin` over existing
+managed sessions or `externalEntry` over the host's external adapter; a source
+that verifies a session does not become a login method. Machine/API-key sources
+are not offered as browser login. Password submits `{ identifier, password }`.
+Custom entries name an application-local renderer, never remote executable code.
+
+```ts
+createConsoleAuthPlugin({
+  id: "operator-console-auth",
+  auth: operatorAuthPlugin, // The exact installed plugin, not another object with its ID.
+  configure({ auth, binding }) {
+    return {
+      binding,
+      access: auth.for(audience("console")).memberships(readConsoleMembership),
+      policy: consolePolicy,
+      permissionRevision,
+      session: projectConsoleCapabilities,
+    };
+  },
+});
+```
+
+Console delegates auth paths to `binding.fetch` without implementing parallel
+login/logout/renew handlers. Configure discovery paths, realm, operation audience,
+cookie namespace and approved `returnRoots` on the Auth binding. Use dedicated
+Console sessions/cookies so business sessions are not overwritten or revoked.
+Validate concrete co-mounted bindings and reserved routes with Auth's
+`assertAuthHttpBindings`; it does not claim control of unrelated host routing.
+For Console forwarding, discovery is `${authBasePath}/methods` and owned Auth
+paths must be under that configured prefix. A mismatched binding fails assembly
+instead of leaving the Shell with unreachable discovery.
+External adapters own protocol state, callback validation and their session
+owner. This is an extension point, not an OIDC/OAuth/SAML implementation.
+The server uses Auth's `safeAuthReturnPath`; the browser also checks
+`safeConsoleReturnPath`. The first approved root is the fallback.
+When Shell is mounted at `/`, the default return is `/`, not arbitrary site paths.
+
+Session JSON separates verified `subject`, policy-evaluated `console_access`,
+and administration/capability metadata. Console access requires the host's
+`session` resource policy for at least one explicit target. Metadata and
+administrator flags cannot grant it; every operation retains its own enforcement.
+The Shell distinguishes anonymous, expired/changed, forbidden, and unavailable
+states. Network/5xx failures offer retry, not a password form or implied logout.
+Renewal is manual and appears only when advertised, with no automatic retry loop.
+
+The SDK reuses the Shell's origin-wide identity-transition lock to serialize
+cookie mutations against session reads. It aborts retired reads and rejects late
+results. Logout removes page state
+and caches before dispatch; successful login/logout and detected session changes
+invalidate other tabs using a credential-free nonce. Aborting a dispatched action
+does not undo server-side effects; after cancellation the SDK rechecks the host
+session. Bearer transport remains a separate explicit standalone-client choice;
+the default UI never asks users to paste a token.
+Web Locks serialize cooperative cookie writes and reads. Without Web Locks,
+the browser reports an explicit error, not an unsafe uncoordinated fallback.
+BroadcastChannel supplies best-effort retirement hints; its absence/failure does
+not block login. Storage invalidation and focus rechecks remain. Notifications
+are never authorization: server credential revalidation, expected-subject checks
+and session-store CAS remain authoritative.
+
+`examples/ts-console/local-auth.ts` uses Auth-managed sessions with the existing
+SQLite store/schema in `${databasePath}.auth`, persisted across host restarts.
+First local startup initializes that separate Auth schema. The explicitly
+configured operator secret is a local example, not production password storage,
+registration, rate limiting or a multi-user account policy.
+`examples/ts-console/login.tsx` demonstrates a local
+application gate accepting trusted renderers or a complete `renderPage` override.
+Relay is not in this workspace; its migration requires inspecting its actual
+assembly, dependencies, route prefixes, cookie policy, and provider callbacks.
 
 Browser clients import `@lenso/console-sdk/transport` or `/protocol`, not server
 routers, plugins or Auth objects. Existing page/client/read APIs remain unchanged.
@@ -184,7 +269,7 @@ a timeout nor an abort signal proves that detached work has stopped.
 ## Published framework dependencies
 
 Console uses normal registry dependencies: Core `0.3.1`, Engine `0.6.0`,
-Manage `0.5.0`, Auth `0.3.1`, Web `0.3.2`, and the optional companion versions
+Manage `0.5.2`, Auth `0.5.0`, Web `0.3.2`, and the optional companion versions
 pinned in `package.json`. Their published package exports have been verified;
 no framework checkout, source alias or locally built framework archive is needed.
 The `@lenso/console@2` archive exports built JavaScript and declarations, with
@@ -229,15 +314,14 @@ bun run service:ts
 Before the last command, supply your own `LENSO_TS_TOKEN` in the process
 environment. It must be 16–4096 characters. There is no default credential,
 generated setup secret, injected preview identity, or anonymous administrator.
-Do not commit credentials. The example exposes explicit Auth methods/login
-handlers but no longer ships a login or Authorization page. The redesigned
-Shell is a separate prototype, not an authentication interface. Use an
-application-owned client against the advertised Auth handlers.
+Do not commit credentials. The Shell's login gate uses Auth's installed password
+capability; the admitted Authorization inspection page remains policy-protected.
 `LENSO_TS_SUBJECT` changes the configured local operator email
 (default `operator@localhost.test`).
-The existing Auth source verifies the token and issues a bounded, one-hour,
-in-memory session. Sessions disappear on restart; the persistent locale
-database does not store tokens or session IDs.
+The configured credential source verifies the operator token. Auth issues an
+opaque, one-hour-idle/eight-hour-absolute managed session and stores only its
+digest in the separate persistent SQLite Auth database. Locale persistence
+does not store credentials or session IDs.
 
 This example deliberately binds only `127.0.0.1` on an unprivileged HTTP port.
 Browsers accepting Secure `__Host-` cookies on trustworthy loopback origins

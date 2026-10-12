@@ -295,6 +295,6 @@ Do not automatically retry an unknown outcome. Reconcile durable audit intent,
 outcome and dashboard mutation records using an application-authorized operator
 workflow. This adapter deliberately does not perform recovery writes.
 
-Integration API baseline: published `@lenso/auth` **0.3.1** (`Access.enforce`)
-and `@lenso/audit` **0.3.1** (strict branded `prepare`/`complete`).
+Integration API baseline: published `@lenso/auth` **0.5.0** (`Access.enforce`)
+and `@lenso/audit` **0.3.3** (strict branded `prepare`/`complete`).
 The optional server entry points do not change the root/browser contract.

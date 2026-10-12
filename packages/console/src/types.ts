@@ -29,6 +29,11 @@ export interface ConsoleIdentity {
 }
 
 export interface ConsoleAuthentication {
+  /** Concrete Auth-owned mounts, checked against the Console transport at assembly. */
+  readonly httpPaths?: {
+    readonly discovery: string;
+    readonly owned: readonly string[];
+  };
   admit(request: Request): void;
   /** Credential presence only, never verification; invalid credentials must not become public reads. */
   hasCredentials?(request: Request): boolean;

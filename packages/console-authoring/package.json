@@ -94,6 +94,16 @@
       "types": "./dist/browser.d.ts",
       "default": "./dist/browser.js"
     },
+    "./authentication": {
+      "lenso-source": "./src/authentication.ts",
+      "types": "./dist/authentication.d.ts",
+      "default": "./dist/authentication.js"
+    },
+    "./identity-transition": {
+      "lenso-source": "./src/identity-transition.ts",
+      "types": "./dist/identity-transition.d.ts",
+      "default": "./dist/identity-transition.js"
+    },
     "./session-fetch": {
       "lenso-source": "./src/browser-session-fetch.ts",
       "types": "./dist/browser-session-fetch.d.ts",
@@ -116,6 +126,7 @@
     "test": "bun test compiler/test"
   },
   "dependencies": {
+    "@lenso/auth": "0.5.0",
     "@orpc/client": "2.0.0-beta.42",
     "@orpc/contract": "2.0.0-beta.42",
     "zod": "4.6.5"
@@ -127,7 +138,7 @@
     "@lenso/console-react": "workspace:*",
     "@lenso/core": "0.3.1",
     "@lenso/engine": "0.6.0",
-    "@lenso/manage": "0.5.0",
+    "@lenso/manage": "0.5.2",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",
     "@orpc/server": "2.0.0-beta.42",
@@ -148,7 +159,7 @@
     "@lenso/console-react": "^0.1.0",
     "@lenso/core": "0.3.1",
     "@lenso/engine": "0.6.0",
-    "@lenso/manage": "0.5.0",
+    "@lenso/manage": "0.5.2",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",
     "@stylexjs/stylex": "0.19.1",
