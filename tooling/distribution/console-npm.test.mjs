@@ -109,6 +109,44 @@ test("backend RC archives use next and cannot become frontend or stable releases
   expect(() => validateReceipt(rc, env)).toThrow();
 });
 
+test("Auth Console repair publication rejects broader or foreign archive receipts", () => {
+  const auth = {
+    ...receipt,
+    package_scope: "auth-console",
+    packages: [
+      {
+        filename: "lenso-auth-console-1.0.1.tgz",
+        name: "@lenso/auth-console",
+        sha256: "b".repeat(64),
+        version: "1.0.1",
+      },
+    ],
+  };
+  const authEnv = { ...env, RELEASE_PACKAGE_SCOPE: "auth-console" };
+  expect(() => validateReceipt(auth, authEnv)).not.toThrow();
+  expect(() => validateReceipt(receipt, authEnv)).toThrow();
+  expect(() => validateReceipt(auth, env)).toThrow();
+  expect(() =>
+    validateReceipt({ ...auth, packages: receipt.packages }, authEnv)
+  ).toThrow();
+  expect(() =>
+    validateReceipt(
+      {
+        ...auth,
+        packages: [
+          {
+            ...auth.packages[0],
+            filename: "lenso-console-sdk-1.0.1.tgz",
+            name: "@lenso/console-sdk",
+          },
+        ],
+      },
+      authEnv
+    )
+  ).toThrow();
+  expect(() => releaseTag("1.0.1-rc.0", "auth-console")).toThrow();
+});
+
 test("local publication fails before opening a receipt or invoking npm", async () => {
   await expect(publish("does-not-exist", {})).rejects.toThrow(
     "protected main OIDC"

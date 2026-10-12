@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { waitForPackage } from "./wait-for-npm-package.mjs";
 
 const scopes = {
+  "auth-console": [["auth-console", "@lenso/auth-console"]],
   backend: [["console", "@lenso/console"]],
   frontend: [
     ["console-authoring", "@lenso/console-sdk"],

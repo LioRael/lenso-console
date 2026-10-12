@@ -20,6 +20,7 @@ on:
         options:
           - frontend
           - backend
+          - auth-console
 permissions:
   contents: read
 concurrency:
