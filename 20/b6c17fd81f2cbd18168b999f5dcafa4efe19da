@@ -1,0 +1,43 @@
+plugins/management/README.md
+  s_f4202e28c6b5b1::t_d7dadeb79e18ce 83,85-90,92-97
+plugins/management/crates/lenso-management-authority/src/pat.rs
+  s_f4202e28c6b5b1::t_330bda9daa0af9 276-287,453-460
+plugins/management/crates/lenso-management-core/src/external.rs
+  s_f4202e28c6b5b1::t_f70cd7860a09e8 49,75-78
+plugins/management/crates/lenso-management-core/src/tests.rs
+  s_f4202e28c6b5b1::t_f90d0c454cd18b 770,820,836,840-841,863-878
+plugins/observe/Cargo.lock
+  s_f4202e28c6b5b1::t_641a073ad35e61 320,322,324,390,392,404,406,420,433,446,461,540,542,556,558,604,606,626,628,888,890
+src/app/console-session.browser.test.tsx
+  s_f4202e28c6b5b1::t_01e2ede65c4960 365-399
+src/app/console-session.tsx
+  s_7d146975368699::t_c7dec4c51560c1 67-70,214-215
+src/features/management/human-controls.browser.test.tsx
+  s_f4202e28c6b5b1::t_9ce9ff01f6d5bc 1-225
+src/features/management/human-token-panel.tsx
+  s_f4202e28c6b5b1::t_7584abd0a81cbb 58-93,105,129,167-169,186-188,379
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "20b6c17fd81f2cbd18168b999f5dcafa4efe19da",
+  "prompts": {},
+  "sessions": {
+    "s_7d146975368699": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c54a-381f-7362-9b4d-95aea89e2437",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    },
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

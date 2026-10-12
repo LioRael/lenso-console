@@ -1,0 +1,32 @@
+.changeset/README.md
+  h_9d56aba080c170 3-4,6-11
+.github/workflows/console-sdk-npm.yml
+  h_9d56aba080c170 15-22,32-33,62,79
+README.md
+  h_9d56aba080c170 74-77
+bun.lock
+  h_9d56aba080c170 72
+packages/console/CHANGELOG.md
+  h_9d56aba080c170 3-12
+packages/console/LICENSE
+  h_9d56aba080c170 1-21
+packages/console/README.md
+  h_9d56aba080c170 4-9,190-191
+packages/console/package.json
+  h_9d56aba080c170 3,14-15
+tooling/distribution/console-npm.mjs
+  h_9d56aba080c170 5,11-24,29-31,54-55,82-96,110-131,155,169-229,311-312,314
+tooling/distribution/console-npm.test.mjs
+  h_9d56aba080c170 13,44,54-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77f5de637def52add5c012463dabe10d5cb32277",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
