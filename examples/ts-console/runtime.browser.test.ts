@@ -129,9 +129,7 @@ runtimeTest(
       await page.getByRole("heading", { name: "Sign in to Console" }).waitFor();
       await page.getByLabel("Account", { exact: true }).fill(config.subject);
       await page.getByLabel("Password", { exact: true }).fill(token);
-      await page
-        .getByRole("button", { name: "Sign in", exact: true })
-        .click();
+      await page.getByRole("button", { name: "Sign in", exact: true }).click();
       await page
         .getByRole("heading", { name: "Runtime", exact: true })
         .waitFor();
