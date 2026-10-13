@@ -1,0 +1,46 @@
+.bun-version
+  h_9d56aba080c170 1
+CONTRIBUTING.md
+  h_9d56aba080c170 67
+README.md
+  h_9d56aba080c170 43
+bun.lock
+  h_9d56aba080c170 25,72,81,115,163,173,183,228,258,282,317,801,883
+examples/ts-console/host.browser.test.ts
+  h_9d56aba080c170 59-63,104,118-155,163,168-170,202,228,315,417
+package.json
+  h_9d56aba080c170 76,95,97
+packages/auth-console/package.json
+  h_9d56aba080c170 51
+packages/console-authoring/README.md
+  h_9d56aba080c170 299
+packages/console-authoring/package.json
+  h_9d56aba080c170 154,174
+packages/console-dashboard/package.json
+  h_9d56aba080c170 83
+packages/console-plugin-manager/package.json
+  h_9d56aba080c170 45
+packages/console-react/package.json
+  h_9d56aba080c170 53
+packages/console-react/src/console-login.tsx
+  h_9d56aba080c170 49-50,53-56,60-89,93-111,147,164-166,196,198,218-223,279,301,304
+packages/console/package.json
+  h_9d56aba080c170 89
+plugins/console/shell/package.json
+  h_9d56aba080c170 36
+tooling/distribution/check-archives.mjs
+  h_9d56aba080c170 64
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3835d50cea6c4a21e9c1ca819cc6fe5d31010cb8",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
