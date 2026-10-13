@@ -18,6 +18,9 @@ try {
       diagnostics.push(`${message.type()}: ${message.text()}`);
     }
   });
+  // Cold source graphs can exceed the default 250-entry timing buffer before
+  // the fixture locates the already-loaded host modules.
+  await page.addInitScript(() => performance.setResourceTimingBufferSize(5000));
   await page.goto(origin);
   await page.waitForFunction(() =>
     performance
