@@ -130,7 +130,7 @@ runtimeTest(
       await page.getByLabel("Account", { exact: true }).fill(config.subject);
       await page.getByLabel("Password", { exact: true }).fill(token);
       await page
-        .getByRole("button", { name: "Local operator token", exact: true })
+        .getByRole("button", { name: "Sign in", exact: true })
         .click();
       await page
         .getByRole("heading", { name: "Runtime", exact: true })
