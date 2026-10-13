@@ -113,7 +113,10 @@ permission revision and session projection. Auth owns credential transport,
 discovery, interactive login and session operations. Console owns admission and
 per-operation enforcement. There is no User table or built-in account provider.
 
-Console and the SDK depend on published `@lenso/auth@0.5.0`, which includes
+Console depends on published `@lenso/auth@0.5.1`; the SDK retains `0.5.0`. Use
+the application's designated Auth instance from the backend's version for its
+Access view; actors from different package copies are not interchangeable.
+Both versions include
 the `/browser`, `/interactive` and `/http` entries. That release enforces the
 selected session source and reports early renewal as `RENEWAL_NOT_DUE` (HTTP
 409), without retiring a valid session. No temporary source links are required.
