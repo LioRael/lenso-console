@@ -12,6 +12,71 @@ import * as consoleLocale from "../../src/locale";
 import { discoverWorkspaces } from "../workspace-discovery.mjs";
 
 const compiler = path.resolve(import.meta.dir, "../compiler.mjs");
+// Unstyled compile fixtures cannot catch StyleX's runtime-only create failure or
+// a missing stylesheet in the public artifact.
+test("compiled StyleX pages execute with extracted descriptor styles", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "console-stylex-"));
+  try {
+    const entry = path.join(root, "console");
+    const output = path.join(root, "out");
+    fs.mkdirSync(entry);
+    fs.mkdirSync(output);
+    fs.mkdirSync(path.join(entry, "node_modules/@stylexjs"), { recursive: true });
+    const require = createRequire(import.meta.url);
+    fs.symlinkSync(
+      path.dirname(require.resolve("@stylexjs/stylex/package.json")),
+      path.join(entry, "node_modules/@stylexjs/stylex"),
+      "dir"
+    );
+    fs.writeFileSync(path.join(entry, "package.json"), '{"private":true}');
+    fs.writeFileSync(
+      path.join(entry, "page.tsx"),
+      `import "./base.css";
+import * as stylex from "@stylexjs/stylex";
+const styles = stylex.create({ root: { color: "red", padding: 13 } });
+export default function Page() {
+  return <h1 {...stylex.props(styles.root)}>Styled page</h1>;
+}`
+    );
+    fs.writeFileSync(path.join(entry, "base.css"), "h1 { margin: 0; }");
+    for (const command of ["check", "build"]) {
+      const result = Bun.spawnSync([
+        "bun", path.resolve(import.meta.dir, "../../author.mjs"), command,
+        "--entry", entry, "--out", output, "--plugin-id", "example.styled",
+      ]);
+      expect(result.exitCode, result.stderr.toString()).toBe(0);
+    }
+    const descriptor = JSON.parse(
+      fs.readFileSync(path.join(output, "descriptor.json"), "utf-8")
+    );
+    const script = descriptor.assets.find((asset) => asset.path === descriptor.module);
+    const module = await import(`data:text/javascript;base64,${script.content_base64}`);
+    const { Page } = module.createWorkspace({
+      react: React,
+      createElement: React.createElement,
+      services: {},
+    });
+    const html = renderToStaticMarkup(
+      React.createElement(Page, { location: { segments: [] } })
+    );
+    expect(html).toContain("Styled page");
+    expect(descriptor.styles).toEqual(["workspace.css"]);
+    const stylesheet = descriptor.assets.find(
+      (asset) => asset.path === descriptor.styles[0]
+    );
+    expect(stylesheet.media_type).toBe("text/css; charset=utf-8");
+    const css = Buffer.from(stylesheet.content_base64, "base64").toString();
+    expect(css).toContain("color:red");
+    expect(css).toContain("padding:13px");
+    expect(css).toMatch(/margin:\s*0/);
+    const classes = html.match(/class="([^"]+)"/)?.[1].split(" ") ?? [];
+    expect(classes.length).toBeGreaterThan(0);
+    for (const name of classes) expect(css).toContain(`.${name}`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}, 30000);
+
 // These protect runtime identity (one React), route matching, and fail-closed
 // ambiguity. A successful TS build alone does not execute the produced module.
 test("compiled pages use Shell React and match dynamic routes after static routes", async () => {

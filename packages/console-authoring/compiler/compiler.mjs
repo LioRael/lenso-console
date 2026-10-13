@@ -2,6 +2,9 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { transformAsync } from "@babel/core";
+import stylex from "@stylexjs/babel-plugin";
+
 import { discoverPages, pageBindings } from "./page-discovery.mjs";
 import { typecheck } from "./typecheck.mjs";
 
@@ -29,6 +32,7 @@ const sdk = path.resolve(import.meta.dir, "../src/index.ts");
 // Dependency installation belongs to the App/kit package manager. Compilation
 // consumes that locked graph and never creates a second installation in source.
 await typecheck({ root, out, authored, imports, checks, sdk });
+const stylexRules = new Map();
 const result = await Bun.build({
   entrypoints: [entry],
   target: "browser",
@@ -73,6 +77,36 @@ const result = await Bun.build({
         build.onResolve({ filter: /^@lenso\/console-sdk$/ }, () => ({
           path: sdk,
         }));
+        // StyleX requires module-level definitions, before Bun's CJS projection
+        // and the per-mount factory move those definitions into function scope.
+        build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async (args) => {
+          const source = await Bun.file(args.path).text();
+          if (!source.includes("@stylexjs/stylex")) return;
+          const extension = path.extname(args.path);
+          const typescript = /^\.[cm]?tsx?$/.test(extension);
+          const transformed = await transformAsync(source, {
+            filename: args.path,
+            babelrc: false,
+            configFile: false,
+            parserOpts: {
+              plugins: typescript ? ["typescript", "jsx"] : ["jsx"],
+            },
+            plugins: [
+              [stylex, {
+                dev: false,
+                runtimeInjection: false,
+                unstable_moduleResolution: { type: "commonJS", rootDir: root },
+              }],
+            ],
+          });
+          stylexRules.set(args.path, transformed.metadata.stylex ?? []);
+          return {
+            contents: transformed.code,
+            loader: extension.endsWith("tsx") ? "tsx"
+              : typescript ? "ts"
+              : extension.endsWith("jsx") ? "jsx" : "js",
+          };
+        });
       },
     },
   ],
@@ -81,10 +115,15 @@ if (!result.success) {
   throw new AggregateError(result.logs, "Console page build failed");
 }
 const assets = [];
+const css = [];
 for (const output of result.outputs) {
   const extension = path.extname(output.path);
   if (![".js", ".css"].includes(extension)) {
     throw new Error("Console v1 assets support JavaScript and CSS only");
+  }
+  if (extension === ".css") {
+    css.push(await output.text());
+    continue;
   }
   const bytes =
     extension === ".js"
@@ -100,6 +139,24 @@ return module.exports.createWorkspace(runtime); }`)
       extension === ".js"
         ? "text/javascript; charset=utf-8"
         : "text/css; charset=utf-8",
+    content_base64: bytes.toString("base64"),
+  });
+}
+const extractedCss = stylex.processStylexRules(
+  [...stylexRules.entries()]
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .flatMap(([, rules]) => rules),
+  { useLayers: false }
+);
+if (extractedCss) css.push(extractedCss);
+if (css.length) {
+  const bytes = Buffer.from(css.join("\n"));
+  if (bytes.length > 1024 * 1024) {
+    throw new Error("Console asset exceeds 1 MiB");
+  }
+  assets.push({
+    path: "workspace.css",
+    media_type: "text/css; charset=utf-8",
     content_base64: bytes.toString("base64"),
   });
 }
