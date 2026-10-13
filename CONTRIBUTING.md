@@ -64,7 +64,7 @@ script and dependency changes receive focused review and the upstream candidate 
 
 ### Shared local and CI gate
 
-Use Bun 1.4.2 from `.bun-version`. Node is only used at the publisher and
+Use Bun 1.4.3 from `.bun-version`. Node is only used at the publisher and
 external npm-compatibility consumer boundary. Inspect the workflow and the
 complete command chain before running the shared gate.
 

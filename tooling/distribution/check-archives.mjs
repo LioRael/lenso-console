@@ -61,7 +61,7 @@ try {
     ),
     "@lenso/console-sdk": env.LENSO_AUTHOR_ARCHIVE,
     "@lenso/core": "0.3.1",
-    "@types/bun": "1.4.2",
+    "@types/bun": "1.4.3",
     "@types/react": "^19.2.18",
     react: "19.2.8",
     "react-dom": "19.2.8",

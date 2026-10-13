@@ -46,25 +46,69 @@ const styles = stylex.create({
   main: {
     boxSizing: "border-box",
     width: "100%",
-    maxWidth: 448,
+    maxWidth: 408,
+    minHeight: "100dvh",
     marginInline: "auto",
     paddingInline: 24,
-    paddingBlockStart: {
-      default: "min(20dvh, 160px)",
-      "@media (max-width: 640px)": 64,
-    },
-    paddingBlockEnd: 48,
+    paddingBlock: 48,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
     color: "var(--foreground)",
     overflowWrap: "anywhere",
   },
-  heading: { marginBlock: 0, fontSize: 28, fontWeight: 600, lineHeight: 1.2 },
-  description: { marginBlockStart: 12, marginBlockEnd: 28, lineHeight: 1.5 },
-  methods: { display: "flex", flexDirection: "column", gap: 24 },
-  form: { display: "flex", flexDirection: "column", gap: 16, minWidth: 0 },
+  heading: {
+    width: "fit-content",
+    maxWidth: "100%",
+    marginInline: "auto",
+    marginBlock: 0,
+    fontSize: 24,
+    fontWeight: 500,
+    lineHeight: 1.3,
+    letterSpacing: "-0.02em",
+    textAlign: "center",
+    borderRadius: 6,
+    outlineOffset: 6,
+  },
+  description: {
+    marginBlockStart: 12,
+    marginBlockEnd: 32,
+    fontSize: 14,
+    lineHeight: 1.6,
+    textAlign: "center",
+    color: "color-mix(in oklab, var(--muted) 90%, var(--foreground) 10%)",
+  },
+  methods: { display: "flex", flexDirection: "column", gap: 32 },
+  form: { display: "flex", flexDirection: "column", gap: 20, minWidth: 0 },
+  method: {
+    marginBlock: 0,
+    fontSize: 12,
+    lineHeight: 1.5,
+    textAlign: "center",
+    color: "color-mix(in oklab, var(--muted) 90%, var(--foreground) 10%)",
+  },
   label: { display: "flex", flexDirection: "column", gap: 8, fontSize: 14 },
   input: { width: "100%", minWidth: 0, minHeight: 44 },
   action: { minHeight: 44, whiteSpace: "normal" },
-  actions: { display: "flex", flexWrap: "wrap", gap: 12, marginBlockStart: 20 },
+  submit: {
+    width: "100%",
+    marginBlockStart: 4,
+    color: "var(--background)",
+    // Inverting themes must not tween foreground and background through the same gray.
+    transitionProperty: "opacity, box-shadow",
+    backgroundColor: {
+      default: "var(--background-inverse)",
+      ":hover":
+        "color-mix(in oklab, var(--background-inverse) 92%, var(--background) 8%)",
+    },
+  },
+  actions: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 12,
+    marginBlockStart: 24,
+  },
   error: { marginBlockStart: 16, lineHeight: 1.5 },
 });
 
@@ -100,7 +144,7 @@ function Password<T extends ConsoleLoginEntry>({
   return (
     <form
       {...stylex.props(styles.form)}
-      aria-label={method.label}
+      aria-label={props.methods.length > 1 ? method.label : "Sign in"}
       aria-busy={props.busy}
       onSubmit={(event) => {
         event.preventDefault();
@@ -117,6 +161,9 @@ function Password<T extends ConsoleLoginEntry>({
         props.onPassword(method, input);
       }}
     >
+      {props.methods.length > 1 && (
+        <p {...stylex.props(styles.method)}>{method.label}</p>
+      )}
       <label {...stylex.props(styles.label)} htmlFor={`${id}-identifier`}>
         Account
         <Input
@@ -146,9 +193,9 @@ function Password<T extends ConsoleLoginEntry>({
         size="lg"
         type="submit"
         disabled={props.busy}
-        xstyle={styles.action}
+        xstyle={[styles.action, styles.submit]}
       >
-        {props.busy ? "Signing in…" : method.label}
+        {props.busy ? "Signing in…" : "Sign in"}
       </Button>
     </form>
   );
@@ -168,6 +215,12 @@ export function ConsoleLogin<T extends ConsoleLoginEntry>(
   }
   const showMethods =
     props.state === "unauthenticated" || props.state === "expired";
+  const showRetry =
+    props.state !== "loading" &&
+    (!showMethods ||
+      props.state === "expired" ||
+      props.methods.length === 0 ||
+      Boolean(props.error));
   return (
     <ConsoleLayout topEdge={{ enabled: false }}>
       <main
@@ -223,7 +276,7 @@ export function ConsoleLogin<T extends ConsoleLoginEntry>(
                     size="lg"
                     type="button"
                     disabled={props.busy}
-                    xstyle={styles.action}
+                    xstyle={[styles.action, styles.submit]}
                     onClick={() => props.onRedirect(method)}
                   >
                     {method.label}
@@ -245,10 +298,10 @@ export function ConsoleLogin<T extends ConsoleLoginEntry>(
           </p>
         )}
         <div {...stylex.props(styles.actions)}>
-          {props.state !== "loading" && (
+          {showRetry && (
             <Button
               size="lg"
-              variant="outline"
+              variant="ghost"
               disabled={props.busy}
               onClick={props.onRetry}
               xstyle={styles.action}

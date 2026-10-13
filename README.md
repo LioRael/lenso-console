@@ -40,7 +40,7 @@ Product and visual work follows the
 
 ## Install and develop
 
-Use Bun 1.4.2 from `.bun-version` and Node from `.node-version` only at the
+Use Bun 1.4.3 from `.bun-version` and Node from `.node-version` only at the
 publisher and external npm-compatibility consumer boundary. Framework dependencies resolve from the public
 registry; no sibling framework checkout or source-archive preparation is required:
 

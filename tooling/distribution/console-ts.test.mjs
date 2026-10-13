@@ -86,7 +86,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
           "@lenso/limits": "0.2.1",
           "@lenso/scheduler": "0.3.3",
           "@lenso/tasks": "0.4.0",
-          "@types/bun": "1.4.2",
+          "@types/bun": "1.4.3",
           "@types/node": "26.1.2",
           "@types/react": "19.2.18",
           "drizzle-orm": "0.45.3",

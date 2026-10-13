@@ -56,6 +56,11 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     await page.goto(`${origin}/authorization/`);
     await denied;
     await page.getByRole("heading", { name: "Sign in to Console" }).waitFor();
+    expect(
+      await page
+        .getByRole("button", { name: "Retry session", exact: true })
+        .count()
+    ).toBe(0);
     await page.keyboard.press("Tab");
     expect(
       await page
@@ -96,7 +101,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
       }
       expect(
         await page
-          .getByRole("button", { name: "Local operator token", exact: true })
+          .getByRole("button", { name: "Sign in", exact: true })
           .evaluate((node) => {
             const box = node.getBoundingClientRect();
             return (
@@ -110,35 +115,44 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
             );
           })
       ).toBe(true);
-      expect(
-        await page.getByLabel("Account", { exact: true }).evaluate((node) => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 1;
-          canvas.height = 1;
-          const ctx = canvas.getContext("2d")!;
-          const luminance = (color: string) => {
-            ctx.fillStyle = color;
-            ctx.fillRect(0, 0, 1, 1);
-            const [r, g, b] = [...ctx.getImageData(0, 0, 1, 1).data]
-              .slice(0, 3)
-              .map((value) => {
-                const channel = value / 255;
-                return channel <= 0.04045
-                  ? channel / 12.92
-                  : ((channel + 0.055) / 1.055) ** 2.4;
-              });
-            return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-          };
-          const foreground = luminance(getComputedStyle(node).color);
-          const background = luminance(
-            getComputedStyle(document.body).backgroundColor
-          );
-          return (
-            (Math.max(foreground, background) + 0.05) /
-            (Math.min(foreground, background) + 0.05)
-          );
-        })
-      ).toBeGreaterThanOrEqual(4.5);
+      for (const text of [
+        page.getByLabel("Account", { exact: true }),
+        page.getByRole("button", { name: "Sign in", exact: true }),
+        page.getByText("Use an account provided by this application.", {
+          exact: true,
+        }),
+      ]) {
+        expect(
+          await text.evaluate((node) => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 1;
+            canvas.height = 1;
+            const ctx = canvas.getContext("2d")!;
+            const luminance = (color: string) => {
+              ctx.fillStyle = color;
+              ctx.fillRect(0, 0, 1, 1);
+              const [r, g, b] = [...ctx.getImageData(0, 0, 1, 1).data]
+                .slice(0, 3)
+                .map((value) => {
+                  const channel = value / 255;
+                  return channel <= 0.04045
+                    ? channel / 12.92
+                    : ((channel + 0.055) / 1.055) ** 2.4;
+                });
+              return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+            };
+            const foreground = luminance(getComputedStyle(node).color);
+            const background = luminance(
+              getComputedStyle(node.tagName === "BUTTON" ? node : document.body)
+                .backgroundColor
+            );
+            return (
+              (Math.max(foreground, background) + 0.05) /
+              (Math.min(foreground, background) + 0.05)
+            );
+          })
+        ).toBeGreaterThanOrEqual(4.5);
+      }
     }
     await page.setViewportSize({ width: 1280, height: 800 });
     expect(
@@ -146,12 +160,13 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     ).toBe(0);
     await page.getByLabel("Account", { exact: true }).fill(config.subject);
     await page.getByLabel("Password", { exact: true }).fill("incorrect");
-    await page
-      .getByRole("button", { name: "Local operator token", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page
       .getByRole("alert")
       .getByText("Sign-in was not accepted.", { exact: false })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Retry session", exact: true })
       .waitFor();
     expect(
       await page.getByLabel("Password", { exact: true }).inputValue()
@@ -184,7 +199,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     await page.getByLabel("Account", { exact: true }).fill(config.subject);
     await page.getByLabel("Password", { exact: true }).fill(token);
     await page
-      .getByRole("form", { name: "Local operator token", exact: true })
+      .getByRole("form", { name: "Sign in", exact: true })
       .evaluate((node) => {
         (node as HTMLFormElement).requestSubmit();
         node.dispatchEvent(
@@ -210,9 +225,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
         response.url().includes("/rpc/workspace/invoke") &&
         response.status() === 200
     );
-    await page
-      .getByRole("button", { name: "Local operator token", exact: true })
-      .focus();
+    await page.getByRole("button", { name: "Sign in", exact: true }).focus();
     await page.keyboard.press("Enter");
     await admitted;
     await page.getByText("local-operator", { exact: true }).waitFor();
@@ -299,9 +312,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     await page.unroute(`${origin}/auth/methods`);
     await page.getByLabel("Account", { exact: true }).fill(config.subject);
     await page.getByLabel("Password", { exact: true }).fill(token);
-    await page
-      .getByRole("button", { name: "Local operator token", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.getByText("local-operator", { exact: true }).waitFor();
     await page.route(sessionUrl, (route) =>
       route.fulfill({ status: 503, json: { code: "service_unavailable" } })
@@ -403,9 +414,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     ).toBe(0);
     await page.getByLabel("Account", { exact: true }).fill(config.subject);
     await page.getByLabel("Password", { exact: true }).fill(token);
-    await page
-      .getByRole("button", { name: "Local operator token", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.getByText("local-operator", { exact: true }).waitFor();
     const second = await context.newPage();
     await second.goto(`${origin}/authorization/`);

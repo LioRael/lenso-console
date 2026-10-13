@@ -296,7 +296,7 @@ root remains supported.
 ## Develop one plugin page
 
 Install the SDK and the dependencies your pages import in the plugin's own
-`package.json`. Bun 1.4.2+ is the project runtime; Node is only needed for npm
+`package.json`. Bun 1.4.3+ is the project runtime; Node is only needed for npm
 compatibility consumers and publishing. Rust, a database and a Console source checkout are unnecessary. The SDK archive includes its page-only
 preview source, not built-in Console application pages. Compiler and preview tools
 are optional development dependencies supplied by the application, not part of

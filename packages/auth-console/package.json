@@ -48,7 +48,7 @@
     "@lenso/console-react": "workspace:*",
     "@lenso/core": "0.3.1",
     "@stylexjs/unplugin": "0.19.0",
-    "@types/bun": "1.4.2",
+    "@types/bun": "1.4.3",
     "@types/react": "^19.2.18",
     "@vitejs/plugin-react": "^6.0.5",
     "react": "19.2.8",
