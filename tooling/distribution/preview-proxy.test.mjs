@@ -9,6 +9,8 @@ import { backendProxy } from "../../packages/console-authoring/dev/proxy.mjs";
 const closeServer = (server) =>
   server.listening ? promisify(server.close.bind(server))() : Promise.resolve();
 
+const expectConnectionReset = (error) => assert.equal(error.code, "ECONNRESET");
+
 // Prevent a preview proxy from silently authorizing writes or dropping Auth/CSRF.
 test("backend proxy preserves authentication boundaries and rejects foreign writes", async () => {
   const requests = [];
@@ -90,7 +92,10 @@ test("backend proxy preserves authentication boundaries and rejects foreign writ
 });
 
 test("closing preview aborts an active backend event stream", async () => {
-  const backend = createServer((_req, res) => {
+  const backend = createServer((req, res) => {
+    // Forced stream cancellation may reset the backend socket before its close event.
+    req.once("error", expectConnectionReset);
+    req.socket.once("error", expectConnectionReset);
     res.writeHead(200, { "content-type": "text/event-stream" });
     res.write("data: explicit fixture\n\n");
   });
@@ -109,7 +114,8 @@ test("closing preview aborts an active backend event stream", async () => {
     const requested = once(backend, "request");
     const response = await fetch(`${origin}/api/events`);
     const [request] = await requested;
-    const disconnected = once(request.socket, "close");
+    const { promise: disconnected, resolve } = Promise.withResolvers();
+    request.socket.once("close", resolve);
     const reader = response.body.getReader();
     const first = await reader.read();
     assert.equal(first.done, false);
