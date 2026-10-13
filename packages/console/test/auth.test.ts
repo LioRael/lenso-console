@@ -602,3 +602,77 @@ test("Auth binding rotates/revokes sessions and retires Console identity proofs"
     service.authenticate(request({ cookie: `__Host-lenso-session=${rotated}` }))
   ).rejects.toMatchObject({ status: 401 });
 });
+
+// Prevent scope transport from re-verifying during policy checks or accepting a
+// different Request; existing fresh-enforce coverage does not exercise this opt-in.
+test("explicit read scope binds the original request and refreshes permission revision before disclosure", async () => {
+  const { defineSource } = await import("@lenso/auth");
+  let verifies = 0,
+    revision = "1",
+    allowed = true;
+  const auth = createAuth(
+    realm(
+      "read-console",
+      defineSource<string>({
+        capabilities: { authoritative: true },
+        async verify() {
+          verifies++;
+          return {
+            status: "verified",
+            subjectId: "alice",
+            kind: "user",
+            session: { authoritative: true, expiresAt: Date.now() + 60000 },
+          };
+        },
+      })
+    )
+  );
+  const access = auth
+    .for(audience("console"))
+    .requireSession({ authoritative: true });
+  const service = createConsoleAuthentication({
+    access,
+    requestPolicy: bearerPolicy,
+    evidence: () => "fixture",
+    permissionRevision: () => revision,
+    policy: () => allowed,
+    session: () => ({ administrator: false, workspace_ids: [] }),
+  });
+  try {
+    const original = request({ authorization: "Bearer fixture" });
+    const identity = await service.authenticate(original);
+    await expect(
+      service.beginRead!(identity, request({ authorization: "Bearer fixture" }))
+    ).rejects.toMatchObject({ status: 401 });
+    const scope = await service.beginRead!(identity, original);
+    expect(await service.canRead!(identity, resource, scope)).toBe(true);
+    expect(
+      await service.canDispatchRead!(
+        identity,
+        { ...resource, action: "list" },
+        resource,
+        scope
+      )
+    ).toBe(true);
+    expect(verifies).toBe(1);
+    revision = "2";
+    const current = await service.finishRead!(scope);
+    expect(current.readScope).not.toBe(identity.readScope);
+    expect(verifies).toBe(2);
+    await expect(
+      service.enforceRead!(identity, resource, scope)
+    ).rejects.toThrow();
+    service.closeRead!(scope);
+    const second = request({ authorization: "Bearer fixture" });
+    const other = await service.authenticate(second);
+    const rejected = await service.beginRead!(other, second);
+    expect(await service.canRead!(other, resource, rejected)).toBe(true);
+    allowed = false;
+    await expect(service.finishRead!(rejected)).rejects.toMatchObject({
+      status: 403,
+    });
+    service.closeRead!(rejected);
+  } finally {
+    await auth.close();
+  }
+});

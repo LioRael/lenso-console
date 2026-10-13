@@ -4,6 +4,7 @@ import {
   type Actor,
   type Policy,
   type PolicyContext,
+  type ReadOnlyScope,
 } from "@lenso/auth";
 import {
   AuthHttpError,
@@ -22,6 +23,7 @@ import {
 import type {
   ConsoleAuthentication,
   ConsoleIdentity,
+  ConsoleReadScope,
   ConsoleResource,
 } from "./types";
 
@@ -190,6 +192,48 @@ export function createConsoleAuthentication<
     }
     return stored;
   }
+  const reads = new WeakMap<
+    ConsoleReadScope,
+    {
+      identity: ConsoleIdentity;
+      request: Request;
+      authenticationScope: ReadOnlyScope<R, S, A>;
+    }
+  >();
+  function readProof(scope: ConsoleReadScope, identity?: ConsoleIdentity) {
+    const stored = reads.get(scope);
+    if (!stored || (identity && stored.identity !== identity))
+      throw new AuthError("UNAUTHORIZED");
+    stored.request.signal.throwIfAborted();
+    return stored;
+  }
+  async function makeIdentity(
+    actor: Actor<R, S, A>,
+    request: Request
+  ): Promise<ConsoleIdentity> {
+    const revision = await options.permissionRevision(actor, request);
+    if (typeof revision !== "string")
+      throw new ConsoleRequestError("service_unavailable");
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(
+        JSON.stringify([
+          actor.realmId,
+          actor.subjectId,
+          actor.audience,
+          revision,
+        ])
+      )
+    );
+    const identity = Object.freeze({
+      actor,
+      readScope: Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0")
+      ).join(""),
+    });
+    issued.set(identity, { actor, request });
+    return identity;
+  }
   async function authorize(
     identity: ConsoleIdentity,
     resource: ConsoleResource
@@ -225,27 +269,7 @@ export function createConsoleAuthentication<
         if (expected !== null && expected !== actor.subjectId) {
           throw new ConsoleRequestError("session_changed");
         }
-        const revision = await options.permissionRevision(actor, request);
-        if (typeof revision !== "string") {
-          throw new ConsoleRequestError("service_unavailable");
-        }
-        const digest = await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(
-            JSON.stringify([
-              actor.realmId,
-              actor.subjectId,
-              actor.audience,
-              revision,
-            ])
-          )
-        );
-        const readScope = Array.from(new Uint8Array(digest), (byte) =>
-          byte.toString(16).padStart(2, "0")
-        ).join("");
-        const identity = Object.freeze({ actor, readScope });
-        issued.set(identity, { actor, request });
-        return identity;
+        return makeIdentity(actor, request);
       });
     },
     async enforce(identity, resource) {
@@ -322,6 +346,94 @@ export function createConsoleAuthentication<
         throw safeError(error);
       }
     },
+    ...(options.access.beginRead && options.access.enforceRead
+      ? {
+          async beginRead(identity: ConsoleIdentity, request: Request) {
+            const stored = proof(identity);
+            if (stored.request !== request)
+              throw new ConsoleRequestError("unauthorized");
+            return guarded(request, async () => {
+              const authenticationScope = await options.access.beginRead!(
+                stored.actor,
+                { signal: request.signal }
+              );
+              const scope = Object.freeze({ authenticationScope });
+              reads.set(scope, { identity, request, authenticationScope });
+              return scope;
+            });
+          },
+          async enforceRead(
+            identity: ConsoleIdentity,
+            resource: ConsoleResource,
+            scope: ConsoleReadScope
+          ) {
+            const { request, authenticationScope } = readProof(scope, identity);
+            await guarded(request, async () => {
+              await options.access.enforceRead!(
+                authenticationScope,
+                Object.freeze({ ...resource }),
+                options.policy,
+                { signal: request.signal }
+              );
+            });
+          },
+          async canRead(
+            identity: ConsoleIdentity,
+            resource: ConsoleResource,
+            scope: ConsoleReadScope
+          ) {
+            try {
+              await service.enforceRead!(identity, resource, scope);
+              return true;
+            } catch (error) {
+              if (
+                error instanceof ConsoleRequestError &&
+                (error.code === "unauthorized" || error.code === "forbidden")
+              )
+                return false;
+              throw error;
+            }
+          },
+          async canDispatchRead(
+            identity: ConsoleIdentity,
+            visibility: ConsoleResource,
+            invocation: ConsoleResource,
+            scope: ConsoleReadScope
+          ) {
+            if (
+              visibility.action !== "list" ||
+              invocation.action !== "invoke" ||
+              (
+                [
+                  "targetId",
+                  "tenantId",
+                  "pluginId",
+                  "operation",
+                  "mountId",
+                ] as const
+              ).some((key) => visibility[key] !== invocation[key])
+            )
+              return false;
+            if (!(await service.canRead!(identity, visibility, scope)))
+              return false;
+            return service.canRead!(identity, invocation, scope);
+          },
+          async finishRead(scope: ConsoleReadScope) {
+            const { request, authenticationScope } = readProof(scope);
+            try {
+              return await guarded(request, async () =>
+                makeIdentity(await authenticationScope.finish(), request)
+              );
+            } finally {
+              reads.delete(scope);
+            }
+          },
+          closeRead(scope: ConsoleReadScope) {
+            reads.get(scope)?.authenticationScope.close();
+            reads.delete(scope);
+          },
+        }
+      : {}),
     async session(identity) {
       let stored: ReturnType<typeof proof>;
       try {

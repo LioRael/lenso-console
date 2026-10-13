@@ -6,6 +6,7 @@ export type { ConsoleOperationErrorCode } from "./errors";
 export type {
   ConsoleAuthentication,
   ConsoleIdentity,
+  ConsoleReadScope,
   ConsoleLocale,
   ConsoleLanguagePreference,
   ConsoleLocaleStore,

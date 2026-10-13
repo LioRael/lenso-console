@@ -1,4 +1,4 @@
-import type { Actor } from "@lenso/auth";
+import type { Actor, ReadOnlyScope } from "@lenso/auth";
 import type { ConsolePageAuthoringDescriptor } from "@lenso/console-sdk/protocol";
 import type {
   ConfigBinding,
@@ -28,6 +28,10 @@ export interface ConsoleIdentity {
   readonly readScope: string;
 }
 
+export interface ConsoleReadScope {
+  readonly authenticationScope: ReadOnlyScope<string, string, string>;
+}
+
 export interface ConsoleAuthentication {
   /** Concrete Auth-owned mounts, checked against the Console transport at assembly. */
   readonly httpPaths?: {
@@ -46,6 +50,29 @@ export interface ConsoleAuthentication {
     visibility: ConsoleResource,
     invocation: ConsoleResource
   ): Promise<boolean>;
+  /** Explicit short request lifetime. The host must finish before disclosure and close in finally. */
+  beginRead?(
+    identity: ConsoleIdentity,
+    request: Request
+  ): Promise<ConsoleReadScope>;
+  canRead?(
+    identity: ConsoleIdentity,
+    resource: ConsoleResource,
+    scope: ConsoleReadScope
+  ): Promise<boolean>;
+  enforceRead?(
+    identity: ConsoleIdentity,
+    resource: ConsoleResource,
+    scope: ConsoleReadScope
+  ): Promise<void>;
+  canDispatchRead?(
+    identity: ConsoleIdentity,
+    visibility: ConsoleResource,
+    invocation: ConsoleResource,
+    scope: ConsoleReadScope
+  ): Promise<boolean>;
+  finishRead?(scope: ConsoleReadScope): Promise<ConsoleIdentity>;
+  closeRead?(scope: ConsoleReadScope): void;
   session(identity: ConsoleIdentity): Promise<{
     administrator: boolean;
     workspace_ids: readonly string[];
@@ -134,8 +161,17 @@ export interface ConsoleOptions {
     input: unknown,
     request: Request,
     identity: ConsoleIdentity,
-    resource: ConsoleResource
+    resource: ConsoleResource,
+    scope?: ConsoleReadScope
   ) => OperationBoundOptions<Operation> | undefined;
+  /** Explicit host opt-in for a known finite read. Billing and streams must never opt in. */
+  readonly readScopeEligible?: (
+    operation: Operation,
+    input: unknown,
+    resource: ConsoleResource
+  ) => boolean;
+  /** Synchronously transfers lifetime responsibility to the host's outer disclosure boundary. */
+  readonly onReadScope?: (request: Request, scope: ConsoleReadScope) => void;
   /** Write guarantees belong to the service. Absence closes write/unknown operations. */
   readonly canWrite?: (
     operation: Operation,

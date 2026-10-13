@@ -40,6 +40,7 @@ import { subscription } from "./subscription";
 import type {
   ConsoleAuthentication,
   ConsoleIdentity,
+  ConsoleReadScope,
   ConsoleMount,
   ConsoleOptions,
   ConsoleResource,
@@ -165,7 +166,8 @@ export function createConsoleService(
     operation: Operation,
     input: unknown,
     mount?: ConsoleMount,
-    prepared?: Set<Operation>
+    prepared?: Set<Operation>,
+    readScope?: ConsoleReadScope
   ) => {
     checkAbort(request);
     if (
@@ -179,7 +181,8 @@ export function createConsoleService(
         input,
         request,
         identity,
-        resource(target, "invoke", operation, mount)
+        resource(target, "invoke", operation, mount),
+        readScope
       );
       if (
         binding &&
@@ -201,6 +204,7 @@ export function createConsoleService(
         };
       }
     }
+    if (readScope) throw failure("SERVICE_UNAVAILABLE", 503);
     await authorizeInvocation(target, identity, operation, mount);
     const binding = await options.binding(
       operation,
@@ -224,7 +228,8 @@ export function createConsoleService(
     request: Request,
     identity: ConsoleIdentity,
     operations?: readonly Operation[],
-    mount?: ConsoleMount
+    mount?: ConsoleMount,
+    readScope?: ConsoleReadScope
   ) => {
     const prepared = new Set<Operation>();
     return createManageAdapter({
@@ -246,6 +251,13 @@ export function createConsoleService(
             return false;
           }
           const invocation = resource(target, "invoke", operation, mount);
+          if (readScope)
+            return auth.canDispatchRead!(
+              identity,
+              visible,
+              invocation,
+              readScope
+            );
           if (auth.canDispatch) {
             return auth.canDispatch(identity, visible, invocation);
           }
@@ -255,7 +267,9 @@ export function createConsoleService(
           await auth.enforce(identity, invocation);
           return true;
         }
-        return auth.can(identity, visible);
+        return readScope
+          ? auth.canRead!(identity, visible, readScope)
+          : auth.can(identity, visible);
       },
       binding: (operation, input) =>
         bindInvocation(
@@ -265,7 +279,8 @@ export function createConsoleService(
           operation,
           input,
           mount,
-          prepared
+          prepared,
+          readScope
         ),
     });
   };
@@ -277,7 +292,8 @@ export function createConsoleService(
     request: Request,
     identity: ConsoleIdentity,
     operations?: readonly Operation[],
-    mount?: ConsoleMount
+    mount?: ConsoleMount,
+    readScope?: ConsoleReadScope
   ) {
     checkAbort(request);
     jsonInput(input);
@@ -286,7 +302,8 @@ export function createConsoleService(
       request,
       identity,
       operations,
-      mount
+      mount,
+      readScope
     ).invoke(pluginId, method, input);
     checkAbort(request);
     return result;
@@ -455,14 +472,65 @@ export function createConsoleService(
           checkAbort(request);
           return result;
         }
-        return invoke(
-          target,
-          input.pluginId,
-          input.method,
-          input.input,
-          request,
-          identity
-        );
+        let readScope: ConsoleReadScope | undefined;
+        const selected = target.manage
+          .flatMap((manage) => [...manage.operations])
+          .find(
+            (operation) =>
+              operation.plugin.id === input.pluginId &&
+              operation.method === input.method
+          );
+        if (
+          selected &&
+          selected.effect === "read" &&
+          options.prepareBinding &&
+          options.onReadScope &&
+          options.readScopeEligible?.(
+            selected,
+            input.input,
+            resource(target, "invoke", selected)
+          ) === true &&
+          auth.beginRead &&
+          auth.canRead &&
+          auth.canDispatchRead &&
+          auth.finishRead &&
+          auth.closeRead
+        ) {
+          readScope = await auth.beginRead(identity, request);
+          try {
+            const registration: unknown = options.onReadScope(
+              request,
+              readScope
+            );
+            if (
+              registration &&
+              typeof (registration as { then?: unknown }).then === "function"
+            ) {
+              // oxlint-disable-next-line promise/prefer-await-to-then, no-empty-function
+              void Promise.resolve(registration).catch(() => {});
+              throw failure("SERVICE_UNAVAILABLE", 503);
+            }
+          } catch (error) {
+            auth.closeRead(readScope);
+            throw error;
+          }
+        }
+        try {
+          return await invoke(
+            target,
+            input.pluginId,
+            input.method,
+            input.input,
+            request,
+            identity,
+            undefined,
+            undefined,
+            readScope
+          );
+        } catch (error) {
+          if (readScope) auth.closeRead!(readScope);
+          throw error;
+        }
       }
     ),
     workspace: {

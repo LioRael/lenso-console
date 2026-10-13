@@ -50,7 +50,7 @@ type FixtureAccess = Access<
   { allowed: true }
 >;
 
-function authentication(authBase = "/auth") {
+function authentication(authBase = "/auth", readScopeSource = false) {
   const state = {
     enabled: true,
     north: true,
@@ -70,12 +70,27 @@ function authentication(authBase = "/auth") {
         realm(
           "console-fixture" as string,
           defineSource({
+            ...(readScopeSource
+              ? { capabilities: { authoritative: true } }
+              : {}),
             async verify(token: string | null) {
               if (token === null) {
                 return { status: "absent" };
               }
               return state.enabled && token === "alice"
-                ? { status: "verified", subjectId: token, kind: state.kind }
+                ? {
+                    status: "verified",
+                    subjectId: token,
+                    kind: state.kind,
+                    ...(readScopeSource
+                      ? {
+                          session: {
+                            authoritative: true,
+                            expiresAt: Date.now() + 60000,
+                          },
+                        }
+                      : {}),
+                  }
                 : { status: "rejected" };
             },
           })
@@ -1818,5 +1833,132 @@ test("real Framework Auth re-verifies subscriptions after asynchronous DTO valid
       await app.stop();
     }
     expect(finalized).toBe(1);
+  }
+});
+
+// An opt-in hint alone must not change verification without a host disclosure
+// boundary or a supporting Auth implementation; the old binding test lacks hints.
+test("read scope opt-in falls back when the host boundary or Auth API is absent", async () => {
+  for (const missing of ["host", "auth"] as const) {
+    const auth = authentication();
+    const instance = counter("scope-fallback", auth.plugin);
+    let opened = 0;
+    const consolePlugin = createConsolePlugin({
+      authentication: auth.plugin,
+      management: true,
+      targets: [target("north", instance)],
+      binding: bound,
+      prepareBinding: (_operation, _input, _request, identity, resource) => ({
+        context: { identity, resource },
+      }),
+      readScopeEligible: () => true,
+      ...(missing === "host"
+        ? {}
+        : {
+            onReadScope: () => {
+              opened++;
+            },
+          }),
+    });
+    const app = await startApp({
+      plugins: [auth.plugin, instance.plugin, consolePlugin],
+    });
+    try {
+      if (missing === "auth") app.get(auth.plugin).beginRead = undefined;
+      expect(
+        await client(app.get(consolePlugin)).invoke({
+          targetId: "north",
+          pluginId: instance.plugin.id,
+          method: "read",
+          input: { label: "fallback" },
+        })
+      ).toMatchObject({ label: "fallback" });
+      expect(opened).toBe(0);
+      expect(auth.state.policyDecisions).toEqual([
+        "list",
+        "list",
+        "invoke",
+        "invoke",
+      ]);
+    } finally {
+      await app.stop();
+    }
+  }
+});
+
+// A finite read must not escape into legacy preparation after scope admission;
+// denial/error paths need a real RPC proof, rather than auth-only scope coverage.
+test("scoped finite RPC dispatch checks exact operation grants and closes failed preparation", async () => {
+  const auth = authentication("/auth", true);
+  const instance = counter("scoped-counter", auth.plugin);
+  let scope: import("../src/types").ConsoleReadScope | undefined;
+  let mode = "ready";
+  const consolePlugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [target("north", instance)],
+    binding: bound,
+    readScopeEligible: (operation) => operation.method === "read",
+    onReadScope: (_request, opened) => {
+      scope = opened;
+      if (mode === "host-throw")
+        throw new Error("private host lifecycle error");
+      if (mode === "host-async")
+        return Promise.reject(new Error("private async lifecycle error"));
+    },
+    prepareBinding: (
+      _operation,
+      _input,
+      _request,
+      identity,
+      resource,
+      opened
+    ) => {
+      expect(opened).toBe(scope);
+      if (mode === "missing") return undefined;
+      if (mode === "prepare-async")
+        return Promise.resolve({
+          context: { identity, resource },
+        }) as unknown as {
+          context: { identity: ConsoleIdentity; resource: ConsoleResource };
+        };
+      if (mode === "deny") auth.state.dispatchDenied = "invoke";
+      return { context: { identity, resource } };
+    },
+  });
+  const app = await startApp({
+    plugins: [auth.plugin, instance.plugin, consolePlugin],
+  });
+  const service = app.get(auth.plugin);
+  try {
+    const call = () =>
+      client(app.get(consolePlugin)).invoke({
+        targetId: "north",
+        pluginId: instance.plugin.id,
+        method: "read",
+        input: { label: "scope" },
+      });
+    expect(await call()).toMatchObject({ label: "scope" });
+    expect(auth.state.policyDecisions).toEqual([
+      "list",
+      "list",
+      "invoke",
+      "invoke",
+    ]);
+    expect(await service.finishRead!(scope!)).toHaveProperty("readScope");
+    service.closeRead!(scope!);
+    for (mode of ["missing", "prepare-async", "host-throw", "host-async"]) {
+      await expect(call()).rejects.toMatchObject({
+        code: "SERVICE_UNAVAILABLE",
+      });
+      await expect(service.finishRead!(scope!)).rejects.toThrow();
+    }
+    mode = "deny";
+    await expect(call()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(service.finishRead!(scope!)).rejects.toThrow();
+    expect(instance.state.calls).toBe(1);
+  } finally {
+    service.closeRead!(scope!);
+    await app.stop();
   }
 });
