@@ -18,6 +18,7 @@ import {
   localTarget,
 } from "./local-auth";
 import { createLocalLocaleStore } from "./locale-store";
+import type { createRuntimeMount as runtimeMountFactory } from "./runtime-mount";
 import { createBuiltShell } from "./shell";
 
 export async function createHost(config: HostConfiguration) {
@@ -46,6 +47,15 @@ export async function createHost(config: HostConfiguration) {
     map: ({ identity }) => ({ caller: identity, scope: localScope }),
   });
   const locale = createLocalLocaleStore(config.databasePath);
+  let runtime: Awaited<ReturnType<typeof runtimeMountFactory>> | undefined;
+  if (config.runtimePort) {
+    const { createRuntimeMount } = await import("./runtime-mount");
+    runtime = await createRuntimeMount(
+      local.authentication,
+      config.runtimePort,
+      config.apiBasePath
+    );
+  }
   const consolePlugin = createConsolePlugin({
     authentication: local.authentication,
     apiBasePath: config.apiBasePath,
@@ -64,15 +74,29 @@ export async function createHost(config: HostConfiguration) {
         id: localTarget,
         label: "Local operator application",
         tenantId: localScope.id,
-        plugins: [authorization.plugin, locale],
-        manage: [authorization.manage],
+        plugins: [
+          authorization.plugin,
+          locale,
+          ...(runtime ? [runtime.inspection.plugin] : []),
+        ],
+        manage: [
+          authorization.manage,
+          ...(runtime ? [runtime.inspection.manage] : []),
+        ],
         mounts: [
           await createAuthorizationMount(authorization, config.apiBasePath),
+          ...(runtime ? [runtime.mount] : []),
         ],
       },
     ],
-    binding: (_operation, _input, request, identity, resource) => ({
-      context: { identity, resource, request },
+    binding: (operation, _input, request, identity, resource) => ({
+      context: runtime?.inspection.operations.some(
+        (selected) =>
+          selected.plugin === operation.plugin &&
+          selected.method === operation.method
+      )
+        ? { evidence: { identity, resource, request } }
+        : { identity, resource, request },
       signal: request.signal,
     }),
     shellMatches: shell.matches,
@@ -111,6 +135,7 @@ export async function createHost(config: HostConfiguration) {
         inspection,
         authorization.plugin,
         locale,
+        ...(runtime ? [runtime.runtime, runtime.inspection.plugin] : []),
         consolePlugin,
         web,
         listener,
@@ -121,5 +146,6 @@ export async function createHost(config: HostConfiguration) {
     consolePlugin,
     authentication: local.authentication,
     locale,
+    runtime: runtime?.runtime,
   };
 }

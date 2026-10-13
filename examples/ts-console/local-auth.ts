@@ -127,7 +127,7 @@ export function createLocalAuthentication(config: HostConfiguration) {
         requestPolicy,
         evidence: (request) => authCookie(request, sessionCookie),
         methodsPath: `${config.authBasePath}/methods`,
-        returnRoots: ["/", "/console", "/authorization"],
+        returnRoots: ["/", "/console", "/authorization", "/runtime"],
         login: [
           passwordLogin({
             id: "local-password",

@@ -12,10 +12,13 @@
         "@lenso/authorization": "0.3.3",
         "@lenso/console": "workspace:*",
         "@lenso/console-react": "workspace:*",
+        "@lenso/console-runtime": "workspace:*",
         "@lenso/console-sdk": "workspace:*",
         "@lenso/core": "0.3.1",
         "@lenso/engine": "0.6.0",
         "@lenso/manage": "0.5.2",
+        "@lenso/runtime": "file:.runtime-deps/adapter",
+        "@lenso/runtime-sdk": "file:.runtime-deps/sdk",
         "@lenso/ui": "0.9.1",
         "@lenso/web": "0.3.2",
         "@orpc/client": "2.0.0-beta.42",
@@ -140,9 +143,11 @@
         "lenso-console-author": "./author.mjs",
       },
       "dependencies": {
+        "@babel/core": "7.29.7",
         "@lenso/auth": "0.5.0",
         "@orpc/client": "2.0.0-beta.42",
         "@orpc/contract": "2.0.0-beta.42",
+        "@stylexjs/babel-plugin": "0.19.0",
         "zod": "4.6.5",
       },
       "devDependencies": {
@@ -289,6 +294,27 @@
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
       },
+    },
+    "packages/console-runtime": {
+      "name": "@lenso/console-runtime",
+      "version": "0.1.0",
+      "dependencies": {
+        "@lenso/ui": "0.9.1",
+        "@stylexjs/stylex": "^0.19.0",
+        "zod": "4.6.5",
+      },
+      "peerDependencies": {
+        "@lenso/console": "*",
+        "@lenso/console-sdk": "*",
+        "@lenso/core": "^0.3.1",
+        "@lenso/engine": "^0.6.0",
+        "@lenso/manage": "^0.5.2",
+        "@lenso/runtime": "*",
+        "react": "^19.0.0",
+      },
+      "optionalPeers": [
+        "@lenso/runtime",
+      ],
     },
     "plugins/console/shell": {
       "name": "@lenso/console-web",
@@ -526,6 +552,8 @@
 
     "@lenso/console-react": ["@lenso/console-react@workspace:packages/console-react"],
 
+    "@lenso/console-runtime": ["@lenso/console-runtime@workspace:packages/console-runtime"],
+
     "@lenso/console-sdk": ["@lenso/console-sdk@workspace:packages/console-authoring"],
 
     "@lenso/console-web": ["@lenso/console-web@workspace:plugins/console/shell"],
@@ -541,6 +569,10 @@
     "@lenso/manage": ["@lenso/manage@0.5.2", "", { "dependencies": { "@lenso/core": "^0.3.1", "@lenso/engine": "^0.6.0", "@standard-schema/spec": "1.1.0" }, "peerDependencies": { "@lenso/auth": "^0.5.0", "@orpc/server": "2.0.0-beta.42" }, "optionalPeers": ["@lenso/auth", "@orpc/server"] }, "sha512-Md7twUZzCOfsCXrqISrdJUep8ll4KoDGiBINqfFjlK4YSInpvNNrdAp+Okmqj27VH2Ok/1zuSVBSsl/SSekjNA=="],
 
     "@lenso/otel": ["@lenso/otel@0.3.0", "", { "dependencies": { "@opentelemetry/api": "1.9.1", "@opentelemetry/context-async-hooks": "2.12.0", "@opentelemetry/core": "2.12.0", "@opentelemetry/exporter-metrics-otlp-http": "0.223.0", "@opentelemetry/exporter-trace-otlp-http": "0.223.0", "@opentelemetry/instrumentation": "0.223.0", "@opentelemetry/resources": "2.12.0", "@opentelemetry/sdk-metrics": "2.12.0", "@opentelemetry/sdk-trace-base": "2.12.0", "@opentelemetry/sdk-trace-node": "2.12.0" }, "peerDependencies": { "@orpc/cloudflare": "2.0.0-beta.42", "@orpc/opentelemetry": "2.0.0-beta.42" }, "optionalPeers": ["@orpc/cloudflare", "@orpc/opentelemetry"] }, "sha512-TET3pphBJToIrIwCSOOCfqeJmfOQcobcDHJoqcTcbr4vWPlee/0dd+Y15cKqI5M+aTI6ioluX4Z526POqinkLw=="],
+
+    "@lenso/runtime": ["@lenso/runtime@file:.runtime-deps/adapter", { "dependencies": { "@lenso/core": "0.3.1", "@standard-schema/spec": "1.1.0" }, "peerDependencies": { "@lenso/engine": "^0.6.0", "@lenso/manage": "^0.5.2", "@lenso/runtime-sdk": "0.1.0" }, "optionalPeers": ["@lenso/engine", "@lenso/manage"] }],
+
+    "@lenso/runtime-sdk": ["@lenso/runtime-sdk@file:.runtime-deps/sdk", {}],
 
     "@lenso/scheduler": ["@lenso/scheduler@0.3.3", "", { "dependencies": { "@standard-schema/spec": "1.1.0", "cron-parser": "5.10.1" }, "peerDependencies": { "@lenso/auth": "^0.5.0", "@lenso/core": "^0.3.1", "@lenso/engine": "^0.6.0", "@lenso/manage": "^0.5.2", "@lenso/tasks": "^0.4.0", "drizzle-orm": "0.45.3", "zod": "4.6.5" }, "optionalPeers": ["@lenso/auth", "@lenso/core", "@lenso/engine", "@lenso/manage", "@lenso/tasks", "drizzle-orm", "zod"] }, "sha512-kiLiMDoavPzdXVXbgSr0iunEO/svLEHDZRL+jtrncu+ke6jDO9iIvCepTbF97oQC+Ifg1t3ABJLvTcWGss/MVA=="],
 

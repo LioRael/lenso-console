@@ -81,7 +81,9 @@ const result = await Bun.build({
         // and the per-mount factory move those definitions into function scope.
         build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async (args) => {
           const source = await Bun.file(args.path).text();
-          if (!source.includes("@stylexjs/stylex")) return;
+          if (!source.includes("@stylexjs/stylex")) {
+            return;
+          }
           const extension = path.extname(args.path);
           const typescript = /^\.[cm]?tsx?$/.test(extension);
           const transformed = await transformAsync(source, {
@@ -92,19 +94,29 @@ const result = await Bun.build({
               plugins: typescript ? ["typescript", "jsx"] : ["jsx"],
             },
             plugins: [
-              [stylex, {
-                dev: false,
-                runtimeInjection: false,
-                unstable_moduleResolution: { type: "commonJS", rootDir: root },
-              }],
+              [
+                stylex,
+                {
+                  dev: false,
+                  runtimeInjection: false,
+                  unstable_moduleResolution: {
+                    type: "commonJS",
+                    rootDir: root,
+                  },
+                },
+              ],
             ],
           });
           stylexRules.set(args.path, transformed.metadata.stylex ?? []);
           return {
             contents: transformed.code,
-            loader: extension.endsWith("tsx") ? "tsx"
-              : typescript ? "ts"
-              : extension.endsWith("jsx") ? "jsx" : "js",
+            loader: extension.endsWith("tsx")
+              ? "tsx"
+              : typescript
+                ? "ts"
+                : extension.endsWith("jsx")
+                  ? "jsx"
+                  : "js",
           };
         });
       },
@@ -144,11 +156,13 @@ return module.exports.createWorkspace(runtime); }`)
 }
 const extractedCss = stylex.processStylexRules(
   [...stylexRules.entries()]
-    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .flatMap(([, rules]) => rules),
   { useLayers: false }
 );
-if (extractedCss) css.push(extractedCss);
+if (extractedCss) {
+  css.push(extractedCss);
+}
 if (css.length) {
   const bytes = Buffer.from(css.join("\n"));
   if (bytes.length > 1024 * 1024) {

@@ -1,0 +1,28 @@
+{
+  "runtime": {
+    "repo": "lenso-runtime",
+    "commit": "6de3ffc224b664158c5118286a83646f12fd5021",
+    "sha256": "7b5479f0b38c43fbf7dab54d5b89beaba332697784d41529a9dca66bb7bc7028"
+  },
+  "lenso": {
+    "repo": "lenso",
+    "commit": "2eb44c37c07c71eb713da1337fe99c794c13cc5f",
+    "sha256": "7d70f1f9ef1ec36469a778af34515e22130b3918bf8050e11e22aa923926a71d"
+  },
+  "bootstrap": {
+    "name": "console-runtime-adapter-bootstrap",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+      "@lenso/core": "0.3.1",
+      "@lenso/engine": "0.6.0",
+      "@lenso/manage": "0.5.2",
+      "@lenso/runtime-sdk": "file:../sdk",
+      "@standard-schema/spec": "1.1.0"
+    },
+    "devDependencies": {
+      "@types/bun": "1.4.2",
+      "typescript": "7.0.2"
+    }
+  }
+}

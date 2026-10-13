@@ -1,0 +1,55 @@
+{
+  "@lenso/core": [
+    "@lenso/core@0.3.1",
+    "",
+    {
+      "dependencies": {
+        "@opentelemetry/api": "1.9.1",
+        "@standard-schema/spec": "1.1.0"
+      }
+    },
+    "sha512-c10IqSvv4bM0X4jtMsmRs/H0bXF+M2nXekCagQ6jF1Bz9EhN1foNk7yn3TrKyJ3Rswe1Cvvm7etl8nh+DfBwrg=="
+  ],
+  "@lenso/engine": [
+    "@lenso/engine@0.6.0",
+    "",
+    {
+      "dependencies": {
+        "@lenso/core": "^0.3.1",
+        "@opentelemetry/api": "1.9.1",
+        "@standard-schema/spec": "1.1.0"
+      }
+    },
+    "sha512-DA7i0KQ+fZHzTqi8a9LyXaFZXODlbUDnN2Bh9Cw0afmLhaYtYSKHA4u06JxLzItH3lh6gUTPJuF2idE4MTgJXQ=="
+  ],
+  "@lenso/manage": [
+    "@lenso/manage@0.5.2",
+    "",
+    {
+      "dependencies": {
+        "@lenso/core": "^0.3.1",
+        "@lenso/engine": "^0.6.0",
+        "@standard-schema/spec": "1.1.0"
+      },
+      "peerDependencies": {
+        "@lenso/auth": "^0.5.0",
+        "@orpc/server": "2.0.0-beta.42"
+      },
+      "optionalPeers": ["@lenso/auth", "@orpc/server"]
+    },
+    "sha512-Md7twUZzCOfsCXrqISrdJUep8ll4KoDGiBINqfFjlK4YSInpvNNrdAp+Okmqj27VH2Ok/1zuSVBSsl/SSekjNA=="
+  ],
+  "@lenso/runtime-sdk": ["@lenso/runtime-sdk@file:../sdk", {}],
+  "@opentelemetry/api": [
+    "@opentelemetry/api@1.9.1",
+    "",
+    {},
+    "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="
+  ],
+  "@standard-schema/spec": [
+    "@standard-schema/spec@1.1.0",
+    "",
+    {},
+    "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="
+  ]
+}

@@ -24,3 +24,6 @@ packages/console-authoring/shell/
 packages/console-authoring/dev/shell/
 packages/console-authoring/dev/shared/
 packages/console-authoring/dev/favicon.svg
+
+# Verified local Runtime dependency artifacts and external test fixture
+/.runtime-deps/

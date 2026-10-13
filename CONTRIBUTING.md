@@ -75,6 +75,25 @@ workspace aliases, temporary archives or copied implementation files. An
 unavailable published API is a delivery blocker, not permission to patch
 `node_modules` or prepare a sibling framework checkout.
 
+The only exception is the currently unpublished optional `@lenso/runtime-sdk`
+and `@lenso/runtime` packages. Before frozen installation, run
+`bun tooling/distribution/prepare-runtime-deps.mjs`. This reviewed preparation
+uses fixed public repository commits and verifies SHA-256 before extracting or
+executing code. It stages public manifests and built `dist` under ignored
+`.runtime-deps/sdk` and `.runtime-deps/adapter`, and retains verified Runtime
+source under `.runtime-deps/runtime` for external fixture builds. It runs no
+Cargo, publication, deployment or sibling framework builds. Adapter declarations
+are built against exact published Core, Engine and Manage packages using a
+separate frozen bootstrap lock; ordinary framework and Auth dependencies remain
+published npm resolutions. Arbitrary source/pin overrides are not supported.
+Remove this exception when both Runtime packages are published.
+
+The complete gate builds only the external Runtime kernel and batch-service
+fixture with Rust 1.94.0, using its fixed source and Cargo lockfile. It then
+requires the authenticated Runtime page browser test; missing inputs fail.
+This does not restore a native Console Host or require Rust for ordinary
+TypeScript application startup.
+
 CI and local validation use the same frozen installation sequence. Archive
 integration packs the candidate Console backend and SDK, then installs those
 archives in an isolated application with normal published framework packages. It

@@ -21,7 +21,9 @@ test("compiled StyleX pages execute with extracted descriptor styles", async () 
     const output = path.join(root, "out");
     fs.mkdirSync(entry);
     fs.mkdirSync(output);
-    fs.mkdirSync(path.join(entry, "node_modules/@stylexjs"), { recursive: true });
+    fs.mkdirSync(path.join(entry, "node_modules/@stylexjs"), {
+      recursive: true,
+    });
     const require = createRequire(import.meta.url);
     fs.symlinkSync(
       path.dirname(require.resolve("@stylexjs/stylex/package.json")),
@@ -41,16 +43,27 @@ export default function Page() {
     fs.writeFileSync(path.join(entry, "base.css"), "h1 { margin: 0; }");
     for (const command of ["check", "build"]) {
       const result = Bun.spawnSync([
-        "bun", path.resolve(import.meta.dir, "../../author.mjs"), command,
-        "--entry", entry, "--out", output, "--plugin-id", "example.styled",
+        "bun",
+        path.resolve(import.meta.dir, "../../author.mjs"),
+        command,
+        "--entry",
+        entry,
+        "--out",
+        output,
+        "--plugin-id",
+        "example.styled",
       ]);
       expect(result.exitCode, result.stderr.toString()).toBe(0);
     }
     const descriptor = JSON.parse(
       fs.readFileSync(path.join(output, "descriptor.json"), "utf-8")
     );
-    const script = descriptor.assets.find((asset) => asset.path === descriptor.module);
-    const module = await import(`data:text/javascript;base64,${script.content_base64}`);
+    const script = descriptor.assets.find(
+      (asset) => asset.path === descriptor.module
+    );
+    const module = await import(
+      `data:text/javascript;base64,${script.content_base64}`
+    );
     const { Page } = module.createWorkspace({
       react: React,
       createElement: React.createElement,
@@ -71,7 +84,9 @@ export default function Page() {
     expect(css).toMatch(/margin:\s*0/);
     const classes = html.match(/class="([^"]+)"/)?.[1].split(" ") ?? [];
     expect(classes.length).toBeGreaterThan(0);
-    for (const name of classes) expect(css).toContain(`.${name}`);
+    for (const name of classes) {
+      expect(css).toContain(`.${name}`);
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

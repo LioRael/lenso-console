@@ -15,6 +15,11 @@ export async function startConfiguredHost(configPath: string) {
     config: path.basename(configPath),
   });
   const application = await readApplication(root, trustedPath);
+  const module = await import(pathToFileURL(trustedPath).href);
+  if (module.host?.runtime) {
+    const { startRuntimeApp } = await import("@lenso/runtime");
+    return startRuntimeApp(application.app);
+  }
   return startApp(application.app);
 }
 

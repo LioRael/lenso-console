@@ -86,16 +86,19 @@ from that procedure, rather than replacing it.
   Inspect their actual scripts and imported tool configuration before running
   them; a scoped lint command must apply the repository's existing overrides.
 - Establish dependency reproducibility before installation. Prefer compatible
-  published TS packages. If a candidate depends on unpublished framework changes,
-  record their immutable source revision and provide a reviewed archive/workspace
-  preparation that works in a clean candidate checkout and CI. Include transitive
-  resolutions; ignored local archives and a dirty framework patch are not CI
-  evidence. Installing dependencies must preserve the committed lockfile.
+  published TS packages. Follow the contribution guide's narrow Runtime exception:
+  review and run `bun run prepare:runtime` before frozen installation in both
+  clean candidate and CI. Include transitive resolutions; manual links and a
+  dirty framework patch are not CI evidence. Installing dependencies must
+  preserve the committed lockfile.
 - The required local and candidate gates must validate the TS runtime. If current
   scripts or CI still invoke retired Rust/Cargo checks, native launchers or Agent
   binary downloads, report the stale pipeline as a blocker and have it migrated
   under the appropriate scope. Do not install the retired stack to satisfy it,
   silently skip required checks, or weaken destination protection.
+  The contribution guide's external Runtime kernel/service browser fixture is
+  intentional, not a retired native Console Host. Verify its mandatory shared
+  gate rather than removing or skipping it.
 - Exercise the real Fetch/oRPC/Auth/Manage boundary and exact instance bindings
   when backend behavior changes. SDK or packaging changes need a built archive
   consumed outside source aliases, including declaration and browser import

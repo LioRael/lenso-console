@@ -42,9 +42,12 @@ Product and visual work follows the
 
 Use Bun 1.4.3 from `.bun-version` and Node from `.node-version` only at the
 publisher and external npm-compatibility consumer boundary. Framework dependencies resolve from the public
-registry; no sibling framework checkout or source-archive preparation is required:
+registry. The two unpublished Runtime packages use the fixed, hash-verified
+preparation described in [CONTRIBUTING.md](CONTRIBUTING.md); no sibling checkout
+is required:
 
 ```sh
+bun run prepare:runtime
 bun install --frozen-lockfile
 bun run sdk:build
 bun run dev
@@ -140,7 +143,8 @@ bun run build:local
 
 `bun run check` is the shared TS gate: tool versions, format/lint/type checks,
 backend/SDK/Shell tests, builds, actual archive consumption and pinned Chromium
-checks. It contains no Cargo, native binary download or legacy kit requirement.
+checks. It builds an external Runtime kernel/service fixture with pinned Rust;
+ordinary TS startup does not require Rust or the retired native Console stack.
 Install Chromium with `bun --bun x --no-install playwright install chromium` for focused browser
 checks. Alternate browser executables are diagnostic evidence, not full-gate proof.
 Linux candidate CI remains authoritative; local checks do not prove deployment,

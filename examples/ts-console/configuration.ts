@@ -27,6 +27,7 @@ export const hostConfiguration = definePluginConfig({
       databasePath: z
         .string()
         .default("../../.artifacts/ts-console/locale.sqlite"),
+      runtimePort: z.coerce.number().int().min(1024).max(65535).optional(),
     })
     .superRefine((value, context) => {
       let origin: URL;
@@ -99,6 +100,7 @@ export function hostSources(root: string): ConfigSource[] {
         authBasePath: { name: "LENSO_TS_AUTH_PREFIX", empty: "error" },
         shellDirectory: { name: "LENSO_TS_SHELL", empty: "error" },
         databasePath: { name: "LENSO_TS_DATABASE", empty: "error" },
+        runtimePort: { name: "LENSO_RUNTIME_PORT", empty: "error" },
       },
     }),
   ];
