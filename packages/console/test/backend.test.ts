@@ -58,6 +58,8 @@ function authentication(authBase = "/auth") {
     admitted: 0,
     localeDefault: false,
     kind: "user" as "user" | "service",
+    dispatchDenied: undefined as "list" | "invoke" | undefined,
+    policyDecisions: [] as string[],
     revisionOverride: undefined as string | undefined,
   };
   let access: FixtureAccess;
@@ -92,9 +94,14 @@ function authentication(authBase = "/auth") {
         );
       const service = createConsoleAuthentication({
         access,
-        policy: ({ membership, resource }) =>
-          membership.allowed &&
-          (resource.action !== "session" || state.consoleAccess),
+        policy: ({ membership, resource }) => {
+          state.policyDecisions.push(resource.action);
+          return (
+            membership.allowed &&
+            resource.action !== state.dispatchDenied &&
+            (resource.action !== "session" || state.consoleAccess)
+          );
+        },
         requestPolicy: { origin, credentialMode: "bearer" },
         evidence: (request) =>
           request.headers.get("authorization")?.slice(7) ?? null,
@@ -461,6 +468,105 @@ test("SDK errors keep trusted domain status and safe retry units, never arbitrar
   }
 });
 
+test("pure read preparation rejects async results and rechecks both dispatch grants; undefined keeps legacy binding", async () => {
+  const auth = authentication();
+  const instance = counter("prepared-counter", auth.plugin);
+  let legacyCalls = 0,
+    mode = "prepared",
+    prepareCalls = 0;
+  const consolePlugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [target("north", instance)],
+    prepareBinding(_operation, _input, _request, identity, resource) {
+      prepareCalls += 1;
+      if (prepareCalls === 1) {
+        expect(auth.state.policyDecisions).toEqual(["list"]);
+      }
+      const result = { context: { identity, resource } };
+      if (mode === "undefined") {
+        return undefined;
+      }
+      if (mode === "promise") {
+        return Promise.resolve(result) as unknown as typeof result;
+      }
+      if (mode === "thenable") {
+        // This invalid thenable proves synchronous preparation fails closed.
+        // oxlint-disable-next-line unicorn/no-thenable
+        return { then: () => undefined } as unknown as typeof result;
+      }
+      if (mode === "revoked") {
+        auth.state.enabled = false;
+      }
+      if (mode === "list" || mode === "invoke") {
+        auth.state.dispatchDenied = mode;
+      }
+      return result;
+    },
+    binding: (...args) => {
+      legacyCalls += 1;
+      return bound(...args);
+    },
+  });
+  const app = await startApp({
+    plugins: [auth.plugin, instance.plugin, consolePlugin],
+  });
+  try {
+    const rpc = client(app.get(consolePlugin));
+    const invoke = () =>
+      rpc.invoke({
+        targetId: "north",
+        pluginId: instance.plugin.id,
+        method: "read",
+        input: { label: "prepared" },
+      });
+    expect(await invoke()).toMatchObject({ label: "prepared" });
+    expect(legacyCalls).toBe(0);
+    expect(auth.state.policyDecisions).toEqual([
+      "list",
+      "list",
+      "invoke",
+      "invoke",
+    ]);
+    auth.state.policyDecisions.length = 0;
+    mode = "undefined";
+    expect(await invoke()).toMatchObject({ label: "prepared" });
+    expect(legacyCalls).toBe(1);
+    expect(auth.state.policyDecisions).toEqual([
+      "list",
+      "invoke",
+      "invoke",
+      "list",
+      "invoke",
+    ]);
+    for (mode of ["promise", "thenable", "revoked", "list", "invoke"]) {
+      auth.state.enabled = true;
+      auth.state.dispatchDenied = undefined;
+      await expect(invoke()).rejects.toMatchObject({
+        code: ["promise", "thenable"].includes(mode)
+          ? "SERVICE_UNAVAILABLE"
+          : "FORBIDDEN",
+      });
+    }
+    expect(instance.state.calls).toBe(2);
+    expect(prepareCalls).toBe(7);
+    expect(legacyCalls).toBe(1);
+    // Old custom authentication implementations still gate invocation after preparation.
+    const authenticationService = app.get(auth.plugin);
+    authenticationService.canDispatch = undefined;
+    auth.state.enabled = true;
+    auth.state.dispatchDenied = undefined;
+    mode = "invoke";
+    await expect(invoke()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    auth.state.dispatchDenied = undefined;
+    mode = "prepared";
+    expect(await invoke()).toMatchObject({ label: "prepared" });
+    expect(instance.state.calls).toBe(3);
+  } finally {
+    await app.stop();
+  }
+});
+
 test("a grant revoked during trusted binding prevents dispatch", async () => {
   const auth = authentication();
   let calls = 0;
@@ -638,6 +744,9 @@ test("write attestation defaults closed and cannot replace required approval or 
     management: true,
     targets: [target("north", instance)],
     canWrite: () => true,
+    prepareBinding() {
+      throw new Error("Write must never enter pure read preparation");
+    },
     binding: (...args) => ({
       ...bound(...args),
       confirm: () => true,
@@ -831,6 +940,9 @@ test("workspace revisions and expected subject fail before dispatch; asset autho
       confirm: () => true,
       approve: () => true,
     }),
+    prepareBinding() {
+      throw new Error("Compiled mounts retain legacy binding guards");
+    },
     targets: [{ ...target("north", instance), mounts: [page] }],
   });
   const app = await startApp(

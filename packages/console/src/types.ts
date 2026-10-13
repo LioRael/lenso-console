@@ -40,6 +40,12 @@ export interface ConsoleAuthentication {
   authenticate(request: Request): Promise<ConsoleIdentity>;
   enforce(identity: ConsoleIdentity, resource: ConsoleResource): Promise<void>;
   can(identity: ConsoleIdentity, resource: ConsoleResource): Promise<boolean>;
+  /** Fresh dispatch phase checks both visibility and invocation authority. */
+  canDispatch?(
+    identity: ConsoleIdentity,
+    visibility: ConsoleResource,
+    invocation: ConsoleResource
+  ): Promise<boolean>;
   session(identity: ConsoleIdentity): Promise<{
     administrator: boolean;
     workspace_ids: readonly string[];
@@ -119,6 +125,17 @@ export interface ConsoleOptions {
   ) =>
     | OperationBoundOptions<Operation>
     | Promise<OperationBoundOptions<Operation>>;
+  /** Top-level read context assembly only: synchronous, no I/O, effects or sensitive output.
+   * This is not an authorized service entry; fresh dispatch checks follow preparation.
+   * Undefined selects legacy binding.
+   * Compiled mounts, streams and writes retain the asynchronous binding guards. */
+  readonly prepareBinding?: (
+    operation: Operation,
+    input: unknown,
+    request: Request,
+    identity: ConsoleIdentity,
+    resource: ConsoleResource
+  ) => OperationBoundOptions<Operation> | undefined;
   /** Write guarantees belong to the service. Absence closes write/unknown operations. */
   readonly canWrite?: (
     operation: Operation,

@@ -141,6 +141,19 @@ test("forged actors, another audience/realm and changed tenant membership cannot
     request({ authorization: "Bearer first" })
   );
   expect(await f.service.can(identity, resource)).toBe(true);
+  const visibility: ConsoleResource = { ...resource, action: "list" };
+  expect(await f.service.canDispatch!(identity, visibility, resource)).toBe(
+    true
+  );
+  expect(
+    await f.service.canDispatch!(identity, visibility, {
+      ...resource,
+      tenantId: "tenant-b",
+    })
+  ).toBe(false);
+  expect(
+    await f.service.canDispatch!({ ...identity }, visibility, resource)
+  ).toBe(false);
   expect(
     await f.service.can(
       { ...identity, actor: { ...identity.actor } as Actor },
@@ -169,6 +182,9 @@ test("forged actors, another audience/realm and changed tenant membership cannot
   );
   f.grants.delete("alice");
   expect(await f.service.can(identity, resource)).toBe(false);
+  expect(await f.service.canDispatch!(identity, visibility, resource)).toBe(
+    false
+  );
 });
 
 test("session grants and readScope use host projection and safe revision, not login or credential", async () => {

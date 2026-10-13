@@ -271,6 +271,57 @@ export function createConsoleAuthentication<
         throw safeError(error);
       }
     },
+    async canDispatch(identity, visibility, invocation) {
+      try {
+        const { actor, request } = proof(identity);
+        if (
+          visibility.action !== "list" ||
+          invocation.action !== "invoke" ||
+          (
+            [
+              "targetId",
+              "tenantId",
+              "pluginId",
+              "operation",
+              "mountId",
+            ] as const
+          ).some((key) => visibility[key] !== invocation[key])
+        ) {
+          throw new AuthError("FORBIDDEN");
+        }
+        const resources = Object.freeze([
+          Object.freeze({ ...visibility }),
+          Object.freeze({ ...invocation }),
+        ]);
+        const access = options.access as typeof options.access & {
+          enforceAll?(
+            principal: typeof actor,
+            resources: readonly ConsoleResource[],
+            policy: typeof options.policy,
+            verification: { signal: AbortSignal }
+          ): Promise<unknown>;
+        };
+        if (access.enforceAll) {
+          await access.enforceAll(actor, resources, options.policy, {
+            signal: request.signal,
+          });
+        } else {
+          for (const resource of resources) {
+            await authorize(identity, resource);
+          }
+        }
+        return true;
+      } catch (error) {
+        issued.get(identity)?.request.signal.throwIfAborted();
+        if (
+          error instanceof AuthError &&
+          (error.code === "UNAUTHORIZED" || error.code === "FORBIDDEN")
+        ) {
+          return false;
+        }
+        throw safeError(error);
+      }
+    },
     async session(identity) {
       let stored: ReturnType<typeof proof>;
       try {

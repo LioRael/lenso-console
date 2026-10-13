@@ -63,7 +63,7 @@
     "@changesets/cli": "2.31.1",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
-    "@lenso/auth": "0.5.0",
+    "@lenso/auth": "0.5.1",
     "@lenso/authorization": "0.3.3",
     "@lenso/console": "workspace:*",
     "@lenso/console-react": "workspace:*",

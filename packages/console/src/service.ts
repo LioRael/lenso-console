@@ -164,9 +164,43 @@ export function createConsoleService(
     identity: ConsoleIdentity,
     operation: Operation,
     input: unknown,
-    mount?: ConsoleMount
+    mount?: ConsoleMount,
+    prepared?: Set<Operation>
   ) => {
     checkAbort(request);
+    if (
+      prepared &&
+      !mount &&
+      operation.effect === "read" &&
+      options.prepareBinding
+    ) {
+      const binding = options.prepareBinding(
+        operation,
+        input,
+        request,
+        identity,
+        resource(target, "invoke", operation, mount)
+      );
+      if (
+        binding &&
+        typeof (binding as { then?: unknown }).then === "function"
+      ) {
+        // Reject synchronously while draining an invalid async host callback.
+        // oxlint-disable-next-line promise/prefer-await-to-then, no-empty-function
+        void Promise.resolve(binding).catch(() => {});
+        throw failure("SERVICE_UNAVAILABLE", 503);
+      }
+      if (binding !== undefined) {
+        checkAbort(request);
+        prepared.add(operation);
+        return {
+          ...binding,
+          signal: binding.signal
+            ? AbortSignal.any([request.signal, binding.signal])
+            : request.signal,
+        };
+      }
+    }
     await authorizeInvocation(target, identity, operation, mount);
     const binding = await options.binding(
       operation,
@@ -191,20 +225,50 @@ export function createConsoleService(
     identity: ConsoleIdentity,
     operations?: readonly Operation[],
     mount?: ConsoleMount
-  ) =>
-    createManageAdapter({
+  ) => {
+    const prepared = new Set<Operation>();
+    return createManageAdapter({
       selection: selections.get(target)!,
-      canList: (operation) =>
-        (!operations ||
-          operations.some(
+      canList: async (operation) => {
+        if (
+          operations &&
+          !operations.some(
             (selected) =>
               selected.plugin === operation.plugin &&
               selected.method === operation.method
-          )) &&
-        auth.can(identity, resource(target, "list", operation, mount)),
+          )
+        ) {
+          return false;
+        }
+        const visible = resource(target, "list", operation, mount);
+        if (prepared.delete(operation)) {
+          if (operation.effect !== "read") {
+            return false;
+          }
+          const invocation = resource(target, "invoke", operation, mount);
+          if (auth.canDispatch) {
+            return auth.canDispatch(identity, visible, invocation);
+          }
+          if (!(await auth.can(identity, visible))) {
+            return false;
+          }
+          await auth.enforce(identity, invocation);
+          return true;
+        }
+        return auth.can(identity, visible);
+      },
       binding: (operation, input) =>
-        bindInvocation(target, request, identity, operation, input, mount),
+        bindInvocation(
+          target,
+          request,
+          identity,
+          operation,
+          input,
+          mount,
+          prepared
+        ),
     });
+  };
   async function invoke(
     target: ConsoleTarget,
     pluginId: string,

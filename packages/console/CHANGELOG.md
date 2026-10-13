@@ -1,5 +1,11 @@
 # @lenso/console
 
+## 2.1.3
+
+### Patch Changes
+
+- Allow trusted hosts to prepare synchronous read contexts before one fresh execution authorization phase. Check list and invoke policies independently while sharing evidence verification within that phase; preserve legacy bindings for writes, streams, mounts and older integrations.
+
 ## 2.1.2
 
 ### Patch Changes
