@@ -1,0 +1,88 @@
+.changeset/console-auth-binding.md
+  h_9d56aba080c170 1-17
+README.md
+  h_9d56aba080c170 97-109
+bun.lock
+  h_9d56aba080c170 11-12,14,18,67,76,92,96,101-103,107,116-118,120,139,151,172,221-222,232-233,507,509,511,515,537,541
+examples/ts-console/host.browser.test.ts
+  h_9d56aba080c170 11,17,21,41-46,48,58-143,147-207,213-216,224-344,374-375,386,395-397,404-487,491
+examples/ts-console/host.test.ts
+  h_9d56aba080c170 200-208
+examples/ts-console/host.ts
+  h_9d56aba080c170 99
+examples/ts-console/local-auth.ts
+  h_9d56aba080c170 1-3,6-14,22,29-30,34-41,79,81-93,95-123,125-140,142-150,156,158,181
+examples/ts-console/login.tsx
+  h_9d56aba080c170 1-52
+package.json
+  h_9d56aba080c170 62-63,65,69
+packages/auth-console/package.json
+  h_9d56aba080c170 43,52
+packages/console-authoring/MIGRATION.md
+  h_9d56aba080c170 8-37
+packages/console-authoring/build.ts
+  h_9d56aba080c170 21-22
+packages/console-authoring/compiler/test/authentication.test.ts
+  h_9d56aba080c170 1-138
+packages/console-authoring/package.json
+  h_9d56aba080c170 97-106,129,141,162
+packages/console-authoring/src/authentication.ts
+  h_9d56aba080c170 1-213
+packages/console-authoring/src/browser-session-events.ts
+  h_9d56aba080c170 1-21
+packages/console-authoring/src/browser-session-fetch.ts
+  h_9d56aba080c170 1,7,136,165-172
+packages/console-authoring/src/browser.tsx
+  h_9d56aba080c170 2,4-15,26-29,35,47-48,62-71,74,76-80,82-86,89-93,95-102,104,106-108,117-125,129,131,133-138,147-155,163-172,181-183,186-193,195-197,215-216,221,234-238,245-248,252-254,257-332,336-388,465-467,470-474,489-490
+packages/console-authoring/src/identity-transition.ts
+  h_9d56aba080c170 1-146
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 177
+packages/console-dashboard/README.md
+  h_9d56aba080c170 298-299
+packages/console-dashboard/package.json
+  h_9d56aba080c170 80-81,91-92
+packages/console-react/README.md
+  h_9d56aba080c170 49-84
+packages/console-react/src/console-login.tsx
+  h_9d56aba080c170 1-284
+packages/console-react/src/index.ts
+  h_9d56aba080c170 17
+packages/console/README.md
+  h_9d56aba080c170 110-119,125-203,272,317-318,321-324
+packages/console/package.json
+  h_9d56aba080c170 70,74,79-81,85,94-96,98
+packages/console/src/auth.ts
+  h_9d56aba080c170 8-15,28-29,33,55-57,62-65,88,91-94,103-107,120-124,151-152,155-156,158-160,162-171,203-206,208-212,215,219,221,283,309
+packages/console/src/boundary.ts
+  h_9d56aba080c170 60,73,78-80
+packages/console/src/service.ts
+  h_9d56aba080c170 100-108,716-720,727
+packages/console/src/types.ts
+  h_9d56aba080c170 32-36
+packages/console/test/auth.test.ts
+  h_9d56aba080c170 4-9,54,102-109,330-371,395,455,463-465,467-468,479-497,499-500,505-506,512-513,518-527,534,536-537,541-542,548-549,553-561,570,574-578,586
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 57,95-97,1001,1007-1016,1230,1294,1298
+plugins/console/shell/src/app/console-admission.tsx
+  h_9d56aba080c170 3,17,62,65-70,73,76-128,166-199
+plugins/console/shell/src/features/home/home-page.tsx
+  h_9d56aba080c170 13
+plugins/console/shell/src/lib/identity-transition.ts
+  h_9d56aba080c170 1-8
+tooling/distribution/check-archives.mjs
+  h_9d56aba080c170 47-48
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 78-81,87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f0e4443d3f00275f49c0c30a68bca424c5a6d9a",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

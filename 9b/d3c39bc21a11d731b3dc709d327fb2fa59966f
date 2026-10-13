@@ -1,0 +1,18 @@
+.github/workflows/console-sdk-npm.yml
+  h_9d56aba080c170 50
+tooling/distribution/smoke-agent-native.mjs
+  h_9d56aba080c170 52-54
+tooling/distribution/smoke-agent.mjs
+  h_9d56aba080c170 149-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9bd3c39bc21a11d731b3dc709d327fb2fa59966f",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

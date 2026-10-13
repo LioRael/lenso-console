@@ -1,0 +1,55 @@
+plugins/marketplace/app/Cargo.lock
+  s_3724267b9ee00e::t_8b0af7d37200a2 1360
+plugins/marketplace/app/tests/http.rs
+  s_3724267b9ee00e::t_caa1aa2a077053 151-171
+plugins/marketplace/catalog/Cargo.lock
+  s_3724267b9ee00e::t_bafc0a7c7558a7 631
+plugins/marketplace/catalog/Cargo.toml
+  s_3724267b9ee00e::t_5bc8a0a500e263 26
+plugins/marketplace/catalog/src/cache.rs
+  s_3724267b9ee00e::t_dfb56d644a643a 2,20-31,46,51-60
+plugins/marketplace/catalog/src/persistence.rs
+  s_3724267b9ee00e::t_8dc95626fc097c 3,46-59,78,97-106
+plugins/marketplace/catalog/tests/cache.rs
+  s_3724267b9ee00e::t_ac68d37e3f7733 34-58
+plugins/marketplace/catalog/tests/event_cache.rs
+  s_3724267b9ee00e::t_5446e11d239163 123-161
+plugins/marketplace/directory/Cargo.lock
+  s_3724267b9ee00e::t_e580dabb7127d2 795
+plugins/marketplace/web/Cargo.lock
+  s_3724267b9ee00e::t_1688668b51574d 837
+plugins/marketplace/web/src/lib.rs
+  s_3724267b9ee00e::t_3a1e346a4aef59 13,132,143,149,153,167,172,175,342,375
+plugins/marketplace/web/tests/browser.mjs
+  s_3724267b9ee00e::t_3ae98ac253eeb1 638-675
+plugins/marketplace/web/ui/app.tsx
+  s_3724267b9ee00e::t_821ab200ece1b0 3,9,13,249-267,400-402,423-428,567
+plugins/marketplace/web/ui/catalog.ts
+  s_3724267b9ee00e::t_4391d245b6e5e6 66-87
+plugins/marketplace/web/ui/controls.ts
+  s_3724267b9ee00e::t_a9f23c53dd1597 7
+plugins/marketplace/web/ui/model.ts
+  s_3724267b9ee00e::t_05c746b6ce517b 22-23
+plugins/marketplace/workers/Cargo.lock
+  s_3724267b9ee00e::t_363662f9e48662 815
+plugins/marketplace/workers/docs/g5-rollout.md
+  s_3724267b9ee00e::t_06b4ce2a25ffe2 156-160,169-172
+plugins/marketplace/workers/proof/smoke.mjs
+  s_3724267b9ee00e::t_cbe3accada1ac7 163-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea3c5c356659c6cb589f1e810ddadb27fb93651e",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,222 @@
+.agents/skills/land/SKILL.md
+  h_9d56aba080c170 80-82
+.changeset/README.md
+  h_9d56aba080c170 3
+.changeset/modern-console-authoring.md
+  h_9d56aba080c170 1-7
+.github/workflows/ci.yml
+  h_9d56aba080c170 12,19-20,26,28-30,32-33,35-45,47
+.github/workflows/console-sdk-npm.yml
+  h_9d56aba080c170 36-38,40,43-45,49-51,57,60-66,69-71,73-74,76-78
+.github/workflows/release-changesets.yml
+  h_9d56aba080c170 49,51,53,55
+AGENTS.md
+  h_9d56aba080c170 7-8
+CONTRIBUTING.md
+  h_9d56aba080c170 45-49,67-68,71-76,78-83,94,99-100
+README.md
+  h_9d56aba080c170 24,32-34,37-38,41,45-47,50-59,63-64,70,82-88,91,94
+bun.lock
+  h_9d56aba080c170 1-150,152,154,156,158,160,162,164,166,168,170,172,174,176,178,180,182,184,186,188,190,192,194,196,198,200,202,204,206,208,210,212,214,216,218,220,222,224,226,228,230,232,234,236,238,240,242,244,246,248,250,252,254,256,258,260,262,264,266,268,270,272,274,276,278,280,282,284,286,288,290,292,294,296,298,300,302,304,306,308,310,312,314,316,318,320,322,324,326,328,330,332,334,336,338,340,342,344,346,348,350,352,354,356,358,360,362,364,366,368,370,372,374,376,378,380,382,384,386,388,390,392,394,396,398,400,402,404,406,408,410,412,414,416,418,420,422,424,426,428,430,432,434,436,438,440,442,444,446,448,450,452,454,456,458,460,462,464,466,468,470,472,474,476,478,480,482,484,486,488,490,492,494,496,498,500,502,504,506,508,510,512,514,516,518,520,522,524,526,528,530,532,534,536,538,540,542,544,546,548,550,552,554,556,558,560,562,564,566,568,570,572,574,576,578,580,582,584,586,588,590,592,594,596,598,600,602,604,606,608,610,612,614,616,618,620,622,624,626,628,630,632,634,636,638,640,642,644,646,648,650,652,654,656,658,660,662,664,666,668,670,672,674,676,678,680,682,684,686,688,690,692,694,696,698,700,702,704,706,708,710,712,714,716,718,720,722,724,726,728,730,732,734,736,738,740,742,744,746,748,750,752,754,756,758,760,762,764,766,768,770,772,774-1062
+bunfig.toml
+  h_9d56aba080c170 1-2
+examples/ts-console/authorization-mount.ts
+  h_9d56aba080c170 1-88
+examples/ts-console/build-authorization.ts
+  h_9d56aba080c170 1-37
+examples/ts-console/cli.test.ts
+  h_9d56aba080c170 10,20,88-90,120-126,130,136-146
+examples/ts-console/console/authorization/page.tsx
+  h_9d56aba080c170 1-63
+examples/ts-console/console/authorization/workspace.ts
+  h_9d56aba080c170 1,3-8
+examples/ts-console/host.browser.test.ts
+  h_9d56aba080c170 1-152
+examples/ts-console/host.test.ts
+  h_9d56aba080c170 1-2,8-9,11,15-19,21,48,120-128,226-441
+examples/ts-console/host.ts
+  h_9d56aba080c170 13,69-71
+examples/ts-console/locale-store/README.md
+  h_9d56aba080c170 1-31
+examples/ts-console/locale-store/index.ts
+  h_9d56aba080c170 5-6,9-13,24,33-42,46-52,56-68,72-78,84-86,89-95
+examples/ts-console/locale-store/migrate.ts
+  h_9d56aba080c170 1-15
+examples/ts-console/locale-store/migrations.ts
+  h_9d56aba080c170 1-96
+examples/ts-console/locale-store/migrations/0000_locale_v1.sql
+  h_9d56aba080c170 1-14
+examples/ts-console/locale-store/migrations/meta/_journal.json
+  h_9d56aba080c170 2-12
+examples/ts-console/locale-store/schema.ts
+  h_9d56aba080c170 1-39
+examples/ts-console/test/port.ts
+  h_9d56aba080c170 1-17
+examples/ts-console/tsconfig.json
+  h_9d56aba080c170 6-7,12
+justfile
+  h_9d56aba080c170 8,11,15,18,21,24,27,30,33,37,40,43,47,50
+oxlint.config.ts
+  h_9d56aba080c170 16
+package.json
+  h_9d56aba080c170 4-8,11-19,22-41,43-47,52,56-58,66,70-71,79,81-84
+packages/console-authoring/MIGRATION.md
+  h_9d56aba080c170 1-54
+packages/console-authoring/README.md
+  h_9d56aba080c170 10-15,19-20,39-47,77,83-86,118-121,140-141,190,192-200,207,225,247-256,291,298-299,309-310,360,366
+packages/console-authoring/build.ts
+  h_9d56aba080c170 1-31
+packages/console-authoring/compiler/client-generation.mjs
+  h_9d56aba080c170 9,68-71
+packages/console-authoring/compiler/compiler.mjs
+  h_9d56aba080c170 163,179,183-186,189,191-197,199-203,215-220,222,240,242
+packages/console-authoring/compiler/test/services.test.ts
+  h_9d56aba080c170 3-5,7,11-12,15-30,58-59,61,63-64,67,69-171
+packages/console-authoring/compiler/test/transport.test.ts
+  h_9d56aba080c170 6-15,37-47,49-73,184-197,199-273,275-283,285-286,288-310,312,314-316,359
+packages/console-authoring/compiler/typecheck.mjs
+  h_9d56aba080c170 16
+packages/console-authoring/compiler/workspace-discovery.mjs
+  h_9d56aba080c170 27
+packages/console-authoring/dev/browser.tsx
+  h_9d56aba080c170 8
+packages/console-authoring/dev/discover.mjs
+  h_9d56aba080c170 4
+packages/console-authoring/dev/launch.mjs
+  h_9d56aba080c170 6,14
+packages/console-authoring/dev/preview-shell.tsx
+  h_9d56aba080c170 5,14-23,46-48,50-54,56,58-75,77-96,100-116,118-119,122-123,128-176,178-185,188-197,200-231
+packages/console-authoring/dev/server.mjs
+  h_9d56aba080c170 23,115
+packages/console-authoring/package.json
+  h_9d56aba080c170 15,23,30-64,66-95,102-105,111-113,122
+packages/console-authoring/service-example/services.ts
+  h_9d56aba080c170 9
+packages/console-authoring/src/browser-reads.ts
+  h_9d56aba080c170 4,10,15-16
+packages/console-authoring/src/browser-session-fetch.ts
+  h_9d56aba080c170 5-10,200-228
+packages/console-authoring/src/browser.tsx
+  h_9d56aba080c170 1-262
+packages/console-authoring/src/client.ts
+  h_9d56aba080c170 2-6,15-25,47-56
+packages/console-authoring/src/http-paths.ts
+  h_9d56aba080c170 1,3,5-11,13-37,101-118
+packages/console-authoring/src/index.ts
+  h_9d56aba080c170 3,43-60,74
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 9-33,39-41,75,135-217,220-224,243-254
+packages/console-authoring/src/server.ts
+  h_9d56aba080c170 1-39,42-43,46,49-52,55-57,59,61-107,112-143,148,152-154,157,193-194,196,199-238,240-248,250-392,394-399,401-402,404-444
+packages/console-authoring/src/transport.ts
+  h_9d56aba080c170 10,71-82,285
+packages/console-authoring/tsconfig.build.json
+  h_9d56aba080c170 1-12
+packages/console-authoring/tsconfig.json
+  h_9d56aba080c170 1-14
+packages/console/README.md
+  h_9d56aba080c170 155-162,181,183-188,197,200-202,205-207,221-223,297-298
+packages/console/build.ts
+  h_9d56aba080c170 1,3-5,15-20,22-24
+packages/console/package.json
+  h_9d56aba080c170 64-66,73-74,79-81,85,94-96,98
+packages/console/src/admission.ts
+  h_9d56aba080c170 1-8,10-87,89-131,133-141,143,145-161,163-188,190-193,195-249,251-284,286-311,313-338,340-342
+packages/console/src/boundary.ts
+  h_9d56aba080c170 1-165
+packages/console/src/service.ts
+  h_9d56aba080c170 2,4,6,10,18,22-37,109-113,430-432,588,707-729,731-732,751-753,785-795,797,808,814,856-861
+packages/console/src/types.ts
+  h_9d56aba080c170 2,45,57-58,75-76
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 12,14-20,377-406,428-434,1093-1204,1210-1217,1262-1279,1285-1288,1292-1310
+packages/console/test/subscriptions.test.ts
+  h_9d56aba080c170 43-44,171,179-187,257,264-311
+packages/console/tsconfig.build.json
+  h_9d56aba080c170 1-12
+plugins/console/README.md
+  h_9d56aba080c170 14-18,21-23
+plugins/console/shell/package.json
+  h_9d56aba080c170 7-13,18,35,40,43
+plugins/console/shell/src/app/console-admission.tsx
+  h_9d56aba080c170 1-315
+plugins/console/shell/src/app/console-router-config.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/components/console/console-dock-scroll-intent.test.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/dev/README.md
+  h_9d56aba080c170 3
+plugins/console/shell/src/dev/console-dev-server-config.test.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/dev/console-dev-vite-plugin.test.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/lib/console-http-paths.test.ts
+  h_9d56aba080c170 1,7
+plugins/console/shell/src/lib/http-client.test.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/lib/http-client.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/lib/http-problem.test.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/lib/query-client.ts
+  h_9d56aba080c170 1-3
+plugins/console/shell/src/lib/read-refresh-policy.test.ts
+  h_9d56aba080c170 1
+plugins/console/shell/src/lib/read-refresh-policy.ts
+  h_9d56aba080c170 4
+plugins/console/shell/src/router.test.ts
+  h_9d56aba080c170 1,4-11,13-15,17,30-158
+plugins/console/shell/src/routes/__root.tsx
+  h_9d56aba080c170 1,11-14,21-22,37-39,95
+plugins/console/shell/test/browser/console-dock.browser.test.ts
+  h_9d56aba080c170 1,3,5,7-17,19-31,33-39,41-50,52-57,59-65,67-76,78-83
+plugins/console/shell/test/browser/console-layout.browser.test.ts
+  h_9d56aba080c170 1-146
+plugins/console/shell/test/browser/dock.fixture.tsx
+  h_9d56aba080c170 5,8-13,92,132-133,135,137,145
+plugins/console/shell/test/browser/index.html
+  h_9d56aba080c170 1-19
+plugins/console/shell/test/browser/layout.fixture.tsx
+  h_9d56aba080c170 3,6-7,11,118,122,124,131,142-171,173-177
+plugins/console/shell/test/browser/server.ts
+  h_9d56aba080c170 1,4-5,7,9-19,21-54
+plugins/console/shell/test/stylex-preload.ts
+  h_9d56aba080c170 1-30
+plugins/console/shell/tsconfig.json
+  h_9d56aba080c170 14,22
+plugins/console/shell/vite.config.ts
+  h_9d56aba080c170 3,18-35
+tooling/checks/check-environment.mjs
+  h_9d56aba080c170 10-11,14
+tooling/checks/check.mjs
+  h_9d56aba080c170 5-6,10,17,21-23,29
+tooling/distribution/check-archives.mjs
+  h_9d56aba080c170 1,4,6,8-10,12-53
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 1,3,9-41,43-62,64-107,109-193,196,201-211,213-215,217,222,226,229-235,239-240,243-256,258-263,265-290,292
+tooling/distribution/prepare-sdk-preview.mjs
+  h_9d56aba080c170 4,25
+tooling/distribution/preview-file-access.test.mjs
+  h_9d56aba080c170 1,14-16,85
+tooling/distribution/preview-proxy.test.mjs
+  h_9d56aba080c170 1,9-11,88,123
+tooling/distribution/sdk-preview.test.mjs
+  h_9d56aba080c170 1,3,27-43,49-70,73-97,99-105,107-108,110,112-113,115-129,131-196,198-226,229,231
+tooling/distribution/sdk-shell.test.mjs
+  h_9d56aba080c170 1,12-52,54-66,68-72,75-76,78
+tooling/distribution/wait-for-npm-package.test.mjs
+  h_9d56aba080c170 1
+tooling/test-preload.ts
+  h_9d56aba080c170 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ced80f4de0b15fa66165af6b228ae8b476a5072d",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
