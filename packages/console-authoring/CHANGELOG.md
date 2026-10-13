@@ -1,5 +1,20 @@
 # @lenso/console-sdk
 
+## 1.1.1
+
+### Patch Changes
+
+- Refine Console page presentation and login with compact task context, accessible corner controls, and consistent semantic themes.
+
+  - Center the login form, distinguish login methods only when needed, and preserve session recovery with readable light and dark states.
+  - Improve Dashboard editing, pointer layout behavior, and contextual widget controls.
+  - Render Auth session and subject pages with shared tables, selection actions, and explicit detail navigation.
+  - Refine plugin inventory presentation and ship the updated Console Shell in the SDK.
+  - Align the frontend build toolchain with Bun 1.4.3.
+
+- Updated dependencies
+  - @lenso/console-react@0.3.1
+
 ## 1.1.0
 
 ### Minor Changes

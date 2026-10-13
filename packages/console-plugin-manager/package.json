@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-plugin-manager",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Optional read-only Console installed plugin catalog",
   "license": "MIT",
   "repository": {

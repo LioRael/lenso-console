@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-react",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Standalone React Console layout and explicitly composed navigation",
   "license": "MIT",
   "repository": {
