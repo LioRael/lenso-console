@@ -1,0 +1,14 @@
+plugins/console/src/lib.rs
+  h_9d56aba080c170 1817-1818
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e8b0a2124dee7f58f320597f7c80a151582f2f7",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

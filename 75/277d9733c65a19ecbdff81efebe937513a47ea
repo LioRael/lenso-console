@@ -1,0 +1,24 @@
+packages/console-react/README.md
+  h_9d56aba080c170 56-62
+packages/console-react/src/console-dock-view.tsx
+  h_9d56aba080c170 146,149,152-153,173,180,183-184,188-189,194-203,243-258,267,270-271,280-288
+packages/console-react/src/console-dock.styles.ts
+  h_9d56aba080c170 101-107,109
+packages/console-react/src/console-dock.tsx
+  h_9d56aba080c170 1,23,227-327,543-555,558,611-620,625-633,653,657,762-769,802,821-827,920,937-943
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 2123,2139-2155,2157-2208,2210-2263,2265,2267,2269-2275,2277-2287
+packages/console-react/test/browser/fixture.tsx
+  h_9d56aba080c170 42-44,363
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75277d9733c65a19ecbdff81efebe937513a47ea",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

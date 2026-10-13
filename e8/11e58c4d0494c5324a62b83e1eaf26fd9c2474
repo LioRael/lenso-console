@@ -1,0 +1,22 @@
+docs/architecture/optional-assistant-boundary.md
+  h_9d56aba080c170 224-257
+plugins/agent-ai-adapter/README.md
+  h_9d56aba080c170 66-68,73-76,166-192
+plugins/agent-ai-adapter/src/durable.rs
+  h_9d56aba080c170 2-4,43,69,71,221,303-305,348-362
+plugins/agent-ai-adapter/src/integration_tests.rs
+  h_9d56aba080c170 117,123,126-147,192-195,203-204,207-261,362-365,383-520
+plugins/agent-ai-adapter/src/plugin.rs
+  h_9d56aba080c170 114-115,293
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e811e58c4d0494c5324a62b83e1eaf26fd9c2474",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
