@@ -157,6 +157,7 @@ import assert from "node:assert/strict";
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { authConsole } from "@lenso/auth-console/react";
+import { ConsoleShell } from "@lenso/console-react";
 const binding = authConsole({
   id: "archive-proof",
   client: {
@@ -168,14 +169,27 @@ const binding = authConsole({
   },
   routes: { info: "/info", sessions: "/sessions", session: "/sessions/:id", subjects: "/subjects" },
 });
-for (const page of Object.values(binding.definition.pages)) {
-  const html = renderToString(React.createElement(page.component, {
-    services: binding.services,
-    activation: { key: "archive-proof", isCurrent: () => true },
-    signal: new AbortController().signal,
-    params: { id: "test" },
-    navigation: { href: () => "/", go() {} },
+for (const pathname of ["/info", "/sessions", "/sessions/test", "/subjects"]) {
+  let matched = false;
+  const html = renderToString(React.createElement(ConsoleShell, {
+    plugins: [binding],
+    router: {
+      pathname,
+      navigate() {},
+      match(pattern, current) {
+        if (pattern === current) {
+          matched = true;
+          return {};
+        }
+        if (pattern === "/sessions/:id" && current === "/sessions/test") {
+          matched = true;
+          return { id: "test" };
+        }
+        return null;
+      },
+    },
   }));
+  assert.ok(matched, "Packed Auth route was not admitted: " + pathname);
   assert.ok(html.length > 0);
 }
 console.log("Packed Auth Console: all four pages rendered with production React");
