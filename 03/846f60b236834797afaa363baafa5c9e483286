@@ -1,0 +1,42 @@
+packages/console-react/README.md
+  h_9d56aba080c170 57-151,158-161
+packages/console-react/src/composition.ts
+  h_9d56aba080c170 31-56,76,126
+packages/console-react/src/console-dock-projection.tsx
+  h_9d56aba080c170 1-44
+packages/console-react/src/console-dock-shape.tsx
+  h_9d56aba080c170 12,15-21,35,44,51-52,60-61,63,66,72-73,76-79,82-87,91-94,96,98-99,101,103-112,114-128,136-148,157-159,163-165,174,176-180,183,187,195-208,212,226,229,232-243,259-261,263-264,268-269,274,278,291-292,328,331-345,350-354,357-363
+packages/console-react/src/console-dock-view.tsx
+  h_9d56aba080c170 1-821
+packages/console-react/src/console-dock.styles.ts
+  h_9d56aba080c170 29-31,42-51,85-100,103
+packages/console-react/src/console-dock.tsx
+  h_9d56aba080c170 26,47-48,54-55,60-65,74,84,186,195-196,199-200,208-209,215-222,225-245,261-267,277,313-314,317-344,364,366,372-396,398-403,405-427,431,433,435,437-441,443-451,456-467,469-471,473-479,481-545,548,550,557,560-566,568-574
+packages/console-react/src/console-model.ts
+  h_9d56aba080c170 5,85-86,90,97-111,211-247
+packages/console-react/src/console-shell.styles.ts
+  h_9d56aba080c170 9-10
+packages/console-react/src/console-shell.tsx
+  h_9d56aba080c170 17,27,39,61,84-91,243,254-258,260-261,422-468,470-497,499-500,502,531
+packages/console-react/src/index.ts
+  h_9d56aba080c170 10-13
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 230-518
+packages/console-react/test/browser/fixture.tsx
+  h_9d56aba080c170 1-8,13,20,30-47,71,87-101,118,137-248,291,301-302,311-336,340-343,350-354,357-362,395-396,403-410
+packages/console-react/test/composition.types.tsx
+  h_9d56aba080c170 4,21-40,65-78
+packages/console-react/test/console-model.test.ts
+  h_9d56aba080c170 10,158-241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "03846f60b236834797afaa363baafa5c9e483286",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
