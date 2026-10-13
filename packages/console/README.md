@@ -272,7 +272,7 @@ a timeout nor an abort signal proves that detached work has stopped.
 ## Published framework dependencies
 
 Console uses normal registry dependencies: Core `0.3.1`, Engine `0.6.0`,
-Manage `0.5.2`, Auth `0.5.0`, Web `0.3.2`, and the optional companion versions
+Manage `0.5.2`, Auth `0.5.1`, Web `0.3.2`, and the optional companion versions
 pinned in `package.json`. Their published package exports have been verified;
 no framework checkout, source alias or locally built framework archive is needed.
 The `@lenso/console@2` archive exports built JavaScript and declarations, with
