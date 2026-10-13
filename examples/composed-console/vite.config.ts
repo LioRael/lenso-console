@@ -18,6 +18,11 @@ export default defineConfig({
         replacement: source("../../packages/console-react/dist/index.js"),
       },
       {
+        // Pair extracted CSS with compiled JS despite source conditions elsewhere.
+        find: /^@lenso\/console-react\/styles\.css$/,
+        replacement: source("../../packages/console-react/dist/styles.css"),
+      },
+      {
         find: "@lenso/auth-console/react",
         replacement: source("../../packages/auth-console/src/react.ts"),
       },

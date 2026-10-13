@@ -4,6 +4,11 @@
 
 Verify every imported callable against `packages/console-react/src/index.ts` and the referenced source export. Check package exports and the actual runtime host from [runtime support](runtime-support.md); a successful typecheck does not prove that a host consumes a contribution.
 
+When a host overrides package JS to a compiled entry, pair its stylesheet with
+that build too. Source export conditions may legitimately resolve an empty CSS
+entry that relies on source StyleX extraction. Prove mixed-resolution fixes in a
+fresh browser/server, not only a warm preview or an artifact file inspection.
+
 Use the target package's existing typecheck script/config. For standalone recipe checks, extract each complete TSX block to a scratch directory and typecheck it against the actual public package, React types and existing compiler options. A workspace source path mapping may resolve the public module during checks; keep example imports public. Do not invent ambient declarations to make an unavailable API compile. If dependencies or built declarations are absent, report the blocked check.
 
 ## Behavioral checks

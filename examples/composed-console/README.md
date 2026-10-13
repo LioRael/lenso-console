@@ -39,7 +39,10 @@ read-only, not a Marketplace installer.
 Vite uses the packages' `lenso-source` export condition and an explicit local
 Auth React entry alias (that package has no source condition). Auth source edits
 hot reload. Console React uses its built entry to avoid the current StyleX
-development media-query transform failure; rebuild it after Shell changes.
+development media-query transform failure; its JS and stylesheet aliases must
+both point to the same built output. A `lenso-source` stylesheet is intentionally
+empty when the source graph supplies StyleX, so pairing it with compiled JS loses
+layout and focus rules. Rebuild Console React after Shell changes.
 SDK/type exports and infrastructure styles still require the initial builds above.
 
 Focused validation:
@@ -49,12 +52,18 @@ bun run check:composed
 bun test examples/composed-console/sample-clients.test.ts
 bun run --bun vite build --config examples/composed-console/vite.config.ts
 node examples/composed-console/verify-browser.mjs
+node examples/composed-console/preview-styles.browser.mjs
 ```
 
 The browser check requires Playwright Chromium and a running preview. Set
 `COMPOSED_PREVIEW_URL` to check a different loopback port. It exercises
 navigation, sample writes, keyboard confirmation/dismissal and narrow geometry;
 it is not a comprehensive package accessibility or production integration audit.
+The standalone `preview-styles.browser.mjs` starts its own fresh server and
+simulates source-conditional CSS resolution while using compiled Console JS.
+It verifies corner action geometry and the clipped return control's keyboard
+focus ring in both themes and pointer modes; it needs built assets and Chromium,
+not an already-running preview.
 The host reuses Console's content-first layout, existing Inter typography,
 semantic theme colors and restrained package motion to preview real components,
 not a parallel visual design.
