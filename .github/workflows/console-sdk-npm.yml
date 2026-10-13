@@ -48,6 +48,10 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: .bun-version
+      - name: Prepare verified Runtime dependencies
+        run: bun tooling/distribution/prepare-runtime-deps.mjs
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.94.0 --profile minimal
       - name: Install disposable PostgreSQL test binaries
         run: |
           sudo apt-get update
