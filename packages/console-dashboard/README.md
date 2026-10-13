@@ -34,6 +34,25 @@ application. The library build lowers StyleX and includes the grid library's
 stylesheets in that CSS export. Server-only consumers import `/server`, never
 `/react`.
 
+### Corner editing
+
+Dashboard contributes icon buttons with hover/focus tooltips through
+`ConsoleLayout.Corner`. Top right provides Edit dashboard and, while editing,
+Done. Done saves a dirty draft or exits clean editing. Bottom left provides
+Add widget, Undo layout and confirmed Restore defaults while editing. Bottom
+right provides confirmed Cancel for a dirty draft. Top left remains the host's
+navigation/location area. Dashboard does not install editing or selection
+controls in the Agent-reserved Dock. Widget
+headings become drag handles and keyboard-operable settings buttons; a corner
+minus requests confirmed removal. Settings use a Lenso Modal, including bounded
+keyboard geometry controls. Browsing keeps controls out of widget content.
+
+Unmounting the page withdraws its corner controls. Drafts, confirmations
+and writes remain page-owned; Dock preferences are unchanged.
+Changing `permissionKey` retires the keyed child's work signal even when its
+host activation remains current. Retained callbacks and late results from that
+child cannot dispatch writes or update the replacement page.
+
 Widgets provide title, configuration version, optional implementation revision,
 synchronous `configSchema.parse(unknown)` and
 JSON default configuration, default/min/max sizes, renderer, and optionally a
@@ -116,11 +135,16 @@ Real browser acceptance must verify renderer preservation through placement,
 restricted/missing renderer non-mount, drag/resize, keyboard controls, explicit
 reload/conflict, config editing, themes and narrow reflow before UI completion.
 
-Design rationale: existing semantic surface colors and inherited typography
-preserve Console theme identity; compact widget headings leave space for actual
-content; a top-right save group communicates page ownership; the existing Dock
-selection scope owns selected-widget actions; 44px edit controls remain usable
-by touch; no page entrances or decorative motion compete with live content.
+Design rationale: semantic surfaces and inherited typography preserve Console
+identity; content-first widget surfaces avoid duplicate renderer headings;
+the Shell's compact context island supplies the only page title; Shell-owned top
+clearance avoids stacked page header spacing; role-specific corners keep editing
+out of the Agent Dock; borderless browsing and 12px content insets let the
+renderer carry hierarchy; deliberate drag headings
+and corner minus controls distinguish editing without endless jiggle; all
+editing controls retain 44px hit targets; configuration
+uses the existing modal focus/dismissal behavior. No decorative shadows,
+fabricated metrics or page entrances compete with live content.
 Direction: ENERGY 1 / RHYTHM 2 / MOTION 1.
 
 ## Optional trusted Auth adapter

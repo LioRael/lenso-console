@@ -37,9 +37,10 @@ of trusted server-side authorization or durable storage. Plugin inventory is
 read-only, not a Marketplace installer.
 
 Vite uses the packages' `lenso-source` export condition and an explicit local
-Auth React entry alias (that package has no source condition). Edits in these
-package sources hot reload; SDK/type exports and infrastructure styles still
-require the initial builds above.
+Auth React entry alias (that package has no source condition). Auth source edits
+hot reload. Console React uses its built entry to avoid the current StyleX
+development media-query transform failure; rebuild it after Shell changes.
+SDK/type exports and infrastructure styles still require the initial builds above.
 
 Focused validation:
 
@@ -95,6 +96,7 @@ awaiting it. Auth navigation labels distinguish workforce and customers.
 
 Import `@lenso/tokens/styles.css`, `@lenso/console-react/styles.css` and
 `@lenso/console-dashboard/styles.css` alongside the application's Lenso UI theme.
+Also import `@lenso/auth-console/styles.css` for the default Auth pages.
 The host router matches the explicit routes, including the detail parameter.
 `/` is this application's choice of index, not a Shell default.
 

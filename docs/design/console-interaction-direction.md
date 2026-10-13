@@ -1,6 +1,6 @@
 # Lenso Console interaction design and prototype direction
 
-**Design date: October 9, 2026. Status: interaction design and prototype direction; not yet finalized or implemented.**
+**Design date: October 9, 2026. Status: interaction direction with working prototypes and current authoring decisions; not a production-integration or release claim.**
 
 Lenso Console puts content first. It uses screen edges and corners for essential controls, lets navigation become more compact during scrolling, and adapts the available actions to the current task. A bottom-centered Dock is the default presentation, with a sidebar available as an alternative.
 
@@ -32,9 +32,17 @@ Group related controls by meaning, such as navigation, view options, content ins
 
 **Corner button standard: prefer icon-only controls.** Buttons in the top-left, top-right, bottom-left, and bottom-right corners show only an icon by default. Add visible text only when the icon cannot communicate the meaning clearly and a label is genuinely necessary. Every corner button must provide a concise, explicit tooltip describing its action and, where applicable, its keyboard shortcut. Tooltips must appear on pointer hover and keyboard focus; do not rely solely on the native title attribute. Icon buttons must also have accurate accessible names; tooltips do not replace accessible names. Touch users must not need hover to understand or use an action. This standard applies to corner buttons and does not require removing necessary location indicators or task status.
 
+**Icon means an SVG component, not text.** Use purpose-specific icons from Lenso UI or the application's existing approved icon set. Labels, initials, emoji and Unicode characters are not substitutes for icons in compact Dock or corner controls. Preserve full labels for accessible names, directories, menus and confirmations.
+
+Choose explicit variants: quiet floating utilities use a neutral surface, the principal commit may use primary, and destructive entry/confirmation use the appropriate danger treatment. Labelled menu controls are distinct from icon-only corners.
+
 ## Default Dock and scroll-driven compaction
 
 By default, an expanded Dock sits at the bottom center and shows a small set of frequently used modules as compact, icon-only controls. Each destination has an accurate accessible name and a short tooltip on hover and keyboard focus. The current module remains clear through its selected state and the workspace location indicator. Keep the wrapper and item spacing compact enough to accommodate additional destinations without enlarging every item. Additional plugins belong in a searchable full directory. Installing a plugin must not automatically rearrange pinned items.
+
+The host reserves this area for global navigation and Agent capabilities. Page-wide add/edit/save/cancel controls belong in corners, not a plugin-installed Dock editor. Real selection actions may temporarily use the shared selection surface when the host supports that workflow; an invented selection is not a way around this boundary. The existence of `dockViews` does not authorize ordinary pages to take over the Dock.
+
+**Expanded directory hierarchy:** destinations are the primary content. Search and close form a compact header; Command, presentation switching, customization and settings are secondary icon utilities, with a concise current-preset trigger. Prefer one compact utility row when it fits, using overflow only where necessary. These controls must not become a second grid of large labelled cards. Reclaim wrapper padding and repeated spacing before reducing labels or hit targets; allow the panel to shrink naturally when all destinations fit, and give constrained height to the destination scroller rather than utility chrome.
 
 The Dock is a soft floating pill with restrained elevation and a quiet boundary, not a heavily outlined rounded card. Its wrapper owns sizing once; avoid combining intrinsic widths, negative margins, and percentage constraints on inner panes. The Dock never scrolls internally. Destinations beyond its available capacity belong behind an explicit directory/overflow entry, and selection actions reflow deliberately in narrow windows without horizontal scrolling or changing pinned preferences.
 
@@ -56,7 +64,13 @@ Choreograph navigation-to-selection and selection-to-navigation as one continuou
 
 ## Dashboard density
 
-The dashboard uses a compact overview heading, a tight row of summary surfaces, horizontally aligned activity rows, and a dense recent-items list. Keep the heading close to the upper content edge rather than reserving an oversized header area. Reduce container padding and gaps before reducing type size or hit targets. Related elements should be close enough to read as a group, with modest separation between sections. Narrow windows reflow the same hierarchy rather than endlessly shrinking labels. Floating controls still require real focus and content-end clearance.
+Dashboard uses the central context island for its short page identity, rather than duplicating a large heading in content. Shell owns top clearance; pages should not reserve it again. Widget content determines the layout, not a mandatory row of statistics, activity feed or recent-items list.
+
+Keep default widgets compact enough for their actual content, with quiet semantic surfaces, modest radii and no decorative shadows. Browsing prioritizes content; explicit editing reveals drag/settings/removal affordances. The reference from iOS desktop/control-center behavior is mode and hierarchy, not endless jiggle or heavy glass. Default-size changes do not rewrite saved layouts.
+
+Dashboard edit/done use the top right, add/layout options the bottom left, and cancellation the bottom right where the host permits it; leave top-left navigation alone. Combine secondary options into a popover when needed and keep all hit targets clear of the reserved bottom-center region. Narrow layouts may lift bottom corner groups above that region and must retain enough content-end clearance.
+
+For lists, details and shared island composition, use the [page presentation guidance](../../.agents/skills/console-page-interactions/references/presentation.md). The island carries identity and deliberate return/tab context, not duplicated pagination or an arbitrary page-action tray. Domain details deserve real target-qualified routes when appropriate; comparable records use Lenso UI Table and its supported selection/footer APIs.
 
 ## Style authoring
 
@@ -143,7 +157,7 @@ Separate what the Dock contains from how it is presented. The proposed content m
 
 Treat compact handle, normal bar, and expanded tray as presentation states independent of navigation versus contextual-action scope. The expanded tray accommodates labelled actions or richer content instead of making the bar indefinitely wider. Expansion is explicit, has an accessible control and dismissal path, preserves the active scope, and respects running actions and confirmations. Narrow layouts reflow within viewport bounds; neither the bar nor a hidden overflow region becomes an accidental horizontal scroller.
 
-Installed contribution definitions and user presentation preferences remain separate sources of truth. A local React callback is not a registered Plugin action. Future action registration requires admitted owner identity, stable owner-local IDs, actual service requirements, visibility rules, and execution feedback. The current prototype does not yet implement that registry, configurable action groups, or an expanded tray.
+Installed contribution definitions and user presentation preferences remain separate sources of truth. A local React callback is not a registered Plugin action. Future action registration requires admitted owner identity, stable owner-local IDs, actual service requirements, visibility rules, and execution feedback. The current prototype does not yet implement that registry or generic configurable action groups. Local `ConsoleShell` already supports explicitly installed `dockViews` with `ConsoleDockContent` bar/tray presentation; compiled descriptors and `ConsoleInteractionHost` do not install that local view host. This technical support remains subject to the Dock ownership rules above.
 
 ### Dashboard widget direction
 

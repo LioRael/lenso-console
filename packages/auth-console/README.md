@@ -131,14 +131,28 @@ Revocation confirms the displayed session and passes its captured revision throu
 retry in that view and asks for reload/inspection. Cancellation cannot undo a write
 already dispatched.
 
+Import `@lenso/auth-console/styles.css` alongside the host's Lenso semantic theme
+and Console styles. The React build extracts StyleX into this public stylesheet;
+plain client and server entries do not import UI styles.
+
 Default pages use semantic HTML and Lenso UI `Button` controls with large (44px)
 targets, plus loading/empty/error and real action-result messages. Pages remain in
 the host's shared Layout/Dock context without a second shell or activation lease.
 They inherit the host's typography/theme; no palette, icons or assets are generated.
 Optional `pages` overrides let the application use its existing Lenso UI renderers.
 Design direction is content-first Console, ENERGY 1 / RHYTHM 1 / MOTION 1:
-native reading hierarchy keeps the target/session content primary without decorative
-cards or new floating controls. Host browser/theme/geometry checks remain required.
+aligned session rows make IDs, subjects, stored expiry and revocation state
+comparable, reflowing into labelled fields on narrow screens. Metadata uses a
+consistent label/value hierarchy; subjects keep display label, ID and realm
+distinct. Quiet semantic boundaries group records without decorative cards;
+inherited typography and restrained spacing keep content primary. IDs wrap rather
+than truncate. The host Shell owns edge/Dock clearance; local end spacing also
+lets final actions scroll above taller corner contributions without duplicating
+a shell header or footer.
+No assets, custom palette, new navigation or animation are introduced.
+The existing information widget shares metadata styling without page spacing
+or a duplicate heading; Dashboard remains responsible for its title and frame.
+Host browser/theme/geometry checks remain required.
 
 ## Local checks
 
@@ -147,3 +161,37 @@ integration owner has supplied manifests and installed built Auth/Core/Console
 artifacts. `build.ts` emits public `server`, plain `client`, and `react` entries and declarations.
 Tests prevent staff/target confusion across two same-realm instances, secret-bearing
 raw output, fabricated unsupported capabilities and cross-binding client reuse.
+
+### First-round UI verification (October 12, 2026)
+
+- Headless Playwright Chromium rendered all four pages in
+  `examples/composed-console`, at 1280×900 and 390×844, in light and dark themes.
+  This is a sample-data host, not production Auth. A temporary loopback host on
+  port 5176 substituted the built `dist/react.js` for the example's source alias
+  and imported the exported stylesheet, proving the distributed styles visibly
+  render rather than relying only on source compilation.
+- Screenshots captured information, sessions, detail and subjects at both sizes
+  and themes, plus narrow confirmation, loading, empty, error and uncertain-write
+  states. Desktop fields aligned; narrow fields reflowed; a 160-character ID
+  stress check had no horizontal overflow. Final actions could scroll above the
+  sample host's taller corner controls and retained 44px hit targets.
+- Load more appended the third sample session; Refresh returned to the first
+  page. Keyboard Tab/Enter opened detail; Cancel and Escape restored the revoke
+  opener; Confirm used the displayed revision and focused the success message.
+  Revocation persisted when navigating back to the sample list.
+- Browser-only client failure injection exercised loading, empty/not-found and
+  read-error feedback. Unknown-write feedback received focus and disabled retry.
+  No real backend write was involved. Measured label contrast was 5.14:1 light
+  and 8.58:1 dark; error feedback was 5.07:1 light and 6.47:1 dark.
+- The extended `verify-browser.mjs` passed with no page errors, failed requests or
+  external requests. Package `bun test` (10 tests), `bun run typecheck` and
+  `bun run build`, composed-host typecheck/build and sample-client tests passed.
+  The example build retains its large-chunk warning. React Doctor's changed-scope
+  scan reported no findings, with an unchanged 75/100 package score.
+- The final persistent narrow-ID/end-action proof and the sample host's compiled
+  Console React development workaround were added after that full browser run.
+  Those latest edits await the live preview check; equivalent narrow geometry
+  was already exercised by the ad hoc Chromium walkthrough.
+- Production assembly, real transport/authorization, Safari/Firefox and a manual
+  screen-reader walkthrough were not tested. Screenshots are review captures,
+  not committed design assets or visual-baseline tests.

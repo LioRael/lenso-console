@@ -10,6 +10,13 @@ Use the supplied `activation.key` for `scopeKey`. It identifies one UI activatio
 
 For async work, pass the supplied `signal`, dispose subscriptions on closure, and check `activation.isCurrent()` before applying late results. Recheck after confirmation and before dispatching a write. Cancellation does not undo a dispatched write; report its actual outcome.
 
+If a keyed child can retire on permission/configuration change while its parent
+lease remains live, give its work a child lifetime through the public
+`useConsoleActivation` hook. Keep the supplied host activation for page
+contributions; use the child signal for reads, writes and their guards. Verify
+StrictMode replay, pending write retirement and ignored late results. Withdrawing
+UI nodes alone does not retire a retained callback.
+
 ## Execution
 
 The page owns canonical facts: selection targets, dirty state, permissions, locking, confirmation, running, errors and success/partial-failure policy. Expose presentation updates through context only as requests the page validates; do not let a preference or corner consumer manufacture those facts.
@@ -24,7 +31,10 @@ UI visibility, disabled state, `session.canAccess`, and admitted presentation ar
 
 Pages contribute content; the host owns Dock geometry, motion, position, navigation presets and restoration. Use the existing scoped selection projection rather than altering pins, preferences or Shell DOM.
 
-For destinations and actions, `label` is the concise visible/accessibility name; `tooltip` adds a hover/focus explanation and defaults to the label for `ConsoleIconButton`. Tooltips do not replace accessible names. Use icon-only corner controls where meaningful, with actual hover/keyboard-focus tooltips and touch-understandable actions.
+For destinations and actions, `label` is the concise visible/accessibility name;
+`tooltip` adds a hover/focus explanation and defaults to the label for
+`ConsoleIconButton`. Follow [presentation](presentation.md) for SVG icons,
+corner placement and host-reserved Dock space; tooltips do not replace names.
 
 Return is an explicit named task transition through the public navigation/action path, not `history.back()` or an inferred parent URL. Keep dirty/running navigation guards in that path. Route tabs use public generated hrefs, host navigation, and native modified clicks.
 

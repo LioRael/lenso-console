@@ -2,9 +2,9 @@
 name: console-plugin-development
 description: >-
   Develop a Lenso Console plugin or page: choose compiled directory authoring or
-  local React composition, connect owner services, select scoped page interactions,
-  or install an optional Dashboard. Not for landing, publishing, or merely running
-  an existing Console.
+  local React composition, adapt page UI to Console icons/corners/context,
+  connect owner services, or install an optional Dashboard. Not for landing,
+  publishing, or merely running an existing Console.
 ---
 
 # Develop a Console plugin
@@ -12,6 +12,10 @@ description: >-
 Use this as the entry point, then read only the skill for the changed boundary.
 An exported type, an installed plugin, an admitted page, and a rendered Shell
 contribution are different contracts.
+
+For page UI, read [Console presentation](../console-page-interactions/references/presentation.md)
+before choosing icons, controls, tables, detail navigation or widget layout.
+That branch is mandatory for visual changes in both authoring paths.
 
 ## 1. Establish the consumer
 
@@ -65,7 +69,9 @@ owner. A pin, Command result, or visible navigation item is not a permission.
 Use explicit visible `label` and optional supplemental `tooltip`.
 
 The page contributes meaning, not Dock coordinates or a replacement global
-navigation container. Local plugin bindings can define `dockViews`; the application
+navigation container. Ordinary page/editor controls belong in corners; consult
+the presentation branch before using a host-reserved Dock surface.
+Local plugin bindings can define `dockViews`; the application
 must explicitly select them through `ConsoleShell.dock.leading`. Use
 `ConsoleDockContent` inside that view host, with its typed services and activation.
 Compiled SDK descriptors and the admitted/preview `ConsoleInteractionHost` do

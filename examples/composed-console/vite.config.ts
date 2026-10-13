@@ -14,6 +14,10 @@ export default defineConfig({
     conditions: ["lenso-source"],
     alias: [
       {
+        find: /^@lenso\/console-react$/,
+        replacement: source("../../packages/console-react/dist/index.js"),
+      },
+      {
         find: "@lenso/auth-console/react",
         replacement: source("../../packages/auth-console/src/react.ts"),
       },

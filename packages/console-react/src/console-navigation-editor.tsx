@@ -46,10 +46,12 @@ export function ConsolePresetSwitcher({
   value,
   onSelect,
   disabled = false,
+  compact = false,
 }: {
   value: ConsolePreferences;
   onSelect: (id: string) => void;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const document = consoleDockPresets(value);
   const labelId = useId();
@@ -59,12 +61,14 @@ export function ConsolePresetSwitcher({
   return (
     <Menu.Root>
       <Menu.Trigger
-        render={<Button variant="ghost" xstyle={styles.presetTrigger} />}
-        xstyle={styles.presetTrigger}
+        render={<Button variant="ghost" />}
+        xstyle={[styles.presetTrigger, compact && styles.compactPresetTrigger]}
         aria-label={`Dock preset: ${active.name}`}
         disabled={disabled}
       >
-        <span {...stylex.props(styles.presetCaption)}>Preset</span>
+        {!compact && (
+          <span {...stylex.props(styles.presetCaption)}>Preset</span>
+        )}
         <span {...stylex.props(styles.presetName)}>{active.name}</span>
         <ChevronDown size={14} aria-hidden="true" />
       </Menu.Trigger>

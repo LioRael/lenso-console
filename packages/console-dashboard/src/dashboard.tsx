@@ -2,7 +2,7 @@ import {
   bindConsole,
   defineConsolePlugin,
   useConsoleActivation,
-  ConsoleActionScope,
+  ConsolePageScope,
   ConsoleLayout,
   ConsoleIconButton,
   type ConsoleActivation,
@@ -10,6 +10,7 @@ import {
 } from "@lenso/console-react";
 import { Button } from "@lenso/ui/button";
 import { Modal } from "@lenso/ui/modal";
+import { Popover } from "@lenso/ui/popover";
 import * as stylex from "@stylexjs/stylex";
 import {
   Component,
@@ -19,11 +20,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import GridLayout, {
-  noCompactor,
-  useContainerWidth,
-  type Layout,
-} from "react-grid-layout";
+import { noCompactor, useContainerWidth, type Layout } from "react-grid-layout";
 
 import type {
   DashboardDocument,
@@ -32,6 +29,7 @@ import type {
 } from "./contract";
 import { styles } from "./dashboard.styles";
 import { DashboardDraft, type DashboardInstance } from "./draft";
+import { PointerGridLayout as GridLayout } from "./pointer-grid-layout";
 import {
   canonicalJson,
   dashboardLimits,
@@ -150,13 +148,20 @@ export function DashboardPage(props: ConsoleLocalPageProps<DashboardServices>) {
 function Dashboard({
   services,
   activation,
-  signal,
+  signal: parentSignal,
 }: ConsoleLocalPageProps<DashboardServices>) {
+  // Permission retirement can unmount this child while its host lease stays current.
+  // Keep the host activation for contributions, but guard work with the child's signal.
+  const { signal } = useConsoleActivation(activation, parentSignal);
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [draft, setDraft] = useState<DashboardDraft | null>(null);
   const [, redraw] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [layoutOptionsOpen, setLayoutOptionsOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const settingsFocusRef = useRef<HTMLElement | null>(null);
+  const addFocusRef = useRef<HTMLElement | null>(null);
   const [running, setRunning] = useState(false);
   const runningRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +177,7 @@ function Dashboard({
   } | null>(null);
   const confirmationRef = useRef(confirmation);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const layoutOptionsTriggerRef = useRef<HTMLElement | null>(null);
   const retry = useRef<{
     expectedRevision: string;
     mutationId: string;
@@ -296,7 +302,8 @@ function Dashboard({
     title: string,
     description: string,
     label: string,
-    run: () => void
+    run: () => void,
+    returnFocus?: HTMLElement | null
   ) {
     if (
       confirmationRef.current ||
@@ -309,7 +316,8 @@ function Dashboard({
     }
     const { activeElement } = globalThis.document;
     returnFocusRef.current =
-      activeElement instanceof HTMLElement ? activeElement : null;
+      returnFocus ??
+      (activeElement instanceof HTMLElement ? activeElement : null);
     const pending = {
       title,
       description,
@@ -324,6 +332,31 @@ function Dashboard({
   function closeConfirmation() {
     confirmationRef.current = null;
     setConfirmation(null);
+  }
+  function cancelEditing() {
+    const discard = () => {
+      if (snapshot) {
+        setDraft(new DashboardDraft(snapshot));
+      }
+      setEditing(false);
+      setSelected(null);
+      retry.current = null;
+      setError(null);
+    };
+    if (draft?.dirty) {
+      requestConfirmation(
+        "Discard dashboard edits?",
+        "Discard unsaved widget, configuration and layout changes? Your saved dashboard and business data will not change.",
+        "Discard edits",
+        discard
+      );
+    } else if (
+      !runningRef.current &&
+      activation.isCurrent() &&
+      !signal.aborted
+    ) {
+      discard();
+    }
   }
   function confirmDraftChange() {
     const pending = confirmationRef.current;
@@ -403,6 +436,48 @@ function Dashboard({
       )
     );
   }
+  function canChangeGeometry(
+    id: string,
+    field: "column" | "row" | "width" | "height",
+    delta: number
+  ) {
+    if (!draft) {
+      return false;
+    }
+    const instance = draft.document.instances.find((item) => item.id === id);
+    const placement = draft.document.placements.find(
+      (item) => item.instanceId === id
+    );
+    const definition =
+      instance && definitions.get(definitionKey(instance.definition));
+    if (!placement) {
+      return false;
+    }
+    const next = { ...placement, [field]: placement[field] + delta };
+    if (
+      definition &&
+      (next.width < definition.sizes.min.width ||
+        next.width > definition.sizes.max.width ||
+        next.height < definition.sizes.min.height ||
+        next.height > definition.sizes.max.height)
+    ) {
+      return false;
+    }
+    try {
+      const candidate = new DashboardDraft({
+        ...draft.base,
+        document: draft.document,
+      });
+      candidate.setLayout(
+        draft.document.placements.map((item) =>
+          item.instanceId === id ? next : item
+        )
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
   function geometry(
     id: string,
     field: "column" | "row" | "width" | "height",
@@ -463,95 +538,175 @@ function Dashboard({
   const selectedDefinition =
     selectedInstance &&
     definitions.get(definitionKey(selectedInstance.definition));
+  const selectedPlacement = document?.placements.find(
+    (placement) => placement.instanceId === selected
+  );
   const selectedRemovable =
     selectedInstance &&
     selectedDefinition &&
     !restricted.has(selectedInstance.id) &&
     mayUseWidget(selectedDefinition) &&
     compatible(selectedInstance, selectedDefinition);
-  const selection =
-    selected && editing
-      ? {
-          count: 1,
-          scopeLabel: "Dashboard widget",
-          running,
-          actions: selectedRemovable
-            ? [
-                {
-                  id: "remove",
-                  label: "Remove widget",
-                  icon: <span aria-hidden="true">×</span>,
-                  onInvoke: () => {
-                    if (runningRef.current || restricted.has(selected)) {
-                      return;
-                    }
-                    const instance = document?.instances.find(
-                      (item) => item.id === selected
+  const SelectedEditor = selectedRemovable && selectedDefinition?.ConfigEditor;
+  const availableWidgets = services.widgets.filter(mayUseWidget);
+  const editOptions = (
+    <div {...stylex.props(styles.group)}>
+      <ConsoleIconButton
+        label="Add widget"
+        tooltip="Add a widget to this dashboard"
+        variant="secondary"
+        disabled={running || loading || availableWidgets.length === 0}
+        xstyle={styles.cornerButton}
+        onClick={() => {
+          if (
+            signal.aborted ||
+            !activation.isCurrent() ||
+            runningRef.current ||
+            confirmationRef.current
+          ) {
+            return;
+          }
+          addFocusRef.current = globalThis.document
+            .activeElement as HTMLElement;
+          setAdding(true);
+        }}
+      >
+        <span aria-hidden="true">+</span>
+      </ConsoleIconButton>
+      <Popover.Root
+        open={layoutOptionsOpen}
+        onOpenChange={setLayoutOptionsOpen}
+      >
+        <Popover.Trigger
+          render={
+            <ConsoleIconButton
+              label="Dashboard layout options"
+              tooltip="Dashboard layout options"
+              variant="secondary"
+              xstyle={styles.cornerButton}
+              disabled={running || loading}
+              onClick={(event) => {
+                layoutOptionsTriggerRef.current = event.currentTarget;
+              }}
+            >
+              <span aria-hidden="true">⋯</span>
+            </ConsoleIconButton>
+          }
+        />
+        <Popover.Portal>
+          <Popover.Positioner side="top" align="start" sideOffset={8}>
+            <Popover.Popup aria-label="Dashboard layout options">
+              <div {...stylex.props(styles.group)}>
+                <Button
+                  variant="ghost"
+                  xstyle={styles.button}
+                  disabled={running || !draft?.canUndoLayout}
+                  onClick={() => {
+                    setLayoutOptionsOpen(false);
+                    change((value) => value.undoLayout());
+                  }}
+                >
+                  Undo layout
+                </Button>
+                <Button
+                  variant="ghost"
+                  xstyle={styles.button}
+                  disabled={running}
+                  onClick={(event) => {
+                    setLayoutOptionsOpen(false);
+                    const returnFocus =
+                      layoutOptionsTriggerRef.current ?? event.currentTarget;
+                    const defaults = structuredClone(services.defaults);
+                    requestConfirmation(
+                      "Restore default dashboard?",
+                      "Replace this draft with the application's default dashboard? This does not undo business operations. Save the dashboard to keep this change.",
+                      "Restore defaults",
+                      () => {
+                        change((value) => value.restore(defaults));
+                        setSelected(null);
+                      },
+                      returnFocus
                     );
-                    const definition =
-                      instance &&
-                      definitions.get(definitionKey(instance.definition));
-                    if (!instance || !compatible(instance, definition)) {
-                      return;
-                    }
-                    requestRemoval(instance);
-                  },
-                },
-              ]
-            : [],
-          onExit: () => {
-            if (!runningRef.current) {
-              setSelected(null);
-            }
-          },
-        }
-      : null;
+                  }}
+                >
+                  Restore defaults
+                </Button>
+              </div>
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
+    </div>
+  );
   return (
     <div {...stylex.props(styles.page)}>
-      <h1 {...stylex.props(styles.heading)}>Dashboard</h1>
+      <ConsolePageScope
+        scopeKey={activation.key}
+        value={{ context: { kind: "object", label: "Dashboard" } }}
+      />
       <ConsoleLayout.Corner area="topRight">
         <div {...stylex.props(styles.group)}>
           {editing ? (
-            <>
-              <ConsoleIconButton
-                label="Save dashboard"
-                disabled={running || !draft?.dirty}
-                onClick={() => void save()}
-              >
-                <span aria-hidden="true">✓</span>
-              </ConsoleIconButton>
-              <ConsoleIconButton
-                label="Cancel dashboard edits"
-                disabled={running}
-                onClick={() => {
-                  if (snapshot) {
-                    setDraft(new DashboardDraft(snapshot));
-                  }
-                  setEditing(false);
-                  setSelected(null);
-                  retry.current = null;
-                  setError(null);
-                }}
-              >
-                <span aria-hidden="true">×</span>
-              </ConsoleIconButton>
-            </>
+            <ConsoleIconButton
+              label="Done editing dashboard"
+              side="bottom"
+              tooltip={
+                running
+                  ? "Saving dashboard"
+                  : draft?.dirty
+                    ? "Save dashboard edits"
+                    : "Finish editing dashboard"
+              }
+              variant="primary"
+              xstyle={styles.cornerButton}
+              disabled={running || loading}
+              onClick={() => (draft?.dirty ? void save() : cancelEditing())}
+            >
+              <span aria-hidden="true">✓</span>
+            </ConsoleIconButton>
           ) : (
             <ConsoleIconButton
               label="Edit dashboard"
+              side="bottom"
+              variant="secondary"
+              xstyle={styles.cornerButton}
               disabled={!snapshot || loading}
-              onClick={() => setEditing(true)}
+              onClick={() => {
+                if (activation.isCurrent() && !signal.aborted) {
+                  setEditing(true);
+                }
+              }}
             >
               <span aria-hidden="true">✎</span>
             </ConsoleIconButton>
           )}
         </div>
       </ConsoleLayout.Corner>
-      <ConsoleActionScope scopeKey={activation.key} value={selection} />
+      {editing && (
+        <>
+          <ConsoleLayout.Corner area="bottomLeft" xstyle={styles.bottomCorner}>
+            {editOptions}
+          </ConsoleLayout.Corner>
+          <ConsoleLayout.Corner area="bottomRight" xstyle={styles.bottomCorner}>
+            <ConsoleIconButton
+              label="Cancel dashboard edits"
+              tooltip="Discard dashboard edits"
+              variant="secondary"
+              xstyle={styles.cornerButton}
+              disabled={running}
+              onClick={cancelEditing}
+            >
+              <span aria-hidden="true">×</span>
+            </ConsoleIconButton>
+          </ConsoleLayout.Corner>
+        </>
+      )}
       {loading && <output>Loading dashboard…</output>}
       {error && (
         <div role="alert" {...stylex.props(styles.status)}>
-          <p>{error} Your draft has not been discarded.</p>
+          <p>
+            {error} {draft && "Your draft has not been discarded."}
+          </p>
           <Button
             disabled={running}
             xstyle={styles.button}
@@ -569,55 +724,114 @@ function Dashboard({
           </Button>
         </div>
       )}
-      {editing && (
-        <div {...stylex.props(styles.group)}>
-          {services.widgets.filter(mayUseWidget).map((widget) => (
-            <Button
-              key={definitionKey(widget)}
-              disabled={running}
-              xstyle={styles.button}
-              onClick={() => add(widget)}
-            >
-              Add {widget.title}
-            </Button>
-          ))}
-          <Button
-            disabled={running || !draft?.canUndoLayout}
-            xstyle={styles.button}
-            onClick={() => change((value) => value.undoLayout())}
-          >
-            Undo layout
-          </Button>
-          <Button
-            disabled={running}
-            xstyle={styles.button}
-            onClick={() => {
-              const defaults = structuredClone(services.defaults);
-              requestConfirmation(
-                "Restore default dashboard?",
-                "Replace this draft with the application's default dashboard? This does not undo business operations. Save the dashboard to keep this change.",
-                "Restore defaults",
-                () => {
-                  change((value) => value.restore(defaults));
-                  setSelected(null);
-                }
-              );
+      {editing &&
+        selectedInstance &&
+        selectedPlacement &&
+        selected &&
+        !restricted.has(selected) &&
+        (!selectedDefinition || mayUseWidget(selectedDefinition)) && (
+          <Modal.Root
+            open
+            onOpenChange={(open) => {
+              if (!open) {
+                setSelected(null);
+              }
             }}
           >
-            Restore defaults
-          </Button>
-          <p>
-            Use the widget move controls or drag handle. Narrow windows keep one
-            ordered layout.
-          </p>
-        </div>
-      )}
+            <Modal.Portal>
+              <Modal.Backdrop />
+              <Modal.Viewport>
+                <Modal.Popup size="sm" finalFocus={settingsFocusRef}>
+                  <Modal.Header>
+                    <Modal.Title>
+                      {selectedDefinition?.title ?? "Unavailable widget"}
+                    </Modal.Title>
+                    <Modal.Description>
+                      Adjust widget layout and configuration.
+                    </Modal.Description>
+                  </Modal.Header>
+                  <section
+                    aria-label="Selected widget settings"
+                    {...stylex.props(styles.editor)}
+                  >
+                    <div {...stylex.props(styles.group)}>
+                      <Button
+                        variant="ghost"
+                        disabled={running}
+                        xstyle={styles.button}
+                        onClick={() => setSelected(null)}
+                      >
+                        Close settings
+                      </Button>
+                    </div>
+                    <div {...stylex.props(styles.controls)}>
+                      {(["column", "row", "width", "height"] as const).map(
+                        (field) => (
+                          <fieldset
+                            key={field}
+                            {...stylex.props(
+                              styles.group,
+                              styles.geometryGroup
+                            )}
+                          >
+                            <legend>Widget {field}</legend>
+                            <Button
+                              variant="ghost"
+                              xstyle={styles.button}
+                              disabled={
+                                running ||
+                                !canChangeGeometry(selected, field, -1)
+                              }
+                              aria-label={`Decrease ${field}`}
+                              onClick={() => geometry(selected, field, -1)}
+                            >
+                              −
+                            </Button>
+                            <span>{selectedPlacement[field]}</span>
+                            <Button
+                              variant="ghost"
+                              xstyle={styles.button}
+                              disabled={
+                                running ||
+                                !canChangeGeometry(selected, field, 1)
+                              }
+                              aria-label={`Increase ${field}`}
+                              onClick={() => geometry(selected, field, 1)}
+                            >
+                              +
+                            </Button>
+                          </fieldset>
+                        )
+                      )}
+                    </div>
+                    {SelectedEditor &&
+                      selectedRemovable &&
+                      selectedDefinition && (
+                        <SelectedEditor
+                          config={selectedRemovable.config}
+                          onChange={(config) =>
+                            change((value) =>
+                              value.configure(
+                                selected,
+                                selectedDefinition.configSchema.parse(config)
+                              )
+                            )
+                          }
+                        />
+                      )}
+                  </section>
+                </Modal.Popup>
+              </Modal.Viewport>
+            </Modal.Portal>
+          </Modal.Root>
+        )}
       {document?.instances.length === 0 && !loading && (
         <p>No widgets yet. Edit the dashboard to add an available widget.</p>
       )}
       <div ref={containerRef} {...stylex.props(styles.grid)}>
         {mounted && (
           <GridLayout
+            signal={signal}
             width={width}
             layout={layout}
             compactor={noCompactor}
@@ -653,17 +867,24 @@ function Dashboard({
               const admitted = allowed
                 ? compatible(instance, definition)
                 : null;
-              const Editor = admitted && definition?.ConfigEditor;
               return (
                 <div
                   key={instance.id}
                   {...stylex.props(
                     styles.card,
+                    editing && styles.editingCard,
                     selected === instance.id && styles.selected
                   )}
                 >
-                  <div {...stylex.props(styles.header)}>
-                    <h2 {...stylex.props(styles.title)}>
+                  <div
+                    {...stylex.props((editing || !admitted) && styles.header)}
+                  >
+                    <h2
+                      {...stylex.props(
+                        styles.title,
+                        admitted && styles.hiddenTitle
+                      )}
+                    >
                       {hidden
                         ? "Restricted widget"
                         : (definition?.title ?? "Unavailable widget")}
@@ -671,65 +892,33 @@ function Dashboard({
                     {editing && !hidden && (
                       <>
                         <Button
+                          variant="ghost"
                           xstyle={[styles.button, styles.handle]}
                           data-dashboard-drag
                           disabled={running}
-                          onClick={() => setSelected(instance.id)}
-                          aria-label={`Select ${definition?.title ?? "unavailable widget"}`}
+                          onClick={() => {
+                            settingsFocusRef.current = globalThis.document
+                              .activeElement as HTMLElement;
+                            setSelected(instance.id);
+                          }}
+                          aria-label={`Edit ${definition?.title ?? "unavailable widget"}`}
+                          aria-pressed={selected === instance.id}
                         >
-                          Move
+                          {definition?.title ?? "Widget"}{" "}
+                          <span aria-hidden="true">⠿</span>
                         </Button>
                         <Button
-                          xstyle={styles.button}
+                          variant="ghost"
+                          xstyle={[styles.button, styles.remove]}
+                          aria-label={`Remove ${definition?.title ?? "unavailable widget"}`}
                           disabled={running || !admitted}
                           onClick={() => requestRemoval(instance)}
                         >
-                          Remove
+                          <span aria-hidden="true">−</span>
                         </Button>
                       </>
                     )}
                   </div>
-                  {editing && selected === instance.id && !hidden && (
-                    <div {...stylex.props(styles.controls)}>
-                      {(["column", "row", "width", "height"] as const).map(
-                        (field) => (
-                          <div key={field} {...stylex.props(styles.group)}>
-                            <span>{field}</span>
-                            <Button
-                              xstyle={styles.button}
-                              disabled={running}
-                              aria-label={`Decrease ${field}`}
-                              onClick={() => geometry(instance.id, field, -1)}
-                            >
-                              −
-                            </Button>
-                            <span>{placement[field]}</span>
-                            <Button
-                              xstyle={styles.button}
-                              disabled={running}
-                              aria-label={`Increase ${field}`}
-                              onClick={() => geometry(instance.id, field, 1)}
-                            >
-                              +
-                            </Button>
-                          </div>
-                        )
-                      )}
-                      {Editor && admitted && definition && (
-                        <Editor
-                          config={admitted.config}
-                          onChange={(config) =>
-                            change((value) =>
-                              value.configure(
-                                instance.id,
-                                definition.configSchema.parse(config)
-                              )
-                            )
-                          }
-                        />
-                      )}
-                    </div>
-                  )}
                   <div {...stylex.props(styles.content)}>
                     {admitted && definition ? (
                       <ActiveWidget
@@ -757,6 +946,42 @@ function Dashboard({
           </GridLayout>
         )}
       </div>
+      <Modal.Root open={adding} onOpenChange={setAdding}>
+        <Modal.Portal>
+          <Modal.Backdrop />
+          <Modal.Viewport>
+            <Modal.Popup size="sm" finalFocus={addFocusRef}>
+              <Modal.Header>
+                <Modal.Title>Add widget</Modal.Title>
+                <Modal.Description>
+                  Choose a widget to add to your dashboard draft.
+                </Modal.Description>
+              </Modal.Header>
+              <div {...stylex.props(styles.widgetChoices)}>
+                {availableWidgets.map((widget) => (
+                  <Button
+                    key={definitionKey(widget)}
+                    disabled={running}
+                    xstyle={styles.widgetChoice}
+                    onClick={() => {
+                      add(widget);
+                      setAdding(false);
+                    }}
+                  >
+                    Add {widget.title}
+                  </Button>
+                ))}
+                {availableWidgets.length === 0 && (
+                  <p>No widgets are available with your current permissions.</p>
+                )}
+              </div>
+              <Modal.Footer>
+                <Button onClick={() => setAdding(false)}>Cancel</Button>
+              </Modal.Footer>
+            </Modal.Popup>
+          </Modal.Viewport>
+        </Modal.Portal>
+      </Modal.Root>
       <Modal.Root
         open={confirmation !== null}
         onOpenChange={(open) => {

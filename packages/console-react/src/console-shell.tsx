@@ -1,7 +1,8 @@
+// Share the scoped portal context across Vite prebundles.
+import { ThemeScope, Tooltip } from "@lenso/ui";
 import { Button } from "@lenso/ui/button";
 import { Popover } from "@lenso/ui/popover";
 import { Tabs } from "@lenso/ui/tabs";
-import { Tooltip } from "@lenso/ui/tooltip";
 import * as stylex from "@stylexjs/stylex";
 import {
   Menu,
@@ -9,6 +10,7 @@ import {
   Settings2,
   PanelLeft,
   LayoutGrid,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import {
@@ -279,14 +281,17 @@ function NavigationList({
             {item.tooltip ? (
               <Tooltip.Root>
                 <Tooltip.Trigger render={destination} />
-                <Tooltip.Portal>
-                  <Tooltip.Positioner
-                    side={sidebar ? "right" : "top"}
-                    sideOffset={8}
-                  >
-                    <Tooltip.Popup>{item.tooltip}</Tooltip.Popup>
-                  </Tooltip.Positioner>
-                </Tooltip.Portal>
+                {/* Escape the launcher's rounded hit clip without losing its theme. */}
+                <ThemeScope xstyle={styles.portalScope}>
+                  <Tooltip.Portal>
+                    <Tooltip.Positioner
+                      side={sidebar ? "right" : "top"}
+                      sideOffset={8}
+                    >
+                      <Tooltip.Popup>{item.tooltip}</Tooltip.Popup>
+                    </Tooltip.Positioner>
+                  </Tooltip.Portal>
+                </ThemeScope>
               </Tooltip.Root>
             ) : (
               destination
@@ -588,11 +593,6 @@ export function ConsoleShell({
     >
       {({ active, entries, restoreFocus }) => (
         <ConsoleLayout.Foreground>
-          {selection && !navigationButton && value.mode === "dock" && (
-            <ConsoleLayout.Corner area="topLeft">
-              {navigationEntry}
-            </ConsoleLayout.Corner>
-          )}
           {value.mode === "sidebar" && permitted && (
             <nav
               {...stylex.props(styles.sidebar)}
@@ -952,15 +952,19 @@ export function ConsoleShell({
                       aria-label="Quick controls"
                       {...stylex.props(styles.quickControls)}
                     >
-                      <Button
+                      <ConsoleIconButton
+                        label="Command"
+                        tooltip="Command (⌘K / Ctrl+K)"
                         variant="ghost"
                         onClick={openCommand}
                         xstyle={styles.quickControl}
                       >
                         <Search size={18} aria-hidden="true" />
-                        Command <kbd>⌘K</kbd>
-                      </Button>
-                      <Button
+                      </ConsoleIconButton>
+                      <ConsoleIconButton
+                        label={
+                          value.mode === "dock" ? "Use sidebar" : "Use Dock"
+                        }
                         variant="ghost"
                         onClick={() => {
                           const next = {
@@ -980,32 +984,33 @@ export function ConsoleShell({
                         ) : (
                           <LayoutGrid size={18} aria-hidden="true" />
                         )}
-                        {value.mode === "dock" ? "Use sidebar" : "Use Dock"}
-                      </Button>
+                      </ConsoleIconButton>
                       <ConsolePresetSwitcher
                         value={value}
                         disabled={preference.busy || !preference.loaded}
                         onSelect={selectPreset}
+                        compact
                       />
-                      <Button
+                      <ConsoleIconButton
                         ref={customizeRef}
+                        label="Customize navigation"
                         variant="ghost"
                         onClick={() => changeView(true)}
                         disabled={!preference.loaded || preference.busy}
                         xstyle={styles.quickControl}
                       >
                         <Settings2 size={18} aria-hidden="true" />
-                        Customize navigation
-                      </Button>
-                      <Button
+                      </ConsoleIconButton>
+                      <ConsoleIconButton
                         ref={settingsRef}
+                        label="Navigation settings"
                         variant="ghost"
                         xstyle={styles.quickControl}
                         disabled={!preference.loaded || preference.busy}
                         onClick={() => changeView(true, true)}
                       >
-                        Navigation settings
-                      </Button>
+                        <SlidersHorizontal size={18} aria-hidden="true" />
+                      </ConsoleIconButton>
                     </section>
                   </>
                 )}

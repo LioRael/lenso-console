@@ -24,6 +24,236 @@ page.on("response", (response) => {
 const button = (name) => page.getByRole("button", { exact: true, name });
 const link = (name) => page.getByRole("link", { exact: true, name });
 const heading = (name) => page.getByRole("heading", { exact: true, name });
+const setTheme = (theme) =>
+  page.evaluate((value) => {
+    document.documentElement.dataset.theme = value;
+    document.documentElement.style.colorScheme = value;
+  }, theme);
+// Tabs/object coverage misses detail→list: both contributions are objects,
+// but the retained skin must still resize rather than replace its geometry.
+const verifySessionReturn = async () => {
+  await page.goto(`${origin}/workforce/sessions`);
+  await link("sample-workforce-1").waitFor();
+  await page.waitForTimeout(300);
+  const sampleIsland = () =>
+    page.evaluate(async () => {
+      const skin = document.querySelector("[data-context-body-surface]");
+      const samples = [];
+      const start = performance.now();
+      // oxlint-disable-next-line unicorn/consistent-function-scoping -- Serialized browser helper.
+      const readCap = () => {
+        const cap = document.querySelector('[data-context-surface="return"]');
+        const capBox = cap?.getBoundingClientRect();
+        const control = cap?.parentElement.querySelector("button");
+        const wrapper = cap?.parentElement.getBoundingClientRect();
+        const escapedCapHits = [];
+        if (control && capBox) {
+          const box = control.getBoundingClientRect();
+          for (const [x, y] of [
+            [box.x + box.width / 2, box.y + box.height / 2],
+            [capBox.x + 0.5, capBox.y + 0.5],
+            [capBox.right + 1, capBox.y + capBox.height / 2],
+          ]) {
+            if (
+              (x > capBox.right || x < capBox.x || y < capBox.y + 1) &&
+              control.contains(document.elementFromPoint(x, y))
+            ) {
+              escapedCapHits.push([x, y]);
+            }
+          }
+        }
+        return {
+          capInert: !cap || cap.parentElement.inert,
+          capOpacity: control ? Number(getComputedStyle(control).opacity) : 0,
+          capRetiring:
+            cap?.parentElement.getAttribute("aria-hidden") === "true",
+          capWidth: capBox?.width ?? 0,
+          capWrapperWidth: wrapper?.width ?? 0,
+          escapedCapHits,
+        };
+      };
+      while (performance.now() - start < 500) {
+        // oxlint-disable-next-line promise/avoid-new -- Observe actual browser frames.
+        await new Promise(requestAnimationFrame);
+        const current = document.querySelector("[data-context-body-surface]");
+        const box = current.getBoundingClientRect();
+        const style = getComputedStyle(current);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const radii = style.clipPath
+          .match(/round ([^)]*)/u)?.[1]
+          .split(" ")
+          .map(Number.parseFloat);
+        const radius = radii
+          ? (radii[1] ?? radii[0]) * Math.abs(matrix.a)
+          : Number(style.borderTopRightRadius.replace("px", ""));
+        const content = document.querySelector("[data-context-content]");
+        const contentBox = content.getBoundingClientRect();
+        const contentClip = getComputedStyle(content).clipPath.match(
+          /inset\(([^)]*?) round/u
+        );
+        const insets = contentClip?.[1].split(" ").map(Number.parseFloat);
+        const clip = insets && [
+          contentBox.y + insets[0],
+          contentBox.right - (insets[1] ?? insets[0]),
+          contentBox.bottom - (insets[2] ?? insets[0]),
+          contentBox.x + (insets[3] ?? insets[1] ?? insets[0]),
+        ];
+        samples.push({
+          ...readCap(),
+          clip,
+          edges: [box.y, box.right, box.bottom, box.x],
+          height: box.height,
+          inert: content.inert,
+          opacity: Number(getComputedStyle(content).opacity),
+          radius,
+          retained: current === skin,
+          width: box.width,
+          x: box.x,
+        });
+      }
+      return samples;
+    });
+  const forwardSampling = sampleIsland();
+  await link("sample-workforce-1").click();
+  await button("Return to sessions").waitFor();
+  const forward = await forwardSampling;
+  assert.ok(
+    forward.every((frame) => frame.retained),
+    "Forward retains body skin"
+  );
+  assert.ok(
+    forward.every((frame) => frame.radius >= frame.height / 2 - 1),
+    `Session list→detail keeps circular body corners EVERY frame: ${JSON.stringify(forward.filter((frame) => frame.radius < frame.height / 2 - 1))}`
+  );
+  await page.waitForTimeout(300);
+  const sampling = sampleIsland();
+  await button("Return to sessions").click();
+  await page.waitForURL(`${origin}/workforce/sessions`);
+  const frames = await sampling;
+  for (const frame of [...forward, ...frames]) {
+    assert.ok(
+      frame.radius >= frame.height / 2 - 1,
+      "Body corners remain circular"
+    );
+    assert.ok(frame.clip, "Content has a physical rounded clip");
+    for (const [index, edge] of frame.edges.entries()) {
+      assert.ok(
+        Math.abs(edge - frame.clip[index]) < 1,
+        "Content clip matches the visible body"
+      );
+    }
+    assert.ok(
+      Math.abs(frame.capWrapperWidth - frame.capWidth) < 1,
+      "Visible and hit-test cap widths agree"
+    );
+    assert.deepEqual(
+      frame.escapedCapHits,
+      [],
+      "No cap hits outside its visible shape"
+    );
+    if (frame.capRetiring) {
+      assert.ok(
+        frame.capInert,
+        "Outgoing return control is inert from the first frame"
+      );
+    }
+  }
+  assert.ok(
+    frames.every((frame) => frame.retained),
+    "Session return retains the island"
+  );
+  assert.ok(
+    new Set(frames.map((frame) => Math.round(frame.width))).size > 3,
+    "Session detail→list interpolates the body width"
+  );
+  assert.ok(
+    frames.some((frame) => frame.opacity < 0.9 && frame.inert),
+    "Incoming session context waits for its skin"
+  );
+  const shrinking = frames.filter(
+    (frame) => frame.capWidth > 0 && frame.capWidth < 35
+  );
+  assert.ok(
+    new Set(shrinking.map((frame) => Math.round(frame.capWidth))).size > 3,
+    `Return region must shrink, not vanish at full width: ${JSON.stringify(frames)}`
+  );
+  const removed = frames.findIndex(
+    (frame, index) => index > 0 && !frame.capWidth && frames[index - 1].capWidth
+  );
+  assert.ok(removed > 0, "Return cap retires");
+  assert.ok(
+    frames[removed - 1].capWidth < 2,
+    "Cap reaches zero before retirement"
+  );
+  for (let index = 1; index < frames.length; index += 1) {
+    assert.ok(
+      frames[index].capWidth <= frames[index - 1].capWidth + 0.5,
+      "Retiring cap never revives"
+    );
+    assert.ok(
+      frames[index].capOpacity <= frames[index - 1].capOpacity + 0.01,
+      "Retiring return arrow never reappears"
+    );
+    if (frames[index].capWidth < 35) {
+      assert.ok(frames[index].capInert, "Outgoing cap is inert immediately");
+    }
+  }
+  assert.ok(
+    Math.abs(
+      frames[removed].x +
+        frames[removed].width / 2 -
+        (frames[removed - 1].x + frames[removed - 1].width / 2)
+    ) < 2,
+    `Removing the return cap does not snap the body: ${JSON.stringify(frames.slice(removed - 1, removed + 1))}`
+  );
+  assert.equal(frames.at(-1).opacity, 1);
+  assert.equal(frames.at(-1).inert, false);
+  assert.equal(await button("Return to sessions").count(), 0);
+  console.log(
+    `Session forward/return: ${forward.length}/${frames.length} retained radius/clip/cap-width/visibility frames`
+  );
+  for (const reducedMotion of ["no-preference", "reduce"]) {
+    await page.emulateMedia({ reducedMotion });
+    await page.goto(`${origin}/workforce/sessions/sample-workforce-1`);
+    await button("Return to sessions").waitFor();
+    await button("Return to sessions").focus();
+    const focus = await button("Return to sessions").evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        offset: Number(style.outlineOffset.replace("px", "")),
+        outline: style.outlineStyle,
+      };
+    });
+    assert.equal(
+      focus.outline,
+      "solid",
+      "Return control has a visible focus ring"
+    );
+    assert.ok(
+      focus.offset < 0,
+      "Return focus ring stays inside the physical cap clip"
+    );
+    await (reducedMotion === "reduce"
+      ? button("Return to sessions").click()
+      : button("Return to sessions").press("Enter"));
+    await page.waitForURL(`${origin}/workforce/sessions`);
+    assert.equal(
+      await page
+        .locator("[data-context-body-surface]")
+        .getAttribute("data-travelling"),
+      "false",
+      `Session return is immediate for ${reducedMotion}`
+    );
+    assert.equal(
+      await page
+        .locator("[data-context-content]")
+        .evaluate((node) => node.inert),
+      false
+    );
+    assert.equal(await button("Return to sessions").count(), 0);
+  }
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+};
 const selectOption = async (label, value) => {
   await page.getByRole("combobox", { name: label }).click();
   await page.getByRole("option", { exact: true, name: value }).click();
@@ -129,7 +359,7 @@ const startChoreographySamples = () =>
           target: target.toJSON(),
         });
       }
-      if (performance.now() - start < 380) {
+      if (performance.now() - start < 650) {
         requestAnimationFrame(() => channel.port2.postMessage(null));
       } else {
         channel.port1.close();
@@ -141,7 +371,7 @@ const startChoreographySamples = () =>
     requestAnimationFrame(() => channel.port2.postMessage(null));
   });
 const checkChoreographySamples = async (label) => {
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(700);
   const frames = await page.evaluate(() => window.choreographyFrames);
   assert.ok(frames.length > 5, `${label}: actual animation frames required`);
   for (const frame of frames) {
@@ -188,14 +418,214 @@ const navigate = async (label, path, title) => {
     .getByRole("link", { exact: true, name: label })
     .click();
   await page.waitForURL(`${origin}${path}`);
-  await heading(title).first().waitFor();
+  if (title) {
+    await (
+      title === "Sessions" || title === "Subjects" || title === "Plugin manager"
+        ? page.getByRole("region", { exact: true, name: title })
+        : heading(title).first()
+    ).waitFor();
+  }
   assert.equal(await page.getByRole("alert").count(), 0);
   console.log(`Navigation: ${label} -> ${path}`);
 };
 
+// Existing tooltip checks cover compact Dock anchors and sidebar focus, not
+// launcher edge tiles whose overlays can inherit the rounded Dock hit clip.
+const verifyLauncherTooltip = async () => {
+  for (const { width, height } of [
+    { height: 776, width: 1512 },
+    { height: 844, width: 390 },
+  ]) {
+    await page.setViewportSize({ height, width });
+    await page.goto(origin);
+    await button("Expand Dock").click();
+    const workforce = page.getByRole("dialog").getByRole("link", {
+      exact: true,
+      name: "Workforce",
+    });
+    for (const theme of ["light", "dark"]) {
+      await setTheme(theme);
+      // Tile portals do not prove the shared icon-button portal escapes the clip.
+      for (const { control, name } of [
+        {
+          control: workforce,
+          name: "Inspect workforce authentication information",
+        },
+        {
+          control: button("Command"),
+          name: "Command (⌘K / Ctrl+K)",
+        },
+      ]) {
+        for (const trigger of ["pointer", "focus"]) {
+          await page.mouse.move(0, 0);
+          await control.evaluate((node) => node.blur());
+          if (trigger === "pointer") {
+            await control.hover();
+          } else {
+            await page.keyboard.press("Tab");
+            await control.focus();
+          }
+          const tooltip = page.getByRole("tooltip", {
+            exact: true,
+            name,
+          });
+          await tooltip.waitFor();
+          await page.waitForTimeout(250);
+          const geometry = await tooltip.evaluate((node) => {
+            const box = node.getBoundingClientRect();
+            const clipped = [];
+            for (
+              let ancestor = node.parentElement;
+              ancestor;
+              ancestor = ancestor.parentElement
+            ) {
+              const style = getComputedStyle(ancestor);
+              if (
+                style.clipPath !== "none" ||
+                /hidden|clip|auto|scroll/u.test(style.overflow)
+              ) {
+                const bounds = ancestor.getBoundingClientRect();
+                if (
+                  box.left < bounds.left ||
+                  box.right > bounds.right ||
+                  box.top < bounds.top ||
+                  box.bottom > bounds.bottom
+                ) {
+                  clipped.push({
+                    clip: style.clipPath,
+                    overflow: style.overflow,
+                  });
+                }
+              }
+            }
+            const style = getComputedStyle(node);
+            return {
+              clipped,
+              edges: [box.left, box.top, box.right, box.bottom],
+              exposed: [
+                box.left + 8,
+                box.left + box.width / 2,
+                box.right - 8,
+              ].every((x) =>
+                node.contains(
+                  document.elementFromPoint(x, box.top + box.height / 2)
+                )
+              ),
+              tokens: ["--background", "--foreground", "--overlay"].map(
+                (token) => style.getPropertyValue(token)
+              ),
+            };
+          });
+          assert.deepEqual(
+            geometry.clipped,
+            [],
+            `${width}/${theme}/${trigger}: launcher tooltip must escape physical Dock clipping`
+          );
+          assert.ok(
+            geometry.exposed,
+            `${width}/${theme}/${trigger}: tooltip is not occluded at either edge or centre`
+          );
+          assert.ok(
+            geometry.edges[0] >= 0 &&
+              geometry.edges[1] >= 0 &&
+              geometry.edges[2] <= width &&
+              geometry.edges[3] <= height,
+            `${width}/${theme}/${trigger}: tooltip stays in viewport`
+          );
+          const tokens = await control.evaluate((node) => {
+            const style = getComputedStyle(node);
+            return ["--background", "--foreground", "--overlay"].map((token) =>
+              style.getPropertyValue(token)
+            );
+          });
+          assert.ok(
+            tokens.every((token) => token.trim()),
+            "Theme tokens are defined"
+          );
+          assert.deepEqual(
+            geometry.tokens,
+            tokens,
+            "Portaled tooltip retains launcher theme tokens"
+          );
+          if (trigger === "focus") {
+            assert.equal(
+              await control.evaluate((node) => node === document.activeElement),
+              true
+            );
+            assert.equal(
+              await control.evaluate((node) => {
+                const style = getComputedStyle(node);
+                return (
+                  node.matches(":focus-visible") &&
+                  ((style.outlineStyle !== "none" &&
+                    // oxlint-disable-next-line unicorn/prefer-number-coercion -- Computed outline widths contain a CSS unit, such as 2px.
+                    Number.parseFloat(style.outlineWidth) > 0) ||
+                    style.boxShadow !== "none")
+                );
+              }),
+              true
+            );
+          }
+          await control.press("Escape");
+          await tooltip.waitFor({ state: "hidden" });
+          console.log(
+            `Launcher tooltip: ${width}/${theme}/${trigger}/${name}, unclipped, viewport-contained, themed`
+          );
+        }
+      }
+    }
+    const layout = await page
+      .getByRole("region", { exact: true, name: "Destinations" })
+      .evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const utilities = document
+          .querySelector('[aria-label="Quick controls"]')
+          .getBoundingClientRect();
+        return {
+          destinationHeight: box.height,
+          fullyVisible: [...node.querySelectorAll("a")].every((anchor) => {
+            const bounds = anchor.getBoundingClientRect();
+            return (
+              bounds.left >= box.left - 1 &&
+              bounds.right <= box.right + 1 &&
+              bounds.top >= box.top - 1 &&
+              bounds.bottom <= box.bottom + 1
+            );
+          }),
+          utilityHeight: utilities.height,
+        };
+      });
+    assert.ok(layout.utilityHeight <= 48, "Utilities fit one compact row");
+    assert.ok(
+      layout.destinationHeight > layout.utilityHeight,
+      "Destinations remain the primary launcher content"
+    );
+    assert.ok(layout.fullyVisible, "All sample destinations fit visibly");
+    console.log(`Launcher space ${width}: ${JSON.stringify(layout)}`);
+  }
+};
+
 try {
+  if (process.env.COMPOSED_BROWSER_CHECK === "launcher-tooltip") {
+    await verifyLauncherTooltip();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(externalRequests, []);
+    console.log("PASS: targeted launcher tooltip");
+    await browser.close();
+    process.exit(0);
+  }
+  await verifySessionReturn();
+  if (process.env.COMPOSED_BROWSER_CHECK === "context-return") {
+    assert.deepEqual(errors, []);
+    assert.deepEqual(externalRequests, []);
+    console.log("PASS: targeted session return");
+    await browser.close();
+    process.exit(0);
+  }
+  await verifyLauncherTooltip();
+  await page.setViewportSize({ height: 900, width: 1280 });
   await page.goto(origin);
-  await heading("Dashboard").waitFor();
+  await heading("Sample workforce").waitFor();
   const commandKey = (await page.evaluate(() =>
     /Mac|iPhone|iPad/u.test(navigator.platform)
   ))
@@ -203,25 +633,9 @@ try {
     : "Control+k";
   const commandInput = page.getByRole("searchbox", { name: "Search commands" });
   assert.equal(await button("Console navigation").count(), 0);
-  const divider = page.locator('[data-dashboard-control="dock-divider"]');
-  const dividerGeometry = await divider.boundingBox();
-  const dockButtons = page
-    .getByRole("navigation", { name: "Pinned navigation" })
-    .getByRole("button");
-  const preceding = await dockButtons
-    .nth((await dockButtons.count()) - 2)
-    .boundingBox();
-  const expandGeometry = await button("Expand Dock").boundingBox();
-  assert.ok(dividerGeometry.width > 0 && dividerGeometry.height > 0);
-  assert.ok(dividerGeometry.x >= preceding.x + preceding.width);
-  assert.ok(dividerGeometry.x + dividerGeometry.width <= expandGeometry.x);
-  assert.equal(
-    await divider.evaluate((node) => {
-      const color = getComputedStyle(node).backgroundColor;
-      return color !== "transparent" && color !== "rgba(0, 0, 0, 0)";
-    }),
-    true
-  );
+  assert.equal(await heading("Dashboard").count(), 0);
+  assert.equal(await button("Done editing dashboard").count(), 0);
+  await button("Expand Dock").waitFor();
   const checkExpansion = async (position = "bottom") => {
     await page.waitForTimeout(300);
     const popup = page.getByRole("dialog", { name: "Console navigation" });
@@ -288,7 +702,22 @@ try {
               const hit = document.elementFromPoint(r.x + x, r.y + y);
               return node.contains(hit)
                 ? []
-                : [{ control: node.textContent, hit: hit?.outerHTML, x, y }];
+                : [
+                    {
+                      control: node.textContent,
+                      hit: hit?.outerHTML,
+                      hitBox: hit?.getBoundingClientRect().toJSON(),
+                      hitStyle: hit && {
+                        bottom: getComputedStyle(hit).bottom,
+                        display: getComputedStyle(hit).display,
+                        left: getComputedStyle(hit).left,
+                        right: getComputedStyle(hit).right,
+                        top: getComputedStyle(hit).top,
+                      },
+                      x: r.x + x,
+                      y: r.y + y,
+                    },
+                  ];
             })
           );
         }),
@@ -383,6 +812,9 @@ try {
       } else {
         await page.mouse.move(0, 0);
         await button("Expand Dock").evaluate((node) => node.blur());
+        await page
+          .getByRole("tooltip", { exact: true, name: "Expand Dock" })
+          .waitFor({ state: "hidden" });
         await button("Expand Dock").hover();
       }
       const tooltip = page.getByRole("tooltip", {
@@ -463,9 +895,16 @@ try {
     await page.keyboard.press("Escape");
   }
   // An adjacent-popup check cannot detect a teleport. Sample painted geometry.
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.waitForTimeout(450);
+  const collapsedEndpoint = await page
+    .locator("[data-dashboard-dock-surface]")
+    .boundingBox();
   await page.evaluate(() => {
     const frames = [];
     window.dockFrames = frames;
+    const start = performance.now();
+    const channel = new MessageChannel();
     const sample = () => {
       const r = document
         .querySelector("[data-dashboard-dock-surface]")
@@ -475,22 +914,61 @@ try {
         height: r.height,
         width: r.width,
       });
-      if (frames.length < 90) {
-        requestAnimationFrame(sample);
+      if (performance.now() - start < 500) {
+        requestAnimationFrame(() => channel.port2.postMessage(null));
+      } else {
+        channel.port1.close();
+        channel.port2.close();
       }
     };
+    channel.port1.addEventListener("message", sample);
+    channel.port1.start();
     document
       .querySelector(".dashboard-dock")
-      .addEventListener("pointerdown", () => requestAnimationFrame(sample), {
-        once: true,
-      });
+      .addEventListener(
+        "pointerdown",
+        () => requestAnimationFrame(() => channel.port2.postMessage(null)),
+        { once: true }
+      );
   });
   await button("Expand Dock").click();
-  await page.waitForTimeout(360);
+  await page.waitForTimeout(550);
   const frames = await page.evaluate(() => window.dockFrames);
-  assert.ok(frames.some((frame) => frame.width > 300 && frame.width < 590));
-  assert.ok(frames.some((frame) => frame.height > 70 && frame.height < 400));
-  assert.ok(frames.every((frame) => Math.abs(frame.bottom - 880) < 2));
+  const expandedEndpoint = await page
+    .locator("[data-dashboard-dock-surface]")
+    .boundingBox();
+  console.log(
+    `Dock expansion endpoints/samples: ${JSON.stringify({
+      collapsedEndpoint,
+      expandedEndpoint,
+      heights: [...new Set(frames.map((frame) => frame.height))],
+      samples: frames.length,
+      widths: [...new Set(frames.map((frame) => frame.width))],
+    })}`
+  );
+  for (const dimension of ["width", "height"]) {
+    assert.ok(
+      expandedEndpoint[dimension] > collapsedEndpoint[dimension] + 4,
+      `Expansion must increase ${dimension}`
+    );
+    assert.ok(
+      frames.some(
+        (frame) =>
+          frame[dimension] > collapsedEndpoint[dimension] + 2 &&
+          frame[dimension] < expandedEndpoint[dimension] - 2
+      ),
+      `Dock ${dimension} must morph between actual endpoints, not teleport`
+    );
+  }
+  assert.ok(
+    frames.every(
+      (frame) =>
+        Math.abs(
+          frame.bottom - collapsedEndpoint.y - collapsedEndpoint.height
+        ) < 2
+    ),
+    "Expansion retains the settled bottom docking edge"
+  );
   await page.getByRole("textbox", { name: "Search navigation" }).fill("Orders");
   assert.equal(await page.getByRole("dialog").getByRole("link").count(), 1);
   await button("Customize navigation").click();
@@ -560,10 +1038,12 @@ try {
   console.log(
     "Motion: intermediate geometry, fixed docking edge, repeated reversal, search and query reset"
   );
-  const dashboardGeometry = await heading("Dashboard").boundingBox();
+  const dashboardGeometry = await heading("Sample workforce")
+    .first()
+    .boundingBox();
   await button("Start feedback mode").focus();
   await page.keyboard.press("Enter");
-  await heading("Dashboard").click();
+  await heading("Sample workforce").first().click();
   const feedback =
     "Keep the sample-data notice visible while reviewing Dashboard.";
   await page.getByPlaceholder("What should change?").fill(feedback);
@@ -572,7 +1052,7 @@ try {
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   assert.ok(copied.includes(feedback));
   assert.ok(copied.includes("Dashboard"));
-  assert.ok(copied.includes("h1"));
+  assert.ok(copied.includes("Sample workforce"));
   console.log(`Agentation copied feedback:\n${copied}`);
   await button("Clear all").click();
   await button("Exit").focus();
@@ -580,7 +1060,10 @@ try {
   await page.waitForTimeout(150);
   await page.keyboard.press("Escape");
   await button("Start feedback mode").waitFor();
-  assert.deepEqual(await heading("Dashboard").boundingBox(), dashboardGeometry);
+  assert.deepEqual(
+    await heading("Sample workforce").first().boundingBox(),
+    dashboardGeometry
+  );
   assert.equal(
     await button("Start feedback mode").evaluate((node) => {
       const r = node.getBoundingClientRect();
@@ -599,32 +1082,253 @@ try {
     true
   );
   console.log(
-    "Agentation: keyboard open, heading annotation, clipboard export, clear/Escape, unchanged page geometry and unobstructed toolbar"
+    "Agentation: keyboard open, widget heading annotation, clipboard export, clear/Escape, unchanged widget geometry and unobstructed toolbar"
   );
   await button("Edit dashboard").click();
+  await button("Dashboard layout options").click();
+  await button("Undo layout").waitFor();
+  await button("Restore defaults").waitFor();
+  await button("Dashboard layout options").click();
+  await page
+    .getByRole("dialog", { exact: true, name: "Dashboard layout options" })
+    .waitFor({ state: "hidden" });
+  await button("Add widget").click();
+  await page.getByRole("dialog", { name: "Add widget" }).waitFor();
   await button("Add Auth information").click();
-  await button("Save dashboard").click();
-  await button("Edit dashboard").waitFor();
+  const freshSettings = page.getByRole("dialog", { name: "Auth information" });
+  await freshSettings.waitFor();
+  await freshSettings
+    .getByRole("group", { exact: true, name: "Widget width" })
+    .getByText("4", { exact: true })
+    .waitFor();
+  await freshSettings
+    .getByRole("group", { exact: true, name: "Widget height" })
+    .getByText("3", { exact: true })
+    .waitFor();
   assert.equal(
-    await page
-      .getByRole("region", { exact: true, name: "Auth information" })
-      .count(),
-    2
+    await freshSettings.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return (
+        box.left >= 0 &&
+        box.top >= 0 &&
+        box.right <= innerWidth &&
+        box.bottom <= innerHeight &&
+        node.scrollWidth <= node.clientWidth &&
+        node.scrollHeight <= node.clientHeight
+      );
+    }),
+    true,
+    "Fresh 4×3 widget settings fit without viewport or modal overflow"
   );
-  console.log("Dashboard: add widget and save");
+  await button("Close settings").click();
+  await button("Done editing dashboard").click();
+  await button("Edit dashboard").waitFor();
+  assert.equal(await heading("Sample workforce").count(), 2);
+  await button("Edit dashboard").click();
+  await button("Done editing dashboard").click();
+  await button("Edit dashboard").waitFor();
+  await button("Edit dashboard").click();
+  await button("Edit Auth information").first().click();
+  await page.getByRole("dialog", { name: "Auth information" }).waitFor();
+  await button("Close settings").click();
+  await button("Remove Auth information").first().click();
+  await page.getByRole("dialog", { name: "Remove widget?" }).waitFor();
+  await button("Cancel").click();
+  await button("Add widget").click();
+  await page.getByRole("dialog", { name: "Add widget" }).waitFor();
+  await button("Add Auth information").click();
+  await page.getByRole("dialog", { name: "Auth information" }).waitFor();
+  await button("Close settings").click();
+  await button("Cancel dashboard edits").click();
+  const discardDashboard = page.getByRole("dialog", {
+    exact: true,
+    name: "Discard dashboard edits?",
+  });
+  await discardDashboard.waitFor();
+  await discardDashboard
+    .getByRole("button", { exact: true, name: "Discard edits" })
+    .click();
+  await button("Edit dashboard").waitFor();
+  assert.equal(await heading("Sample workforce").count(), 2);
+  await page.setViewportSize({ height: 776, width: 390 });
+  for (const theme of ["light", "dark"]) {
+    await setTheme(theme);
+    await button("Edit dashboard").click();
+    await button("Edit Auth information").first().click();
+    await (
+      (await button("Increase height").isDisabled())
+        ? button("Decrease height")
+        : button("Increase height")
+    ).click();
+    await button("Close settings").click();
+    const doneDashboard = button("Done editing dashboard");
+    await doneDashboard.click({ timeout: 3000, trial: true });
+    assert.equal(
+      await doneDashboard.evaluate((node) => {
+        const r = node.getBoundingClientRect();
+        return node.contains(
+          document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+        );
+      }),
+      true,
+      `${theme}: enabled narrow Dashboard Done is not occluded by feedback toolbar`
+    );
+    await doneDashboard.click();
+    await button("Edit dashboard").waitFor();
+  }
+  await setTheme("light");
+  await page.setViewportSize({ height: 900, width: 1280 });
+  console.log(
+    "Dashboard corners: add/done, widget settings/removal confirmation, dirty cancel/discard, narrow enabled Done in light/dark"
+  );
 
   for (const realm of ["Workforce", "Customers"]) {
     const path = realm.toLowerCase();
     const destination = realm === "Workforce" ? "Workforce" : "Customer";
-    await navigate(realm, `/${path}`, "Auth information");
-    await navigate(`${destination} subjects`, `/${path}/subjects`, "Subjects");
-    await navigate(`${destination} sessions`, `/${path}/sessions`, "Sessions");
+    await navigate(realm, `/${path}`);
+    await navigate(`${destination} subjects`, `/${path}/subjects`);
+    await navigate(`${destination} sessions`, `/${path}/sessions`);
+    // Click-through alone cannot detect missing extracted styles or undersized targets.
+    const sessions = page.getByRole("region", {
+      exact: true,
+      name: "Sessions",
+    });
+    const table = sessions.getByRole("table", {
+      exact: true,
+      name: "Sessions",
+    });
+    const rows = table.getByRole("row").filter({ has: page.getByRole("cell") });
+    await link(`sample-${path}-1`).waitFor();
+    for (const label of [
+      "Session ID",
+      "Subject ID",
+      "Stored expiry (UTC)",
+      "Status",
+    ]) {
+      const column = table.getByRole("columnheader", {
+        exact: true,
+        name: label,
+      });
+      const index = await column.evaluate((node) => node.cellIndex);
+      const first = await rows
+        .nth(0)
+        .getByRole("cell")
+        .nth(index)
+        .boundingBox();
+      const second = await rows
+        .nth(1)
+        .getByRole("cell")
+        .nth(index)
+        .boundingBox();
+      assert.ok(
+        Math.abs(first.x - second.x) < 1,
+        `${label} aligns across session rows`
+      );
+    }
+    const identity = await rows.nth(0).getByRole("cell").nth(1).boundingBox();
+    const subject = await rows.nth(0).getByRole("cell").nth(2).boundingBox();
+    assert.ok(
+      subject.x >= identity.x + identity.width - 1 &&
+        Math.abs(subject.y - identity.y) < 1,
+      `Desktop session columns do not overlap and share a row: ${JSON.stringify({ identity, subject })}`
+    );
+    for (const control of await sessions.getByRole("button").all()) {
+      const box = await control.boundingBox();
+      assert.ok(
+        box.height >= 44 && box.width >= 44,
+        "Auth actions retain 44px targets"
+      );
+    }
     await button("Load more sessions").click();
     await link(`sample-${path}-3`).waitFor();
-    await link(`sample-${path}-1`).click();
+    assert.equal(await button("Load more sessions").isDisabled(), true);
+    await sessions
+      .getByRole("navigation", { name: "Session list navigation" })
+      .getByText("3 sessions loaded", { exact: true })
+      .waitFor();
+    // The selection checkboxes control the table and the contextual Dock.
+    const firstSelection = sessions.getByRole("checkbox", {
+      exact: true,
+      name: `Select session sample-${path}-1`,
+    });
+    const secondSelection = sessions.getByRole("checkbox", {
+      exact: true,
+      name: `Select session sample-${path}-2`,
+    });
+    await firstSelection.focus();
+    await page.keyboard.press("Space");
+    await button("Inspect session").waitFor();
+    assert.equal(await firstSelection.isChecked(), true);
+    assert.equal(await rows.nth(0).getAttribute("aria-selected"), "true");
+    await secondSelection.click();
+    assert.equal(await firstSelection.isChecked(), true);
+    assert.equal(await secondSelection.isChecked(), true);
+    assert.equal(await button("Inspect session").count(), 0);
+    await button("Exit selection").click();
+    assert.equal(await secondSelection.isChecked(), false);
+    assert.equal(await rows.nth(0).getAttribute("aria-selected"), "false");
+    const selectAll = sessions.getByRole("checkbox", {
+      exact: true,
+      name: "Select all sessions",
+    });
+    await selectAll.click();
+    assert.equal(await firstSelection.isChecked(), true);
+    assert.equal(await secondSelection.isChecked(), true);
+    assert.equal(await button("Inspect session").count(), 0);
+    await button("Exit selection").click();
+    assert.equal(await firstSelection.isChecked(), false);
+    await firstSelection.focus();
+    await page.keyboard.press("Space");
+    await button("Inspect session").click();
+    await heading("sample-subject-1").waitFor();
+    assert.equal(await button("Inspect session").count(), 0);
     await button("Revoke session").click();
+    const confirmation = page.getByRole("alertdialog", {
+      exact: true,
+      name: "Revoke this session?",
+    });
+    await confirmation.waitFor();
+    await confirmation.getByText(`sample-${path}-1`, { exact: true }).waitFor();
+    await confirmation.getByText("sample-subject-1", { exact: true }).waitFor();
+    assert.equal(
+      await button("Cancel").evaluate(
+        (node) => node === document.activeElement
+      ),
+      true
+    );
+    await page.keyboard.press("Shift+Tab");
+    await page.waitForFunction(() =>
+      document
+        .querySelector('[role="alertdialog"]')
+        ?.contains(document.activeElement)
+    );
+    assert.equal(
+      await confirmation.evaluate((node) =>
+        node.contains(document.activeElement)
+      ),
+      true,
+      "Confirmation traps keyboard focus"
+    );
+    await button("Cancel").click();
+    await confirmation.waitFor({ state: "hidden" });
+    await page.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-label") === "Revoke session"
+    );
+    assert.equal(
+      await button("Revoke session").evaluate(
+        (node) => node === document.activeElement
+      ),
+      true
+    );
+    await page.keyboard.press("Enter");
     await page.keyboard.press("Escape");
     await button("Revoke session").waitFor();
+    await confirmation.waitFor({ state: "hidden" });
+    await page.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-label") === "Revoke session"
+    );
     assert.equal(
       await button("Revoke session").evaluate(
         (node) => node === document.activeElement
@@ -633,7 +1337,13 @@ try {
     );
     await page.keyboard.press("Enter");
     await button("Confirm revocation").click();
-    await page.getByText("Session revoked.", { exact: true }).waitFor();
+    const revokedFeedback = page.getByText("Session revoked.", { exact: true });
+    await revokedFeedback.waitFor();
+    await confirmation.waitFor({ state: "hidden" });
+    await page.waitForFunction(
+      () => document.activeElement?.textContent?.trim() === "Session revoked."
+    );
+    assert.equal(await button("Revoke session").count(), 0);
     await navigate(`${destination} sessions`, `/${path}/sessions`, "Sessions");
     await page.getByText("Revoked", { exact: true }).waitFor();
     console.log(
@@ -642,13 +1352,30 @@ try {
   }
 
   await navigate("Plugins", "/plugins", "Plugin manager");
+  await link("sample-auth").waitFor();
+  assert.equal(await button("Inspect sample-auth").count(), 0);
+  assert.equal(
+    await link("sample-auth").getAttribute("href"),
+    "/plugins/sample-local/sample-auth"
+  );
+  await link("sample-auth").focus();
+  await page.keyboard.press("Enter");
   await heading("sample-auth").waitFor();
-  await button("Refresh catalog").click();
-  await heading("sample-auth").waitFor();
-  await navigate("Orders", "/orders", "Orders");
+  assert.equal(
+    new URL(page.url()).pathname,
+    "/plugins/sample-local/sample-auth"
+  );
+  await button("Return to plugin list").click();
+  await link("sample-auth").waitFor();
+  assert.equal(new URL(page.url()).pathname, "/plugins");
+  await navigate("Orders", "/orders");
+  await page.getByRole("tab", { exact: true, name: "Manage" }).click();
+  await page.waitForURL(`${origin}/orders/manage`);
   // Launcher-only coverage cannot catch Command opening detached from the Dock,
   // losing text-entry/launcher focus, or discovering unsafe selection handlers.
-  await page.getByLabel("Filter order IDs").fill("sample-order-1");
+  await page
+    .getByRole("searchbox", { name: "Filter order IDs" })
+    .fill("sample-order-1");
   await page.keyboard.press(commandKey);
   await commandInput.waitFor();
   assert.equal(
@@ -671,47 +1398,36 @@ try {
   assert.equal(await button("Archive selected orders").count(), 0);
   await commandInput.fill("Clear order filter");
   await commandInput.press("Enter");
-  assert.equal(await page.getByLabel("Filter order IDs").inputValue(), "");
+  assert.equal(
+    await page
+      .getByRole("searchbox", { name: "Filter order IDs" })
+      .inputValue(),
+    ""
+  );
   await button("Expand Dock").click();
   const launcherInput = page.getByLabel("Search navigation");
   await launcherInput.fill("Orders");
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: /^Command /u })
+    .getByRole("button", { exact: true, name: "Command" })
     .click();
   await commandInput.fill("Default");
   await page.keyboard.press(commandKey);
   assert.equal(await commandInput.inputValue(), "Default");
   await commandInput.press("Escape");
   assert.equal(await launcherInput.inputValue(), "Orders");
+  // Restoring an icon trigger can open its focus tooltip before the launcher.
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await page.getByRole("dialog").waitFor({ state: "hidden" });
-  await button("Sample preview").click();
-  await page.getByRole("dialog", { name: "About sample preview" }).waitFor();
-  await button("Sample preview").focus();
-  await page.keyboard.press(commandKey);
-  assert.equal(await commandInput.count(), 0);
-  await page.keyboard.press("Escape");
   console.log(
-    "Command: single preset, text-entry focus, scoped clear-filter, no archive discovery, launcher query restoration and innermost overlay priority"
+    "Command: single preset, text-entry focus, scoped clear-filter, no archive discovery and launcher query restoration"
   );
-  // Source-only checks miss StyleX dropping a state declaration or inherited
-  // text glyph metrics making a corner icon much smaller than Dock icons.
-  const clear = button("Clear order filter");
-  const clearBox = await clear.boundingBox();
   const ordersTabs = await page
     .getByRole("tablist", { name: "Orders" })
     .boundingBox();
-  assert.ok(ordersTabs.height < clearBox.height);
-  assert.ok(
-    Math.abs(
-      ordersTabs.y + ordersTabs.height / 2 - clearBox.y - clearBox.height / 2
-    ) < 1
-  );
-  const glyph = await clear.locator("svg").boundingBox();
-  assert.ok(
-    glyph.width / clearBox.width >= 0.4 && glyph.width / clearBox.width <= 0.55
-  );
+  assert.ok(ordersTabs.height > 0 && ordersTabs.height < 44);
+  assert.ok(ordersTabs.y >= 0 && ordersTabs.y < 56);
   const ordersControl = page
     .getByRole("navigation", { name: "Pinned navigation" })
     .getByRole("button", { exact: true, name: "Orders" });
@@ -780,25 +1496,12 @@ try {
     false
   );
   const navigationBox = await button("Console navigation").boundingBox();
-  const clearAfterSidebar = await button("Clear order filter").boundingBox();
   const sidebarBox = await sidebar.boundingBox();
   assert.ok(
     navigationBox.x >= sidebarBox.x + sidebarBox.width + 24,
     JSON.stringify({ navigationBox, sidebarBox })
   );
-  assert.ok(navigationBox.x < clearAfterSidebar.x);
-  assert.ok(
-    Math.abs(
-      navigationBox.y +
-        navigationBox.height / 2 -
-        clearAfterSidebar.y -
-        clearAfterSidebar.height / 2
-    ) < 1
-  );
-  assert.ok(
-    Math.abs(navigationBox.y - clearAfterSidebar.y) < 1 &&
-      Math.abs(navigationBox.height - clearAfterSidebar.height) < 1
-  );
+  assert.ok(navigationBox.y >= 0 && navigationBox.y < 56);
   await page.setViewportSize({ height: 844, width: 390 });
   const mobileNavigationBox = await button("Console navigation").boundingBox();
   assert.ok(Math.abs(mobileNavigationBox.x - 20) < 1);
@@ -856,10 +1559,10 @@ try {
     })
     .waitFor();
   await page
-    .getByRole("textbox", { name: "Filter order IDs" })
+    .getByRole("searchbox", { name: "Filter order IDs" })
     .fill("sample-order-1");
   await page
-    .getByRole("checkbox", { exact: true, name: "sample-order-1" })
+    .getByRole("checkbox", { exact: true, name: "Select order sample-order-1" })
     .check();
   // Navigation-only collapse coverage cannot catch a tray targeting the
   // default bar first, then snapping to a wider contextual-action toolbar.
@@ -877,76 +1580,28 @@ try {
   assert.ok(Math.abs(commandSelection.width - selectionTarget.width) < 1);
   assert.equal(
     await page
-      .getByRole("checkbox", { exact: true, name: "sample-order-1" })
+      .getByRole("checkbox", {
+        exact: true,
+        name: "Select order sample-order-1",
+      })
       .isChecked(),
     true
   );
-  await button("Console navigation").click();
-  await checkExpansion();
-  await page.evaluate(() => {
-    window.selectionFrames = [];
-    const start = performance.now();
-    const sample = () => {
-      const surface = document.querySelector("[data-dashboard-dock-surface]");
-      window.selectionFrames.push(surface.getBoundingClientRect().toJSON());
-      if (performance.now() - start < 400) {
-        requestAnimationFrame(sample);
-      }
-    };
-    requestAnimationFrame(sample);
-  });
-  await startChoreographySamples();
-  await button("Close navigation").click();
-  await page.waitForTimeout(450);
-  const selectionFrames = await page.evaluate(() => window.selectionFrames);
-  await checkChoreographySamples("selection close");
-  assert.ok(selectionFrames.length > 5);
-  for (const frame of selectionFrames) {
-    assert.ok(
-      frame.width >= selectionTarget.width - 1,
-      "Collapse overshot contextual target"
-    );
-    assert.ok(
-      Math.abs(
-        frame.y + frame.height - selectionTarget.y - selectionTarget.height
-      ) < 2,
-      "Contextual collapse edge drift"
-    );
-  }
-  assert.ok(Math.abs(selectionFrames.at(-1).width - selectionTarget.width) < 1);
+  assert.equal(await button("Console navigation").count(), 0);
   assert.equal(
     await page
-      .getByRole("checkbox", { exact: true, name: "sample-order-1" })
-      .isChecked(),
-    true
+      .getByRole("toolbar", { name: "Orders on this page selection actions" })
+      .count(),
+    1
   );
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    await button("Console navigation").click();
-    await button("Close navigation").dispatchEvent("click", { detail: 1 });
-    await page.waitForTimeout(70);
-    await button("Console navigation").dispatchEvent("click", { detail: 1 });
-    await checkExpansion();
-    await button("Close navigation").click();
-    await page.waitForTimeout(300);
-    const restored = await page
-      .locator("[data-dashboard-dock-surface]")
-      .boundingBox();
-    assert.ok(Math.abs(restored.width - selectionTarget.width) < 1);
-    assert.equal(
-      await page
-        .getByRole("toolbar", { name: "Orders on this page selection actions" })
-        .count(),
-      1
-    );
-  }
   console.log(
-    "Visual regressions: tab height/centers, clear icon ratio, actual Orders hover color, sidebar pill/main center, contextual collapse frames"
+    "Visual regressions: compact visible tabs, actual Orders hover color, sidebar pill/main center and retained Command selection"
   );
   page.once("dialog", (dialog) => dialog.accept());
   await button("Archive selected orders").click();
-  await page.getByText("Sample: archived").waitFor();
+  await page.getByText("Archived 1 order.", { exact: true }).waitFor();
   await button("Clear order filter").click();
-  assert.equal(await page.getByRole("checkbox").count(), 3);
+  assert.equal(await page.getByRole("checkbox").count(), 4);
   for (const [label, path] of [
     ["Manage", "/orders/manage"],
     ["By status", "/orders/status"],
@@ -954,6 +1609,8 @@ try {
     await page.getByRole("tab", { exact: true, name: label }).click();
     await page.waitForURL(`${origin}${path}`);
   }
+  await page.getByRole("tab", { exact: true, name: "Manage" }).click();
+  await page.waitForURL(`${origin}/orders/manage`);
   // The return-cap seam is not proof of a tabs/object handoff. These frames
   // must show the same retained body skin travelling on real pointer routes.
   const sampleContext = () =>
@@ -987,9 +1644,9 @@ try {
       return contextSamples;
     });
   const intoObject = sampleContext();
-  await link("Details").first().click();
+  await link("sample-order-1").click();
   assertContextTravel(await intoObject, "tabs→object");
-  await heading("Order sample-order-1").waitFor();
+  await page.getByRole("region", { name: "Order details" }).waitFor();
   const objectContext = page.locator('[aria-label="Task context"]');
   const objectLabel = await objectContext.textContent();
   assert.ok(objectLabel.includes("sample-order-1"));
@@ -998,13 +1655,13 @@ try {
   await button("Return to orders").click();
   assertContextTravel(await intoTabs, "object→tabs");
   await page.waitForURL(`${origin}/orders/manage`);
-  await heading("Orders").waitFor();
+  await page.getByRole("tablist", { name: "Orders" }).waitFor();
   const tabsBox = await page
     .getByRole("tablist", { name: "Orders" })
     .boundingBox();
   assert.ok(tabsBox.y < 56);
-  await link("Details").first().press("Enter");
-  await heading("Order sample-order-1").waitFor();
+  await link("sample-order-1").press("Enter");
+  await page.getByRole("region", { name: "Order details" }).waitFor();
   assert.equal(
     await page
       .locator("[data-context-body-surface]")
@@ -1013,7 +1670,7 @@ try {
   );
   assert.equal(await objectContext.locator("[data-gooey-svg]").count(), 0);
   await button("Return to orders").press("Enter");
-  await heading("Orders").waitFor();
+  await page.getByRole("tablist", { name: "Orders" }).waitFor();
   assert.equal(
     await page
       .locator("[data-context-body-surface]")
@@ -1021,9 +1678,9 @@ try {
     "false"
   );
   for (let turn = 0; turn < 2; turn += 1) {
-    await link("Details").first().click();
+    await link("sample-order-1").click();
     await button("Return to orders").click();
-    await heading("Orders").waitFor();
+    await page.getByRole("tablist", { name: "Orders" }).waitFor();
   }
   await page.waitForTimeout(250);
   assert.equal(
@@ -1041,36 +1698,19 @@ try {
     "Orders: filter, selection, confirmation/archive, clear, tabs, detail object context and explicit return"
   );
 
-  await navigate("Dashboard", "/", "Dashboard");
-  assert.equal(
-    await page
-      .getByRole("region", { exact: true, name: "Auth information" })
-      .count(),
-    2
-  );
+  await navigate("Dashboard", "/");
+  assert.equal(await heading("Sample workforce").count(), 2);
+  await button("Expand Dock").waitFor();
   const light = await page
     .locator("body")
     .evaluate((node) => getComputedStyle(node).backgroundColor);
-  await button("Dark theme").hover();
-  await page
-    .getByRole("tooltip", { exact: true, name: "Use dark theme" })
-    .waitFor();
-  await page.mouse.move(0, 0);
-  await page
-    .getByRole("tooltip", { exact: true, name: "Use dark theme" })
-    .waitFor({ state: "hidden" });
-  await button("Sample preview").focus();
-  await page.keyboard.press("Tab");
   assert.equal(
-    await button("Dark theme").evaluate(
-      (element) => document.activeElement === element
-    ),
-    true
+    await page
+      .getByRole("complementary", { name: "Local sample preview" })
+      .count(),
+    0
   );
-  await page
-    .getByRole("tooltip", { exact: true, name: "Use dark theme" })
-    .waitFor();
-  await button("Dark theme").click();
+  await setTheme("dark");
   const dark = await page
     .locator("body")
     .evaluate((node) => getComputedStyle(node).backgroundColor);
@@ -1165,17 +1805,56 @@ try {
   );
   await page.keyboard.press("Escape");
   await button("Customize navigation").waitFor();
+  // The restored icon's tooltip is dismissed before the directory itself.
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   for (const [label, path, title] of [
     ["Plugins", "/plugins", "Plugin manager"],
     ["Workforce sessions", "/workforce/sessions", "Sessions"],
     ["Customer subjects", "/customers/subjects", "Subjects"],
-    ["Orders", "/orders", "Orders"],
-    ["Dashboard", "/", "Dashboard"],
+    ["Orders", "/orders"],
+    ["Dashboard", "/"],
   ]) {
     await navigate(label, path, title);
+    if (label === "Workforce sessions") {
+      // Normal sample IDs cannot expose wrapping that pushes the final action behind a corner.
+      const sessionLink = page
+        .getByRole("region", { exact: true, name: "Sessions" })
+        .getByRole("link")
+        .first();
+      const originalId = await sessionLink.textContent();
+      await sessionLink.evaluate(
+        (node) => (node.textContent = `stress-identifier-${"x".repeat(160)}`)
+      );
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth > innerWidth
+        ),
+        false
+      );
+      await page.evaluate(() =>
+        scrollTo(0, document.documentElement.scrollHeight)
+      );
+      await button("Load more sessions").focus();
+      assert.equal(
+        await button("Load more sessions").evaluate((node) => {
+          const r = node.getBoundingClientRect();
+          return node.contains(
+            document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+          );
+        }),
+        true
+      );
+      await sessionLink.evaluate(
+        (node, text) => (node.textContent = text),
+        originalId
+      );
+      await page.evaluate(() => scrollTo(0, 0));
+    }
     if (label === "Orders") {
+      await page.getByRole("tab", { exact: true, name: "Manage" }).click();
+      await page.waitForURL(`${origin}/orders/manage`);
       const geometry = await page
         .getByRole("navigation", { name: "Orders pages" })
         .boundingBox();
@@ -1189,15 +1868,18 @@ try {
         assert.ok(Math.abs(tabGeometry.y - geometry.y) < 8);
       }
       await page
-        .getByRole("checkbox", { exact: true, name: "sample-order-2" })
+        .getByRole("checkbox", {
+          exact: true,
+          name: "Select order sample-order-2",
+        })
         .check();
       await settleImmediateSurface();
       const mobileSelection = await page
         .locator("[data-dashboard-dock-surface]")
         .boundingBox();
-      await button("Console navigation").click();
-      await checkExpansion();
-      await button("Close navigation").click();
+      await page.keyboard.press(commandKey);
+      await commandInput.waitFor();
+      await commandInput.press("Escape");
       await settleImmediateSurface();
       const restoredSelection = await page
         .locator("[data-dashboard-dock-surface]")
@@ -1218,16 +1900,10 @@ try {
       await page.waitForURL(`${origin}/orders/manage`);
       // Desktop fallback tabs cannot prove the new object/return split fits a
       // narrow main region, or Command's focus and results in both themes.
-      await link("Details").first().click();
-      await heading("Order sample-order-1").waitFor();
+      await link("sample-order-1").click();
+      await page.getByRole("region", { name: "Order details" }).waitFor();
       for (const theme of ["light", "dark"]) {
-        const themeToggle = button("Dark theme");
-        if (
-          (await themeToggle.getAttribute("aria-pressed")) !==
-          String(theme === "dark")
-        ) {
-          await themeToggle.click();
-        }
+        await setTheme(theme);
         const contextBox = await page
           .locator('[aria-label="Task context"]')
           .boundingBox();
@@ -1425,7 +2101,7 @@ try {
   await button("Close navigation").click();
   const beforeReload = page.url();
   await page.reload();
-  await heading("Dashboard").waitFor();
+  await heading("Sample workforce").waitFor();
   assert.equal(page.url(), beforeReload);
   await button("Workforce").waitFor();
   await button("Customers").waitFor();
@@ -1474,6 +2150,108 @@ try {
   const touchPage = await touchContext.newPage();
   touchPage.on("pageerror", (error) => errors.push(error.message));
   await touchPage.goto(origin);
+  await touchPage
+    .getByRole("button", { exact: true, name: "Edit dashboard" })
+    .tap();
+  const dashboardCornerControls = [
+    "Add widget",
+    "Dashboard layout options",
+  ].map((name) => touchPage.getByRole("button", { exact: true, name }));
+  for (const control of dashboardCornerControls) {
+    assert.equal(
+      await control.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        return (
+          rect.width >= 44 &&
+          rect.height >= 44 &&
+          rect.left >= 0 &&
+          rect.right <= innerWidth &&
+          rect.top >= 0 &&
+          rect.bottom <= innerHeight &&
+          node.contains(
+            document.elementFromPoint(
+              rect.x + rect.width / 2,
+              rect.y + rect.height / 2
+            )
+          )
+        );
+      }),
+      true,
+      "Dashboard bottom-left corner controls are coarse-pointer targets"
+    );
+  }
+  const leftCornerGeometry = await Promise.all(
+    dashboardCornerControls.map((control) => control.boundingBox())
+  );
+  assert.ok(
+    leftCornerGeometry.every(
+      (rect) => rect.x < 195 && rect.y + rect.height > 744
+    ),
+    `Dashboard editing controls remain grouped at the bottom-left: ${JSON.stringify(leftCornerGeometry)}`
+  );
+  const dockDashboardControls = await touchPage
+    .getByRole("navigation", { name: "Pinned navigation" })
+    .getByRole("button")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute("aria-label"))
+    );
+  assert.ok(
+    dockDashboardControls.every(
+      (name) =>
+        ![
+          "Add widget",
+          "Dashboard layout options",
+          "Undo layout",
+          "Restore defaults",
+        ].includes(name)
+    ),
+    "Dashboard corner actions do not contribute controls to the Dock"
+  );
+  await dashboardCornerControls[1].tap();
+  const dashboardOptions = touchPage.getByRole("dialog", {
+    name: "Dashboard layout options",
+  });
+  await dashboardOptions.waitFor();
+  for (const name of ["Undo layout", "Restore defaults"]) {
+    const control = dashboardOptions.getByRole("button", {
+      exact: true,
+      name,
+    });
+    await control.waitFor();
+    assert.equal(
+      await control.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        const disabled =
+          node.disabled || node.getAttribute("aria-disabled") === "true";
+        return (
+          rect.left >= 0 &&
+          rect.right <= innerWidth &&
+          rect.top >= 0 &&
+          rect.bottom <= innerHeight &&
+          (disabled ||
+            node.contains(
+              document.elementFromPoint(
+                rect.x + rect.width / 2,
+                rect.y + rect.height / 2
+              )
+            ))
+        );
+      }),
+      true,
+      `${name} remains reachable from the Dashboard layout options popover`
+    );
+  }
+  await touchPage.keyboard.press("Escape");
+  await dashboardOptions.waitFor({ state: "hidden" });
+  await touchPage
+    .getByRole("button", { exact: true, name: "Done editing dashboard" })
+    .tap();
+  await touchPage
+    .getByRole("button", { exact: true, name: "Edit dashboard" })
+    .waitFor();
+  console.log(
+    "Dashboard touch corners: 44px bottom-left targets, reachable layout options, Dock remains Dashboard-free"
+  );
   await touchPage.waitForFunction(() => {
     const content = document.querySelector("[data-dashboard-dock-content]");
     const pane = document.querySelector(

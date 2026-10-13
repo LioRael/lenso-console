@@ -20,8 +20,14 @@ Record a walkthrough in the actual target host, not just a local-Shell fixture f
 
 - Invoke the changed controls, exercise empty/error/running states and dismiss the innermost overlay first. Verify late scope changes and pointer-down/up retirement cannot invoke a different action.
 - Check one focused accessibility proof (names, disabled/running semantics, tooltip on hover/focus), keyboard proof (reachability, invocation, dismissal, restoration), and geometry proof (themes, narrow viewport, content-end and focus clearance). Merge overlapping coverage.
+- Check contributed compact controls use SVG icons rather than text fallbacks.
+  Sample whole hit targets near the Dock and viewport edges, including tooltip
+  clipping and development-overlay obstruction. Await library focus guards and
+  real settled resize geometry instead of arbitrary immediate DOM snapshots.
 - For Command/Context Bar changes in a supported host, verify shortcut/search focus and restoration, fallback versus hidden/tabs/object, explicit return, modified tab clicks, and selection/page-state preservation while Command is open. Use keyboard and reduced motion as well as pointer input.
 
 Reuse Lenso UI and StyleX sources of truth; inspect actual compiled visible states where styles change. Page work does not retest every Shell preset or motion variant unless it changes that contract.
+For Dashboard-specific layout and pointer proofs, follow
+[widget presentation](../../console-dashboard-widgets/references/presentation.md).
 
 Handoff: list changed files, supported host, checks actually run, browser evidence for real UI changes, and remaining assumptions/gaps. Documentation-only edits need link/export/example checks, not a gratuitous browser run.

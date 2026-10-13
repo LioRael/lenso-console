@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const iconButtonStyles = stylex.create({
+  portalScope: { display: "contents" },
   focus: {
     outline: { default: null, ":focus-visible": "2px solid var(--focus)" },
     outlineOffset: { default: null, ":focus-visible": 4 },

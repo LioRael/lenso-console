@@ -15,7 +15,9 @@ and [package guide](../../../../packages/console-react/README.md).
    list's active tab.
 3. Declare explicit global `navigation` entries targeting a page or a group.
    Registering a detail route or tab does not automatically add it to the Dock.
-   `label` is the visible/accessibility name; `tooltip` is supplemental.
+   Give compact destinations an explicit SVG `icon`; `label` is the
+   visible/accessibility name and `tooltip` is supplemental. Follow
+   [presentation](presentation.md) instead of relying on a text fallback.
 4. Create each installation with `bindConsole`: unique binding ID, explicit local
    routes, and the exact typed client/services for that installation.
 5. Supply bindings to the existing Shell. The host router supplies matching,
@@ -25,6 +27,28 @@ and [package guide](../../../../packages/console-react/README.md).
 **Done:** each route is unambiguous, each global item is intentional, and
 independent bindings cannot share the wrong service client or mutable state.
 `defaultPlacement` seeds user defaults; it does not force later pin changes.
+
+### Icon and label are separate fields
+
+For a local binding using the sample's installed icon set:
+
+```tsx
+import type { ConsoleNavigationDefinition } from "@lenso/console-react";
+import { ShoppingBag } from "lucide-react";
+
+export const ordersDestination = {
+  id: "orders",
+  page: "list",
+  label: "Orders",
+  tooltip: "Browse orders",
+  icon: <ShoppingBag size={20} aria-hidden="true" />,
+} satisfies ConsoleNavigationDefinition;
+```
+
+`list` must exist in the definition's `pages`; use `group` instead of `page`
+when targeting a declared page group. Keep the readable label for the directory;
+the compact Dock renders the SVG. Compiled descriptors have a different icon
+boundary, described in [presentation](presentation.md).
 
 ## Host boundaries
 

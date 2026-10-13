@@ -29,6 +29,9 @@ Source availability is not proof that a released artifact includes that API.
 
 Read [pages and services](references/pages-and-services.md) for routing,
 workspace declarations, browser imports, and owner-local clients.
+For page UI, also read [Console presentation](../console-page-interactions/references/presentation.md)
+before choosing icons, controls or layout. Compiled pages follow the same design
+rules; use only the surfaces their installed host actually supports.
 
 Start from the existing convention or the installed scaffold. Edit the source
 `console/` directory; generated `.lenso/console/` is reproducible output.

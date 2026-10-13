@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 import {
@@ -595,7 +596,10 @@ function Fixture() {
       tabsPosition: setTabsPosition,
       selection: (value: boolean) => changeRecordSelection?.(value),
       overlay: (value: boolean) => changeRecordOverlay?.(value),
-      returnAvailable: (value: boolean) => changeRecordReturn?.(value),
+      returnAvailable: (value: boolean) => {
+        // Model a discrete UI update at the sampled reversal, not scheduler delay.
+        flushSync(() => changeRecordReturn?.(value));
+      },
       block: (value: boolean) => {
         blocked = value;
       },

@@ -7,11 +7,13 @@ import { build } from "vite";
 await rm(new URL("dist", import.meta.url), { recursive: true, force: true });
 await build({
   configFile: false,
+  root: import.meta.dir,
   plugins: [
     stylex({ dev: false, devMode: "full", useCSSLayers: false }),
     react(),
   ],
   build: {
+    minify: false,
     lib: { entry: "src/react.ts", formats: ["es"], fileName: "react" },
     cssFileName: "styles",
     rollupOptions: {

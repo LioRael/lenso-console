@@ -2,15 +2,14 @@ import "@fontsource-variable/inter";
 import "@lenso/tokens/styles.css";
 import "@lenso/console-react/styles.css";
 import "@lenso/console-dashboard/styles.css";
+import "@lenso/console-plugin-manager/styles.css";
+import "@lenso/auth-console/styles.css";
 import "../../plugins/console/shell/src/styles.css";
-import {
-  ConsoleLayout,
-  type ConsolePreferenceSnapshot,
-  type ConsolePreferenceStore,
-  type ConsoleRouterAdapter,
+import type {
+  ConsolePreferenceSnapshot,
+  ConsolePreferenceStore,
+  ConsoleRouterAdapter,
 } from "@lenso/console-react";
-import { Button } from "@lenso/ui/button";
-import { Popover } from "@lenso/ui/popover";
 import { Tooltip } from "@lenso/ui/tooltip";
 import * as stylex from "@stylexjs/stylex";
 import { lazy, Suspense, useEffect, useState } from "react";
@@ -30,6 +29,110 @@ const DevelopmentFeedback = import.meta.env.DEV
       return { default: Agentation };
     })
   : null;
+
+function PreviewFeedback() {
+  useEffect(() => {
+    let frame = 0;
+    const place = () => {
+      frame = 0;
+      // Reserve the expanded Agentation footprint, even when its entry button is collapsed.
+      const width = 337;
+      const height = 44;
+      const obstacles = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          'button, a[href], input, select, textarea, [role="combobox"], [role="dialog"], [data-dashboard-dock-surface]'
+        )
+      )
+        .filter(
+          (element) =>
+            !element.closest("[data-agentation-portal], [inert]") &&
+            element.checkVisibility({
+              checkOpacity: true,
+              checkVisibilityCSS: true,
+            })
+        )
+        .map((element) => element.getBoundingClientRect());
+      const candidates = [
+        { right: 16, bottom: 96 },
+        {
+          right: (window.innerWidth - width) / 2,
+          bottom: window.innerHeight - 60,
+        },
+      ];
+      for (let bottom = 16; bottom <= window.innerHeight - 60; bottom += 52) {
+        candidates.push(
+          { right: 16, bottom },
+          { right: window.innerWidth - width - 16, bottom }
+        );
+      }
+      const score = ({ right, bottom }: { right: number; bottom: number }) => {
+        const left = window.innerWidth - right - width;
+        const top = window.innerHeight - bottom - height;
+        return obstacles.reduce(
+          (total, rect) =>
+            total +
+            Math.max(
+              0,
+              Math.min(left + width + 8, rect.right) -
+                Math.max(left - 8, rect.left)
+            ) *
+              Math.max(
+                0,
+                Math.min(top + height + 8, rect.bottom) -
+                  Math.max(top - 8, rect.top)
+              ),
+          0
+        );
+      };
+      const next = candidates.reduce((best, candidate) =>
+        score(candidate) < score(best) ? candidate : best
+      );
+      document.documentElement.style.setProperty(
+        "--preview-feedback-right",
+        `${next.right}px`
+      );
+      document.documentElement.style.setProperty(
+        "--preview-feedback-bottom",
+        `${next.bottom}px`
+      );
+    };
+    const schedule = () => {
+      if (!frame) {
+        frame = requestAnimationFrame(place);
+      }
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["style", "class", "inert", "open"],
+    });
+    window.addEventListener("resize", schedule);
+    document.addEventListener("scroll", schedule, true);
+    schedule();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedule);
+      document.removeEventListener("scroll", schedule, true);
+      document.documentElement.style.removeProperty("--preview-feedback-right");
+      document.documentElement.style.removeProperty(
+        "--preview-feedback-bottom"
+      );
+    };
+  }, []);
+  if (!DevelopmentFeedback) {
+    return null;
+  }
+  return (
+    <Suspense fallback={null}>
+      <DevelopmentFeedback
+        className={stylex.props(styles.feedbackToolbar).className ?? ""}
+      />
+    </Suspense>
+  );
+}
 
 const clients = {
   workforce: createSampleAuth("workforce"),
@@ -98,7 +201,6 @@ export function matchRoute(pattern: string, pathname: string) {
 
 function Preview() {
   const [pathname, setPathname] = useState(window.location.pathname);
-  const [dark, setDark] = useState(false);
   useEffect(() => {
     const update = () => setPathname(window.location.pathname);
     const followLink = (event: MouseEvent) => {
@@ -137,9 +239,11 @@ function Preview() {
     };
   }, []);
   useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    document.documentElement.style.colorScheme = dark ? "dark" : "light";
-  }, [dark]);
+    const theme = new URLSearchParams(window.location.search).get("theme");
+    const selectedTheme = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = selectedTheme;
+    document.documentElement.style.colorScheme = selectedTheme;
+  }, []);
   const router: ConsoleRouterAdapter = {
     pathname,
     navigate(href) {
@@ -156,84 +260,19 @@ function Preview() {
         session={session}
         preferences={preferences}
         confirmArchive={confirmSampleArchive}
-      >
-        <ConsoleLayout.Corner area="bottomLeft" xstyle={styles.previewCorner}>
-          <aside
-            aria-label="Local sample preview"
-            {...stylex.props(styles.notice)}
-          >
-            <Popover.Root>
-              <Popover.Trigger
-                render={<Button variant="ghost">Sample preview</Button>}
-              />
-              <Popover.Portal>
-                <Popover.Positioner side="top" sideOffset={8}>
-                  <Popover.Popup aria-label="About sample preview">
-                    Sample data only. Business changes stay in memory and reset
-                    on reload. Dock preferences stay in this browser. No
-                    backend, login or production access.
-                  </Popover.Popup>
-                </Popover.Positioner>
-              </Popover.Portal>
-            </Popover.Root>
-            <Tooltip.Root>
-              <Tooltip.Trigger
-                render={
-                  <Button
-                    variant="outline"
-                    aria-pressed={dark}
-                    onClick={() => setDark(!dark)}
-                  />
-                }
-              >
-                Dark theme
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Positioner side="top" sideOffset={8}>
-                  <Tooltip.Popup>
-                    {dark ? "Use light theme" : "Use dark theme"}
-                  </Tooltip.Popup>
-                </Tooltip.Positioner>
-              </Tooltip.Portal>
-            </Tooltip.Root>
-          </aside>
-        </ConsoleLayout.Corner>
-      </ComposedConsole>
-      {DevelopmentFeedback && (
-        <Suspense fallback={null}>
-          <DevelopmentFeedback
-            className={stylex.props(styles.feedbackLayer).className ?? ""}
-          />
-        </Suspense>
-      )}
+      />
+      {DevelopmentFeedback && <PreviewFeedback />}
     </Tooltip.Provider>
   );
 }
 
 const styles = stylex.create({
-  feedbackLayer: {
-    display: "block",
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    zIndex: 19,
-    isolation: "isolate",
-    pointerEvents: "none",
-  },
-  previewCorner: {
-    marginBottom: { default: 0, "@media (max-width: 640px)": 64 },
-  },
-  notice: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 4,
-    color: "var(--foreground)",
-    backgroundColor: "var(--background)",
-    fontSize: 12,
-    borderRadius: 12,
+  feedbackToolbar: {
+    // Agentation's className positions its toolbar, not its viewport annotation layers.
+    top: "auto",
+    left: "auto",
+    right: "var(--preview-feedback-right, 16px)",
+    bottom: "var(--preview-feedback-bottom, 96px)",
   },
 });
 

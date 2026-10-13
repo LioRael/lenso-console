@@ -7,6 +7,7 @@ import {
   type ConsoleOperationDescriptor,
 } from "@lenso/console-sdk/protocol";
 
+import { findCatalogPlugin } from "../src/plugin-manager";
 import { isCurrentCatalogRequest, projectCatalog } from "../src/react";
 
 const target: ConsoleTargetDescriptor = { id: "app-a", label: "Application A" };
@@ -39,6 +40,34 @@ describe("catalog projection", () => {
     expect(result.targets[0]?.id).toBe("app-a");
     expect(result.plugins[0]?.configuration.fields[0]?.sensitive).toBe(true);
     expect(result.operations[0]?.method).toBe("list");
+  });
+
+  test("detail lookup keeps duplicate plugin IDs and operations target-qualified", () => {
+    const otherTarget = { id: "app/b", label: "Application B" };
+    const otherPlugin = {
+      ...plugin,
+      targetId: otherTarget.id,
+      configuration: { ...plugin.configuration, state: "unavailable" as const },
+    };
+    const otherOperation = {
+      ...operation,
+      targetId: otherTarget.id,
+      description: "List Application B orders",
+    };
+    const snapshot = projectCatalog(
+      [target, otherTarget],
+      [plugin, otherPlugin],
+      [operation, otherOperation]
+    );
+    const selected = findCatalogPlugin(snapshot, "app/b", "orders");
+    expect(selected?.target).toBe(otherTarget);
+    expect(selected?.plugin).toBe(otherPlugin);
+    expect(selected?.operations).toEqual([otherOperation]);
+    expect(findCatalogPlugin(snapshot, "app-a", "orders")?.operations).toEqual([
+      operation,
+    ]);
+    expect(findCatalogPlugin(snapshot, "missing", "orders")).toBeUndefined();
+    expect(findCatalogPlugin(snapshot, "app-a", "missing")).toBeUndefined();
   });
 
   test("rejects configuration values outside the redacted protocol DTO", () => {

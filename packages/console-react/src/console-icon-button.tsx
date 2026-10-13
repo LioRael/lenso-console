@@ -1,7 +1,7 @@
+import { ThemeScope, Tooltip } from "@lenso/ui";
 import { Button, type ButtonRootProps } from "@lenso/ui/button";
-import { Tooltip } from "@lenso/ui/tooltip";
 import * as stylex from "@stylexjs/stylex";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { iconButtonStyles as styles } from "./console-icon-button.styles";
 
@@ -20,9 +20,21 @@ export function ConsoleIconButton({
   glyphXstyle?: stylex.StyleXStyles;
 }) {
   const pressedLabel = useRef<string | null>(null);
+  const [portalMounted, setPortalMounted] = useState(false);
   const glyph = stylex.props(styles.iconGlyph, glyphXstyle);
   return (
-    <Tooltip.Root>
+    <Tooltip.Root
+      onOpenChange={(open) => {
+        if (open) {
+          setPortalMounted(true);
+        }
+      }}
+      onOpenChangeComplete={(open) => {
+        if (!open) {
+          setPortalMounted(false);
+        }
+      }}
+    >
       <Tooltip.Trigger
         render={
           <Button
@@ -56,13 +68,21 @@ export function ConsoleIconButton({
           {children}
         </span>
       </Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Positioner side={side} sideOffset={10}>
-          <Tooltip.Popup xstyle={styles.tooltip} data-dashboard-tooltip="true">
-            {tooltip}
-          </Tooltip.Popup>
-        </Tooltip.Positioner>
-      </Tooltip.Portal>
+      {/* Avoid token-copy observers while closed, but preserve popup exit animations. */}
+      {portalMounted && (
+        <ThemeScope xstyle={styles.portalScope}>
+          <Tooltip.Portal>
+            <Tooltip.Positioner side={side} sideOffset={10}>
+              <Tooltip.Popup
+                xstyle={styles.tooltip}
+                data-dashboard-tooltip="true"
+              >
+                {tooltip}
+              </Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        </ThemeScope>
+      )}
     </Tooltip.Root>
   );
 }

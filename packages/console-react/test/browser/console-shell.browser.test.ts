@@ -344,6 +344,9 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
     await page.getByRole("link", { name: "Record detail" }).click();
     await page.getByRole("heading", { name: "Detail page" }).waitFor();
     expect(await page.getByRole("tablist").count()).toBe(0);
+    // Pointer entry keeps incoming controls inert until the island is ready.
+    // press() skips actionability; wait without dispatching a pointer click.
+    await button("Return to records").click({ trial: true });
     await button("Return to records").press("Enter");
     await page.getByRole("heading", { name: "Records page" }).waitFor();
     expect(await button("Return to records").count()).toBe(0);
@@ -607,8 +610,9 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
         const managerBounds = await button(
           "Customize navigation"
         ).boundingBox();
-        expect(switcherBounds!.y + switcherBounds!.height).toBeLessThanOrEqual(
-          managerBounds!.y
+        expect(switcherBounds!.y).toBeCloseTo(managerBounds!.y, 1);
+        expect(switcherBounds!.x + switcherBounds!.width).toBeLessThanOrEqual(
+          managerBounds!.x
         );
         expect(switcherBounds!.width).toBeGreaterThan(managerBounds!.width);
         await button("Dock preset: Default").click();
@@ -835,9 +839,18 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
       ).toContain(`${Math.min(id, 3)} selected`);
     }
     await page.setViewportSize({ width: 1280, height: 800 });
-    await button("Console navigation").click();
-    await page.getByRole("dialog").press("Escape");
-    await page.getByRole("dialog").waitFor({ state: "hidden" });
+    expect(await button("Console navigation").count()).toBe(0);
+    await page.keyboard.press(commandKey);
+    await commands.waitFor();
+    await commands.press("Escape");
+    await page.getByRole("dialog", { name: "Command" }).waitFor({
+      state: "hidden",
+    });
+    expect(
+      await page
+        .getByRole("toolbar", { name: "Records selection actions" })
+        .count()
+    ).toBe(1);
     await button("Archive selected record").click();
     const afterAction = await snapshot();
     expect(afterAction.actions).toBe(1);
@@ -910,15 +923,22 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
     ).toBe(true);
     await button("hidden context").click();
     expect(await page.getByRole("tablist").count()).toBe(0);
+    await page.evaluate(() => window.shellFixture.tabsPosition("top"));
+    await button("fallback context").click();
+    await page.getByRole("tablist", { name: "Record views" }).waitFor();
     await page.emulateMedia({ reducedMotion: "no-preference" });
     const separationFrames = page.evaluate(async () => {
       const frames: {
         gap: number;
-        seamRadius: number;
-        outerRadius: number;
+        capWidth: number;
+        capHeight: number;
+        capRadius: number;
+        bodyRadius: number;
+        bodyHeight: number;
         width: number;
         hit: boolean;
         opacity: number;
+        inert: boolean;
       }[] = [];
       const capture = () => {
         const cap = document.querySelector('[data-context-surface="return"]');
@@ -931,19 +951,27 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
         }
         const a = cap.getBoundingClientRect();
         const b = body.getBoundingClientRect();
-        const corners = getComputedStyle(cap)
-          .clipPath.split("round ")[1]!
-          .match(/[\d.]+/g)!
-          .map(Number);
+        const capWrapper = cap.parentElement!;
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- Computed radii contain CSS pixel units.
+        const capRadius = Number.parseFloat(
+          getComputedStyle(capWrapper).borderTopLeftRadius
+        );
         const text = body
           .parentElement!.querySelector("span")!
           .getBoundingClientRect();
         frames.push({
           gap: b.left - a.right,
-          seamRadius: corners[1] ?? corners[0]!,
-          outerRadius: corners[0]!,
+          capWidth: a.width,
+          capHeight: a.height,
+          capRadius,
+          // oxlint-disable-next-line unicorn/prefer-number-coercion -- Computed radii contain CSS pixel units.
+          bodyRadius: Number.parseFloat(
+            getComputedStyle(body).borderTopLeftRadius
+          ),
+          bodyHeight: b.height,
           width: text.width,
-          opacity: Number(getComputedStyle(cap.parentElement!).opacity),
+          opacity: Number(getComputedStyle(returnButton).opacity),
+          inert: capWrapper.inert,
           hit: returnButton.contains(
             document.elementFromPoint(a.x + 2, a.y + a.height / 2)
           ),
@@ -969,26 +997,31 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
     await button("object context").click();
     const frames = await separationFrames;
     expect(frames.length).toBeGreaterThan(5);
-    expect(frames.some((frame) => frame.gap < 1 && frame.seamRadius < 1)).toBe(
+    expect(frames.some((frame) => frame.capWidth < 1 && frame.inert)).toBe(
       true
     );
     expect(
       frames.some(
         (frame) =>
-          frame.gap > 1 &&
-          frame.gap < 7 &&
-          frame.seamRadius > 1 &&
-          frame.seamRadius < frame.outerRadius - 1
+          frame.capWidth > 1 &&
+          frame.capWidth < frames.at(-1)!.capWidth - 1 &&
+          frame.inert &&
+          !frame.hit
       )
     ).toBe(true);
     const settled = frames.at(-1)!;
     expect(settled.gap).toBeGreaterThan(7);
-    expect(settled.seamRadius).toBe(settled.outerRadius);
+    expect(settled.inert).toBe(false);
+    expect(settled.hit).toBe(true);
+    expect(settled.opacity).toBe(1);
     expect(
       frames.every(
         (frame) =>
-          frame.hit &&
-          frame.opacity === 1 &&
+          (!frame.inert || !frame.hit) &&
+          Math.abs(
+            frame.capRadius - Math.min(frame.capWidth, frame.capHeight) / 2
+          ) < 0.5 &&
+          Math.abs(frame.bodyRadius - frame.bodyHeight / 2) < 0.5 &&
           frame.gap >= -0.5 &&
           frame.gap <= settled.gap + 0.5 &&
           Math.abs(frame.width - settled.width) < 0.5
@@ -1029,7 +1062,7 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
             document.querySelector('[data-context-surface="object"]')!
               .parentElement;
           const inert = !!document
-            .querySelector('[aria-label="Return"]')
+            .querySelector('[aria-label="Return to record tabs"]')
             ?.closest("[inert]");
           window.shellFixture.returnAvailable(true);
           await new Promise(requestAnimationFrame);
@@ -1079,6 +1112,7 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
       await button("fallback context").click();
       await button("object context").click();
     }
+    await button("Return to record tabs").click({ trial: true });
     await button("Return to record tabs").press("Enter");
     await page.emulateMedia({ reducedMotion: "reduce" });
     for (const placement of ["top", "bottom", "left", "right"] as const) {

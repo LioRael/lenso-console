@@ -54,7 +54,15 @@ export function authConsole(options: {
   > = {
     info: { title: "Auth information", component: InfoPage },
     sessions: { title: "Sessions", component: SessionsPage },
-    session: { title: "Session", component: SessionPage },
+    session: {
+      title: "Session",
+      component: (props) =>
+        createElement(SessionPage, {
+          ...props,
+          canReturnToSessions:
+            supported.sessions && options.routes.sessions !== undefined,
+        }),
+    },
     subjects: { title: "Subjects", component: SubjectsPage },
   };
   for (const page of Object.keys(supported) as AuthConsolePage[]) {
@@ -143,6 +151,7 @@ export function authWidgets({
     signal: AbortSignal;
   }) {
     return createElement(InfoPage, {
+      embedded: true,
       services: binding.services,
       activation,
       signal,

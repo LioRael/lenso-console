@@ -1,6 +1,9 @@
 # Recipes
 
 Read [runtime support](runtime-support.md) first. These examples use public imports; adapt business handlers and page contracts, not host internals.
+For UI, read [presentation](presentation.md). Icon examples below use the
+sample application's existing `lucide-react` dependency; other applications
+should use their installed approved SVG components, not add a library by default.
 
 ## Controlled page context and corner actions
 
@@ -8,6 +11,7 @@ Works in both host branches when the existing layout surrounds the page. Create 
 
 ```tsx
 import { useState } from "react";
+import { Rows3 } from "lucide-react";
 import {
   ConsoleIconButton,
   ConsoleLayout,
@@ -23,9 +27,10 @@ function DensityAction() {
     <ConsoleLayout.Corner area="bottomLeft">
       <ConsoleIconButton
         label={context.compact ? "Use comfortable rows" : "Use compact rows"}
+        variant="secondary"
         onClick={() => setContext((previous) => ({ compact: !previous.compact }))}
       >
-        <span aria-hidden="true">↕</span>
+        <Rows3 size={16} aria-hidden="true" />
       </ConsoleIconButton>
     </ConsoleLayout.Corner>
   );
@@ -50,6 +55,7 @@ Evidence: `packages/console-react/src/console-page-context.tsx`, `packages/conso
 Works in both current host branches. This adapter presents an existing page-owned selection workflow; `archiveSnapshot` must already implement snapshot/confirmation/lock/error handling from [safety](safety.md).
 
 ```tsx
+import { Archive } from "lucide-react";
 import {
   ConsoleActionScope,
   type ConsoleActivation,
@@ -74,7 +80,7 @@ export function SelectionProjection({
         actions: [{
           id: "archive",
           label: "Archive selected orders",
-          icon: <span aria-hidden="true">✓</span>,
+          icon: <Archive size={20} aria-hidden="true" />,
           onInvoke: () => void archiveSnapshot(),
         }],
         onExit: exitSelection,
@@ -86,7 +92,7 @@ export function SelectionProjection({
 
 The scope host supplies `activationKey`; page code supplies count and honest scope, not a claim of all-filtered or cross-page selection. Coordinate multiple lists into one current contribution.
 
-Read the real `OrdersPage` in `examples/composed-console/composition.tsx` for the lock, target snapshot before confirmation, activation recheck, signal, error retention and success reconciliation. `packages/console-react/src/console-dock.tsx` is the source of the supported selection shape.
+Read `OrdersManage` in `examples/composed-console/orders-pages.tsx` for the lock, target snapshot before confirmation, activation recheck, signal, error retention and success reconciliation. The binding lives in `composition.tsx`; `packages/console-react/src/console-dock.tsx` is the source of the supported selection shape.
 
 ## Opt-in Command and Context Bar
 
@@ -113,7 +119,6 @@ export function OrderProjection({
           kind: "object",
           label: "Order",
           id: order.id,
-          status: order.status,
           return: {
             label: "Return to orders",
             onInvoke: () => navigation.go("manage"),
@@ -131,7 +136,8 @@ export function OrderProjection({
 }
 ```
 
-`manage` must be a page in this binding. Use real status, not fabricated progress.
+`manage` must be a page in this binding. Show status in content; add it to context
+only when it helps the task rather than repeating the detail page.
 
 Choose task context deliberately:
 
@@ -144,4 +150,4 @@ Explicit context replaces fallback even with `tabsPosition="content"`. Shell own
 
 The example above uses local page-ID navigation. In SDK `PageProps`, use the supplied activation and `navigation.go([])` for an explicit return to the workspace index. Build tab hrefs with `navigation.href(["orders", id])`. The admitted/preview host does not discover commands from arbitrary services or controls.
 
-Evidence and expanded examples: `packages/console-react/src/console-action-scope.tsx`, `packages/console-react/README.md`, `examples/composed-console/composition.tsx` (`OrdersPage` and `OrderDetail`), and `packages/console-react/test/browser/fixture.tsx` (fallback/hidden/tabs/object cases). `console-command.tsx` and `console-context-bar.tsx` are internal presentation implementations, not public page imports.
+Evidence and expanded examples: `packages/console-react/src/console-action-scope.tsx`, `packages/console-react/README.md`, `examples/composed-console/orders-pages.tsx` (`OrdersManage` and `OrderDetail`), and `packages/console-react/test/browser/fixture.tsx` (fallback/hidden/tabs/object cases). `console-command.tsx` and `console-context-bar.tsx` are internal presentation implementations, not public page imports.

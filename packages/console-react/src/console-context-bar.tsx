@@ -2,15 +2,8 @@ import { useMediaQuery } from "@lenso/ui/hooks";
 import { Surface } from "@lenso/ui/surface";
 import { Tabs } from "@lenso/ui/tabs";
 import * as stylex from "@stylexjs/stylex";
-import { Liquid } from "liquid-gooey";
 import { ArrowLeft } from "lucide-react";
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useTransform,
-  type MotionValue,
-} from "motion/react";
+import { animate } from "motion/react";
 import {
   useLayoutEffect,
   useCallback,
@@ -33,126 +26,8 @@ const fallbackPlacement = {
   content: null,
 };
 
-const MotionSurface = motion.create(Surface);
-
 type BodyGeometry = { x: number; y: number; width: number; height: number };
-
-function useContextHandoff(
-  kind: "object" | "tabs",
-  instant: boolean,
-  continuous: boolean,
-  skinTransform: MotionValue<string>,
-  bodyRef: RefObject<HTMLDivElement | null>,
-  skinRef: RefObject<HTMLDivElement | null>,
-  contentRef: RefObject<HTMLDivElement | null>
-) {
-  const previousKind = useRef(kind);
-  const previousContinuous = useRef(continuous);
-  const visual = useRef<BodyGeometry | null>(null);
-  const target = useRef<BodyGeometry | null>(null);
-  const travelling = useRef(false);
-  const controller = useRef<ReturnType<typeof animate> | null>(null);
-  const measure = useCallback(() => {
-    const body = bodyRef.current;
-    const skin = skinRef.current;
-    const content = contentRef.current;
-    if (!body || !skin || !content) {
-      return;
-    }
-    const box = body.getBoundingClientRect();
-    const next = { x: box.x, y: box.y, width: box.width, height: box.height };
-    if (!next.width || !next.height) {
-      return;
-    }
-    const changed = previousKind.current !== kind;
-    const sharedLocation = continuous && previousContinuous.current;
-    previousKind.current = kind;
-    previousContinuous.current = continuous;
-    const previous = target.current;
-    if (
-      !changed &&
-      !instant &&
-      travelling.current &&
-      previous &&
-      Object.keys(next).every(
-        (key) =>
-          next[key as keyof BodyGeometry] ===
-          previous[key as keyof BodyGeometry]
-      )
-    ) {
-      return;
-    }
-    controller.current?.stop();
-    target.current = next;
-    const paint = (geometry: BodyGeometry, progress: number) => {
-      visual.current = geometry;
-      const sx = geometry.width / next.width;
-      const sy = geometry.height / next.height;
-      const transform =
-        progress === 1
-          ? "none"
-          : `translate3d(${geometry.x - next.x}px, ${geometry.y - next.y}px, 0) scale(${sx}, ${sy})`;
-      skinTransform.set(transform);
-      skin.style.transform = transform;
-      // Only the skin resizes. Content enters as the same physical surface
-      // reaches its destination; the revoked page never remains interactive.
-      const reveal = progress === 1 ? 1 : Math.max(0, (progress - 0.6) / 0.4);
-      content.style.opacity = String(reveal);
-      content.inert = reveal < 1;
-      content.style.pointerEvents = reveal < 1 ? "none" : "";
-      skin.dataset.travelling = String(progress !== 1);
-    };
-    const from = visual.current;
-    if (
-      instant ||
-      !sharedLocation ||
-      !from ||
-      (!changed && !travelling.current)
-    ) {
-      travelling.current = false;
-      paint(next, 1);
-      return;
-    }
-    travelling.current = true;
-    paint(from, 0);
-    controller.current = animate(0, 1, {
-      duration: 0.2,
-      ease: [0.77, 0, 0.175, 1],
-      onUpdate: (progress) => {
-        paint(
-          {
-            x: from.x + (next.x - from.x) * progress,
-            y: from.y + (next.y - from.y) * progress,
-            width: from.width + (next.width - from.width) * progress,
-            height: from.height + (next.height - from.height) * progress,
-          },
-          progress
-        );
-        if (progress === 1) {
-          travelling.current = false;
-        }
-      },
-    });
-  }, [kind, instant, continuous, skinTransform, bodyRef, skinRef, contentRef]);
-  useLayoutEffect(() => {
-    measure();
-  });
-  useLayoutEffect(() => {
-    const body = bodyRef.current;
-    if (!body) {
-      return;
-    }
-    const observer = new ResizeObserver(measure);
-    observer.observe(body);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-      controller.current?.stop();
-      target.current = null;
-    };
-  }, [bodyRef, measure]);
-}
+type IslandGeometry = { body: BodyGeometry; cap: BodyGeometry };
 
 function ContextSurface({
   context,
@@ -170,210 +45,212 @@ function ContextSurface({
   bodyRef: RefObject<HTMLDivElement | null>;
 }) {
   const returning = context?.return;
-  const object = context?.kind === "object";
-  const skinRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const skinTransform = useMotionValue("none");
-  useContextHandoff(
-    object ? "object" : "tabs",
-    instant,
-    continuous,
-    skinTransform,
-    bodyRef,
-    skinRef,
-    contentRef
-  );
   const hasReturn = !!returning;
-  const [capMounted, setCapMounted] = useState(!!returning);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const object = context?.kind === "object";
+  const identity = object
+    ? JSON.stringify(["object", context.label, context.id])
+    : "tabs";
+  const groupRef = useRef<HTMLDivElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const skinRef = useRef<HTMLDivElement>(null);
   const capRef = useRef<HTMLDivElement>(null);
-  const previousBodyX = useRef<number | null>(null);
-  const bodyOffset = useMotionValue(0);
-  const [geometry, setGeometry] = useState({ cap: 36, body: 0, height: 36 });
-  const separation = useMotionValue(instant ? 1 : 0);
-  const previousObject = useRef(object);
-  const radius = useMotionValue(18);
-  const capTransform = useTransform(
-    separation,
-    (value) => `translateX(${4 * (1 - value)}px)`
-  );
-  const bodyTransform = useTransform(
-    () =>
-      `translateX(${bodyOffset.get() - (capMounted ? 4 * (1 - separation.get()) : 0)}px)`
-  );
-  const liquidBodyTransform = useTransform(
-    () =>
-      `${bodyTransform.get()} ${skinTransform.get() === "none" ? "" : skinTransform.get()}`
-  );
-  const capClip = useTransform(
-    () =>
-      `inset(0 round ${radius.get()}px ${radius.get() * separation.get()}px ${radius.get() * separation.get()}px ${radius.get()}px)`
-  );
-  const bodyClip = useTransform(
-    () =>
-      `inset(0 round ${radius.get() * separation.get()}px ${radius.get()}px ${radius.get()}px ${radius.get() * separation.get()}px)`
-  );
+  const contentRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [capMounted, setCapMounted] = useState(hasReturn);
+  const lastReturn = useRef(returning);
+  const visual = useRef<IslandGeometry | null>(null);
+  const target = useRef<IslandGeometry | null>(null);
+  const previousIdentity = useRef(identity);
+  const previousContinuous = useRef(continuous);
+  const travelling = useRef(false);
+  const controller = useRef<ReturnType<typeof animate> | null>(null);
+  const capOpacity = useRef(hasReturn ? 1 : 0);
+
   useLayoutEffect(() => {
-    const entering = object && !previousObject.current;
-    previousObject.current = object;
-    if (!object) {
-      if (!hasReturn && buttonRef.current === document.activeElement) {
-        bodyRef.current?.focus({ preventScroll: true });
-      }
-      setCapMounted(hasReturn);
-      previousBodyX.current = null;
-      bodyOffset.set(0);
-      separation.set(1);
-      return;
-    }
-    if (entering) {
-      separation.set(instant ? 1 : 0);
-    }
-    if (hasReturn) {
-      if (!capMounted && !entering) {
-        previousBodyX.current =
-          bodyRef.current?.getBoundingClientRect().x ?? null;
-      }
+    if (returning) {
+      lastReturn.current = returning;
       setCapMounted(true);
     } else if (buttonRef.current === document.activeElement) {
       bodyRef.current?.focus({ preventScroll: true });
     }
-    // Retarget the actual seam, including a reversal before the cap has settled.
-    const controller = animate(separation, hasReturn ? 1 : 0, {
-      duration: instant ? 0 : 0.2,
-      ease: [0.77, 0, 0.175, 1],
-      onComplete: () => {
+  }, [returning, bodyRef]);
+
+  const measure = useCallback(() => {
+    const body = bodyRef.current;
+    const skin = skinRef.current;
+    const content = contentRef.current;
+    const group = groupRef.current;
+    const slot = slotRef.current;
+    if (!body || !skin || !content || !group || !slot) {
+      return;
+    }
+    // Read target layout once. Only the small, absolute skin and end cap resize;
+    // page content and the island's layout slot never animate or scale.
+    const box = body.getBoundingClientRect();
+    const foreground = content.getBoundingClientRect();
+    const anchor = group.getBoundingClientRect();
+    if (!box.width || !box.height) {
+      return;
+    }
+    const next: IslandGeometry = {
+      body: { x: box.x, y: box.y, width: box.width, height: box.height },
+      cap: {
+        x: anchor.x,
+        y: box.y,
+        width: hasReturn ? slot.offsetWidth : 0,
+        height: box.height,
+      },
+    };
+    const changed = previousIdentity.current !== identity;
+    const shared = continuous && previousContinuous.current;
+    previousIdentity.current = identity;
+    previousContinuous.current = continuous;
+    const previous = target.current;
+    const sameTarget =
+      previous &&
+      (["body", "cap"] as const).every((part) =>
+        (Object.keys(next[part]) as (keyof BodyGeometry)[]).every(
+          (key) => previous[part][key] === next[part][key]
+        )
+      );
+    if (!instant && travelling.current && sameTarget) {
+      return;
+    }
+    controller.current?.stop();
+    target.current = next;
+    const outgoingCapOpacity = capOpacity.current;
+    const paint = (geometry: IslandGeometry, progress: number) => {
+      visual.current = geometry;
+      const physical = geometry.body;
+      const radius = physical.height / 2;
+      skin.style.width = `${physical.width}px`;
+      skin.style.height = `${physical.height}px`;
+      skin.style.transform = `translate3d(${physical.x - box.x}px, ${physical.y - box.y}px, 0)`;
+      skin.style.borderRadius = `${radius}px`;
+      skin.style.clipPath = `inset(0 round ${radius}px)`;
+      skin.dataset.travelling = String(progress !== 1);
+      // The same physical rounded clip owns visibility and hit testing.
+      content.style.clipPath = `inset(${physical.y - foreground.y}px ${foreground.right - physical.x - physical.width}px ${foreground.bottom - physical.y - physical.height}px ${physical.x - foreground.x}px round ${radius}px)`;
+      const reveal = progress === 1 ? 1 : Math.max(0, (progress - 0.6) / 0.4);
+      content.style.opacity = String(reveal);
+      content.inert = reveal < 1;
+      content.style.pointerEvents = reveal < 1 ? "none" : "";
+      const cap = capRef.current;
+      if (cap) {
+        const capRadius = Math.min(geometry.cap.width, geometry.cap.height) / 2;
+        cap.style.width = `${geometry.cap.width}px`;
+        cap.style.height = `${geometry.cap.height}px`;
+        cap.style.transform = `translate3d(${geometry.cap.x - anchor.x}px, ${geometry.cap.y - anchor.y}px, 0)`;
+        cap.style.borderRadius = `${capRadius}px`;
+        cap.style.clipPath = `inset(0 round ${capRadius}px)`;
+        cap.inert = !hasReturn || progress !== 1;
+        cap.style.pointerEvents = cap.inert ? "none" : "";
+        if (buttonRef.current) {
+          capOpacity.current = hasReturn
+            ? reveal
+            : outgoingCapOpacity * Math.max(0, 1 - progress / 0.4);
+          buttonRef.current.style.opacity = String(capOpacity.current);
+        }
+      }
+      if (progress === 1) {
+        travelling.current = false;
         if (!hasReturn) {
-          previousBodyX.current =
-            bodyRef.current?.getBoundingClientRect().x ?? null;
           setCapMounted(false);
         }
+      }
+    };
+    const from = visual.current;
+    if (
+      instant ||
+      !shared ||
+      !from ||
+      (!changed && !travelling.current && sameTarget)
+    ) {
+      paint(next, 1);
+      return;
+    }
+    travelling.current = true;
+    paint(from, 0);
+    controller.current = animate(0, 1, {
+      duration: 0.2,
+      ease: [0.77, 0, 0.175, 1],
+      onUpdate: (progress) => {
+        const interpolate = (part: "body" | "cap"): BodyGeometry => ({
+          x: from[part].x + (next[part].x - from[part].x) * progress,
+          y: from[part].y + (next[part].y - from[part].y) * progress,
+          width:
+            from[part].width + (next[part].width - from[part].width) * progress,
+          height:
+            from[part].height +
+            (next[part].height - from[part].height) * progress,
+        });
+        paint({ body: interpolate("body"), cap: interpolate("cap") }, progress);
       },
     });
-    return () => controller.stop();
-  }, [object, hasReturn, capMounted, instant, separation, bodyRef, bodyOffset]);
+  }, [bodyRef, identity, continuous, hasReturn, instant]);
+
   useLayoutEffect(() => {
-    const body = bodyRef.current;
-    const previous = previousBodyX.current;
-    previousBodyX.current = null;
-    if (!body) {
-      return;
-    }
-    // Rebase only a retained identity when the cap's layout slot changes.
-    // Generic layout projection also rebases a fresh route from unrelated tabs.
-    if (previous !== null) {
-      bodyOffset.set(
-        bodyOffset.get() + previous - body.getBoundingClientRect().x
-      );
-    } else if (bodyOffset.get() === 0) {
-      return;
-    }
-    const controller = animate(bodyOffset, 0, {
-      duration: instant ? 0 : 0.2,
-      ease: [0.77, 0, 0.175, 1],
-    });
-    return () => controller.stop();
-  }, [capMounted, instant, bodyRef, bodyOffset]);
-  useLayoutEffect(() => {
-    const cap = capRef.current;
-    const body = bodyRef.current;
-    if (!body) {
-      return;
-    }
-    const measure = () => {
-      const next = {
-        cap: cap?.offsetWidth ?? 0,
-        body: body.offsetWidth,
-        height: body.offsetHeight,
-      };
-      if (cap) {
-        radius.set(Math.min(cap.offsetWidth, cap.offsetHeight) / 2);
-      }
-      setGeometry((previous) =>
-        previous.cap === next.cap &&
-        previous.body === next.body &&
-        previous.height === next.height
-          ? previous
-          : next
-      );
-    };
     measure();
-    const observer = new ResizeObserver(measure);
-    if (cap) {
-      observer.observe(cap);
+  });
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) {
+      return;
     }
+    const observer = new ResizeObserver(measure);
     observer.observe(body);
-    return () => observer.disconnect();
-  }, [capMounted, radius, bodyRef]);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      controller.current?.stop();
+    };
+  }, [bodyRef, measure]);
+
   return (
     <div
+      ref={groupRef}
       {...stylex.props(
         styles.contextObjectGroup,
-        (instant || !object) && styles.contextObjectInstant
+        instant && styles.contextObjectInstant
       )}
     >
-      {object && !instant && capMounted && geometry.body > 0 && (
-        <Liquid
-          {...stylex.props(styles.contextLiquid)}
-          style={{ position: "absolute" }}
-          aria-hidden="true"
-          inert
-          fill="var(--surface)"
-          blur={2}
-          contrast={18}
-          filterPadding={8}
-        >
-          <Liquid.Item observe radius={999}>
-            <motion.div
-              {...stylex.props(styles.contextLiquidPiece)}
-              style={{
-                width: geometry.cap,
-                height: geometry.height,
-                transform: capTransform,
-              }}
-            />
-          </Liquid.Item>
-          <Liquid.Item observe radius={999}>
-            <motion.div
-              {...stylex.props(styles.contextLiquidPiece)}
-              style={{
-                left: geometry.cap + 8,
-                width: geometry.body,
-                height: geometry.height,
-                transform: liquidBodyTransform,
-                transformOrigin: "0 0",
-              }}
-            />
-          </Liquid.Item>
-        </Liquid>
-      )}
-      {capMounted && (
-        <motion.div
+      <div
+        ref={slotRef}
+        aria-hidden="true"
+        {...stylex.props(
+          styles.contextReturnSurface,
+          hasReturn ? styles.contextReturnSlot : styles.contextReturnSlotEmpty
+        )}
+      />
+      {(hasReturn || capMounted) && (
+        <div
           ref={capRef}
-          inert={!returning}
-          aria-hidden={!returning || undefined}
-          {...stylex.props(styles.contextReturnSurface)}
-          style={{ transform: capTransform }}
+          inert={!hasReturn}
+          aria-hidden={!hasReturn || undefined}
+          {...stylex.props(
+            styles.contextReturnSurface,
+            styles.contextReturnCap
+          )}
         >
-          <MotionSurface
+          <Surface
             aria-hidden="true"
             data-context-surface="return"
-            xstyle={styles.contextSurfaceSkin}
-            style={{ clipPath: capClip }}
+            xstyle={[styles.contextSurfaceSkin, styles.contextReturnSkin]}
           />
           <ConsoleIconButton
             ref={buttonRef}
-            label={returning?.label ?? "Return"}
+            label={returning?.label ?? lastReturn.current?.label ?? "Return"}
             variant="ghost"
             xstyle={styles.contextReturnFocus}
             onClick={() => returning?.onInvoke()}
           >
             <ArrowLeft size={16} aria-hidden="true" />
           </ConsoleIconButton>
-        </motion.div>
+        </div>
       )}
       <div {...stylex.props(styles.contextObjectFrame)}>
-        <MotionSurface
+        <Surface
           ref={bodyRef}
           tabIndex={-1}
           variant="transparent"
@@ -383,9 +260,8 @@ function ContextSurface({
             !object && styles.contextViews,
             !context && styles.contextFallback,
           ]}
-          style={{ transform: bodyTransform }}
         >
-          <MotionSurface
+          <Surface
             ref={skinRef}
             aria-hidden="true"
             data-context-body-surface="true"
@@ -395,10 +271,6 @@ function ContextSurface({
               styles.contextMorphSkin,
               !object && styles.contextViewsSkin,
             ]}
-            style={{
-              clipPath: object && capMounted ? bodyClip : "inset(0 round 24px)",
-              transform: skinTransform,
-            }}
           />
           <div
             ref={contentRef}
@@ -411,7 +283,7 @@ function ContextSurface({
               fallback
             )}
           </div>
-        </MotionSurface>
+        </Surface>
       </div>
     </div>
   );

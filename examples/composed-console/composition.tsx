@@ -10,26 +10,22 @@ import {
 } from "@lenso/console-dashboard/react";
 import { pluginManagerConsole } from "@lenso/console-plugin-manager/react";
 import {
-  ConsoleActionScope,
-  ConsolePageScope,
-  ConsoleLayout,
-  ConsoleIconButton,
   ConsoleShell,
   bindConsole,
   defineConsolePlugin,
-  type ConsoleLocalPageProps,
   type ConsolePreferenceStore,
   type ConsoleRouterAdapter,
   type ConsoleSessionAdapter,
 } from "@lenso/console-react";
+import { ContactRound, KeyRound, ShoppingBag, UsersRound } from "lucide-react";
+import { useMemo } from "react";
+
 import {
-  ContactRound,
-  KeyRound,
-  ShoppingBag,
-  UsersRound,
-  X,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+  OrderDetail,
+  OrdersManage,
+  OrdersOverview,
+  OrdersStatus,
+} from "./orders-pages";
 
 export interface OrdersClient {
   list(options: {
@@ -41,215 +37,16 @@ export interface OrdersClient {
   ): Promise<void>;
 }
 
-interface OrdersServices extends OrdersClient {
+export interface OrdersServices extends OrdersClient {
   confirmArchive(ids: readonly string[]): Promise<boolean>;
-}
-
-function OrdersPage(props: ConsoleLocalPageProps<OrdersServices>) {
-  const [rows, setRows] = useState<Awaited<ReturnType<OrdersClient["list"]>>>();
-  const [selected, setSelected] = useState<string[]>([]);
-  const [filter, setFilter] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
-  const locked = useRef(false);
-  useEffect(() => {
-    void (async () => {
-      try {
-        const value = await props.services.list({ signal: props.signal });
-        if (props.activation.isCurrent()) {
-          setRows(value);
-        }
-      } catch {
-        if (props.activation.isCurrent()) {
-          setError("Orders could not be loaded.");
-        }
-      }
-    })();
-  }, [props.services, props.signal, props.activation]);
-  async function archive() {
-    if (locked.current || !props.activation.isCurrent()) {
-      return;
-    }
-    locked.current = true;
-    const ids = [...selected];
-    try {
-      if (
-        !(await props.services.confirmArchive(ids)) ||
-        !props.activation.isCurrent()
-      ) {
-        return;
-      }
-      setPending(true);
-      setError(undefined);
-      await props.services.archive({ ids }, { signal: props.signal });
-      const updatedRows = await props.services.list({ signal: props.signal });
-      if (props.activation.isCurrent()) {
-        setRows(updatedRows);
-        setSelected([]);
-      }
-    } catch {
-      if (props.activation.isCurrent()) {
-        setError("Archiving failed. The selection is retained.");
-      }
-    } finally {
-      locked.current = false;
-      if (props.activation.isCurrent()) {
-        setPending(false);
-      }
-    }
-  }
-  return (
-    <section aria-label="Orders">
-      <ConsolePageScope
-        scopeKey={props.activation.key}
-        value={{
-          commands: [
-            {
-              id: "clear-filter",
-              label: "Clear order filter",
-              disabled: !filter,
-              onInvoke: () => setFilter(""),
-            },
-          ],
-        }}
-      />
-      <ConsoleLayout.Corner area="topRight">
-        <ConsoleIconButton
-          label="Clear order filter"
-          onClick={() => setFilter("")}
-        >
-          <X size={16} aria-hidden="true" />
-        </ConsoleIconButton>
-      </ConsoleLayout.Corner>
-      <ConsoleActionScope
-        scopeKey={props.activation.key}
-        value={
-          selected.length
-            ? {
-                count: selected.length,
-                scopeLabel: "Orders on this page",
-                running: pending,
-                actions: [
-                  {
-                    id: "archive",
-                    label: "Archive selected orders",
-                    icon: <span aria-hidden="true">✓</span>,
-                    onInvoke: () => void archive(),
-                  },
-                ],
-                onExit: () => {
-                  if (!locked.current) {
-                    setSelected([]);
-                  }
-                },
-              }
-            : null
-        }
-      />
-      <h1>Orders</h1>
-      <label>
-        Filter order IDs{" "}
-        <input
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-        />
-      </label>
-      {error && <p role="alert">{error}</p>}
-      {!rows && !error && <output>Loading orders…</output>}
-      {rows?.length === 0 && <p>No orders were returned by this service.</p>}
-      <ul>
-        {rows
-          ?.filter((row) => row.id.includes(filter))
-          .map((row) => (
-            <li key={row.id}>
-              <label>
-                <input
-                  type="checkbox"
-                  disabled={pending}
-                  checked={selected.includes(row.id)}
-                  onChange={(event) =>
-                    setSelected((value) =>
-                      event.target.checked
-                        ? [...value, row.id]
-                        : value.filter((id) => id !== row.id)
-                    )
-                  }
-                />
-                {row.id}
-              </label>{" "}
-              {row.status}{" "}
-              <a
-                href={props.navigation.href("detail", { id: row.id })}
-                onClick={(event) => {
-                  if (
-                    event.button === 0 &&
-                    !event.metaKey &&
-                    !event.ctrlKey &&
-                    !event.altKey &&
-                    !event.shiftKey
-                  ) {
-                    event.preventDefault();
-                    props.navigation.go("detail", { id: row.id });
-                  }
-                }}
-              >
-                Details
-              </a>
-            </li>
-          ))}
-      </ul>
-    </section>
-  );
-}
-
-function OrderDetail(props: ConsoleLocalPageProps<OrdersServices>) {
-  const [status, setStatus] = useState<string>();
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const rows = await props.services.list({ signal: props.signal });
-        if (!cancelled && props.activation.isCurrent()) {
-          setStatus(rows.find((row) => row.id === props.params.id)?.status);
-        }
-      } catch {
-        if (!cancelled && props.activation.isCurrent()) {
-          setStatus("Status unavailable");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [props.services, props.signal, props.activation, props.params.id]);
-  return (
-    <>
-      <ConsolePageScope
-        scopeKey={props.activation.key}
-        value={{
-          context: {
-            kind: "object",
-            label: "Order",
-            ...(props.params.id ? { id: props.params.id } : {}),
-            ...(status ? { status } : {}),
-            return: {
-              label: "Return to orders",
-              onInvoke: () => props.navigation.go("manage"),
-            },
-          },
-        }}
-      />
-      <h1>Order {props.params.id}</h1>
-    </>
-  );
 }
 
 const ordersUI = defineConsolePlugin<OrdersServices>({
   id: "orders",
   pages: {
-    overview: { title: "Orders overview", component: OrdersPage },
-    manage: { title: "Manage orders", component: OrdersPage },
-    analytics: { title: "Orders by status", component: OrdersPage },
+    overview: { title: "Orders overview", component: OrdersOverview },
+    manage: { title: "Manage orders", component: OrdersManage },
+    analytics: { title: "Orders by status", component: OrdersStatus },
     detail: {
       title: "Order detail",
       component: OrderDetail,

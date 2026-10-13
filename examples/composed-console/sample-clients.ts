@@ -99,8 +99,8 @@ export function createSampleDashboard(): DashboardStore {
         instanceId: "sample-auth-information",
         column: 0,
         row: 0,
-        width: 6,
-        height: 5,
+        width: 4,
+        height: 3,
       },
     ],
   };
