@@ -219,12 +219,14 @@ const ownedOutput = async (root) => {
 
 const copyLocalRuntime = async (directory, destination) => {
   const root = resolve(directory);
-  if (!(await lstat(root)).isDirectory())
+  const rootStat = await lstat(root);
+  if (!rootStat.isDirectory()) {
     throw new Error("Runtime root must be a regular directory");
+  }
   const { stdout } = await promisify(execFile)("git", ["ls-files", "-z"], {
     cwd: root,
-    timeout: 10_000,
     maxBuffer: 1024 * 1024,
+    timeout: 10_000,
   });
   const files = {};
   let size = 0;
@@ -233,21 +235,22 @@ const copyLocalRuntime = async (directory, destination) => {
     .filter(Boolean)
     .filter(
       (path) =>
-        /^(package\.json|bun\.lock|tsconfig\.json|Cargo\.(toml|lock)|tools\/generate\.ts)$/.test(
+        /^(package\.json|bun\.lock|tsconfig\.json|Cargo\.(toml|lock)|tools\/generate\.ts)$/u.test(
           path
         ) ||
-        /^(sdk\/typescript\/[^/]+\.(ts|json)|crates\/[^/]+\/(Cargo\.toml|(src|tests)\/[^/]+\.rs)|examples\/batch\/(Cargo\.toml|src\/(bin\/)?[^/]+\.rs)|examples\/contracts\/[^/]+\.json|examples\/generated\/[^/]+\.(rs|ts))$/.test(
+        /^(sdk\/typescript\/[^/]+\.(ts|json)|crates\/[^/]+\/(Cargo\.toml|(src|tests)\/[^/]+\.rs)|examples\/batch\/(Cargo\.toml|src\/(bin\/)?[^/]+\.rs)|examples\/contracts\/[^/]+\.json|examples\/generated\/[^/]+\.(rs|ts))$/u.test(
           path
         )
-    )
-    .sort();
+    );
   // Shared candidate schema cases are an explicit source input, even before Git staging.
   const schemaCases = "crates/sdk/tests/schema-cases.json";
-  if (await stat(join(root, schemaCases))) paths.push(schemaCases);
-  paths.sort();
-  if (paths.length > 4096)
+  if (await stat(join(root, schemaCases))) {
+    paths.push(schemaCases);
+  }
+  if (paths.length > 4096) {
     throw new Error("Local Runtime source exceeds file limit");
-  for (const path of paths) {
+  }
+  for (const path of paths.toSorted()) {
     const parts = path.split("/");
     if (
       parts.some((part) => !part || part === "." || part === "..") ||
@@ -255,7 +258,7 @@ const copyLocalRuntime = async (directory, destination) => {
     ) {
       throw new Error("Unexpected local Runtime path");
     }
-    for (let i = 1; i <= parts.length; i++) {
+    for (let i = 1; i <= parts.length; i += 1) {
       const entry = await lstat(join(root, ...parts.slice(0, i)));
       if (
         entry.isSymbolicLink() ||
@@ -270,14 +273,15 @@ const copyLocalRuntime = async (directory, destination) => {
       .slice(0, maxBytes + 1)
       .bytes();
     size += bytes.length;
-    if (size > maxBytes)
+    if (size > maxBytes) {
       throw new Error("Local Runtime source exceeds byte limit");
+    }
     files[path] = hash(bytes);
     await mkdir(dirname(join(destination, path)), { recursive: true });
     await writeFile(join(destination, path), bytes);
   }
   const manifest = JSON.parse(
-    await readFile(join(destination, "package.json"), "utf8")
+    await readFile(join(destination, "package.json"), "utf-8")
   );
   if (
     manifest.name !== "lenso-runtime-workspace" ||
@@ -286,11 +290,30 @@ const copyLocalRuntime = async (directory, destination) => {
     throw new Error("Local source must be lenso-runtime-workspace");
   }
   return {
+    files,
     kind: "local",
     root,
-    files,
     sha256: hash(Buffer.from(JSON.stringify(files))),
   };
+};
+
+const stageSources = async (temporary, snapshots, fetcher, runtimeRoot) => {
+  // Authenticate remote archives before extraction or executing snapshot code.
+  const runtimeBytes = runtimeRoot
+    ? undefined
+    : await downloadSnapshot(snapshots.runtime, fetcher);
+  const lensoBytes = await downloadSnapshot(snapshots.lenso, fetcher);
+  const runtime = join(temporary, "runtime");
+  const lenso = join(temporary, "lenso");
+  let local;
+  if (runtimeRoot) {
+    await mkdir(runtime);
+    local = await copyLocalRuntime(runtimeRoot, runtime);
+  } else {
+    await extract(runtimeBytes, snapshots.runtime, runtime);
+  }
+  await extract(lensoBytes, snapshots.lenso, lenso);
+  return { lenso, runtime, runtimeProvenance: local ?? snapshots.runtime };
 };
 
 export const prepareRuntimeDeps = async (
@@ -329,22 +352,13 @@ export const prepareRuntimeDeps = async (
         throw new Error(`Refusing to replace unexpected ${name}`);
       }
     }
-    // Authenticate both complete archives before extracting or running any snapshot code.
-    const runtimeBytes = options.runtimeRoot
-      ? undefined
-      : await downloadSnapshot(snapshots.runtime, injected.fetch);
-    const lensoBytes = await downloadSnapshot(snapshots.lenso, injected.fetch);
     temporary = await mkdtemp(join(output, ".prepare-"));
-    const runtime = join(temporary, "runtime");
-    const lenso = join(temporary, "lenso");
-    let local;
-    if (options.runtimeRoot) {
-      await mkdir(runtime);
-      local = await copyLocalRuntime(options.runtimeRoot, runtime);
-    } else {
-      await extract(runtimeBytes, snapshots.runtime, runtime);
-    }
-    await extract(lensoBytes, snapshots.lenso, lenso);
+    const { lenso, runtime, runtimeProvenance } = await stageSources(
+      temporary,
+      snapshots,
+      injected.fetch,
+      options.runtimeRoot
+    );
     const run = injected.run ?? execute;
     await run(["install", "--frozen-lockfile", "--ignore-scripts"], runtime);
     const sdkSource = join(runtime, "sdk/typescript");
@@ -477,7 +491,7 @@ export const prepareRuntimeDeps = async (
           bun: Bun.version,
           files: { adapter: adapterFiles, sdk: sdkFiles },
           lenso: snapshots.lenso,
-          runtime: local ?? snapshots.runtime,
+          runtime: runtimeProvenance,
         },
         null,
         2
@@ -522,16 +536,12 @@ if (import.meta.main) {
       options.has(key) ||
       !args[i + 1] ||
       args[i + 1].startsWith("--")
-    )
+    ) {
       valid = false;
+    }
     options.set(key, args[i + 1]);
   }
-  if (!valid) {
-    console.error(
-      "Usage: bun tooling/distribution/prepare-runtime-deps.mjs [--root <console-workspace>] [--runtime-root <runtime-checkout>]"
-    );
-    process.exitCode = 1;
-  } else {
+  if (valid) {
     try {
       await prepareRuntimeDeps(
         options.get("--root"),
@@ -549,5 +559,10 @@ if (import.meta.main) {
       );
       process.exitCode = 1;
     }
+  } else {
+    console.error(
+      "Usage: bun tooling/distribution/prepare-runtime-deps.mjs [--root <console-workspace>] [--runtime-root <runtime-checkout>]"
+    );
+    process.exitCode = 1;
   }
 }

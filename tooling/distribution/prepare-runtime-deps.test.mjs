@@ -278,7 +278,6 @@ test("local Runtime uses dirty tracked SDK bytes while retaining the pinned adap
     prepareRuntimeDeps(
       root,
       {
-        snapshots,
         fetch: (url, options) => {
           expect(String(url)).not.toContain("lenso-runtime/");
           return fetchFixture(url, options);
@@ -292,13 +291,14 @@ test("local Runtime uses dirty tracked SDK bytes while retaining the pinned adap
             );
           }
         },
+        snapshots,
       },
       { runtimeRoot: local }
     );
   await prepare();
   const output = join(root, ".runtime-deps");
   const before = JSON.parse(
-    await readFile(join(output, "provenance.json"), "utf8")
+    await readFile(join(output, "provenance.json"), "utf-8")
   );
   expect(before.runtime.kind).toBe("local");
   expect(before.runtime.commit).toBeUndefined();
@@ -310,7 +310,7 @@ test("local Runtime uses dirty tracked SDK bytes while retaining the pinned adap
   await writeFile(join(local, "sdk/typescript/index.ts"), "dirty current");
   await prepare();
   const after = JSON.parse(
-    await readFile(join(output, "provenance.json"), "utf8")
+    await readFile(join(output, "provenance.json"), "utf-8")
   );
   expect(after.runtime.sha256).not.toBe(before.runtime.sha256);
   expect(after.files.sdk["dist/index.js"]).not.toBe(
@@ -322,7 +322,7 @@ test("local Runtime uses dirty tracked SDK bytes while retaining the pinned adap
   await symlink(join(local, ".env"), join(local, "sdk/typescript/index.ts"));
   await expect(prepare()).rejects.toThrow("regular files");
   expect(
-    JSON.parse(await readFile(join(output, "provenance.json"), "utf8"))
+    JSON.parse(await readFile(join(output, "provenance.json"), "utf-8"))
   ).toEqual(after);
 });
 
