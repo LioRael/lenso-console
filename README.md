@@ -53,6 +53,29 @@ bun run sdk:build
 bun run dev
 ```
 
+For explicitly authorized cross-repository development, point both Lenso and
+Console preparation at the same current Runtime checkout:
+
+```sh
+bun run prepare:runtime --runtime-root ../lenso-runtime
+bun install --frozen-lockfile
+```
+
+Console still downloads and verifies the unchanged pinned Lenso adapter snapshot.
+Only Runtime switches to trusted local source: tracked SDK, generator, contract
+and Rust files are copied with their current dirty bytes. Arbitrary untracked
+files, `.env` secrets, dependency caches and build targets are excluded, except
+the explicitly admitted shared schema fixture `crates/sdk/tests/schema-cases.json`.
+Symlinks in admitted paths are rejected. Git discovery is bounded to 1 MiB,
+source input to 4096 files and 20 MiB. Stage required new source files with Git
+first and keep the checkout stable while copying. This executes local build
+code, not a verified release.
+`.runtime-deps/provenance.json` records `runtime.kind: "local"`, resolved checkout
+origin, per-file SHA-256 hashes and an aggregate source hash, separately from
+artifact hashes and the immutable adapter pin. Frozen installs, ownership
+checks and rollback remain active. Omit `--runtime-root` to restore the default
+checksum-pinned source. No global link, pin or root lockfile edit is needed.
+
 `bun run dev` is the Shell-only development loop. It does not start a backend.
 The library build lowers StyleX and exports `@lenso/console-react/styles.css`;
 standalone hosts import that stylesheet and the existing Lenso UI theme styles.

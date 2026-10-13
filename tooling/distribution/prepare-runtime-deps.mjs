@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   cp,
@@ -11,6 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { promisify } from "node:util";
 
 import bootstrapPackages from "./runtime-deps.bootstrap.json";
 import pins from "./runtime-deps.json";
@@ -31,7 +33,7 @@ const stat = async (path) => {
   }
 };
 
-// In-process injection supports offline failure fixtures, never CLI source overrides.
+// In-process injection supports offline failure fixtures, never CLI pin overrides.
 export const downloadSnapshot = async (pin, fetcher = fetch) => {
   if (
     !["lenso", "lenso-runtime"].includes(pin.repo) ||
@@ -215,9 +217,86 @@ const ownedOutput = async (root) => {
   return output;
 };
 
+const copyLocalRuntime = async (directory, destination) => {
+  const root = resolve(directory);
+  if (!(await lstat(root)).isDirectory())
+    throw new Error("Runtime root must be a regular directory");
+  const { stdout } = await promisify(execFile)("git", ["ls-files", "-z"], {
+    cwd: root,
+    timeout: 10_000,
+    maxBuffer: 1024 * 1024,
+  });
+  const files = {};
+  let size = 0;
+  const paths = stdout
+    .split("\0")
+    .filter(Boolean)
+    .filter(
+      (path) =>
+        /^(package\.json|bun\.lock|tsconfig\.json|Cargo\.(toml|lock)|tools\/generate\.ts)$/.test(
+          path
+        ) ||
+        /^(sdk\/typescript\/[^/]+\.(ts|json)|crates\/[^/]+\/(Cargo\.toml|(src|tests)\/[^/]+\.rs)|examples\/batch\/(Cargo\.toml|src\/(bin\/)?[^/]+\.rs)|examples\/contracts\/[^/]+\.json|examples\/generated\/[^/]+\.(rs|ts))$/.test(
+          path
+        )
+    )
+    .sort();
+  // Shared candidate schema cases are an explicit source input, even before Git staging.
+  const schemaCases = "crates/sdk/tests/schema-cases.json";
+  if (await stat(join(root, schemaCases))) paths.push(schemaCases);
+  paths.sort();
+  if (paths.length > 4096)
+    throw new Error("Local Runtime source exceeds file limit");
+  for (const path of paths) {
+    const parts = path.split("/");
+    if (
+      parts.some((part) => !part || part === "." || part === "..") ||
+      path.includes("\\")
+    ) {
+      throw new Error("Unexpected local Runtime path");
+    }
+    for (let i = 1; i <= parts.length; i++) {
+      const entry = await lstat(join(root, ...parts.slice(0, i)));
+      if (
+        entry.isSymbolicLink() ||
+        (i === parts.length ? !entry.isFile() : !entry.isDirectory())
+      ) {
+        throw new Error(
+          "Local Runtime source must contain only regular files and directories"
+        );
+      }
+    }
+    const bytes = await Bun.file(join(root, path))
+      .slice(0, maxBytes + 1)
+      .bytes();
+    size += bytes.length;
+    if (size > maxBytes)
+      throw new Error("Local Runtime source exceeds byte limit");
+    files[path] = hash(bytes);
+    await mkdir(dirname(join(destination, path)), { recursive: true });
+    await writeFile(join(destination, path), bytes);
+  }
+  const manifest = JSON.parse(
+    await readFile(join(destination, "package.json"), "utf8")
+  );
+  if (
+    manifest.name !== "lenso-runtime-workspace" ||
+    manifest.private !== true
+  ) {
+    throw new Error("Local source must be lenso-runtime-workspace");
+  }
+  return {
+    kind: "local",
+    root,
+    files,
+    sha256: hash(Buffer.from(JSON.stringify(files))),
+  };
+};
+
 export const prepareRuntimeDeps = async (
   directory = resolve(import.meta.dir, "../.."),
-  injected = {}
+  injected = {},
+  options = {}
 ) => {
   const root = resolve(directory);
   const manifest = JSON.parse(
@@ -251,15 +330,20 @@ export const prepareRuntimeDeps = async (
       }
     }
     // Authenticate both complete archives before extracting or running any snapshot code.
-    const runtimeBytes = await downloadSnapshot(
-      snapshots.runtime,
-      injected.fetch
-    );
+    const runtimeBytes = options.runtimeRoot
+      ? undefined
+      : await downloadSnapshot(snapshots.runtime, injected.fetch);
     const lensoBytes = await downloadSnapshot(snapshots.lenso, injected.fetch);
     temporary = await mkdtemp(join(output, ".prepare-"));
     const runtime = join(temporary, "runtime");
     const lenso = join(temporary, "lenso");
-    await extract(runtimeBytes, snapshots.runtime, runtime);
+    let local;
+    if (options.runtimeRoot) {
+      await mkdir(runtime);
+      local = await copyLocalRuntime(options.runtimeRoot, runtime);
+    } else {
+      await extract(runtimeBytes, snapshots.runtime, runtime);
+    }
     await extract(lensoBytes, snapshots.lenso, lenso);
     const run = injected.run ?? execute;
     await run(["install", "--frozen-lockfile", "--ignore-scripts"], runtime);
@@ -393,7 +477,7 @@ export const prepareRuntimeDeps = async (
           bun: Bun.version,
           files: { adapter: adapterFiles, sdk: sdkFiles },
           lenso: snapshots.lenso,
-          runtime: snapshots.runtime,
+          runtime: local ?? snapshots.runtime,
         },
         null,
         2
@@ -429,14 +513,31 @@ export const prepareRuntimeDeps = async (
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  if (args.length && (args.length !== 2 || args[0] !== "--root")) {
+  const options = new Map();
+  let valid = args.length % 2 === 0;
+  for (let i = 0; i < args.length; i += 2) {
+    const key = args[i];
+    if (
+      !["--root", "--runtime-root"].includes(key) ||
+      options.has(key) ||
+      !args[i + 1] ||
+      args[i + 1].startsWith("--")
+    )
+      valid = false;
+    options.set(key, args[i + 1]);
+  }
+  if (!valid) {
     console.error(
-      "Usage: bun tooling/distribution/prepare-runtime-deps.mjs [--root <console-workspace>]"
+      "Usage: bun tooling/distribution/prepare-runtime-deps.mjs [--root <console-workspace>] [--runtime-root <runtime-checkout>]"
     );
     process.exitCode = 1;
   } else {
     try {
-      await prepareRuntimeDeps(args[1]);
+      await prepareRuntimeDeps(
+        options.get("--root"),
+        {},
+        { runtimeRoot: options.get("--runtime-root") }
+      );
       console.log(
         "Prepared .runtime-deps/sdk, .runtime-deps/adapter and verified .runtime-deps/runtime sources"
       );

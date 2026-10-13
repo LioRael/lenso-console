@@ -88,6 +88,11 @@ separate frozen bootstrap lock; ordinary framework and Auth dependencies remain
 published npm resolutions. Arbitrary source/pin overrides are not supported.
 Remove this exception when both Runtime packages are published.
 
+For cross-repository development only, `prepare:runtime --runtime-root <checkout>`
+explicitly stages bounded local Runtime sources and records their hashes as local
+provenance. This mode does not replace the fixed remote preparation above for a
+clean landing candidate or its authoritative CI gate; it is not release evidence.
+
 The complete gate builds only the external Runtime kernel and batch-service
 fixture with Rust 1.94.0, using its fixed source and Cargo lockfile. It then
 requires the authenticated Runtime page browser test; missing inputs fail.

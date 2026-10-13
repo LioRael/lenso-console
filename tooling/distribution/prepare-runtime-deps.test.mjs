@@ -7,6 +7,7 @@ import {
   readFile,
   readdir,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -249,7 +250,83 @@ test("failed bootstrap and missing SDK/adapter artifacts preserve the previous r
   }
 });
 
-test("standalone CLI imports no installed Console packages and rejects source overrides", async () => {
+test("local Runtime uses dirty tracked SDK bytes while retaining the pinned adapter", async () => {
+  const root = await rootFixture();
+  const local = await rootFixture();
+  await writeFile(
+    join(local, "package.json"),
+    JSON.stringify({ name: "lenso-runtime-workspace", private: true })
+  );
+  const archive = new Bun.Archive(Bun.gunzipSync(runtime.bytes));
+  for (const [name, file] of await archive.files()) {
+    const path = name.slice(`lenso-runtime-${runtime.pin.commit}/`.length);
+    await mkdir(join(local, path, ".."), { recursive: true });
+    await writeFile(join(local, path), await file.bytes());
+  }
+  await writeFile(join(local, "sdk/typescript/index.ts"), "first");
+  for (const args of [
+    ["init", "-q"],
+    ["add", "."],
+  ]) {
+    expect(await Bun.spawn(["git", ...args], { cwd: local }).exited).toBe(0);
+  }
+  await writeFile(join(local, ".env"), "secret");
+  await writeFile(join(local, "sdk/typescript/untracked.ts"), "untracked");
+  await mkdir(join(local, "crates/sdk/tests"), { recursive: true });
+  await writeFile(join(local, "crates/sdk/tests/schema-cases.json"), "[]");
+  const prepare = () =>
+    prepareRuntimeDeps(
+      root,
+      {
+        snapshots,
+        fetch: (url, options) => {
+          expect(String(url)).not.toContain("lenso-runtime/");
+          return fetchFixture(url, options);
+        },
+        run: async (args, cwd) => {
+          await buildFixture(args, cwd);
+          if (cwd.endsWith("sdk/typescript") && args[0] !== "install") {
+            await writeFile(
+              join(cwd, "dist/index.js"),
+              await readFile(join(cwd, "index.ts"))
+            );
+          }
+        },
+      },
+      { runtimeRoot: local }
+    );
+  await prepare();
+  const output = join(root, ".runtime-deps");
+  const before = JSON.parse(
+    await readFile(join(output, "provenance.json"), "utf8")
+  );
+  expect(before.runtime.kind).toBe("local");
+  expect(before.runtime.commit).toBeUndefined();
+  expect(before.runtime.files[".env"]).toBeUndefined();
+  expect(before.runtime.files["sdk/typescript/untracked.ts"]).toBeUndefined();
+  expect(
+    before.runtime.files["crates/sdk/tests/schema-cases.json"]
+  ).toBeDefined();
+  await writeFile(join(local, "sdk/typescript/index.ts"), "dirty current");
+  await prepare();
+  const after = JSON.parse(
+    await readFile(join(output, "provenance.json"), "utf8")
+  );
+  expect(after.runtime.sha256).not.toBe(before.runtime.sha256);
+  expect(after.files.sdk["dist/index.js"]).not.toBe(
+    before.files.sdk["dist/index.js"]
+  );
+  expect(after.files.adapter).toEqual(before.files.adapter);
+  expect(after.lenso).toEqual(lenso.pin);
+  await rm(join(local, "sdk/typescript/index.ts"));
+  await symlink(join(local, ".env"), join(local, "sdk/typescript/index.ts"));
+  await expect(prepare()).rejects.toThrow("regular files");
+  expect(
+    JSON.parse(await readFile(join(output, "provenance.json"), "utf8"))
+  ).toEqual(after);
+});
+
+test("standalone CLI imports no installed Console packages and rejects unsupported source overrides", async () => {
   const root = await rootFixture();
   for (const name of [
     "prepare-runtime-deps.mjs",
