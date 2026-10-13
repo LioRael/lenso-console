@@ -1,0 +1,27 @@
+.github/workflows/ci.yml
+  s_b4ef4420977247::t_9ee433eeaea82e 9-15,36-42,46
+docs/release-process.md
+  s_b4ef4420977247::t_678f9703007ded 22-41,82,87-92
+package.json
+  s_b4ef4420977247::t_ba09acdaba0203 13,37-39
+rust-toolchain.toml
+  s_b4ef4420977247::t_b6cb0b0cb6c6b2 1-4
+scripts/check-rust-format.mjs
+  s_b4ef4420977247::t_e461a02cdb0280 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06cb549a03408223a9a23ab5f33dc8ec437e3f16",
+  "prompts": {},
+  "sessions": {
+    "s_b4ef4420977247": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a46d-f66f-7aa2-a04d-613964d63efb",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

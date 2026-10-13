@@ -1,0 +1,28 @@
+.github/workflows/ci.yml
+  h_9d56aba080c170 34,47
+.node-version
+  h_9d56aba080c170 1
+CONTRIBUTING.md
+  h_9d56aba080c170 57-81
+package.json
+  h_9d56aba080c170 11,36-39
+tooling/check-environment.mjs
+  h_9d56aba080c170 1-26
+tooling/check.mjs
+  h_9d56aba080c170 1-27
+tooling/distribution/check-native.mjs
+  h_9d56aba080c170 1-34
+tooling/distribution/smoke-agent-native.mjs
+  h_9d56aba080c170 30-31,34,36,38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e0ca0b16f63bdae42e1d1fe5b7dab38dbf499172",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

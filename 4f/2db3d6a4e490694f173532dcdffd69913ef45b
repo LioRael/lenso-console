@@ -1,0 +1,23 @@
+scripts/distribution/package-agent.mjs
+  s_50e3beadc1d491::t_b15205d1a82f22 57
+src/features/agent/agent-quick-panel.stylex.ts
+  s_50e3beadc1d491::t_ca451b07ae8ba5 320,322,329
+src/features/agent/agent-quick-panel.tsx
+  s_50e3beadc1d491::t_4b63ce148d7f42 316,339
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4f2db3d6a4e490694f173532dcdffd69913ef45b",
+  "prompts": {},
+  "sessions": {
+    "s_50e3beadc1d491": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f9cb-a005-76d3-8f46-f5efcfd3deb1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+.changeset/latest-lenso-ui.md
+  h_9d56aba080c170 1-6
+apps/shell/package.json
+  h_9d56aba080c170 21-22,24
+apps/shell/src/components/runtime/context-navigation.browser.test.tsx
+  h_9d56aba080c170 14,168-171,174-178
+pnpm-lock.yaml
+  h_9d56aba080c170 81-82,84-85,90-91,325-341,352-361,655-656,658-659,1165-1167,3554-3565,3577-3587,3893,3895,3897,3899,3901-3902,4211-4216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25a0195f0e0af31e36e9bb990ab5ec9dcc5c747b",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
