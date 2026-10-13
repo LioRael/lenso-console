@@ -1,0 +1,16 @@
+apps/shell/src/features/extensions/page-contribution-outlet.browser.test.tsx
+  h_9d56aba080c170 45-48
+apps/shell/src/features/extensions/page-contribution-outlet.tsx
+  h_9d56aba080c170 103-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0d35eccd14a91869ca260d2500cdb1ef15c14e0",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

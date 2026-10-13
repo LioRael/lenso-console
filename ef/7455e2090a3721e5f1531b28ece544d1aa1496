@@ -1,0 +1,16 @@
+apps/reference-host/src/lib.rs
+  h_9d56aba080c170 300-303,308,310-313,318,325,330
+apps/reference-host/src/tests.rs
+  h_9d56aba080c170 233-254,504-507,549,551-554,579-617,638
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef7455e2090a3721e5f1531b28ece544d1aa1496",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

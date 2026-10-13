@@ -1,0 +1,67 @@
+plugins/marketplace/workers/docs/g5-preflight.md
+  s_3724267b9ee00e::t_efcd612b035bef 88,93-96,102-103,126-127,131-133
+plugins/marketplace/workers/docs/g5-rollout.md
+  s_3724267b9ee00e::t_8fe6b0d3b68de5 15,236-239
+plugins/marketplace/workers/recovery/.gitignore
+  s_3724267b9ee00e::t_90a155f283be1d 1-2
+plugins/marketplace/workers/recovery/README.md
+  s_3724267b9ee00e::t_5d345e70b75a65 1-39
+plugins/marketplace/workers/recovery/RESULTS.md
+  s_3724267b9ee00e::t_e1f460dcbdd424 1-19
+plugins/marketplace/workers/recovery/evidence/accepted-corrupt.json
+  s_3724267b9ee00e::t_5156506774de7e 1
+plugins/marketplace/workers/recovery/evidence/backup.json
+  s_3724267b9ee00e::t_4aa75d860b3459 1-83
+plugins/marketplace/workers/recovery/evidence/backup/accepted-8.json
+  s_3724267b9ee00e::t_d5b7ca87f9bb2b 1
+plugins/marketplace/workers/recovery/evidence/backup/publication-8.json
+  s_3724267b9ee00e::t_80255f27fb7796 1
+plugins/marketplace/workers/recovery/evidence/backup/rollback-1.json
+  s_3724267b9ee00e::t_415613cce3d0b4 1
+plugins/marketplace/workers/recovery/evidence/d1-create.txt
+  s_3724267b9ee00e::t_63bb1141e2d028 1-16
+plugins/marketplace/workers/recovery/evidence/d1-inventory-before.json
+  s_3724267b9ee00e::t_38a26751f4d48a 1-5
+plugins/marketplace/workers/recovery/evidence/deploy.txt
+  s_3724267b9ee00e::t_ed332d4285ef84 1-18
+plugins/marketplace/workers/recovery/evidence/deployment.json
+  s_3724267b9ee00e::t_484c1f62b8d621 1-42
+plugins/marketplace/workers/recovery/evidence/initial-route-propagation.json
+  s_3724267b9ee00e::t_cd00822f42d06f 1-33
+plugins/marketplace/workers/recovery/evidence/migration.txt
+  s_3724267b9ee00e::t_578ac79d970a28 1-22
+plugins/marketplace/workers/recovery/evidence/qualification.json
+  s_3724267b9ee00e::t_17469c1544aaa5 1-530
+plugins/marketplace/workers/recovery/evidence/r2-create.txt
+  s_3724267b9ee00e::t_002c77c6ca16ae 1-16
+plugins/marketplace/workers/recovery/evidence/r2-inventory-before.json
+  s_3724267b9ee00e::t_b8312464c86bad 1-5
+plugins/marketplace/workers/recovery/evidence/restore.json
+  s_3724267b9ee00e::t_225b5ac46b00cd 1-164
+plugins/marketplace/workers/recovery/evidence/validation.json
+  s_3724267b9ee00e::t_ae4864c5df36ee 1-12
+plugins/marketplace/workers/recovery/evidence/worker-inventory-before.json
+  s_3724267b9ee00e::t_bd3dc2f1662889 1-5
+plugins/marketplace/workers/recovery/migrations/0001_public_reads.sql
+  s_3724267b9ee00e::t_4b15bb696d3cb2 1-12
+plugins/marketplace/workers/recovery/recovery.py
+  s_3724267b9ee00e::t_d7d7453701af35 1-240
+plugins/marketplace/workers/recovery/wrangler.jsonc
+  s_3724267b9ee00e::t_2f89986c3b1ce6 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9271bc01ed60810df01dba47e96c6c0dc396db9",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

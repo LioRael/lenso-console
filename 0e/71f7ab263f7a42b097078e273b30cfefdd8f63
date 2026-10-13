@@ -1,0 +1,56 @@
+Cargo.lock
+  h_9d56aba080c170 1902-1904,1917,1934,1974-1975,1985,2001,2022,2053,2080,2104,2128,2168,2183,2200-2201,2227,2240,2261,2274,2287,2300,2304,2316,2320,2332,2345,2361,2365,2377,2390,2406,2410,2439,2443,2454-2456,2459,2471-2473,2479,2493-2495,2505-2507,2510,2521,2525,2537,2556,2573,2587,2591,2605,2668,2756,2771,2783-2785,2788,2801,2813-2815,3009-3010,3020-3021,3043-3045,3048,3053,3059-3060,3070-3072,3099-3100,3108-3110,3131-3132,3271-3273,3287-3289,3352-3353,3358-3359,3379-3380,3432-3433,3512-3513,3525-3526,3554-3556,3577-3579
+Cargo.toml
+  h_9d56aba080c170 30,38-40
+apps/reference-host/Cargo.toml
+  h_9d56aba080c170 30,32-36,41,43,48,51-53,73,75
+contracts/crates/lenso-capability-management-human/Cargo.toml
+  h_9d56aba080c170 29
+contracts/crates/lenso-capability-management/Cargo.toml
+  h_9d56aba080c170 29
+contracts/crates/lenso-capability-ui-contribution/Cargo.toml
+  h_9d56aba080c170 28
+contracts/crates/lenso-capability-ui-global-contribution/Cargo.toml
+  h_9d56aba080c170 28
+contracts/crates/lenso-capability-workspace-service/Cargo.toml
+  h_9d56aba080c170 27
+docs/reviews/console-authoring-dx-2026-10-02.md
+  h_9d56aba080c170 343-378
+examples/plugin-host/Cargo.toml
+  h_9d56aba080c170 18-19
+packages/console-support/Cargo.lock
+  h_9d56aba080c170 695,697,742,757,770,785,787,793,819,821,824,835,839,854,871,887,902,917,1005,1007,1010,1015,1064,1066,1080,1082
+plugins/agent-ai-adapter/Cargo.toml
+  h_9d56aba080c170 18,20,22-23,36
+plugins/assistant/Cargo.toml
+  h_9d56aba080c170 15,17,27
+plugins/console/Cargo.toml
+  h_9d56aba080c170 17,26-29,32-33,39,66
+plugins/console/tests/fixtures/password-session-consumer/Cargo.toml
+  h_9d56aba080c170 14-16
+plugins/console/tests/fixtures/welcome-workspace-plugin/Cargo.toml
+  h_9d56aba080c170 17
+plugins/management-mcp/Cargo.toml
+  h_9d56aba080c170 15-17,22-23,40
+plugins/management/crates/lenso-management-authority/Cargo.toml
+  h_9d56aba080c170 11,16-20,30,33-40
+plugins/management/crates/lenso-management-core/Cargo.toml
+  h_9d56aba080c170 28
+plugins/management/crates/lenso-management-http/Cargo.toml
+  h_9d56aba080c170 12,15-16
+plugins/observe/Cargo.toml
+  h_9d56aba080c170 23-24,26
+plugins/observe/crates/lenso-capability-observability-query/Cargo.toml
+  h_9d56aba080c170 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e71f7ab263f7a42b097078e273b30cfefdd8f63",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

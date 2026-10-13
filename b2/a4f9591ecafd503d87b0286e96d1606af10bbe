@@ -1,0 +1,29 @@
+packages/console-react/src/console-dock.tsx
+  s_e3dbe949a951a5::t_5e37371a88e93b 299,306,326,355-356,379
+plugins/console/shell/src/app/route-states.tsx
+  s_e3dbe949a951a5::t_c8f9c238d1f16d 12,14,23,26,28,38,41,43
+plugins/console/shell/src/features/home/home-page.tsx
+  s_e3dbe949a951a5::t_7cb8f1faaaf5c4 18
+plugins/console/shell/src/routes/__root.tsx
+  s_e3dbe949a951a5::t_2c7c677b2bcedc 83
+plugins/console/shell/test/browser/console-dock.browser.test.ts
+  s_e3dbe949a951a5::t_edbe7c04433055 28-30,33-35,40,58,60-61,63,65-67,81-83
+plugins/console/shell/test/browser/dock.fixture.tsx
+  s_e3dbe949a951a5::t_d068c86bbf031a 19,24,49,66,69-73,75,83,100,105-106,108,112,114,118,120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2a4f9591ecafd503d87b0286e96d1606af10bbe",
+  "prompts": {},
+  "sessions": {
+    "s_e3dbe949a951a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11a4a-829c-7a91-8ac5-ef4c67bb9d37",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

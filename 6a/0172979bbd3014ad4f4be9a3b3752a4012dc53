@@ -1,0 +1,42 @@
+bun.lock
+  h_9d56aba080c170 62,90,134,211,244,267,291
+packages/auth-console/CHANGELOG.md
+  h_9d56aba080c170 3-8
+packages/auth-console/package.json
+  h_9d56aba080c170 3,53
+packages/console-authoring/CHANGELOG.md
+  h_9d56aba080c170 3-8
+packages/console-authoring/package.json
+  h_9d56aba080c170 3,164
+packages/console-dashboard/CHANGELOG.md
+  h_9d56aba080c170 3-9
+packages/console-dashboard/package.json
+  h_9d56aba080c170 3
+packages/console-plugin-manager/CHANGELOG.md
+  h_9d56aba080c170 3-11
+packages/console-plugin-manager/package.json
+  h_9d56aba080c170 3
+packages/console-react/CHANGELOG.md
+  h_9d56aba080c170 3-10
+packages/console-react/package.json
+  h_9d56aba080c170 3
+packages/console/CHANGELOG.md
+  h_9d56aba080c170 3-9
+packages/console/package.json
+  h_9d56aba080c170 3
+plugins/console/shell/CHANGELOG.md
+  h_9d56aba080c170 3-11
+plugins/console/shell/package.json
+  h_9d56aba080c170 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a0172979bbd3014ad4f4be9a3b3752a4012dc53",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

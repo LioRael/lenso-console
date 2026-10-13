@@ -1,0 +1,25 @@
+src/features/management/management-page.tsx
+  s_f4202e28c6b5b1::t_9a8934cc137ae9 107,201-228,246,413,436,454,457,459,464-469,477,482
+src/features/management/management-page.browser.test.tsx
+  s_f4202e28c6b5b1::t_ff63502ceb3480 23,48-50,70,73,84-87,128-189
+plugins/management/crates/lenso-management-authority/Cargo.toml
+  s_f4202e28c6b5b1::t_08050f4bb46606 19,39
+plugins/management/Cargo.lock
+  s_f4202e28c6b5b1::t_14186a4f030cdf 1146,1283
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7dc44a2d56ae4ee8f60e339b8dbb578ee11a71b6",
+  "prompts": {},
+  "sessions": {
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
