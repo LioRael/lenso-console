@@ -1,0 +1,14 @@
+.github/workflows/console-sdk-npm.yml
+  h_9d56aba080c170 51-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "90ad149507185a1c2de017cbc2ea2a6a124cef81",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+examples/ts-console/build-authorization.ts
+  s_ef1691bac225fb::t_8bd05660de77af 10-16,27-29,36-46,52
+examples/ts-console/console/access/workspace.ts
+  s_ef1691bac225fb::t_b460739848b35a 1-9
+examples/ts-console/console/identity/workspace.ts
+  s_ef1691bac225fb::t_4bf0b7ecc4a2c8 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "962fb2eabbf051bc03e0848c680fb5d0d74e8ac3",
+  "prompts": {},
+  "sessions": {
+    "s_ef1691bac225fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a12fc24c-2053-4fff-a409-a0b42c61161b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

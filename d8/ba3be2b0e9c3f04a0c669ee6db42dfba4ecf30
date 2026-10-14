@@ -1,0 +1,20 @@
+apps/shell/src/features/extensions/observe-workspace.browser.test.tsx
+  h_9d56aba080c170 1-4,9-10,12-15,18-21,273-754
+docs/design/reviews/2026-10-02-observe-requests.md
+  h_9d56aba080c170 1-40
+plugins/observe/workspace.css
+  h_9d56aba080c170 23,206-247,261-280
+plugins/observe/workspace.mjs
+  h_9d56aba080c170 4,6-35,37-38,40-55,57-62,67-73,75-82,85-96,100-197,206,209-220,223-228,238,241,244-252,268-285,287,313-314,316-387,389-391,393,395-397,399-405,409-410,412-414,416-535,537-581,613,638-640,773,784-821
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d8ba3be2b0e9c3f04a0c669ee6db42dfba4ecf30",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
