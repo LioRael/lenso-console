@@ -1,5 +1,11 @@
 # @lenso/console
 
+## 2.1.5
+
+### Patch Changes
+
+- Reuse a strict request-owned Auth scope for catalog and session reads, replay each operation policy before disclosure, and preserve guarded denial fallback.
+
 ## 2.1.4
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Optional Console plugin for TypeScript Lenso applications.",
   "license": "MIT",
   "repository": {
@@ -71,7 +71,7 @@
     "@lenso/console-sdk": "workspace:*",
     "@lenso/core": "0.3.1",
     "@lenso/engine": "0.6.0",
-    "@lenso/manage": "0.5.2",
+    "@lenso/manage": "0.5.3",
     "@orpc/server": "2.0.0-beta.42",
     "zod": "4.6.5"
   },

@@ -360,7 +360,9 @@ export function createConsoleService(
         let denied = false;
         const collect = async (scope?: ConsoleReadScope) => {
           const can = async (selector: ConsoleResource) => {
-            if (!scope) return auth.can(identity, selector);
+            if (!scope) {
+              return auth.can(identity, selector);
+            }
             try {
               await auth.enforceRead!(identity, selector, scope);
               return true;
@@ -456,22 +458,30 @@ export function createConsoleService(
             auth.finishRead &&
             auth.closeRead
           )
-        )
+        ) {
           return collect();
+        }
         const scope = await auth.beginRead(identity, request);
         try {
           if (
             "consistency" in scope.authenticationScope &&
             scope.authenticationScope.consistency !== "before-disclosure"
-          )
+          ) {
             throw failure("SERVICE_UNAVAILABLE", 503);
+          }
           const result = await collect(scope);
           const registered: unknown = options.onReadScope(request, scope);
           if (
             registered &&
             typeof (registered as { then?: unknown }).then === "function"
           ) {
-            void Promise.resolve(registered).catch(() => {});
+            void (async () => {
+              try {
+                await registered;
+              } catch {
+                // The invalid async host hook is rejected below; observe its late failure.
+              }
+            })();
             throw failure("SERVICE_UNAVAILABLE", 503);
           }
           // The trusted host finishes this scope after DTO/transport serialization,
@@ -481,7 +491,9 @@ export function createConsoleService(
           auth.closeRead(scope);
           // A denied scoped policy retires its scope. Preserve partial/empty catalog
           // behavior via the fully guarded legacy path, never reuse denied authority.
-          if (denied) return collect();
+          if (denied) {
+            return collect();
+          }
           throw error;
         }
       }
@@ -927,23 +939,26 @@ export function createConsoleService(
                 !auth.enforceRead ||
                 !auth.finishRead ||
                 !auth.closeRead
-              )
+              ) {
                 throw failure("SERVICE_UNAVAILABLE", 503);
+              }
               sessionScope = await auth.beginRead(identity, request);
               if (
                 "consistency" in sessionScope.authenticationScope &&
                 sessionScope.authenticationScope.consistency !==
                   "before-disclosure"
-              )
+              ) {
                 throw failure("SERVICE_UNAVAILABLE", 503);
+              }
             }
             let session = sessionScope
               ? await auth.sessionRead!(identity, sessionScope)
               : await auth.session(identity);
             let access = await Promise.all(
               targets.map(async (target) => {
-                if (!sessionScope)
+                if (!sessionScope) {
                   return auth.can(identity, resource(target, "session"));
+                }
                 try {
                   await auth.enforceRead!(
                     identity,
@@ -955,8 +970,9 @@ export function createConsoleService(
                   if (
                     error instanceof ConsoleRequestError &&
                     error.code === "forbidden"
-                  )
+                  ) {
                     return false;
+                  }
                   throw error;
                 }
               })
@@ -1015,7 +1031,9 @@ export function createConsoleService(
               })
             );
           } catch (error) {
-            if (sessionScope) auth.closeRead!(sessionScope);
+            if (sessionScope) {
+              auth.closeRead!(sessionScope);
+            }
             throw error;
           }
         } else if (request.method === "GET" && path === `${prefix}/v1/apps`) {

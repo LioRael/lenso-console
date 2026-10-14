@@ -1936,9 +1936,10 @@ test("catalog scope shares entry identity, replays each policy before disclosure
     await expect(service.finishRead!(opened!)).rejects.toThrow();
     service.closeRead!(opened!);
     opened = undefined;
-    expect(
-      (await client(app.get(plugin)).catalog({ targetId: "north" })).operations
-    ).toEqual([]);
+    const deniedCatalog = await client(app.get(plugin)).catalog({
+      targetId: "north",
+    });
+    expect(deniedCatalog.operations).toEqual([]);
     expect(opened).toBeUndefined();
     auth.state.dispatchDenied = undefined;
     auth.state.hiddenMethod = "read";
@@ -1962,7 +1963,9 @@ test("catalog scope shares entry identity, replays each policy before disclosure
     expect(auth.state.verifications).toBe(before + 1);
     service.enforceRead = enforceRead;
   } finally {
-    if (opened) service.closeRead!(opened);
+    if (opened) {
+      service.closeRead!(opened);
+    }
     await app.stop();
   }
 });

@@ -444,8 +444,9 @@ export function createConsoleAuthentication<
                   if (
                     "consistency" in authenticationScope &&
                     authenticationScope.consistency !== "before-disclosure"
-                  )
+                  ) {
                     throw new ConsoleRequestError("service_unavailable");
+                  }
                   return guarded(request, async () => {
                     const projection = await options.sessionRead!(
                       proof(identity).actor,
@@ -458,8 +459,9 @@ export function createConsoleAuthentication<
                       projection.workspace_ids.some(
                         (id) => typeof id !== "string"
                       )
-                    )
+                    ) {
                       throw new ConsoleRequestError("service_unavailable");
+                    }
                     return {
                       administrator: projection.administrator,
                       workspace_ids: [...projection.workspace_ids],
