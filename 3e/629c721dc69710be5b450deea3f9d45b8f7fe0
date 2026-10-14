@@ -1,0 +1,22 @@
+src/dev/console-dev-vite-plugin.ts
+  s_f4202e28c6b5b1::t_3357ec467a1ad1 366
+src/dev/console-dev-vite-plugin.test.ts
+  s_f4202e28c6b5b1::t_3357ec467a1ad1 75-122
+  s_f4202e28c6b5b1::t_faa1b621b2e5dd 123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e629c721dc69710be5b450deea3f9d45b8f7fe0",
+  "prompts": {},
+  "sessions": {
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

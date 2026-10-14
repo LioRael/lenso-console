@@ -1,0 +1,22 @@
+docs/reviews/console-authoring-dx-2026-10-02.md
+  h_9d56aba080c170 12-14,90-93,119,126-128,217,220
+packages/console-authoring/README.md
+  h_9d56aba080c170 27
+packages/console-authoring/compiler/compiler.mjs
+  h_9d56aba080c170 310-313
+packages/console-authoring/compiler/test/consumer.test.mjs
+  h_9d56aba080c170 93-104,150-154,170-175
+packages/console-authoring/compiler/typecheck.mjs
+  h_9d56aba080c170 119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "913ddc4f1774e2726d5fec49b81eef6bb4d6b11c",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

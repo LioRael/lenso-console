@@ -1,0 +1,14 @@
+tooling/distribution/sdk-preview.test.mjs
+  h_9d56aba080c170 343-351,529-531,559-560,564-567,642-645
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9433dfdd46b6a4da672ab5432aad8cd75379e929",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

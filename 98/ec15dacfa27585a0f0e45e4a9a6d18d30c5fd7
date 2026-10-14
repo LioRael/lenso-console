@@ -1,0 +1,16 @@
+.github/scripts/check-development-host-source.py
+  h_9d56aba080c170 71-73,76-77
+.github/scripts/test-development-host-source.py
+  h_9d56aba080c170 67,73-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "98ec15dacfa27585a0f0e45e4a9a6d18d30c5fd7",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

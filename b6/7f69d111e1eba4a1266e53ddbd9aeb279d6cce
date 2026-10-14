@@ -1,0 +1,14 @@
+pnpm-workspace.yaml
+  h_9d56aba080c170 25-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b67f69d111e1eba4a1266e53ddbd9aeb279d6cce",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
