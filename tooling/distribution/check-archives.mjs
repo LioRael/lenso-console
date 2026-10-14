@@ -91,10 +91,13 @@ import * as shell from "@lenso/console-react";
 import * as dashboard from "@lenso/console-dashboard/react";
 import * as plugins from "@lenso/console-plugin-manager/react";
 import * as auth from "@lenso/auth-console/react";
+import * as administration from "@lenso/auth-console/administration/react";
 import type { AuthConsoleClient } from "@lenso/auth-console/client";
+import type { AdministrationClient, AdministrationAction, ConsoleAdministrationStore } from "@lenso/auth-console/administration/server";
 import type { DashboardStore } from "@lenso/console-dashboard";
 export const publicModules = { shell, dashboard, plugins, auth };
-export type Clients = { auth: AuthConsoleClient; dashboard: DashboardStore };
+export const administrationPages = [administration.IdentityPage, administration.AccessPage, administration.AgentPage];
+export type Clients = { auth: AuthConsoleClient; dashboard: DashboardStore; administration: AdministrationClient; store: ConsoleAdministrationStore; action: AdministrationAction };
 `
   );
   execFileSync(
@@ -126,8 +129,23 @@ import { renderToString } from "react-dom/server";
 import { ConsoleShell } from "@lenso/console-react";
 import { createSqliteDashboardRepository, initializeSqliteDashboardSchema } from "@lenso/console-dashboard/server/sqlite";
 import { createAuthConsoleServer } from "@lenso/auth-console/server";
+import { createConsoleAdministration, createConsoleAdministrationStore, administrationActions } from "@lenso/auth-console/administration/server";
+import { IdentityPage, AccessPage, AgentPage } from "@lenso/auth-console/administration/react";
 import { Database } from "bun:sqlite";
 assert.equal(typeof createAuthConsoleServer, "function");
+assert.equal(typeof createConsoleAdministration, "function");
+assert.equal(typeof createConsoleAdministrationStore, "function");
+assert.ok(administrationActions.includes("users.list"));
+assert.deepEqual([IdentityPage, AccessPage, AgentPage].map(page => typeof page), ["function", "function", "function"]);
+const administrationDb = new Database(":memory:");
+try {
+  const store = createConsoleAdministrationStore({
+    database: administrationDb, consoleId: "archive", tenantId: "archive",
+    realmId: "archive", subjectActiveAtCommit: () => true,
+  });
+  assert.equal(store.initializeInstance("owner"), true);
+  assert.equal(store.read().revision, "1");
+} finally { administrationDb.close(); }
 assert.ok(renderToString(React.createElement(ConsoleShell, {
   plugins: [], router: { pathname: "/", match: () => null, navigate() {} },
 })).length > 0);
@@ -157,7 +175,9 @@ import assert from "node:assert/strict";
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { authConsole } from "@lenso/auth-console/react";
-import { ConsoleShell } from "@lenso/console-react";
+import { IdentityPage, AccessPage, AgentPage } from "@lenso/auth-console/administration/react";
+import { WorkspaceScope } from "@lenso/console-sdk/react";
+import { ConsoleShell, ConsoleLayout, ConsoleActionHost } from "@lenso/console-react";
 const binding = authConsole({
   id: "archive-proof",
   client: {
@@ -192,7 +212,39 @@ for (const pathname of ["/info", "/sessions", "/sessions/test", "/subjects"]) {
   assert.ok(matched, "Packed Auth route was not admitted: " + pathname);
   assert.ok(html.length > 0);
 }
-console.log("Packed Auth Console: all four pages rendered with production React");
+const client = {
+  async invoke() { throw new Error("Unexpected archive render network request"); },
+  async issueToken() { throw new Error("Unexpected archive render credential request"); },
+  async rotateToken() { throw new Error("Unexpected archive render credential request"); },
+};
+const profile = {
+  consoleId: "archive", tenantId: "archive", realmId: "archive",
+  source: "archive", mcpUrl: "https://example.invalid/mcp", allowed: [],
+  supported: { userDisable: false, sessions: false, sessionRevoke: false },
+  authentication: "personal-token", observedLastCallAt: null,
+};
+for (const Page of [IdentityPage, AccessPage, AgentPage]) {
+  const html = renderToString(React.createElement(WorkspaceScope, {
+    value: {
+      reads: {
+        useRead({ key }) {
+          assert.equal(key, "administration.info");
+          return { data: profile, error: null, blocking: false, refreshing: false, async refetch() {} };
+        },
+        async invalidate() {},
+      },
+      activation: { key: "archive", isCurrent: () => true },
+      mount: { id: "archive" },
+      location: { hash: "", search: "", segments: [] },
+      navigation: { go() {}, href() { return "/"; }, openWorkspace() {} },
+    },
+  }, React.createElement(ConsoleActionHost, {
+    render: () => null,
+    children: React.createElement(ConsoleLayout, null, React.createElement(Page, { client })),
+  })));
+  assert.ok(html.length > 0, "Packed administration page failed production rendering");
+}
+console.log("Packed Auth Console: legacy and administration pages rendered with production React");
 `
   );
   execFileSync("node", ["verify-production-auth.mjs"], {

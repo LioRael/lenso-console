@@ -398,6 +398,26 @@ test("SDK errors keep trusted domain status and safe retry units, never arbitrar
     }[] = [
       {
         error: new EngineError({
+          code: "outcome-unknown",
+          phase: "invoke",
+          message: "private-database-password",
+          details: { intentId: "a441ecfa-b499-4aa4-88f8-d5c1fe106ecc" },
+        }),
+        code: "OUTCOME_UNKNOWN",
+        status: 503,
+      },
+      {
+        error: new EngineError({
+          code: "outcome-unknown",
+          phase: "invoke",
+          message: "private-database-password",
+          details: { intentId: "not-a-uuid" },
+        }),
+        code: "SERVICE_UNAVAILABLE",
+        status: 503,
+      },
+      {
+        error: new EngineError({
           code: "conflict",
           phase: "invoke",
           message: "private-database-password",
@@ -480,6 +500,11 @@ test("SDK errors keep trusted domain status and safe retry units, never arbitrar
       expect(response.headers.get("cache-control")).toBe("no-store");
       const text = await response.text();
       expect(text).not.toContain("private-database-password");
+      if (fixture.code === "OUTCOME_UNKNOWN") {
+        expect(text).toContain("a441ecfa-b499-4aa4-88f8-d5c1fe106ecc");
+      } else {
+        expect(text).not.toContain("intentId");
+      }
       if (fixture.retry) {
         expect(text).toContain('"retryAfterMs":1001');
       }

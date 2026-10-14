@@ -4,8 +4,13 @@ import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createAuditService } from "@lenso/audit";
+import { ApiKeyError } from "@lenso/api-keys";
+import { AuditOutcomeUnknownError, createAuditService } from "@lenso/audit";
 import { createSqliteAuditRepository } from "@lenso/audit/sqlite";
+import {
+  SessionAdministrationError,
+  SessionRevokeOutcomeUnknownError,
+} from "@lenso/auth/sessions";
 import { startApp } from "@lenso/core";
 import { createManageAdapter, describeManage } from "@lenso/manage";
 import { drizzle } from "drizzle-orm/bun-sqlite";
@@ -20,7 +25,10 @@ import {
   createConsoleAdministrationManage,
   type AdministrationContext,
 } from "../src/administration-server";
-import { createConsoleAdministrationStore } from "../src/administration-store";
+import {
+  AdministrationError,
+  createConsoleAdministrationStore,
+} from "../src/administration-store";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -513,6 +521,23 @@ test("PATs persist only digests, issue once, rotate without overlap, and revalid
   expect(await f.service.apiKeys.verify(issued.credential)).toBeNull();
   expect(await f.service.apiKeys.verify(rotated.credential)).not.toBeNull();
   await expect(
+    f.service.rotateToken(
+      {
+        id: issued.token.id,
+        expectedRevision: issued.token.revision,
+        overlapMs: 0,
+      },
+      caller
+    )
+  ).rejects.toMatchObject({ code: "CONFLICT", message: "CONFLICT" });
+  expect(await f.service.apiKeys.verify(rotated.credential)).not.toBeNull();
+  const rotationAudit = await f.service.auditList({}, owner);
+  expect(
+    rotationAudit.items.filter(
+      (event) => event.action === "tokens.rotate" && event.result === "failure"
+    )
+  ).toHaveLength(1);
+  await expect(
     f.service.tokensRevoke(
       { id: issued.token.id, expectedRevision: issued.token.revision },
       caller
@@ -558,6 +583,84 @@ test("PATs persist only digests, issue once, rotate without overlap, and revalid
   );
   expect(await f.service.apiKeys.verify(ownerKey.credential)).toBeNull();
 });
+
+// Provider rejections were being recorded as unknown; code-shaped foreign errors
+// and owner reconciliation errors must not become evidence of a no-effect failure.
+test.each([
+  [new ApiKeyError("CONFLICT"), "CONFLICT"],
+  [new ApiKeyError("INVALID_INPUT"), "INVALID_INPUT"],
+  [new ApiKeyError("FORBIDDEN"), "DENIED"],
+  [new SessionAdministrationError("invalid-input"), "INVALID_INPUT"],
+  [new SessionAdministrationError("stale-revision"), "CONFLICT"],
+  [new ApiKeyError("UNAVAILABLE"), "OUTCOME_UNKNOWN"],
+  [
+    new SessionAdministrationError("pending-reconciliation", "owner-intent"),
+    "OUTCOME_UNKNOWN",
+  ],
+  [new SessionRevokeOutcomeUnknownError("owner-intent"), "OUTCOME_UNKNOWN"],
+  [new AuditOutcomeUnknownError("owner-intent"), "OUTCOME_UNKNOWN"],
+  [
+    new AdministrationError(
+      "OUTCOME_UNKNOWN",
+      "a441ecfa-b499-4aa4-88f8-d5c1fe106ecc"
+    ),
+    "OUTCOME_UNKNOWN",
+  ],
+  [
+    Object.assign(new Error("private provider detail"), { code: "CONFLICT" }),
+    "OUTCOME_UNKNOWN",
+  ],
+] as const)(
+  "audited provider error %s maps to %s without disclosing provider details",
+  async (providerError, code) => {
+    const f = fixture();
+    if (!(providerError instanceof AdministrationError)) {
+      providerError.message = "private provider detail";
+    }
+    const service = createConsoleAdministrationService({
+      ...f.options,
+      sessions: {
+        async list() {
+          return { items: [], nextCursor: null };
+        },
+        async revoke() {
+          throw providerError;
+        },
+      },
+    });
+    cleanup.push(() => {
+      void service.apiKeys.close();
+    });
+    const owner = f.context();
+    const rejectedError = await service
+      .sessionsRevoke(
+        { id: "session-one", subjectId: "reader", expectedRevision: 1 },
+        owner
+      )
+      .catch((error: unknown) => error);
+    expect(rejectedError).toMatchObject({ code, message: code });
+    const auditPage = await f.service.auditList({}, owner);
+    const events = auditPage.items.filter(
+      (event) => event.action === "sessions.revoke"
+    );
+    const intent = events.find((event) => event.result === "intent")!;
+    expect(intent).toBeDefined();
+    expect(events.find((event) => event.result !== "intent")).toMatchObject({
+      result: code === "OUTCOME_UNKNOWN" ? "unknown" : "failure",
+    });
+    if (code === "OUTCOME_UNKNOWN") {
+      expect(rejectedError).toMatchObject({
+        intentId:
+          providerError instanceof AdministrationError
+            ? providerError.intentId
+            : intent.id,
+      });
+    } else {
+      expect(rejectedError).toMatchObject({ intentId: undefined });
+    }
+    expect(JSON.stringify(events)).not.toContain("private provider detail");
+  }
+);
 
 test("output projection, strict audit gate/unknown outcome, and public Manage declaration omit credential methods", async () => {
   const f = fixture();

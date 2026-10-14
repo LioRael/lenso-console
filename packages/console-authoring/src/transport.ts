@@ -351,6 +351,33 @@ function mapWorkspaceError(
       502
     );
   }
+  const intentId =
+    error.code === "OUTCOME_UNKNOWN" &&
+    error.data &&
+    typeof error.data === "object"
+      ? Reflect.get(error.data, "intentId")
+      : undefined;
+  if (
+    typeof intentId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      intentId
+    )
+  ) {
+    return new WorkspaceServiceError(
+      "Workspace service outcome is unknown; inspect the audit intent before retrying",
+      "OUTCOME_UNKNOWN",
+      503,
+      undefined,
+      intentId
+    );
+  }
+  if (error.code === "OUTCOME_UNKNOWN") {
+    return new WorkspaceServiceError(
+      "Workspace service is unavailable",
+      "SERVICE_UNAVAILABLE",
+      503
+    );
+  }
   const status = Object.hasOwn(COMMON_ERROR_STATUS_MAP, error.code)
     ? Reflect.get(COMMON_ERROR_STATUS_MAP, error.code)
     : undefined;

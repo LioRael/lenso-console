@@ -9,26 +9,36 @@ import { isConsoleOperationError } from "./errors";
 import { readRequestBytes } from "./request-body";
 
 const boundaryErrors = new WeakSet<Error>();
+const safeIntentId =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 class BoundaryError extends Error {
   readonly code: string;
   readonly status: number;
   readonly retryAfterMs?: number;
-  constructor(code: string, status: number, retryAfterMs?: number) {
+  readonly intentId?: string;
+  constructor(
+    code: string,
+    status: number,
+    retryAfterMs?: number,
+    intentId?: string
+  ) {
     super("Console request failed");
     this.name = "BoundaryError";
     this.code = code;
     this.status = status;
     this.retryAfterMs = retryAfterMs;
+    this.intentId = intentId;
   }
 }
 
 export function failure(
   code: string,
   status: number,
-  retryAfterMs?: number
+  retryAfterMs?: number,
+  intentId?: string
 ): BoundaryError {
-  const error = new BoundaryError(code, status, retryAfterMs);
+  const error = new BoundaryError(code, status, retryAfterMs, intentId);
   boundaryErrors.add(error);
   return error;
 }
@@ -37,6 +47,15 @@ export function rpcFailure(
   error: BoundaryError,
   headers: Headers
 ): ORPCError<string, unknown> {
+  if (
+    error.code === "OUTCOME_UNKNOWN" &&
+    error.intentId &&
+    safeIntentId.test(error.intentId)
+  ) {
+    return new ORPCError(error.code, {
+      data: { intentId: error.intentId },
+    });
+  }
   if (error.retryAfterMs !== undefined) {
     headers.set("retry-after", String(Math.ceil(error.retryAfterMs / 1000)));
     return new ORPCError(error.code, {
@@ -109,7 +128,18 @@ export function safeError(error: unknown): BoundaryError {
     }
   }
   if (error instanceof EngineError) {
-    const { code } = error.diagnostic;
+    const { code, details } = error.diagnostic;
+    const intentId =
+      details !== null && typeof details === "object"
+        ? Reflect.get(details, "intentId")
+        : undefined;
+    if (
+      code === "outcome-unknown" &&
+      typeof intentId === "string" &&
+      safeIntentId.test(intentId)
+    ) {
+      return failure("OUTCOME_UNKNOWN", 503, undefined, intentId);
+    }
     if (["invalid-input", "invalid-task", "invalid-options"].includes(code)) {
       return failure("UNPROCESSABLE_CONTENT", 422);
     }

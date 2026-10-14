@@ -19,7 +19,7 @@ import { SearchField } from "@lenso/ui/search-field";
 import { Select } from "@lenso/ui/select";
 import { Table } from "@lenso/ui/table";
 import * as stylex from "@stylexjs/stylex";
-import { Plus, RotateCw } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   Fragment,
   useEffect,
@@ -136,23 +136,41 @@ function errorText(error: unknown) {
 function ReadState({
   read,
   children,
+  reloadLabel = "Reload data",
 }: {
   read: {
     blocking: boolean;
     refreshing: boolean;
     error: Error | null;
     data: unknown;
+    refetch: () => Promise<void>;
   };
   children: ReactNode;
+  reloadLabel?: string;
 }) {
   if (read.blocking) {
     return <output>Loading…</output>;
   }
   if (read.error) {
     return (
-      <p role="alert" {...stylex.props(s.error)}>
-        {errorText(read.error)}
-      </p>
+      <>
+        <p role="alert" {...stylex.props(s.error)}>
+          {errorText(read.error)}
+        </p>
+        <Button
+          variant="secondary"
+          disabled={read.refreshing}
+          onClick={async () => {
+            try {
+              await read.refetch();
+            } catch {
+              // The read snapshot retains the error for another explicit retry.
+            }
+          }}
+        >
+          {reloadLabel}
+        </Button>
+      </>
     );
   }
   if (read.data === undefined) {
@@ -191,21 +209,7 @@ function Frame({
   const read = useRead(client, "info", {});
   return (
     <section aria-label={label} {...stylex.props(s.page)}>
-      {read.error && (
-        <Button
-          variant="secondary"
-          onClick={async () => {
-            try {
-              await read.refetch();
-            } catch {
-              // ReadState displays the error and remains available to retry.
-            }
-          }}
-        >
-          Reload permissions
-        </Button>
-      )}
-      <ReadState read={read}>
+      <ReadState read={read} reloadLabel="Reload permissions">
         {read.data && (
           <Fragment
             key={`${read.data.consoleId}:${read.data.tenantId}:${read.data.realmId}:${read.data.allowed.join(",")}:${JSON.stringify(read.data.supported)}`}
@@ -495,16 +499,15 @@ function useWrites(
     },
     controls: (
       <>
-        <ConsoleLayout.Corner area="topRight">
-          <ConsoleIconButton
-            label="Reload administration data"
+        {blocked && (
+          <Button
             variant="secondary"
             disabled={pending}
             onClick={() => void reload()}
           >
-            <RotateCw aria-hidden="true" />
-          </ConsoleIconButton>
-        </ConsoleLayout.Corner>
+            Reload administration data
+          </Button>
+        )}
         {feedback && (
           <p
             ref={feedbackNode}
@@ -1490,9 +1493,9 @@ function Agent({
       <AdministrationTabs
         label="Agent connections"
         tabs={[
-          { id: "tokens", label: "Personal tokens", segments: [] },
+          { id: "tokens", label: "Tokens", segments: [] },
           ...(info.allowed.includes("audit.list")
-            ? [{ id: "audit", label: "Observed events", segments: ["events"] }]
+            ? [{ id: "events", label: "Events", segments: ["events"] }]
             : []),
         ]}
       />

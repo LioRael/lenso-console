@@ -316,6 +316,36 @@ test("local administration shares authenticated service policy across Console an
     expect(delivery.headers.get("cache-control")).toBe("no-store");
     const credential = (await delivery.json()) as CredentialDelivery;
     expect(credential.credential).toBeString();
+    const rotationDelivery = await issue();
+    expect(rotationDelivery.status).toBe(200);
+    const rotationCredential =
+      (await rotationDelivery.json()) as CredentialDelivery;
+    const rotate = () =>
+      request(`${config.apiBasePath}/admin/credentials/rotate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          id: rotationCredential.token.id,
+          expectedRevision: rotationCredential.token.revision,
+          overlapMs: 0,
+        }),
+      });
+    const rotatedDelivery = await rotate();
+    expect(rotatedDelivery.status).toBe(200);
+    const rotatedCredential =
+      (await rotatedDelivery.json()) as CredentialDelivery;
+    const staleRotation = await rotate();
+    expect(staleRotation.status).toBe(409);
+    expect(await staleRotation.json()).toEqual({
+      code: "CONFLICT",
+      message: "Credential operation could not be confirmed",
+    });
+    expect(staleRotation.headers.get("x-lenso-audit-intent")).toBeNull();
+    expect(
+      await running
+        .get(host.administration!.plugin)
+        .apiKeys.verify(rotatedCredential.credential)
+    ).not.toBeNull();
     const identity = await running
       .get(host.authentication)
       .authenticate(new Request(origin, { headers }));
@@ -479,6 +509,45 @@ test("local administration shares authenticated service policy across Console an
       { subjectId: config.subject }
     );
     expect(sessions.items.length).toBe(1);
+    const otherLogin = await request(`${config.authBasePath}/login`, {
+      method: "POST",
+      headers: { ...headers, cookie: csrf },
+      body: JSON.stringify({
+        identifier: config.subject,
+        password: config.token,
+      }),
+    });
+    expect(otherLogin.status).toBe(204);
+    const allSessions = await invoke<Page<{ id: string; revision: number }>>(
+      "sessionsList",
+      { subjectId: config.subject }
+    );
+    const otherSession = allSessions.items.find(
+      (item) => item.id !== sessions.items[0]!.id
+    )!;
+    expect(otherSession).toBeDefined();
+    const revokeOther = () =>
+      invoke("sessionsRevoke", {
+        id: otherSession.id,
+        subjectId: config.subject,
+        expectedRevision: otherSession.revision,
+      });
+    await expect(revokeOther()).resolves.toMatchObject({ revoked: true });
+    await expect(revokeOther()).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: "Conflict",
+    });
+    const failureAudit = await invoke<Page<{ action: string; result: string }>>(
+      "auditList",
+      {}
+    );
+    for (const action of ["tokens.rotate", "sessions.revoke"]) {
+      expect(
+        failureAudit.items.filter(
+          (event) => event.action === action && event.result === "failure"
+        )
+      ).toHaveLength(1);
+    }
     await expect(
       invoke("sessionsRevoke", {
         id: sessions.items[0]!.id,
