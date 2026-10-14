@@ -135,6 +135,13 @@ export interface ConsoleAuthenticationOptions<
   ) =>
     | { administrator: boolean; workspace_ids: readonly string[] }
     | Promise<{ administrator: boolean; workspace_ids: readonly string[] }>;
+  /** Strict entry-actor projection; exact session policies run through this scope. */
+  readonly sessionRead?: (
+    actor: Actor<R, S, A>,
+    context: { signal: AbortSignal; scope: ConsoleReadScope }
+  ) =>
+    | { administrator: boolean; workspace_ids: readonly string[] }
+    | Promise<{ administrator: boolean; workspace_ids: readonly string[] }>;
   /** Empty discovery still permits explicitly configured standalone bearer clients. */
   readonly methodsPath?: string;
 }
@@ -424,6 +431,43 @@ export function createConsoleAuthentication<
             }
             return service.canRead!(identity, invocation, scope);
           },
+          ...(options.sessionRead
+            ? {
+                async sessionRead(
+                  identity: ConsoleIdentity,
+                  scope: ConsoleReadScope
+                ) {
+                  const { request, authenticationScope } = readProof(
+                    scope,
+                    identity
+                  );
+                  if (
+                    "consistency" in authenticationScope &&
+                    authenticationScope.consistency !== "before-disclosure"
+                  )
+                    throw new ConsoleRequestError("service_unavailable");
+                  return guarded(request, async () => {
+                    const projection = await options.sessionRead!(
+                      proof(identity).actor,
+                      { signal: request.signal, scope }
+                    );
+                    readProof(scope, identity);
+                    if (
+                      typeof projection.administrator !== "boolean" ||
+                      !Array.isArray(projection.workspace_ids) ||
+                      projection.workspace_ids.some(
+                        (id) => typeof id !== "string"
+                      )
+                    )
+                      throw new ConsoleRequestError("service_unavailable");
+                    return {
+                      administrator: projection.administrator,
+                      workspace_ids: [...projection.workspace_ids],
+                    };
+                  });
+                },
+              }
+            : {}),
           async finishRead(scope: ConsoleReadScope) {
             const { request, authenticationScope } = readProof(scope);
             try {

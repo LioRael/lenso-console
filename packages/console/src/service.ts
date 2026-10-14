@@ -26,7 +26,7 @@ import {
   overlaps,
   relativePath,
 } from "./admission";
-import { expectedConsoleSubject } from "./auth";
+import { ConsoleRequestError, expectedConsoleSubject } from "./auth";
 import {
   boundedRpcRequest,
   checkAbort,
@@ -236,6 +236,7 @@ export function createConsoleService(
     const prepared = new Set<Operation>();
     return createManageAdapter({
       selection: selections.get(target)!,
+      catalogConcurrency: options.catalogConcurrency,
       canList: async (operation) => {
         if (
           operations &&
@@ -356,26 +357,33 @@ export function createConsoleService(
     ),
     catalog: implementation.catalog.handler(
       async ({ input, context: { request, identity } }) => {
-        const operations: ConsoleOperationDescriptor[] = [];
-        for (const target of input.targetId
-          ? [findTarget(input.targetId)]
-          : targets) {
-          if (!(await auth.can(identity, resource(target, "list")))) {
-            continue;
-          }
-          const entries = await adapter(target, request, identity).catalog();
-          // Manage keys and redacted names are opaque. Project write availability
-          // through the same selection instead of reconstructing its operations.
-          const availableKeys = new Set<string>();
-          if (
-            options.canWrite &&
-            entries.some((entry) => entry.effect !== "read")
-          ) {
-            const availableEntries = await createManageAdapter({
+        let denied = false;
+        const collect = async (scope?: ConsoleReadScope) => {
+          const can = async (selector: ConsoleResource) => {
+            if (!scope) return auth.can(identity, selector);
+            try {
+              await auth.enforceRead!(identity, selector, scope);
+              return true;
+            } catch (error) {
+              // Only a policy denial can fall back to a filtered legacy catalog.
+              // Expiry, revocation, cancellation and outages must fail this request.
+              denied =
+                error instanceof ConsoleRequestError &&
+                error.code === "forbidden";
+              throw error;
+            }
+          };
+          const catalogFor = (
+            target: ConsoleTarget,
+            writeAvailability = false
+          ) =>
+            createManageAdapter({
               selection: selections.get(target)!,
+              // Scoped policies share one request identity; no D1 fan-out is needed.
+              catalogConcurrency: scope ? 1 : options.catalogConcurrency,
               canList: (operation) =>
-                writable(operation, target) &&
-                auth.can(identity, resource(target, "list", operation)),
+                (!writeAvailability || writable(operation, target)) &&
+                can(resource(target, "list", operation)),
               binding: (operation, validatedInput) =>
                 bindInvocation(
                   target,
@@ -385,37 +393,97 @@ export function createConsoleService(
                   validatedInput
                 ),
             }).catalog();
-            for (const entry of availableEntries) {
-              availableKeys.add(entry.key);
+          const operations: ConsoleOperationDescriptor[] = [];
+          for (const target of input.targetId
+            ? [findTarget(input.targetId)]
+            : targets) {
+            if (!(await can(resource(target, "list")))) {
+              continue;
+            }
+            const entries = await catalogFor(target);
+            // Manage keys and redacted names are opaque. Project write availability
+            // through the same selection instead of reconstructing its operations.
+            const availableKeys = new Set<string>();
+            if (
+              options.canWrite &&
+              entries.some((entry) => entry.effect !== "read")
+            ) {
+              const availableEntries = await catalogFor(target, true);
+              for (const entry of availableEntries) {
+                availableKeys.add(entry.key);
+              }
+            }
+            for (const entry of entries) {
+              const available =
+                entry.effect === "read" || availableKeys.has(entry.key);
+              operations.push({
+                key: `${catalogRevision}:${target.id}:${entry.key}`,
+                targetId: target.id,
+                pluginId: entry.pluginId,
+                method: entry.method,
+                description: entry.description,
+                effect: entry.effect,
+                schemaAvailability:
+                  entry.schemaAvailability === "available"
+                    ? "available"
+                    : "runtime-validation-only",
+                ...(entry.inputSchema
+                  ? { inputSchema: entry.inputSchema }
+                  : {}),
+                confirmation: entry.confirmation === "required",
+                approval: entry.approval === "required",
+                available,
+                ...(available
+                  ? {}
+                  : {
+                      unavailableReason: "Write guarantees are not configured.",
+                    }),
+              });
             }
           }
-          for (const entry of entries) {
-            const available =
-              entry.effect === "read" || availableKeys.has(entry.key);
-            operations.push({
-              key: `${catalogRevision}:${target.id}:${entry.key}`,
-              targetId: target.id,
-              pluginId: entry.pluginId,
-              method: entry.method,
-              description: entry.description,
-              effect: entry.effect,
-              schemaAvailability:
-                entry.schemaAvailability === "available"
-                  ? "available"
-                  : "runtime-validation-only",
-              ...(entry.inputSchema ? { inputSchema: entry.inputSchema } : {}),
-              confirmation: entry.confirmation === "required",
-              approval: entry.approval === "required",
-              available,
-              ...(available
-                ? {}
-                : {
-                    unavailableReason: "Write guarantees are not configured.",
-                  }),
-            });
+          return {
+            schemaVersion: 1 as const,
+            revision: catalogRevision,
+            operations,
+          };
+        };
+        if (
+          !(
+            options.catalogRead &&
+            options.onReadScope &&
+            auth.beginRead &&
+            auth.enforceRead &&
+            auth.finishRead &&
+            auth.closeRead
+          )
+        )
+          return collect();
+        const scope = await auth.beginRead(identity, request);
+        try {
+          if (
+            "consistency" in scope.authenticationScope &&
+            scope.authenticationScope.consistency !== "before-disclosure"
+          )
+            throw failure("SERVICE_UNAVAILABLE", 503);
+          const result = await collect(scope);
+          const registered: unknown = options.onReadScope(request, scope);
+          if (
+            registered &&
+            typeof (registered as { then?: unknown }).then === "function"
+          ) {
+            void Promise.resolve(registered).catch(() => {});
+            throw failure("SERVICE_UNAVAILABLE", 503);
           }
+          // The trusted host finishes this scope after DTO/transport serialization,
+          // freshly verifying identity and replaying every policy before disclosure.
+          return result;
+        } catch (error) {
+          auth.closeRead(scope);
+          // A denied scoped policy retires its scope. Preserve partial/empty catalog
+          // behavior via the fully guarded legacy path, never reuse denied authority.
+          if (denied) return collect();
+          throw error;
         }
-        return { schemaVersion: 1, revision: catalogRevision, operations };
       }
     ),
     plugins: implementation.plugins.handler(
@@ -849,39 +917,107 @@ export function createConsoleService(
           request.method === "GET" &&
           path === `${prefix}/v1/session`
         ) {
-          const session = await auth.session(identity);
-          const access = await Promise.all(
-            targets.map((target) =>
-              auth.can(identity, resource(target, "session"))
-            )
-          );
-          response = Response.json(
-            consoleSessionSchema.parse({
-              mode: "required",
-              authenticated: true,
-              subject: identity.actor.subjectId,
-              ...session,
-              console_access: access.some(Boolean),
-              assistant_enabled: false,
-              human_management_enabled: false,
-              management_enabled: options.management === true,
-              management_protocol: "lenso-console-rpc/2",
-              capabilities: {
-                locale: options.locale ? "available" : "unavailable",
-                pluginConfiguration: "read-only",
-                pluginConfigurationWrite: {
-                  available: false,
-                  reason:
-                    "Startup configuration is read-only here. Change the application-owned source and restart.",
+          let sessionScope: ConsoleReadScope | undefined;
+          try {
+            if (options.sessionRead) {
+              if (
+                !options.onReadScope ||
+                !auth.beginRead ||
+                !auth.sessionRead ||
+                !auth.enforceRead ||
+                !auth.finishRead ||
+                !auth.closeRead
+              )
+                throw failure("SERVICE_UNAVAILABLE", 503);
+              sessionScope = await auth.beginRead(identity, request);
+              if (
+                "consistency" in sessionScope.authenticationScope &&
+                sessionScope.authenticationScope.consistency !==
+                  "before-disclosure"
+              )
+                throw failure("SERVICE_UNAVAILABLE", 503);
+            }
+            let session = sessionScope
+              ? await auth.sessionRead!(identity, sessionScope)
+              : await auth.session(identity);
+            let access = await Promise.all(
+              targets.map(async (target) => {
+                if (!sessionScope)
+                  return auth.can(identity, resource(target, "session"));
+                try {
+                  await auth.enforceRead!(
+                    identity,
+                    resource(target, "session"),
+                    sessionScope
+                  );
+                  return true;
+                } catch (error) {
+                  if (
+                    error instanceof ConsoleRequestError &&
+                    error.code === "forbidden"
+                  )
+                    return false;
+                  throw error;
+                }
+              })
+            );
+            if (sessionScope && access.some((allowed) => !allowed)) {
+              // A denied canRead retires its Auth scope. Preserve the ordinary
+              // session projection (including console_access:false) with fresh checks.
+              auth.closeRead!(sessionScope);
+              sessionScope = undefined;
+              session = await auth.session(identity);
+              access = await Promise.all(
+                targets.map((target) =>
+                  auth.can(identity, resource(target, "session"))
+                )
+              );
+            }
+            if (sessionScope) {
+              const registration: unknown = options.onReadScope!(
+                request,
+                sessionScope
+              );
+              if (
+                registration &&
+                typeof (registration as { then?: unknown }).then === "function"
+              ) {
+                // oxlint-disable-next-line promise/prefer-await-to-then, no-empty-function
+                void Promise.resolve(registration).catch(() => {});
+                throw failure("SERVICE_UNAVAILABLE", 503);
+              }
+            }
+            response = Response.json(
+              consoleSessionSchema.parse({
+                mode: "required",
+                authenticated: true,
+                subject: identity.actor.subjectId,
+                ...session,
+                console_access: access.some(Boolean),
+                assistant_enabled: false,
+                human_management_enabled: false,
+                management_enabled: options.management === true,
+                management_protocol: "lenso-console-rpc/2",
+                capabilities: {
+                  locale: options.locale ? "available" : "unavailable",
+                  pluginConfiguration: "read-only",
+                  pluginConfigurationWrite: {
+                    available: false,
+                    reason:
+                      "Startup configuration is read-only here. Change the application-owned source and restart.",
+                  },
+                  agent: {
+                    available: false,
+                    reason:
+                      "No Agent transport is installed in this TypeScript application.",
+                  },
                 },
-                agent: {
-                  available: false,
-                  reason:
-                    "No Agent transport is installed in this TypeScript application.",
-                },
-              },
-            })
-          );
+              })
+            );
+          } catch (error) {
+            if (sessionScope) auth.closeRead!(sessionScope);
+            throw error;
+          }
         } else if (request.method === "GET" && path === `${prefix}/v1/apps`) {
           const permitted = [];
           for (const target of targets) {

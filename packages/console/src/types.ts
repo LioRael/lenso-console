@@ -73,6 +73,13 @@ export interface ConsoleAuthentication {
   ): Promise<boolean>;
   finishRead?(scope: ConsoleReadScope): Promise<ConsoleIdentity>;
   closeRead?(scope: ConsoleReadScope): void;
+  sessionRead?(
+    identity: ConsoleIdentity,
+    scope: ConsoleReadScope
+  ): Promise<{
+    administrator: boolean;
+    workspace_ids: readonly string[];
+  }>;
   session(identity: ConsoleIdentity): Promise<{
     administrator: boolean;
     workspace_ids: readonly string[];
@@ -140,6 +147,12 @@ export interface ConsoleOptions {
   readonly shellBasePath?: string;
   readonly authBasePath?: string;
   readonly management?: boolean;
+  /** Trusted host opt-in for independent catalog policies; defaults to serial. */
+  readonly catalogConcurrency?: number;
+  /** Explicit finite catalog identity reuse; requires a host disclosure boundary. */
+  readonly catalogRead?: boolean;
+  /** Strict session projection requires a host disclosure boundary. */
+  readonly sessionRead?: boolean;
   readonly locale?: Plugin<ConsoleLocaleStore>;
   /** Independent global-default permission; never inferred from the administrator flag. */
   readonly localeResource?: ConsoleResource;

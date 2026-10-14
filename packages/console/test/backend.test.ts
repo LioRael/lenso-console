@@ -25,7 +25,7 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { z } from "zod";
 
-import { createConsoleAuthentication } from "../src/auth";
+import { ConsoleRequestError, createConsoleAuthentication } from "../src/auth";
 import { ConsoleOperationError } from "../src/errors";
 import { consoleConfiguration, createConsolePlugin } from "../src/index";
 import { readRequestBytes } from "../src/request-body";
@@ -57,9 +57,11 @@ function authentication(authBase = "/auth", readScopeSource = false) {
     north: true,
     consoleAccess: true,
     admitted: 0,
+    verifications: 0,
     localeDefault: false,
     kind: "user" as "user" | "service",
     dispatchDenied: undefined as "list" | "invoke" | undefined,
+    hiddenMethod: undefined as string | undefined,
     policyDecisions: [] as string[],
     revisionOverride: undefined as string | undefined,
   };
@@ -75,6 +77,7 @@ function authentication(authBase = "/auth", readScopeSource = false) {
               ? { capabilities: { authoritative: true } }
               : {}),
             async verify(token: string | null) {
+              state.verifications += 1;
               if (token === null) {
                 return { status: "absent" };
               }
@@ -115,6 +118,8 @@ function authentication(authBase = "/auth", readScopeSource = false) {
           return (
             membership.allowed &&
             resource.action !== state.dispatchDenied &&
+            (state.hiddenMethod === undefined ||
+              resource.operation !== state.hiddenMethod) &&
             (resource.action !== "session" || state.consoleAccess)
           );
         },
@@ -1886,6 +1891,79 @@ test("read scope opt-in falls back when the host boundary or Auth API is absent"
     } finally {
       await app.stop();
     }
+  }
+});
+
+test("catalog scope shares entry identity, replays each policy before disclosure and retires on denial", async () => {
+  const auth = authentication("/auth", true);
+  const instance = counter("catalog-scope", auth.plugin);
+  let opened: ConsoleReadScope | undefined;
+  const plugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [target("north", instance)],
+    binding: bound,
+    catalogRead: true,
+    canWrite: () => true,
+    onReadScope: (_request, scope) => {
+      opened = scope;
+    },
+  });
+  const app = await startApp({
+    plugins: [auth.plugin, instance.plugin, plugin],
+  });
+  const service = app.get(auth.plugin);
+  try {
+    const catalog = await client(app.get(plugin)).catalog({
+      targetId: "north",
+    });
+    expect(catalog.operations.length).toBeGreaterThan(1);
+    expect(auth.state.verifications).toBe(1);
+    const checks = [...auth.state.policyDecisions];
+    expect(checks.every((action) => action === "list")).toBe(true);
+    expect(checks.length).toBeGreaterThan(catalog.operations.length);
+    await service.finishRead!(opened!);
+    expect(auth.state.verifications).toBe(2);
+    expect(auth.state.policyDecisions).toEqual([...checks, ...checks]);
+    service.closeRead!(opened!);
+    await client(app.get(plugin)).catalog({ targetId: "north" });
+    auth.state.enabled = false;
+    await expect(service.finishRead!(opened!)).rejects.toThrow();
+    service.closeRead!(opened!);
+    auth.state.enabled = true;
+    await client(app.get(plugin)).catalog({ targetId: "north" });
+    auth.state.dispatchDenied = "list";
+    await expect(service.finishRead!(opened!)).rejects.toThrow();
+    service.closeRead!(opened!);
+    opened = undefined;
+    expect(
+      (await client(app.get(plugin)).catalog({ targetId: "north" })).operations
+    ).toEqual([]);
+    expect(opened).toBeUndefined();
+    auth.state.dispatchDenied = undefined;
+    auth.state.hiddenMethod = "read";
+    const partial = await client(app.get(plugin)).catalog({
+      targetId: "north",
+    });
+    expect(partial.operations.length).toBeGreaterThan(0);
+    expect(
+      partial.operations.some((operation) => operation.method === "read")
+    ).toBe(false);
+    expect(opened).toBeUndefined();
+    auth.state.hiddenMethod = undefined;
+    const enforceRead = service.enforceRead!;
+    service.enforceRead = async () => {
+      throw new ConsoleRequestError("unauthorized");
+    };
+    const before = auth.state.verifications;
+    await expect(
+      client(app.get(plugin)).catalog({ targetId: "north" })
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(auth.state.verifications).toBe(before + 1);
+    service.enforceRead = enforceRead;
+  } finally {
+    if (opened) service.closeRead!(opened);
+    await app.stop();
   }
 });
 

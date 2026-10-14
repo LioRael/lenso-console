@@ -101,6 +101,25 @@ Installing pages does not enable RPC. `management: true` explicitly enables
 `canWrite` records the service owner's write-safety choice but cannot satisfy
 required confirmation, approval, idempotency or durable audit.
 
+A trusted host with independent catalog policies can set `catalogConcurrency`
+(1–8, default 1) to bound concurrent live operation checks. Both visibility and
+write-availability passes use the bound; dispatch and service authorization stay
+unchanged. The host must still retain its final disclosure-time authentication.
+
+For finite metadata, a trusted host can opt into `catalogRead` with `onReadScope`.
+The catalog reuses its verified entry identity within that request, executes each
+visibility and write-availability policy, and transfers the strict scope to the
+host after projection. Before disclosing the response, the host must call
+`auth.finishRead`, compare the fresh read-scope revision with the response header,
+and close the scope in `finally`. Finish performs a fresh identity verification
+and replays the individual policies. Policy denials use the guarded legacy
+filtered catalog; expiry, revocation, cancellation and outages fail the request.
+No authority from this metadata scope may be used by a later invocation.
+
+`sessionRead` similarly requires a trusted entry-actor projection on the Auth
+adapter, exact session policies through its strict scope, and the same host
+disclosure boundary. It does not select request consistency or extend scope age.
+
 Pass `config: { contract: consoleConfiguration, sources }` with Core's normal
 sources. Core resolves it before setup. Safe configuration discovery reports captured
 startup metadata only, not values, opaque revisions, live updates or writability.
