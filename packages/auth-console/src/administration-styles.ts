@@ -1,0 +1,65 @@
+import * as stylex from "@stylexjs/stylex";
+
+export const administrationStyles = stylex.create({
+  page: {
+    maxWidth: 1120,
+    marginInline: "auto",
+    paddingInline: 16,
+    paddingBlockStart: 8,
+    paddingBlockEnd: 120,
+    minWidth: 0,
+    color: "var(--foreground)",
+    overflowWrap: "anywhere",
+  },
+  section: { display: "grid", gap: 16, marginBlockEnd: 32, minWidth: 0 },
+  row: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 },
+  field: { display: "grid", gap: 6, minWidth: 0 },
+  control: { minHeight: 44, maxWidth: "100%" },
+  table: { width: "100%", tableLayout: "fixed" },
+  cell: {
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
+    verticalAlign: "top",
+  },
+  cellText: {
+    display: "block",
+    minWidth: 0,
+    maxWidth: "100%",
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+  },
+  metadata: {
+    display: "grid",
+    gridTemplateColumns: {
+      default: "minmax(100px, 180px) minmax(0, 1fr)",
+      "@media (max-width: 600px)": "minmax(0, 1fr)",
+    },
+    gap: 12,
+    margin: 0,
+  },
+  value: { margin: 0, minWidth: 0 },
+  muted: { color: "var(--muted-foreground)" },
+  error: { color: "var(--danger)" },
+  permissions: {
+    display: "grid",
+    gridTemplateColumns: {
+      default: "repeat(2, minmax(0, 1fr))",
+      "@media (max-width: 600px)": "minmax(0, 1fr)",
+    },
+    gap: 8,
+    borderWidth: 0,
+    padding: 0,
+  },
+  choice: { display: "flex", alignItems: "center", gap: 8, minHeight: 44 },
+  secret: {
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    wordBreak: "break-all",
+    padding: 16,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "var(--border)",
+    backgroundColor: "var(--background)",
+  },
+});

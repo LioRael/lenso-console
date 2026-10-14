@@ -37,12 +37,14 @@ export class WorkspaceServiceError extends Error {
   readonly code: string;
   readonly status: number;
   readonly retryAfterMs?: number;
+  readonly intentId?: string;
 
   constructor(
     message: string,
     code: string,
     status: number,
-    retryAfterMs?: number
+    retryAfterMs?: number,
+    intentId?: string
   ) {
     super(message);
     this.name = "WorkspaceServiceError";
@@ -50,6 +52,9 @@ export class WorkspaceServiceError extends Error {
     this.status = status;
     if (retryAfterMs !== undefined) {
       this.retryAfterMs = retryAfterMs;
+    }
+    if (intentId !== undefined) {
+      this.intentId = intentId;
     }
   }
 }

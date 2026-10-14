@@ -16,7 +16,14 @@ await build({
     outDir: "dist",
     emptyOutDir: false,
     minify: false,
-    lib: { entry: "src/react.ts", formats: ["es"], fileName: "react" },
+    lib: {
+      entry: {
+        react: "src/react.ts",
+        "administration-react": "src/administration-react.ts",
+      },
+      formats: ["es"],
+      fileName: (_format, entryName) => `${entryName}.js`,
+    },
     rollupOptions: {
       external: (id) =>
         !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("\0"),
@@ -42,6 +49,7 @@ const result = await Bun.build({
   entrypoints: [
     `${import.meta.dir}/src/server.ts`,
     `${import.meta.dir}/src/client.ts`,
+    `${import.meta.dir}/src/administration-server.ts`,
   ],
   outdir: `${import.meta.dir}/dist`,
   target: "browser",

@@ -260,7 +260,7 @@ function OwnerPage({
 }: {
   admission: BrowserAdmission;
   mount: BrowserMount;
-  runtime: Pick<PageProps, "services" | "reads" | "signal">;
+  runtime: Pick<PageProps, "services" | "reads" | "signal" | "credentials">;
   handoff: PageProps["location"]["handoff"];
   onClearHandoff: () => void;
   onHandoff: (

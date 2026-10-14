@@ -28,6 +28,7 @@ export const hostConfiguration = definePluginConfig({
         .string()
         .default("../../.artifacts/ts-console/locale.sqlite"),
       runtimePort: z.coerce.number().int().min(1024).max(65535).optional(),
+      administration: z.boolean().default(false),
     })
     .superRefine((value, context) => {
       let origin: URL;
@@ -81,7 +82,10 @@ export const hostConfiguration = definePluginConfig({
 
 export type HostConfiguration = z.output<typeof hostConfiguration.schema>;
 
-export function hostSources(root: string): ConfigSource[] {
+export function hostSources(
+  root: string,
+  read = (name: string) => process.env[name]
+): ConfigSource[] {
   return [
     jsonFileSource({
       id: "local-file",
@@ -91,7 +95,7 @@ export function hostSources(root: string): ConfigSource[] {
     }),
     envSource({
       id: "operator-environment",
-      read: (name) => process.env[name],
+      read,
       bindings: {
         token: { name: "LENSO_TS_TOKEN", sensitive: true, empty: "error" },
         subject: { name: "LENSO_TS_SUBJECT", empty: "error" },
@@ -101,6 +105,11 @@ export function hostSources(root: string): ConfigSource[] {
         shellDirectory: { name: "LENSO_TS_SHELL", empty: "error" },
         databasePath: { name: "LENSO_TS_DATABASE", empty: "error" },
         runtimePort: { name: "LENSO_RUNTIME_PORT", empty: "error" },
+        administration: {
+          name: "LENSO_TS_ADMINISTRATION",
+          type: "boolean",
+          empty: "error",
+        },
       },
     }),
   ];
