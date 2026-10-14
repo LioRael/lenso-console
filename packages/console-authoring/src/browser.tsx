@@ -8,8 +8,10 @@ import {
 } from "./browser-admission";
 import { ConsoleQueryClient } from "./browser-query-client";
 import { createWorkspaceReads } from "./browser-reads";
+import { createConsoleWorkspaceCredentials } from "./credentials";
 import { consoleHttpPaths } from "./http-paths";
 import type { PageProps } from "./index";
+import { sessionFetch } from "./session-fetch";
 import { createSessionWorkspaceServices } from "./session-workspace-services";
 
 export {
@@ -62,12 +64,12 @@ export function ConsoleBrowserMount({
   admission: BrowserAdmission;
   mount: BrowserMount;
   children: (
-    runtime: Pick<PageProps, "services" | "reads" | "signal">
+    runtime: Pick<PageProps, "services" | "reads" | "signal" | "credentials">
   ) => ReactNode;
 }) {
   const [runtime, setRuntime] = useState<{
     query: ConsoleQueryClient;
-    props: Pick<PageProps, "services" | "reads" | "signal">;
+    props: Pick<PageProps, "services" | "reads" | "signal" | "credentials">;
   }>();
   useEffect(() => {
     if (admission.signal?.aborted) {
@@ -92,7 +94,23 @@ export function ConsoleBrowserMount({
       signal: lifetime.signal,
       policy: { focus: "never", staleTimeMs: 10_000 },
     });
-    setRuntime({ query, props: { services, reads, signal: lifetime.signal } });
+    const credentials = mount.credentials
+      ? createConsoleWorkspaceCredentials({
+          paths: mount.credentials,
+          signal: lifetime.signal,
+          expectedSubject: admission.subject,
+          fetch: (input, init) => sessionFetch(input, init),
+        })
+      : undefined;
+    setRuntime({
+      query,
+      props: {
+        services,
+        reads,
+        signal: lifetime.signal,
+        ...(credentials ? { credentials } : {}),
+      },
+    });
     return () => {
       admission.signal?.removeEventListener("abort", retire);
       retire();
