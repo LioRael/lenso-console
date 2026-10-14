@@ -9,21 +9,24 @@ import { Select } from "@lenso/ui/select";
 import { TextField } from "@lenso/ui/textfield";
 import { useEffect, useRef, useState } from "react";
 
-type Draft = { connectionId: string; publicModel: string };
-type PreviewResult = {
+interface Draft {
+  connectionId: string;
+  publicModel: string;
+}
+interface PreviewResult {
   errors?: Partial<Record<keyof Draft, string>>;
   message: string;
-};
+}
 
 /** Local component recipe: the caller owns preview/CAS/auth, never a real write. */
-export function ComponentFormExample({
+export const ComponentFormExample = ({
   preview,
   signal,
 }: {
   preview(draft: Draft, signal: AbortSignal): Promise<PreviewResult>;
   /** Existing Console activation signal; the adapter maps unknown issues to message. */
   signal: AbortSignal;
-}) {
+}) => {
   const [draft, setDraft] = useState<Draft>({
     connectionId: "",
     publicModel: "",
@@ -41,13 +44,15 @@ export function ComponentFormExample({
       pending.current = null;
     };
   }, [signal]);
-  function edit<K extends keyof Draft>(name: K, value: Draft[K]) {
+  const edit = <K extends keyof Draft>(name: K, value: Draft[K]) => {
     setDraft((previous) => ({ ...previous, [name]: value }));
     setMessage("");
     setErrors((previous) => ({ ...previous, [name]: undefined }));
-  }
-  async function submit() {
-    if (pending.current || signal.aborted) return;
+  };
+  const submit = async () => {
+    if (pending.current || signal.aborted) {
+      return;
+    }
     const request = new AbortController();
     const lifetime = AbortSignal.any([signal, request.signal]);
     const current = () => pending.current === request && !lifetime.aborted;
@@ -57,19 +62,25 @@ export function ComponentFormExample({
     setMessage("");
     try {
       const result = await preview({ ...draft }, lifetime);
-      if (!current()) return;
+      if (!current()) {
+        return;
+      }
       setErrors(result.errors ?? {});
       setMessage(result.message);
     } catch {
-      if (current()) setMessage("预览未完成，请重试。草稿仍保留。");
+      if (current()) {
+        setMessage("预览未完成，请重试。草稿仍保留。");
+      }
     } finally {
       if (pending.current === request) {
         pending.current = null;
-        if (!lifetime.aborted) setRunning(false);
+        if (!lifetime.aborted) {
+          setRunning(false);
+        }
       }
     }
-  }
-  const choices = [{ value: "local", label: "本地示例连接" }];
+  };
+  const choices = [{ label: "本地示例连接", value: "local" }];
   return (
     <Form
       errors={errors}
@@ -147,7 +158,7 @@ export function ComponentFormExample({
       >
         {running ? "正在预览…" : "预览变更"}
       </Button>
-      {message && <p role="status">{message}</p>}
+      {message && <output>{message}</output>}
     </Form>
   );
-}
+};
