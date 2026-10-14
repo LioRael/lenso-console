@@ -1,0 +1,16 @@
+.changeset/latest-lenso-ui.md
+  h_9d56aba080c170 6-7
+apps/shell/src/features/settings/settings-page.locale.browser.test.tsx
+  h_9d56aba080c170 2,20,26,29,38,48-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "865a286c69faf6a54f3998ce85ca1ec9ad80c935",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
