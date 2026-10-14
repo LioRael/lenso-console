@@ -1,6 +1,6 @@
-import { readAdmissionBootstrap } from "./admission-bootstrap";
 import { useEffect, useRef, useState } from "react";
 
+import { readAdmissionBootstrap } from "./admission-bootstrap";
 import {
   type consolePageDescriptorSchema,
   consolePageCatalogSchema,
@@ -158,13 +158,17 @@ export function useConsoleAdmission(
         () => request(sessionPath)
       );
       lifetime.signal.throwIfAborted();
-      if (methodsResult.status === "rejected") throw methodsResult.reason;
+      if (methodsResult.status === "rejected") {
+        throw methodsResult.reason;
+      }
       const metadata = await methodsResult.value.json();
       lifetime.signal.throwIfAborted();
       const available = parseConsoleAuthDiscovery(metadata);
       configureSessionCsrf(available);
       setDiscovery(available);
-      if (sessionResult.status === "rejected") throw sessionResult.reason;
+      if (sessionResult.status === "rejected") {
+        throw sessionResult.reason;
+      }
       const sessionResponse = sessionResult.value;
       const identity = consoleSessionSchema.parse(await sessionResponse.json());
       lifetime.signal.throwIfAborted();

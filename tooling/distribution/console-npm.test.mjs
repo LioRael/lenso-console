@@ -51,6 +51,24 @@ test("receipt rejects another source/run, private owners and archive path change
   }
 });
 
+test("SDK-only release rejects frontend companions and mismatched scope", () => {
+  const sdk = {
+    ...receipt,
+    package_scope: "sdk",
+    packages: [receipt.packages[0]],
+  };
+  const sdkEnv = { ...env, RELEASE_PACKAGE_SCOPE: "sdk" };
+  expect(() => validateReceipt(sdk, sdkEnv)).not.toThrow();
+  expect(() => validateReceipt(receipt, sdkEnv)).toThrow();
+  expect(() => validateReceipt(sdk, env)).toThrow();
+  expect(() =>
+    validateReceipt({ ...sdk, packages: [receipt.packages[1]] }, sdkEnv)
+  ).toThrow();
+  expect(() =>
+    validateReceipt({ ...sdk, packages: receipt.packages }, sdkEnv)
+  ).toThrow();
+});
+
 test("backend release scope accepts only Console and cannot reuse a frontend receipt", () => {
   const backend = {
     ...receipt,

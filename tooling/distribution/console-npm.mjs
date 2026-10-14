@@ -18,6 +18,7 @@ const scopes = {
     ["auth-console", "@lenso/auth-console"],
     ["console-plugin-manager", "@lenso/console-plugin-manager"],
   ],
+  sdk: [["console-authoring", "@lenso/console-sdk"]],
 };
 const selectedOwners = (scope) => {
   assert.ok(Object.hasOwn(scopes, scope), "Unknown Console package scope");

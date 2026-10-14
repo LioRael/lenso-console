@@ -18,6 +18,7 @@ on:
         default: frontend
         required: true
         options:
+          - sdk
           - frontend
           - backend
           - auth-console
