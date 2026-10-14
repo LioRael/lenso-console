@@ -29,7 +29,14 @@ const mount = {
     {
       available: true,
       service_id: "notes",
-      operations: ["echo", "safeError", "domainError"],
+      operations: [
+        "echo",
+        "safeError",
+        "domainError",
+        "outcomeUnknown",
+        "malformedIntent",
+        "otherDiagnostic",
+      ],
     },
   ],
 };
@@ -113,6 +120,22 @@ describe("Console SDK Fetch transport", () => {
                   data: { payload: { error: "denied", reason: "权限不足" } },
                 });
               }
+              if (input.operation === "outcomeUnknown") {
+                throw new ORPCError("OUTCOME_UNKNOWN", {
+                  message: "private diagnostic",
+                  data: { intentId: "a441ecfa-b499-4aa4-88f8-d5c1fe106ecc" },
+                });
+              }
+              if (input.operation === "malformedIntent") {
+                throw new ORPCError("OUTCOME_UNKNOWN", {
+                  data: { intentId: "private-provider-message" },
+                });
+              }
+              if (input.operation === "otherDiagnostic") {
+                throw new ORPCError("SERVICE_UNAVAILABLE", {
+                  data: { intentId: "a441ecfa-b499-4aa4-88f8-d5c1fe106ecc" },
+                });
+              }
               return input.input;
             }
           ),
@@ -177,7 +200,25 @@ describe("Console SDK Fetch transport", () => {
       status: 422,
       payload: { error: "denied", reason: "权限不足" },
     });
-    expect(bodies).toHaveLength(4);
+    await expect(
+      services.invoke("notes", "outcomeUnknown", {})
+    ).rejects.toMatchObject({
+      code: "OUTCOME_UNKNOWN",
+      status: 503,
+      intentId: "a441ecfa-b499-4aa4-88f8-d5c1fe106ecc",
+    });
+    for (const operation of ["malformedIntent", "otherDiagnostic"]) {
+      const failure = await services
+        .invoke("notes", operation, {})
+        .catch((error) => error);
+      expect(failure).toMatchObject({
+        code: "SERVICE_UNAVAILABLE",
+        status: 503,
+      });
+      expect(failure.intentId).toBeUndefined();
+      expect(String(failure)).not.toContain("private-provider-message");
+    }
+    expect(bodies).toHaveLength(7);
   });
 
   // The old 501 stub never decoded frames or exercised an iterator's lifetime.

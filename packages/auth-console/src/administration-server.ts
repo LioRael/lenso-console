@@ -1,5 +1,6 @@
 import { ApiKeyError, createApiKeys, type KeyMetadata } from "@lenso/api-keys";
 import type { AuditService } from "@lenso/audit";
+import { SessionAdministrationError } from "@lenso/auth/sessions";
 import {
   createAuthorization,
   rbacPolicy,
@@ -476,11 +477,29 @@ export function createConsoleAdministrationService(
       await options.assertManagementCaller(context, "dispatch");
       value = await write();
     } catch (error) {
+      let failureCode: AdministrationError["code"] | undefined;
+      if (error instanceof AdministrationError) {
+        if (error.code !== "OUTCOME_UNKNOWN") {
+          failureCode = error.code;
+        }
+      } else if (error instanceof ApiKeyError) {
+        if (error.code === "CONFLICT" || error.code === "INVALID_INPUT") {
+          failureCode = error.code;
+        } else if (error.code === "FORBIDDEN") {
+          failureCode = "DENIED";
+        }
+      } else if (error instanceof SessionAdministrationError) {
+        if (error.code === "stale-revision") {
+          failureCode = "CONFLICT";
+        } else if (error.code === "invalid-input") {
+          failureCode = "INVALID_INPUT";
+        }
+      }
       try {
         await audit.complete(prepared.receipt, {
           id: crypto.randomUUID(),
           occurredAt: Date.now(),
-          result: error instanceof AdministrationError ? "failure" : "unknown",
+          result: failureCode ? "failure" : "unknown",
           reasonCode: "operation-failed",
         });
       } catch {
@@ -488,6 +507,9 @@ export function createConsoleAdministrationService(
       }
       if (error instanceof AdministrationError) {
         throw error;
+      }
+      if (failureCode) {
+        throw new AdministrationError(failureCode);
       }
       throw new AdministrationError("OUTCOME_UNKNOWN", intentId);
     }

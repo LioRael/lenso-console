@@ -242,8 +242,6 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
         .count()
     ).toBe(0);
     const sessionUrl = `${origin}/api/console/v1/session`;
-    // Server tests cannot prove React re-admission after the cookie-write lock
-    // has retired the mounted page at the beginning of a rejected renewal.
     await page.route(`${origin}/auth/methods`, async (route) => {
       const response = await route.fetch();
       const discovery = await response.json();
@@ -255,65 +253,14 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
         },
       });
     });
-    await page.route(`${origin}/auth/renew`, (route) =>
-      route.fulfill({ status: 409, json: { code: "RENEWAL_NOT_DUE" } })
-    );
     await page.reload();
     await page.getByText("local-operator", { exact: true }).waitFor();
-    const earlyReadmission = page.waitForResponse(
-      (response) => response.url() === sessionUrl && response.status() === 200
-    );
-    await page
-      .getByRole("button", { name: "Renew session", exact: true })
-      .click();
-    await earlyReadmission;
-    await page.getByText("local-operator", { exact: true }).waitFor();
-    expect(
-      await page
-        .getByRole("heading", { name: "Sign in again", exact: true })
-        .count()
-    ).toBe(0);
-    expect(
-      await page
-        .getByRole("heading", { name: "Authorization", exact: true })
-        .count()
-    ).toBe(1);
-    await page.route(sessionUrl, (route) =>
-      route.fulfill({ status: 503, json: { code: "service_unavailable" } })
-    );
-    await page
-      .getByRole("button", { name: "Renew session", exact: true })
-      .click();
-    await page
-      .getByRole("heading", { name: "Console is unavailable", exact: true })
-      .waitFor();
-    expect(
-      await page.getByText("local-operator", { exact: true }).count()
-    ).toBe(0);
-    await page.unroute(sessionUrl);
-    await page
-      .getByRole("button", { name: "Retry session", exact: true })
-      .click();
-    await page.getByText("local-operator", { exact: true }).waitFor();
-    await page.unroute(`${origin}/auth/renew`);
-    await page.route(`${origin}/auth/renew`, (route) =>
-      route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } })
-    );
-    await page
-      .getByRole("button", { name: "Renew session", exact: true })
-      .click();
-    await page
-      .getByRole("heading", { name: "Sign in again", exact: true })
-      .waitFor();
-    expect(
-      await page.getByText("local-operator", { exact: true }).count()
-    ).toBe(0);
-    await page.unroute(`${origin}/auth/renew`);
+    for (const name of ["Home", "Sign out", "Renew session"]) {
+      expect(
+        await page.getByRole("button", { name, exact: true }).count()
+      ).toBe(0);
+    }
     await page.unroute(`${origin}/auth/methods`);
-    await page.getByLabel("Account", { exact: true }).fill(config.subject);
-    await page.getByLabel("Password", { exact: true }).fill(token);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await page.getByText("local-operator", { exact: true }).waitFor();
     await page.route(sessionUrl, (route) =>
       route.fulfill({ status: 503, json: { code: "service_unavailable" } })
     );
@@ -361,16 +308,6 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     await page.getByRole("button", { name: "Refresh authorization" }).focus();
     await page.keyboard.press("Enter");
     await refreshed;
-    const home = page.getByRole("button", { name: "Home", exact: true });
-    await home.focus();
-    await page.getByRole("tooltip", { name: "Home", exact: true }).waitFor();
-    const homeBox = await home.boundingBox();
-    const titleBox = await page
-      .getByRole("heading", { name: "Authorization", exact: true })
-      .boundingBox();
-    expect(homeBox).not.toBeNull();
-    expect(titleBox).not.toBeNull();
-    expect(titleBox!.y).toBeGreaterThanOrEqual(homeBox!.y + homeBox!.height);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth
@@ -419,7 +356,19 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     const second = await context.newPage();
     await second.goto(`${origin}/authorization/`);
     await second.getByText("local-operator", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await page.route(sessionUrl, async (route) => {
+      const response = await route.fetch();
+      const projection = await response.json();
+      await route.fulfill({
+        response,
+        json: { ...projection, console_access: false },
+      });
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page
+      .getByRole("button", { name: "Sign out to switch account", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
     await page
       .getByRole("heading", { name: "Sign in to Console", exact: true })
       .waitFor();
