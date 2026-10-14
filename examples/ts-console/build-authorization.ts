@@ -7,8 +7,13 @@ export const authorizationArtifactDirectory = path.resolve(
   "../../.artifacts/ts-console/authorization"
 );
 
-export async function buildAuthorizationPage() {
-  await mkdir(authorizationArtifactDirectory, { recursive: true });
+export function administrationArtifactDirectory(id: string) {
+  return path.resolve(import.meta.dir, "../../.artifacts/ts-console", id);
+}
+
+async function buildPage(id: string, pluginId: string) {
+  const output = administrationArtifactDirectory(id);
+  await mkdir(output, { recursive: true });
   const require = createRequire(import.meta.url);
   const compiler = require.resolve("@lenso/console-sdk/compiler");
   const child = Bun.spawn([process.execPath, compiler], {
@@ -19,19 +24,30 @@ export async function buildAuthorizationPage() {
   child.stdin.write(
     JSON.stringify({
       schema: "lenso.convention-compile.v1",
-      entry: path.resolve(import.meta.dir, "console/authorization"),
-      output: authorizationArtifactDirectory,
-      plugin_id: "authorization",
+      entry: path.resolve(import.meta.dir, "console", id),
+      output,
+      plugin_id: pluginId,
       release_version: "1.0.0",
       options: {},
     })
   );
   child.stdin.end();
   if ((await child.exited) !== 0) {
-    throw new Error("Authorization page compilation failed.");
+    throw new Error(`${id} page compilation failed.`);
+  }
+}
+
+export async function buildAuthorizationPage() {
+  await buildPage("authorization", "authorization");
+}
+
+export async function buildAdministrationPages() {
+  for (const id of ["identity", "access", "agent"]) {
+    await buildPage(id, "console-administration");
   }
 }
 
 if (import.meta.main) {
   await buildAuthorizationPage();
+  await buildAdministrationPages();
 }

@@ -3,6 +3,32 @@
 Optional Auth administration adapter and ordinary React Console binding. Nothing is
 automatically installed, registered, exposed over HTTP, or granted administration rights.
 
+## Console-scoped administration
+
+The optional `@lenso/auth-console/administration/server` entry provides
+`createConsoleAdministrationService`, its plugin/Manage companion, explicit
+input/output schemas and the SQLite Console membership/role store. The browser
+entry `@lenso/auth-console/administration/react` provides `IdentityPage`,
+`AccessPage` and `AgentPage`; render them under the host's SDK workspace and
+shared layout, with the public stylesheet. The original `/server` and `/react`
+adapters below retain their contracts.
+
+Construct storage and the ordinary service during owned plugin setup. Supply
+the real directory, trusted caller-provenance/dispatch/disclosure checks, strict
+Audit and supported session administration. The activity predicate
+`subjectActiveAtCommit` is mandatory and must participate in the same commit
+transaction; an absent or stale external status cache is not a last-active-admin
+guarantee. This first store deliberately supports one user binding per subject
+and flat exact-Console permissions, not inheritance, expiring bindings or
+resource-limited graphs whose semantics the UI cannot project.
+
+Credential creation/rotation remains a protected human-only, one-time channel,
+not a generic Manage tool. The server and Console/MCP transports select the same
+installed service. See the [local assembly and Codex setup](../../examples/ts-console/README.md)
+for explicit initialization, source ownership, protocol release boundaries and
+focused checks. Nothing bootstraps a real administrator or publishes a package
+without separate approval.
+
 ## Actual Auth boundary
 
 Inject the standard domain service created by `createSessionAdministration` from

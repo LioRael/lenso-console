@@ -12,7 +12,7 @@ export function createConsoleWorkspaceCredentials(options: {
   signal?: AbortSignal;
   expectedSubject?: string;
   headers?: () => HeadersInit | Promise<HeadersInit>;
-  fetch?: typeof globalThis.fetch;
+  fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }): WorkspaceCredentials {
   for (const path of Object.values(options.paths)) {
     if (
@@ -56,21 +56,33 @@ export function createConsoleWorkspaceCredentials(options: {
     });
     combined?.throwIfAborted();
     if (!response.ok) {
-      const code =
-        (
-          {
-            400: "UNPROCESSABLE_CONTENT",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            409: "CONFLICT",
-            412: "PRECONDITION_FAILED",
-            429: "TOO_MANY_REQUESTS",
-          } as Record<number, string>
-        )[response.status] ?? "SERVICE_UNAVAILABLE";
+      const reference = response.headers.get("x-lenso-audit-intent");
+      const intentId =
+        response.status === 503 &&
+        reference &&
+        /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(
+          reference
+        )
+          ? reference
+          : undefined;
+      const code = intentId
+        ? "OUTCOME_UNKNOWN"
+        : ((
+            {
+              400: "UNPROCESSABLE_CONTENT",
+              401: "UNAUTHORIZED",
+              403: "FORBIDDEN",
+              409: "CONFLICT",
+              412: "PRECONDITION_FAILED",
+              429: "TOO_MANY_REQUESTS",
+            } as Record<number, string>
+          )[response.status] ?? "SERVICE_UNAVAILABLE");
       throw new WorkspaceServiceError(
         "Credential operation could not be confirmed",
         code,
-        response.status
+        response.status,
+        undefined,
+        intentId
       );
     }
     const text = await response.text();
