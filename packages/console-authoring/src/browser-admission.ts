@@ -1,3 +1,4 @@
+import { readAdmissionBootstrap } from "./admission-bootstrap";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -152,15 +153,19 @@ export function useConsoleAdmission(
     };
     window.addEventListener("focus", onFocus);
     const load = async () => {
-      const methods = await request(
-        `${consoleHttpPaths.auth_base_path}/methods`
+      const [methodsResult, sessionResult] = await readAdmissionBootstrap(
+        () => request(`${consoleHttpPaths.auth_base_path}/methods`),
+        () => request(sessionPath)
       );
-      const metadata = await methods.json();
+      lifetime.signal.throwIfAborted();
+      if (methodsResult.status === "rejected") throw methodsResult.reason;
+      const metadata = await methodsResult.value.json();
       lifetime.signal.throwIfAborted();
       const available = parseConsoleAuthDiscovery(metadata);
       configureSessionCsrf(available);
       setDiscovery(available);
-      const sessionResponse = await request(sessionPath);
+      if (sessionResult.status === "rejected") throw sessionResult.reason;
+      const sessionResponse = sessionResult.value;
       const identity = consoleSessionSchema.parse(await sessionResponse.json());
       lifetime.signal.throwIfAborted();
       setSession(identity);
