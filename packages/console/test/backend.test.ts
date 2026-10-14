@@ -48,7 +48,6 @@ type FixtureAccess = Access<
   string,
   string,
   ConsoleResource,
-  ConsoleReadScope,
   { allowed: true }
 >;
 
