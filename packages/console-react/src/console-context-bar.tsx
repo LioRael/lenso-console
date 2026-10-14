@@ -326,6 +326,7 @@ function TaskContent({
               value={tab.id}
               nativeButton={false}
               render={<a href={tab.href}>{tab.label}</a>}
+              xstyle={styles.tabLink}
               onClick={(event) => {
                 if (
                   event.button === 0 &&

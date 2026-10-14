@@ -338,8 +338,42 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
     await page.getByRole("status").filter({ hasText: "Draft" }).waitFor();
     await button("Return to record tabs").press("Enter");
     await page.getByRole("tablist", { name: "Record views" }).waitFor();
+    await page.addStyleTag({ content: "a { text-decoration: underline; }" });
+    const fallbackDecorations = await page
+      .getByRole("tablist", { name: "Record views" })
+      .getByRole("tab")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => getComputedStyle(node).textDecorationLine)
+      );
+    expect(fallbackDecorations.length).toBeGreaterThan(0);
+    expect(fallbackDecorations.every((value) => value === "none")).toBe(true);
     await button("tabs context").click();
-    await page.getByRole("tab", { name: "Contributed history" }).waitFor();
+    const contextTab = page.getByRole("tab", {
+      name: "Contributed history",
+    });
+    await contextTab.waitFor();
+    expect(
+      await contextTab.evaluate(
+        (node) => getComputedStyle(node).textDecorationLine
+      )
+    ).toBe("none");
+    expect(await contextTab.getAttribute("href")).toBe("/console/history");
+    await contextTab.click({ trial: true });
+    await contextTab.focus();
+    expect(
+      await contextTab.evaluate((node) => node === document.activeElement)
+    ).toBe(true);
+    await page.keyboard.press("ArrowLeft");
+    expect(
+      await page
+        .getByRole("tab", { name: "Contributed records" })
+        .evaluate((node) => node === document.activeElement)
+    ).toBe(true);
+    expect(
+      await page
+        .getByRole("link", { name: "Record detail", exact: true })
+        .evaluate((node) => getComputedStyle(node).textDecorationLine)
+    ).toBe("underline");
     await button("fallback context").click();
     await page.getByRole("link", { name: "Record detail" }).click();
     await page.getByRole("heading", { name: "Detail page" }).waitFor();

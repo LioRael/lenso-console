@@ -235,6 +235,9 @@ export const shellStyles = stylex.create({
     minHeight: { default: 30, "@media (pointer: coarse)": 44 },
     paddingBlock: 4,
   },
+  tabLink: {
+    textDecorationLine: "none",
+  },
   horizontalTabList: {
     padding: { default: 2, "@media (pointer: coarse)": 0 },
   },

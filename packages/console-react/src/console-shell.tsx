@@ -557,11 +557,12 @@ export function ConsoleShell({
                   value={tab.page}
                   nativeButton={false}
                   render={<a href={href}>{tab.label}</a>}
-                  xstyle={
+                  xstyle={[
+                    styles.tabLink,
                     placement !== "left" && placement !== "right"
                       ? styles.horizontalTab
-                      : undefined
-                  }
+                      : undefined,
+                  ]}
                   aria-current={activeTab === tab.page ? "page" : undefined}
                   onClick={(event) => interceptNavigation(event, router, href)}
                 >
