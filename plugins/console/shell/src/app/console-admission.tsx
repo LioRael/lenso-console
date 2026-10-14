@@ -14,10 +14,8 @@ import * as consoleLocale from "@lenso/console-sdk/react/locale";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import { House, LogOut, RefreshCw } from "lucide-react";
 import * as React from "react";
 
-import { ConsoleIconButton } from "../components/console/console-icon-button";
 import { ConsoleLayout } from "../components/console/console-layout";
 import { useConsoleAppearance } from "./console-appearance";
 import { RouteNotFound, RoutePending } from "./route-states";
@@ -77,31 +75,6 @@ export function ConsoleAdmissionProvider({
         <ConsoleLayout
           key={`${value.admission.subject}:${value.admission.readScope}`}
         >
-          {(value.discovery?.session?.logout ||
-            value.discovery?.session?.renew) && (
-            <ConsoleLayout.Corner area="topRight">
-              {value.discovery.session.logout && (
-                <ConsoleIconButton
-                  label="Sign out"
-                  tooltip="Sign out"
-                  disabled={value.busy}
-                  onClick={() => void value.logout()}
-                >
-                  <LogOut aria-hidden="true" size={18} />
-                </ConsoleIconButton>
-              )}
-              {value.discovery.session.renew && (
-                <ConsoleIconButton
-                  label="Renew session"
-                  tooltip="Renew session"
-                  disabled={value.busy}
-                  onClick={() => void value.renew()}
-                >
-                  <RefreshCw aria-hidden="true" size={18} />
-                </ConsoleIconButton>
-              )}
-            </ConsoleLayout.Corner>
-          )}
           {value.actionError && <p role="alert">{value.actionError.message}</p>}
           {children}
         </ConsoleLayout>
@@ -344,73 +317,58 @@ function OwnerPage({
   }
   const Page = pageComponent;
   return (
-    <>
-      <ConsoleLayout.Corner area="topLeft">
-        <ConsoleIconButton
-          label="Home"
-          tooltip="Home"
-          onClick={() => {
-            runtime.signal.throwIfAborted();
+    <div {...stylex.props(styles.content)}>
+      <Page
+        {...runtime}
+        activation={activation}
+        signal={signal}
+        mount={mount}
+        params={{}}
+        environment={{ locale: "en", theme }}
+        location={{
+          hash: location.hash,
+          search: location.searchStr,
+          segments: location.pathname
+            .slice(mount.basePath.replace(/\/$/u, "").length)
+            .split("/")
+            .filter(Boolean)
+            .map(decodeURIComponent),
+          ...(handoff ? { handoff } : {}),
+        }}
+        navigation={{
+          href: (segments) => consoleMountHref(mount, segments),
+          go: (segments) => {
+            signal.throwIfAborted();
             onClearHandoff();
-            void navigate({ to: "/" });
-          }}
-        >
-          <House aria-hidden="true" size={18} />
-        </ConsoleIconButton>
-      </ConsoleLayout.Corner>
-      <div {...stylex.props(styles.content)}>
-        <Page
-          {...runtime}
-          activation={activation}
-          signal={signal}
-          mount={mount}
-          params={{}}
-          environment={{ locale: "en", theme }}
-          location={{
-            hash: location.hash,
-            search: location.searchStr,
-            segments: location.pathname
-              .slice(mount.basePath.replace(/\/$/u, "").length)
-              .split("/")
-              .filter(Boolean)
-              .map(decodeURIComponent),
-            ...(handoff ? { handoff } : {}),
-          }}
-          navigation={{
-            href: (segments) => consoleMountHref(mount, segments),
-            go: (segments) => {
-              signal.throwIfAborted();
-              onClearHandoff();
-              void navigate({ to: consoleMountHref(mount, segments) });
-            },
-            openWorkspace: ({
-              workspaceId,
-              subject,
-              segments = [],
-              handoff: next,
-            }) => {
-              signal.throwIfAborted();
-              const other = admission.mounts.find(
-                (candidate) =>
-                  (candidate.id === workspaceId ||
-                    candidate.pageId === workspaceId) &&
-                  candidate.subject.kind === subject.kind &&
-                  (subject.kind === "console" ||
-                    (candidate.subject.kind === "app" &&
-                      candidate.subject.appId === subject.appId))
-              );
-              if (!other) {
-                throw new Error("Workspace is not admitted.");
-              }
-              const destinationHref = router.buildLocation({
-                to: consoleMountHref(other, segments),
-              }).href;
-              onHandoff(other, destinationHref, next);
-              void navigate({ href: destinationHref });
-            },
-          }}
-        />
-      </div>
-    </>
+            void navigate({ to: consoleMountHref(mount, segments) });
+          },
+          openWorkspace: ({
+            workspaceId,
+            subject,
+            segments = [],
+            handoff: next,
+          }) => {
+            signal.throwIfAborted();
+            const other = admission.mounts.find(
+              (candidate) =>
+                (candidate.id === workspaceId ||
+                  candidate.pageId === workspaceId) &&
+                candidate.subject.kind === subject.kind &&
+                (subject.kind === "console" ||
+                  (candidate.subject.kind === "app" &&
+                    candidate.subject.appId === subject.appId))
+            );
+            if (!other) {
+              throw new Error("Workspace is not admitted.");
+            }
+            const destinationHref = router.buildLocation({
+              to: consoleMountHref(other, segments),
+            }).href;
+            onHandoff(other, destinationHref, next);
+            void navigate({ href: destinationHref });
+          },
+        }}
+      />
+    </div>
   );
 }

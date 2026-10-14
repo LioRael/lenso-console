@@ -828,7 +828,7 @@ export function createConsoleService(
     },
   });
   const rpc = new RPCHandler(router, {
-    errorStatusMap: COMMON_ERROR_STATUS_MAP,
+    errorStatusMap: { ...COMMON_ERROR_STATUS_MAP, OUTCOME_UNKNOWN: 503 },
     clientInterceptors: [
       async ({ next, context }) => {
         try {
