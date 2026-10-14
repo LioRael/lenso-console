@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-runtime",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Optional read-only Runtime Console inspection",
   "license": "MIT",
   "files": [

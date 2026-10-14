@@ -75,7 +75,7 @@
     "@lenso/core": "0.3.1",
     "@lenso/engine": "0.6.0",
     "@lenso/manage": "0.5.2",
-    "@lenso/mcp": "0.4.0",
+    "@lenso/mcp": "0.5.0",
     "@lenso/runtime": "file:.runtime-deps/adapter",
     "@lenso/runtime-sdk": "file:.runtime-deps/sdk",
     "@lenso/ui": "0.9.1",

@@ -1,5 +1,13 @@
 # @lenso/console-react
 
+## 0.3.2
+
+### Patch Changes
+
+- 2f56e2b: Keep Console page and contributed context tab labels free of browser-default
+  link underlines without requiring a host-wide anchor reset. Preserve real
+  hrefs, keyboard navigation and ordinary content link styling.
+
 ## 0.3.1
 
 ### Patch Changes

@@ -238,7 +238,16 @@ test("local administration shares authenticated service policy across Console an
     ).toBe(true);
     expect(initializeLocalAdministration(config)).toBe(false);
     const host = await createHost(config);
-    running = await startApp(host.app);
+    const { createMcp } = host.administration!;
+    const pagination = spyOn(
+      host.administration!,
+      "createMcp"
+    ).mockImplementation((runtime) => createMcp(runtime, { listPageSize: 2 }));
+    try {
+      running = await startApp(host.app);
+    } finally {
+      pagination.mockRestore();
+    }
     const { origin } = running.get(host.listener).url;
     const request = (route: string, init?: RequestInit) =>
       fetch(origin + route, init);
@@ -415,8 +424,35 @@ test("local administration shares authenticated service policy across Console an
       }),
     });
     expect(notified.status).toBe(202);
-    const listed = await decode(await rpc("tools/list"));
-    const tools = listed.result.tools as { name: string; title: string }[];
+    // The old one-page fixture could not catch lost tools after a cursor boundary.
+    type Tool = {
+      name: string;
+      title: string;
+      annotations: { readOnlyHint: boolean };
+      _meta: { "lenso/operation": { pluginId: string; method: string } };
+    };
+    const listTools = async () => {
+      const tools: Tool[] = [];
+      let cursor: string | undefined;
+      let pages = 0;
+      do {
+        const listed = await decode(
+          await rpc("tools/list", cursor ? { cursor } : {})
+        );
+        expect(listed.error).toBeUndefined();
+        expect(listed.result.tools.length).toBeLessThanOrEqual(2);
+        tools.push(...listed.result.tools);
+        cursor = listed.result.nextCursor;
+        pages += 1;
+        expect(pages).toBeLessThanOrEqual(4);
+      } while (cursor);
+      expect(pages).toBe(2);
+      expect(new Set(tools.map((tool) => tool.name)).size).toBe(tools.length);
+      return tools;
+    };
+    const tools = await listTools();
+    expect(await listTools()).toEqual(tools);
+    expect(tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
     expect(
       tools.every(
         (tool) =>
@@ -426,7 +462,9 @@ test("local administration shares authenticated service policy across Console an
       )
     ).toBe(true);
     const listUsers = tools.find(
-      (tool) => tool.title === "console-administration.usersList"
+      (tool) =>
+        tool._meta["lenso/operation"].pluginId === "console-administration" &&
+        tool._meta["lenso/operation"].method === "usersList"
     )!;
     expect(listUsers).toBeDefined();
 
@@ -434,7 +472,21 @@ test("local administration shares authenticated service policy across Console an
       decode(await rpc("tools/call", { name: listUsers.name, arguments: {} }))
     );
     expect(measured.result.result.isError).not.toBe(true);
-    expect(JSON.stringify(measured.result.result)).toContain(colleague);
+    const userResult = measured.result.result;
+    expect(userResult.structuredContent).toEqual(
+      JSON.parse(userResult.content[0].text)
+    );
+    expect(userResult.structuredContent.items).toContainEqual(
+      expect.objectContaining({ subjectId: colleague })
+    );
+    const safeOutput = JSON.stringify(userResult);
+    expect(Buffer.byteLength(safeOutput)).toBeLessThan(1024 * 1024);
+    for (const secret of [credential.credential!, config.token]) {
+      expect(safeOutput).not.toContain(secret);
+    }
+    for (const privateField of ["actor", "credential", "originalAuth"]) {
+      expect(userResult.structuredContent).not.toHaveProperty(privateField);
+    }
     console.info("MCP usersList database calls", measured.calls);
     // Entry, dispatch and disclosure are fresh credential boundaries. No cookie
     // session lookup or per-permission credential loop is allowed for MCP.
@@ -446,7 +498,9 @@ test("local administration shares authenticated service policy across Console an
     expect(measured.calls.directory).toBeLessThanOrEqual(10);
     expect(measured.calls.auditWrites).toBe(2);
     const listSessions = tools.find(
-      (tool) => tool.title === "console-administration.sessionsList"
+      (tool) =>
+        tool._meta["lenso/operation"].pluginId === "console-administration" &&
+        tool._meta["lenso/operation"].method === "sessionsList"
     );
     expect(listSessions).toBeDefined();
     const agentSessions = await decode(
@@ -456,7 +510,10 @@ test("local administration shares authenticated service policy across Console an
       })
     );
     expect(agentSessions.result.isError).not.toBe(true);
-    const sessionData = JSON.parse(agentSessions.result.content[0].text);
+    const sessionData = agentSessions.result.structuredContent;
+    expect(sessionData).toEqual(
+      JSON.parse(agentSessions.result.content[0].text)
+    );
     expect(sessionData.items.length).toBe(1);
     expect(sessionData.items[0].subjectId).toBe(config.subject);
     const denied = await decode(
@@ -575,6 +632,19 @@ test("local administration shares authenticated service policy across Console an
     const secondCredential =
       (await secondDelivery.json()) as CredentialDelivery;
     mcpHeaders.authorization = `Bearer ${secondCredential.credential}`;
+    // The same catalog must retain its names after the adapter is recreated.
+    session = "";
+    await decode(
+      await rpc("initialize", {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: { name: "local-contract-test", version: "1" },
+      })
+    );
+    const restoredTools = await decode(await rpc("tools/list"));
+    expect(
+      restoredTools.result.tools.map((tool: Tool) => tool.name).sort()
+    ).toEqual(tools.map((tool) => tool.name).sort());
     access = await invoke<AccessSnapshot>("accessRead", {});
     access = await invoke<AccessSnapshot>("membersPromote", {
       subjectId: colleague,

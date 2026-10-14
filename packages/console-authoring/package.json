@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-sdk",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Console page authoring: SDK, service client generation, compiler and scaffold",
   "license": "MIT",
   "repository": {
@@ -163,7 +163,7 @@
   "peerDependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
-    "@lenso/console-react": "^0.2.0 || ^0.3.0",
+    "@lenso/console-react": "^0.3.2",
     "@lenso/core": "0.3.1",
     "@lenso/engine": "0.6.0",
     "@lenso/manage": "0.5.2",

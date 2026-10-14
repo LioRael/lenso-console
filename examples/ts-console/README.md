@@ -89,7 +89,7 @@ The official [MCP guide](https://learn.chatgpt.com/docs/extend/mcp.md?surface=cl
 documents Streamable HTTP and Bearer-token support. The official
 [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
 and Codex's published configuration schema expose `bearer_token_env_var`.
-The installed Codex CLI's `mcp add --help` also confirms the flags below.
+Check your installed Codex CLI's `mcp add --help` for version-specific flags.
 
 Take `MCP_URL` from the Agent connections page. Supply `LENSO_MCP_TOKEN` through
 your environment or secret manager, using the personal token shown once by
@@ -115,17 +115,20 @@ resource and are not assumed to share Codex's configuration or token support.
 
 ## Protocol release boundary
 
-This repository pins the published `@lenso/mcp` 0.4.0. Its HTTP entry is reused;
-the personal-token host wrapper suppresses OAuth discovery rather than
-advertising a nonexistent authorization server. That release still has
-entry-local indexed tool names, one-page tool discovery and JSON text results.
+This repository consumes the published `@lenso/mcp` 0.5.0. Its HTTP entry uses
+`authenticationMode: "personal-token"` with the trusted `personalTokenIssuer`,
+not a fake OAuth authorization server or discovery-suppression wrapper.
+Tools have stable names derived from the exact plugin/method identity,
+permission-bound cursor pages and bounded JSON text plus `structuredContent`.
+Clients should select tools from their declared operation metadata, not catalog
+positions. The host retains the default page size; the isolated protocol fixture
+sets `listPageSize: 2` to exercise real `tools/list` cursor requests.
 
-The companion `lenso` source change adds stable names, permission-bound cursor
-pages, structured results and explicit personal-token mode. It is not consumed
-through source aliases or unpublished package overrides. Completing those
-capabilities in this host requires separately approved publication of the MCP
-package, then a normal dependency/lockfile upgrade and repeated client checks.
-No new Auth or API Keys release is needed for the current integration.
+The resource shares the existing Console listener and verifies credentials on
+every request, including requests in an existing protocol session. Dispatch and
+disclosure retain fresh policy checks. No source aliases, unpublished package
+overrides or new Auth/API Keys release are used. MCP publication does not mean
+the Console release is complete; Console integration and release remain pending.
 
 The local personal-token profile explicitly approves directory, session, access
 inspection, own-token metadata and audit reads. Its Auth source delegates token
@@ -148,9 +151,14 @@ resubmit the completed mutation.
 ## Focused validation
 
 ```sh
-bun run --cwd packages/auth-console test
-bun run --cwd packages/auth-console typecheck
-bun run service:ts:check
+bun run sdk:build
+bun run --cwd packages/console build
+bun run --cwd packages/console-runtime build
+bun run --cwd packages/auth-console build
+bun run service:ts:pages
+bun run bundle:local
+bun run service:ts:typecheck
+bun test examples/ts-console/administration-host.test.ts
 ```
 
 Run browser checks against the built host with disposable test-owned identities,

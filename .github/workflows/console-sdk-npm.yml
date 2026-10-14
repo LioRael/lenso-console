@@ -19,6 +19,7 @@ on:
         required: true
         options:
           - sdk
+          - react
           - frontend
           - backend
           - auth-console

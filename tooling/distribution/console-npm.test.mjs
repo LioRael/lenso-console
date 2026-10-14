@@ -69,6 +69,42 @@ test("SDK-only release rejects frontend companions and mismatched scope", () => 
   ).toThrow();
 });
 
+test("React-only release rejects foreign owners, multiple archives and mismatched scope", () => {
+  const react = {
+    ...receipt,
+    package_scope: "react",
+    packages: [receipt.packages[1]],
+  };
+  const reactEnv = { ...env, RELEASE_PACKAGE_SCOPE: "react" };
+  expect(() => validateReceipt(react, reactEnv)).not.toThrow();
+  expect(() => validateReceipt(receipt, reactEnv)).toThrow();
+  expect(() => validateReceipt(react, env)).toThrow();
+  for (const name of [
+    ...names.filter((owner) => owner !== "console-react"),
+    "console",
+    "engine",
+  ]) {
+    expect(() =>
+      validateReceipt(
+        {
+          ...react,
+          packages: [
+            {
+              ...react.packages[0],
+              filename: `lenso-${name}-0.1.0.tgz`,
+              name: `@lenso/${name}`,
+            },
+          ],
+        },
+        reactEnv
+      )
+    ).toThrow();
+  }
+  expect(() =>
+    validateReceipt({ ...react, packages: receipt.packages }, reactEnv)
+  ).toThrow();
+});
+
 test("backend release scope accepts only Console and cannot reuse a frontend receipt", () => {
   const backend = {
     ...receipt,

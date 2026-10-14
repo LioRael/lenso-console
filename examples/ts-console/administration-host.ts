@@ -647,7 +647,10 @@ export function createAdministrationHost(
       return consoleRequestErrorResponse(error, request.signal);
     }
   };
-  const createMcp = async (running: OperationRuntime) => {
+  const createMcp = async (
+    running: OperationRuntime,
+    options: { listPageSize?: number } = {}
+  ) => {
     const service = running.get(plugin);
     const owned = running.get(state);
     const approved = new Set([
@@ -676,7 +679,9 @@ export function createAdministrationHost(
         plugins: [plugin],
         operations,
         resource: mcpUrl,
-        authorizationServers: [issuer],
+        authenticationMode: "personal-token",
+        personalTokenIssuer: issuer,
+        listPageSize: options.listPageSize,
         requiredScopes: [],
         allowedOrigins: [config.origin],
         async verifyToken(credential, signal) {
@@ -770,26 +775,7 @@ export function createAdministrationHost(
         maxSessions: 32,
       }
     );
-    return {
-      close: protocol.close,
-      async fetch(request: Request) {
-        // Released 0.4.0 checks issuer/resource/Host/Origin but advertises OAuth.
-        // This PAT boundary exposes only the installed resource, not discovery.
-        if (new URL(request.url).pathname !== mcpPath) {
-          return new Response(null, { status: 404 });
-        }
-        const response = await protocol.fetch(request);
-        const headers = new Headers(response.headers);
-        if (headers.has("www-authenticate")) {
-          headers.set("www-authenticate", "Bearer");
-        }
-        headers.set("cache-control", "no-store");
-        return new Response(response.body, {
-          status: response.status,
-          headers,
-        });
-      },
-    };
+    return protocol;
   };
   return { ...manage, state, mcpPath, binding, credentialFetch, createMcp };
 }
