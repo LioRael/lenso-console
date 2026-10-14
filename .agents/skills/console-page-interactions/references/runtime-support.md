@@ -30,3 +30,36 @@ Local `ConsoleLocalPageProps` supplies required `activation`, `signal`, typed bo
 SDK `PageProps` supplies admitted services and mount/location data; navigation uses `go(segments)` / `href(segments)` and `openWorkspace(request)`. Do not copy local page-ID calls into compiled pages. Route/read/cache namespaces belong to the authoring contract, not this skill.
 
 `ConsoleActionHost` and `ConsoleDock` are public low-level host tools, not instructions for a plugin to replace its existing host. Host changes need a separate host-owned task and validation. For local plugin Dock views, follow the `Local Dock views` contract in `packages/console-react/README.md`: define stable views and services, bind them, and explicitly select leading references. `ConsoleDockContent` requires the Shell's view host; importing its export inside a compiled page does not install that host or an Agent service.
+
+## Contextual design capability boundary
+
+Source check for this design update: verified remote main snapshot `608c5c1`. Recheck
+these contracts in the consuming artifact before page implementation. All names
+below are current public primitives, not the proposed table/scenario preset API.
+
+| Design need | Verified capability / boundary |
+| --- | --- |
+| Corner query or pagination groups | [ConsoleLayout](../../../../packages/console-react/src/console-layout.tsx): `Corner` takes `area`, React `children`, `active`, `xstyle`; it portals composed controls. It does not arbitrate contexts or declare semantic groups. Use accessible React/library composition for group meaning; no invented `group` prop. |
+| Necessary icon-only button | [ConsoleIconButton](../../../../packages/console-react/src/console-icon-button.tsx): `label`, optional `tooltip`, SVG children; supplies accessible name and tooltip composition. Pagination is composed separately, not forced through this button. |
+| Page facts and task context | [Page context](../../../../packages/console-react/src/console-page-context.tsx) and [scopes](../../../../packages/console-react/src/console-action-scope.tsx): controlled Provider/activation plus `ConsolePageScope` context/commands. Context kinds are hidden/tabs/object with supported return; there is no table-context kind or viewport policy. |
+| Multi-select Dock transformation | `ConsoleActionScope` publishes `ConsoleDockSelection`: count, scopeLabel, flat actions, running/blocked and exit. [Dock](../../../../packages/console-react/src/console-dock.tsx) renders selection; the current action type has no arbitrary semantic-group registry. Existing host ownership checks prevent stale owners executing/clearing a successor; they are not focus/viewport arbitration. |
+| Host presentation | [Local Shell](../../../../packages/console-react/src/console-shell.tsx) consumes page/selection contributions and page groups; [interaction host](../../../../packages/console-react/src/console-interaction-host.tsx) consumes admitted/preview projections. [Admission](../../../../plugins/console/shell/src/app/console-admission.tsx) mounts that host. Check installation: importing the public export alone does not install a renderer. |
+| User customization | Local Shell preferences cover navigation Dock collections/position/mode and tab placement. They do not implement arbitrary per-context corner layouts or scenario presets. Custom design requests guide composition within supported contracts; persistence of new layout choices requires host scope. |
+
+### Minimum extension needed (design proposal only)
+
+The missing capability is a Shell-owned contextual operation coordinator: a small
+content-owner declaration for identity/target and operation groups; one active
+owner; page fallback; viewport eligibility with tunable enter/exit hysteresis and
+brief dwell; real focus/explicit-choice precedence and interaction locks; cleanup
+on retirement. Shell, not each plugin, should own positioning and observation.
+A semantic-group presentation contract would also be needed where a flat selection
+array cannot faithfully express group boundaries. If persistent user-defined
+corner placements are required, add a bounded host preference contract separately.
+
+No callable coordinator, automatic table/chart focus hook, generic group registry
+or scenario preset is verified in this snapshot. These are the smallest design
+extensions to discuss, not exported names or implementation instructions. This
+skill update does not implement them. Report a missing capability and its concrete
+minimum extension; do not claim the recommended combinations can be invoked as a
+preset, patch private Shell internals, or quietly add misleading fallback buttons.

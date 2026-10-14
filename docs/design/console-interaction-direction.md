@@ -16,21 +16,21 @@ Navigation may recede, but task context must remain understandable. The current 
 
 ## Roles of the screen corners
 
-The four corners serve different purposes. The following defaults are proposed for the first prototype and can be adjusted through use.
+The corners provide space for current context, not a mandatory position template. The following defaults guide the first prototype; explicit user customization takes priority while preserving clear targets, accessibility, unobstructed content and stable interaction context. Business pages default to empty corners until a real action warrants them. Theme, logout, generic refresh and home are Shell responsibilities at suitable global entries. A real parent-workflow return, error retry or deliberate monitoring update is a contextual exception, not an absolute ban.
 
 | Area | Default purpose | Principle |
 | - | - | - |
 | Top left | Back, navigation or sidebar toggle, current location, and application switching | Communicate where I am and where I can go without crowding every destination here |
 | Top right | Primary page actions and additional actions, such as create, save, or share | Communicate what I can do with this content, distinct from the top-left navigation role |
 | Bottom left | View switching, filter summary, or layout preferences when needed | Leave it empty when there is no useful function; avoid a permanent catch-all status area |
-| Bottom right | Assistant or task-feedback entry point when needed | Avoid duplicating the top-right primary action or the bottom Dock |
+| Bottom right | Contextual navigation or task feedback when needed; full-page table pagination defaults here | Avoid duplicating another surface; leave empty without a real task |
 | Bottom center | Default global Dock or current selection toolbar | Reuse the same location according to an explicit task state |
 
 Users can customize position and presentation. The first version does not need arbitrary dragging of every button. Local controls may form compact groups without recreating a heavy, full-width navigation bar.
 
 Group related controls by meaning, such as navigation, view options, content insertion, discussion, or primary page actions. Groups may grow as real capabilities are added; do not copy unavailable actions from a reference merely to populate a group. Desktop controls should be visually compact (about 32–36px), while coarse-pointer/touch controls retain at least 44px hit targets. Reduce surrounding padding before reducing icon readability or focus clearance.
 
-**Corner button standard: prefer icon-only controls.** Buttons in the top-left, top-right, bottom-left, and bottom-right corners show only an icon by default. Add visible text only when the icon cannot communicate the meaning clearly and a label is genuinely necessary. Every corner button must provide a concise, explicit tooltip describing its action and, where applicable, its keyboard shortcut. Tooltips must appear on pointer hover and keyboard focus; do not rely solely on the native title attribute. Icon buttons must also have accurate accessible names; tooltips do not replace accessible names. Touch users must not need hover to understand or use an action. This standard applies to corner buttons and does not require removing necessary location indicators or task status.
+**Corner button standard: prefer icon-only controls.** Buttons in the top-left, top-right, bottom-left, and bottom-right corners show only an icon by default. Add visible text only when the icon cannot communicate the meaning clearly and a label is genuinely necessary. Every corner button must provide a concise, explicit tooltip describing its action and, where applicable, its keyboard shortcut. Tooltips must appear on pointer hover and keyboard focus; do not rely solely on the native title attribute. Icon buttons must also have accurate accessible names; tooltips do not replace accessible names. Touch users must not need hover to understand or use an action. This standard applies to corner buttons and does not require removing necessary location indicators, task status, pagination labels or compound controls.
 
 **Icon means an SVG component, not text.** Use purpose-specific icons from Lenso UI or the application's existing approved icon set. Labels, initials, emoji and Unicode characters are not substitutes for icons in compact Dock or corner controls. Preserve full labels for accessible names, directories, menus and confirmations.
 
@@ -40,7 +40,7 @@ Choose explicit variants: quiet floating utilities use a neutral surface, the pr
 
 By default, an expanded Dock sits at the bottom center and shows a small set of frequently used modules as compact, icon-only controls. Each destination has an accurate accessible name and a short tooltip on hover and keyboard focus. The current module remains clear through its selected state and the workspace location indicator. Keep the wrapper and item spacing compact enough to accommodate additional destinations without enlarging every item. Additional plugins belong in a searchable full directory. Installing a plugin must not automatically rearrange pinned items.
 
-The host reserves this area for global navigation and Agent capabilities. Page-wide add/edit/save/cancel controls belong in corners, not a plugin-installed Dock editor. Real selection actions may temporarily use the shared selection surface when the host supports that workflow; an invented selection is not a way around this boundary. The existence of `dockViews` does not authorize ordinary pages to take over the Dock.
+The host reserves this area for global navigation and Agent capabilities. Necessary persistent page-wide add/edit/save/cancel controls default to contextual corner groups, with inline/footer placement available when the task or user customization calls for it. This does not authorize a plugin-installed Dock editor. Real selection actions may temporarily use the shared selection surface when the host supports that workflow; an invented selection is not a way around this boundary. The existence of `dockViews` does not authorize ordinary pages to take over the Dock.
 
 **Expanded directory hierarchy:** destinations are the primary content. Search and close form a compact header; Command, presentation switching, customization and settings are secondary icon utilities, with a concise current-preset trigger. Prefer one compact utility row when it fits, using overflow only where necessary. These controls must not become a second grid of large labelled cards. Reclaim wrapper padding and repeated spacing before reducing labels or hit targets; allow the panel to shrink naturally when all destinations fit, and give constrained height to the destination scroller rather than utility chrome.
 
@@ -68,7 +68,9 @@ Dashboard uses the central context island for its short page identity, rather th
 
 Keep default widgets compact enough for their actual content, with quiet semantic surfaces, modest radii and no decorative shadows. Browsing prioritizes content; explicit editing reveals drag/settings/removal affordances. The reference from iOS desktop/control-center behavior is mode and hierarchy, not endless jiggle or heavy glass. Default-size changes do not rewrite saved layouts.
 
-Dashboard edit/done use the top right, add/layout options the bottom left, and cancellation the bottom right where the host permits it; leave top-left navigation alone. Combine secondary options into a popover when needed and keep all hit targets clear of the reserved bottom-center region. Narrow layouts may lift bottom corner groups above that region and must retain enough content-end clearance.
+Dashboard editing defaults to edit/done at the top right, add/layout options at the bottom left, and cancellation at the bottom right where the host permits it; these are contextual suggestions, not slots to fill. Respect user placement choices and host navigation ownership. Combine secondary options into a popover when needed and keep all hit targets clear of the reserved bottom-center region. Narrow layouts may lift bottom corner groups above that region and must retain enough content-end clearance.
+
+For full-page tables, default to needed search/filter/sort groups at the top and a bottom-right pagination navigation group; keep create/import separate from query actions. Embedded tables can become the corner context when they dominate the viewport and interaction context, restoring the page context on exit. This requires Shell-owned arbitration, hysteresis, brief dwell and interaction locks; passing tables must not steal focus. These arbitration capabilities are a design direction, not an existing API. Read [table contexts](../../.agents/skills/console-page-interactions/references/table-contexts.md) and [scenario defaults](../../.agents/skills/console-page-interactions/references/scenario-defaults.md) for scope, exceptions and customization.
 
 For lists, details and shared island composition, use the [page presentation guidance](../../.agents/skills/console-page-interactions/references/presentation.md). The island carries identity and deliberate return/tab context, not duplicated pagination or an arbitrary page-action tray. Domain details deserve real target-qualified routes when appropriate; comparable records use Lenso UI Table and its supported selection/footer APIs.
 
@@ -82,7 +84,7 @@ Motion owns continuously changing animation values. Static geometry, responsive 
 
 ## Switching between navigation and bulk actions
 
-Selecting the first table item transforms the existing Dock into a selection toolbar at the same visual location. Do not add a second toolbar or modify the global navigation configuration.
+For meaningful table/file/collection multi-selection with real bulk actions, the preferred default is to smoothly transform the existing Dock into a selection toolbar at the same visual location when the consuming host supports it. Show selection count and target, valid operations, and clear/cancel selection; clearing restores the previous navigation state with focus and targets stable. Respect keyboard and reduced-motion presentation. Omit this transformation when there is no useful operation; users can explicitly choose another local selection presentation. Do not add a competing second toolbar or modify the global navigation configuration.
 
 The selection toolbar shows the selection count, the target scope, available bulk actions, additional actions, and an exit-selection control. Labels must distinguish items selected on the current page from all filtered results. The first version only needs correct current-page selection; it must not imply cross-page selection.
 

@@ -36,3 +36,22 @@ For Dashboard-specific layout and pointer proofs, follow
 [widget presentation](../../console-dashboard-widgets/references/presentation.md).
 
 Handoff: list changed files, supported host, checks actually run, browser evidence for real UI changes, and remaining assumptions/gaps. Documentation-only edits need link/export/example checks, not a gratuitous browser run.
+
+## Design self-check
+
+Before handoff, answer briefly from the actual scenario:
+
+- Is each action necessary for this content/state, or was it added to fill space?
+- What is its current target and owner? Is it already provided by Shell?
+- Do controls form meaningful query/insertion/navigation/commit groups without
+  turning every control into a separate floating island?
+- Does viewport context respect real focus, open overlays and ongoing operations,
+  with one owner and an understandable return to page context?
+- Can the last row, important content and keyboard focus remain unobstructed in
+  narrow/touch layouts, with accessible names/tooltips and reduced motion?
+- Does customization preserve these outcomes, and does the installed API/host
+  really support the proposed design? Name the minimum gap instead of inventing it.
+
+For documentation-only updates, check frontmatter, local links and source claims,
+then read realistic full-page-table, mixed-content, form and multi-table cases for
+contradictions. No application CI or browser launch is needed for prose changes.

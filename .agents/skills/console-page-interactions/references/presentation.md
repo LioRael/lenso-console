@@ -48,21 +48,29 @@ corner icons can still use supported browser-safe components.
 name, and a hover/focus tooltip where the host presents one. Touch operation does
 not depend on hovering to discover the action.
 
-## 3. Give page actions a corner, not a new toolbar
+## 3. Place necessary persistent page actions
 
-Use `ConsoleLayout.Corner` and `ConsoleIconButton` for page actions. Choose an
+For necessary persistent corner actions, use `ConsoleLayout.Corner` and
+`ConsoleIconButton`. Keep field actions, local recovery and small-widget controls
+near their content when that better serves the task. Choose an
 explicit button variant: the shared button's default is not a design decision.
 Quiet standalone controls generally use `secondary`; the principal commit uses
 `primary`. A destructive entry can use `danger-soft`, with `danger` for the final
 confirmation. `ghost` fits menu/inline utilities, not every floating action.
 
-Follow the design document's corner roles. Leave unused corners empty. In narrow
+Follow the design document's contextual defaults, not a fixed corner template.
+Read [table contexts](table-contexts.md) for table-specific defaults and
+[scenario defaults](scenario-defaults.md) for other content. Leave unused corners
+empty. In narrow
 windows, combine secondary actions into a Lenso UI popover/menu instead of
 shrinking targets or expanding into the bottom-center area.
 
 The Dock is host-owned navigation/Agent space, not a page-wide edit toolbar.
-Dashboard add/edit/done/cancel belong in corners. A genuine table selection may
-use `ConsoleActionScope` only when the consuming host permits that workflow.
+Dashboard add/edit/done/cancel default to compact corner groups during explicit
+editing; honor customization and omit actions the current mode does not need. Meaningful table/file/collection multi-selection defaults to a smooth conversion
+of the existing Dock to bulk actions via `ConsoleActionScope` when the consuming
+host supports it; clear/cancel restores navigation with focus and targets stable.
+Explicit user customization may choose a local selection presentation instead.
 Real multi-selection is not permission to invent bulk operations; a one-object
 Inspect action is available only for exactly one selected object.
 
@@ -76,19 +84,25 @@ compact secondary strip, with a concise current-preset control. Reclaim chrome
 before shrinking content. This is host work, not permission for a page to alter
 Shell internals.
 
-**Done:** corners are icon-only except a stated semantic need for text; they do
-not overlap the reserved Dock, content-end controls or focused elements. Check
+**Done:** necessary standalone corner buttons prefer icon-only with tooltip and
+accessible name; compound controls retain needed text. Controls do not overlap
+the reserved Dock, content-end controls or focused elements. Check
 the whole hit target in both pointer modes, not just its center.
 
 ## 4. Keep the island compact
 
 Use `ConsolePageScope` for the supported Context Bar (the central island).
-Use a short page/object identity and an explicit return through the supplied
-navigation path. Let declared page groups supply genuine workflow tabs.
+Use a short page/object identity and an explicit return only when a real parent
+workflow exists, through the supplied navigation path. Let declared page groups
+supply genuine, balanced/symmetric workflow tabs; do not manufacture tabs for
+symmetry.
 Do not draw a second island with `Foreground`.
 
-The island is not a dashboard of metrics. Put loaded counts and pagination in
-the table footer; detailed status and identifiers belong in content unless they
+The island is not a dashboard of metrics. Put loaded counts in the table footer;
+full-page table pagination defaults to a
+bottom-right navigation group (see table contexts), with a footer composition
+when customization or geometry calls for it. Detailed status and identifiers
+belong in content unless they
 are needed to disambiguate the current object. When the island already identifies
 the page, omit a duplicate visible page heading but retain semantic regions.
 Embedded widgets do not publish page context.
@@ -116,7 +130,10 @@ intentionally contained surface. Compare actual styles rather than inventing a
   when applicable. State whether selection covers loaded/current-page rows.
   Preserve global shortcuts from checkbox focus; stop only handled selection
   keys, not every key event.
-- Use `Table.Footer` with the installed `Pagination` composition. Opaque forward
+- Use the installed `Pagination` composition; `Table.Footer` is a supported
+  in-content host, while `ConsoleLayout.Corner` can compose a bottom-right
+  navigation group for a full-page table. Neither creates a pagination service.
+  Opaque forward
   cursors justify an append control and an honest loaded count, not invented
   totals, backward pages or cursor URLs. Read actual demos/types; there is no
   license to invent a `Table.Navigation` component.

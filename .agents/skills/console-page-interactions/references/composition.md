@@ -61,8 +61,9 @@ projection. Page async work checks its own activation and signal.
 
 Page groups are fallback task context. For deliberate page-level hidden, tabs,
 or object context, use the supported `ConsolePageScope` recipe rather than
-rebuilding the top navigation. Corners hold page controls; the host chooses
-layout, clearance, focus, and transitions.
+rebuilding the top navigation. Corners can hold necessary persistent page
+controls; local controls stay near content when useful. The host chooses layout,
+clearance, focus, and transitions.
 
 Use [the composed sample](../../../../examples/composed-console/composition.tsx)
 for multi-binding structure and existing optional adapters. Its sample clients
