@@ -29,6 +29,14 @@
     "./server": {
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
+    },
+    "./administration/server": {
+      "types": "./dist/administration-server.d.ts",
+      "default": "./dist/administration-server.js"
+    },
+    "./administration/react": {
+      "types": "./dist/administration-react.d.ts",
+      "default": "./dist/administration-react.js"
     }
   },
   "publishConfig": {
@@ -40,11 +48,19 @@
     "test": "bun test test"
   },
   "dependencies": {
+    "@lenso/api-keys": "0.1.6",
+    "@lenso/audit": "0.3.3",
+    "@lenso/authorization": "0.3.3",
+    "@lenso/engine": "0.6.0",
+    "@lenso/manage": "0.5.2",
     "@lenso/ui": "0.9.1",
-    "@stylexjs/stylex": "0.19.1"
+    "@stylexjs/stylex": "0.19.1",
+    "drizzle-orm": "0.45.3",
+    "lucide-react": "1.28.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
-    "@lenso/auth": "0.5.0",
+    "@lenso/auth": "0.5.2",
     "@lenso/console-react": "workspace:*",
     "@lenso/core": "0.3.1",
     "@stylexjs/unplugin": "0.19.0",
@@ -58,6 +74,7 @@
   "peerDependencies": {
     "@lenso/auth": "^0.5.0",
     "@lenso/console-react": "^0.2.0 || ^0.3.0",
+    "@lenso/console-sdk": "^1.1.1",
     "@lenso/core": "^0.3.1",
     "react": "^19.0.0"
   },
@@ -69,6 +86,9 @@
       "optional": true
     },
     "@lenso/console-react": {
+      "optional": true
+    },
+    "@lenso/console-sdk": {
       "optional": true
     },
     "react": {

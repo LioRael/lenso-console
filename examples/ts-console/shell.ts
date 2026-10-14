@@ -32,6 +32,7 @@ export async function createBuiltShell(
   paths: {
     apiBasePath: string;
     authBasePath: string;
+    workspaces?: readonly string[];
   }
 ) {
   const root = await realpath(directory);
@@ -58,8 +59,25 @@ export async function createBuiltShell(
     "</head>",
     `<script id="lenso-console-http-paths" type="application/json">${bootstrap}</script></head>`
   );
+  const workspacePaths = (paths.workspaces ?? []).map((value) =>
+    value.replace(/\/$/, "")
+  );
+  for (const base of workspacePaths) {
+    for (const prefix of [paths.apiBasePath, paths.authBasePath]) {
+      if (
+        base === prefix ||
+        base.startsWith(`${prefix}/`) ||
+        prefix.startsWith(`${base}/`)
+      ) {
+        throw new Error("Workspace and transport namespaces must be separate");
+      }
+    }
+  }
   const isPage = (pathname: string) =>
     routes.has(pathname.replace(/\/$/, "") || "/") ||
+    workspacePaths.some(
+      (base) => pathname === base || pathname.startsWith(`${base}/`)
+    ) ||
     /^\/plugins\/[^/]+\/[^/]+\/[^/]+\/?$/.test(pathname);
   const matches = (request: Request) => {
     const { pathname } = new URL(request.url);
