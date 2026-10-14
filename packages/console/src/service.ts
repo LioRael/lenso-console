@@ -204,7 +204,9 @@ export function createConsoleService(
         };
       }
     }
-    if (readScope) throw failure("SERVICE_UNAVAILABLE", 503);
+    if (readScope) {
+      throw failure("SERVICE_UNAVAILABLE", 503);
+    }
     await authorizeInvocation(target, identity, operation, mount);
     const binding = await options.binding(
       operation,
@@ -251,13 +253,14 @@ export function createConsoleService(
             return false;
           }
           const invocation = resource(target, "invoke", operation, mount);
-          if (readScope)
+          if (readScope) {
             return auth.canDispatchRead!(
               identity,
               visible,
               invocation,
               readScope
             );
+          }
           if (auth.canDispatch) {
             return auth.canDispatch(identity, visible, invocation);
           }
@@ -528,7 +531,9 @@ export function createConsoleService(
             readScope
           );
         } catch (error) {
-          if (readScope) auth.closeRead!(readScope);
+          if (readScope) {
+            auth.closeRead!(readScope);
+          }
           throw error;
         }
       }

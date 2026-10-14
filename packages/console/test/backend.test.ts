@@ -36,6 +36,7 @@ import type {
   ConsoleMount,
   ConsoleOptions,
   ConsoleResource,
+  ConsoleReadScope,
   ConsoleService,
   ConsoleTarget,
 } from "../src/types";
@@ -47,6 +48,7 @@ type FixtureAccess = Access<
   string,
   string,
   ConsoleResource,
+  ConsoleReadScope,
   { allowed: true }
 >;
 
@@ -1856,7 +1858,7 @@ test("read scope opt-in falls back when the host boundary or Auth API is absent"
         ? {}
         : {
             onReadScope: () => {
-              opened++;
+              opened += 1;
             },
           }),
     });
@@ -1864,7 +1866,9 @@ test("read scope opt-in falls back when the host boundary or Auth API is absent"
       plugins: [auth.plugin, instance.plugin, consolePlugin],
     });
     try {
-      if (missing === "auth") app.get(auth.plugin).beginRead = undefined;
+      if (missing === "auth") {
+        app.get(auth.plugin).beginRead = undefined;
+      }
       expect(
         await client(app.get(consolePlugin)).invoke({
           targetId: "north",
@@ -1891,7 +1895,7 @@ test("read scope opt-in falls back when the host boundary or Auth API is absent"
 test("scoped finite RPC dispatch checks exact operation grants and closes failed preparation", async () => {
   const auth = authentication("/auth", true);
   const instance = counter("scoped-counter", auth.plugin);
-  let scope: import("../src/types").ConsoleReadScope | undefined;
+  let scope: ConsoleReadScope | undefined;
   let mode = "ready";
   const consolePlugin = createConsolePlugin({
     authentication: auth.plugin,
@@ -1901,10 +1905,12 @@ test("scoped finite RPC dispatch checks exact operation grants and closes failed
     readScopeEligible: (operation) => operation.method === "read",
     onReadScope: (_request, opened) => {
       scope = opened;
-      if (mode === "host-throw")
+      if (mode === "host-throw") {
         throw new Error("private host lifecycle error");
-      if (mode === "host-async")
+      }
+      if (mode === "host-async") {
         return Promise.reject(new Error("private async lifecycle error"));
+      }
     },
     prepareBinding: (
       _operation,
@@ -1915,14 +1921,19 @@ test("scoped finite RPC dispatch checks exact operation grants and closes failed
       opened
     ) => {
       expect(opened).toBe(scope);
-      if (mode === "missing") return undefined;
-      if (mode === "prepare-async")
+      if (mode === "missing") {
+        return undefined;
+      }
+      if (mode === "prepare-async") {
         return Promise.resolve({
           context: { identity, resource },
         }) as unknown as {
           context: { identity: ConsoleIdentity; resource: ConsoleResource };
         };
-      if (mode === "deny") auth.state.dispatchDenied = "invoke";
+      }
+      if (mode === "deny") {
+        auth.state.dispatchDenied = "invoke";
+      }
       return { context: { identity, resource } };
     },
   });

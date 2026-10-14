@@ -202,8 +202,9 @@ export function createConsoleAuthentication<
   >();
   function readProof(scope: ConsoleReadScope, identity?: ConsoleIdentity) {
     const stored = reads.get(scope);
-    if (!stored || (identity && stored.identity !== identity))
+    if (!stored || (identity && stored.identity !== identity)) {
       throw new AuthError("UNAUTHORIZED");
+    }
     stored.request.signal.throwIfAborted();
     return stored;
   }
@@ -212,8 +213,9 @@ export function createConsoleAuthentication<
     request: Request
   ): Promise<ConsoleIdentity> {
     const revision = await options.permissionRevision(actor, request);
-    if (typeof revision !== "string")
+    if (typeof revision !== "string") {
       throw new ConsoleRequestError("service_unavailable");
+    }
     const digest = await crypto.subtle.digest(
       "SHA-256",
       new TextEncoder().encode(
@@ -350,8 +352,9 @@ export function createConsoleAuthentication<
       ? {
           async beginRead(identity: ConsoleIdentity, request: Request) {
             const stored = proof(identity);
-            if (stored.request !== request)
+            if (stored.request !== request) {
               throw new ConsoleRequestError("unauthorized");
+            }
             return guarded(request, async () => {
               const authenticationScope = await options.access.beginRead!(
                 stored.actor,
@@ -389,8 +392,9 @@ export function createConsoleAuthentication<
               if (
                 error instanceof ConsoleRequestError &&
                 (error.code === "unauthorized" || error.code === "forbidden")
-              )
+              ) {
                 return false;
+              }
               throw error;
             }
           },
@@ -412,10 +416,12 @@ export function createConsoleAuthentication<
                   "mountId",
                 ] as const
               ).some((key) => visibility[key] !== invocation[key])
-            )
+            ) {
               return false;
-            if (!(await service.canRead!(identity, visibility, scope)))
+            }
+            if (!(await service.canRead!(identity, visibility, scope))) {
               return false;
+            }
             return service.canRead!(identity, invocation, scope);
           },
           async finishRead(scope: ConsoleReadScope) {

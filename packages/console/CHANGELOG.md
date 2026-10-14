@@ -1,5 +1,12 @@
 # @lenso/console
 
+## 2.1.4
+
+### Patch Changes
+
+- Allow explicitly eligible finite reads to share request-owned Auth read scopes, replay list/invoke policies, and verify fresh identity and permissions before disclosure. Preserve legacy paths for writes, streams, and older Auth integrations.
+- Update @lenso/auth to 0.5.2.
+
 ## 2.1.3
 
 ### Patch Changes

@@ -607,16 +607,16 @@ test("Auth binding rotates/revokes sessions and retires Console identity proofs"
 // different Request; existing fresh-enforce coverage does not exercise this opt-in.
 test("explicit read scope binds the original request and refreshes permission revision before disclosure", async () => {
   const { defineSource } = await import("@lenso/auth");
-  let verifies = 0,
-    revision = "1",
-    allowed = true;
+  let allowed = true;
+  let revision = "1";
+  let verifies = 0;
   const auth = createAuth(
     realm(
       "read-console",
       defineSource<string>({
         capabilities: { authoritative: true },
         async verify() {
-          verifies++;
+          verifies += 1;
           return {
             status: "verified",
             subjectId: "alice",
