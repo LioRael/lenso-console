@@ -84,6 +84,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
           "@lenso/console-sdk": sdk.spec,
           "@lenso/core": "0.3.1",
           "@lenso/limits": "0.2.1",
+          "@lenso/manage": "0.5.2",
           "@lenso/scheduler": "0.3.3",
           "@lenso/tasks": "0.4.0",
           "@types/bun": "1.4.3",
