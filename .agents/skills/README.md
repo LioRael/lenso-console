@@ -13,6 +13,19 @@ These are repository-local agent instructions. Read their `SKILL.md` directly
 when the agent's tool does not register project skills. They are not installed
 globally, and this change does not add them to published npm archives.
 
+Delta/Codex consumers should start from this checkout's `AGENTS.md` link, or
+explicitly load the focused `SKILL.md` path when project-skill discovery is not
+available. A dependency installation alone does not activate these instructions.
+Keep the Lenso UI component-contract skill available separately; Console's
+presentation guidance is not its replacement.
+
+For another application repository, hand off a pinned source revision and its
+skill entry path. Do not copy only `SKILL.md`: references also resolve to this
+checkout's design docs and package examples. Use the pinned checkout or a
+complete reviewed support bundle preserving those links. Project-local delivery
+and an explicit personal/global install are different operations; neither npm
+publication nor a global skill install is performed by this documentation work.
+
 ## Maintaining the skills
 
 Keep decision rules in the workflow and detailed recipes behind references.

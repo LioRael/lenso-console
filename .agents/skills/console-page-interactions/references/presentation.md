@@ -8,9 +8,11 @@ rules into page-authoring decisions; it is not a second Shell or component libra
 
 ## 1. Plan the content and its controls
 
-Name the page's job, primary content, real actions and target host. Inspect the
-installed Lenso UI declarations and an existing component example before choosing
-an implementation. An ordinary index/list/detail is not a Dashboard.
+Name the page's job, primary content, real actions and target host. Use
+[component decisions](component-decisions.md) for form/selection/disclosure
+choices; inspect the installed API and matching example rather than assuming
+that importing Button and Input is sufficient library reuse. An ordinary
+index/list/detail is not a Dashboard.
 
 Write a short placement plan: task context, corners, inline controls, and any
 host-approved selection surface. Start with the content, not a template of
