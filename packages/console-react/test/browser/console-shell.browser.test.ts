@@ -2369,3 +2369,107 @@ test("keeps admitted Dock views reachable through bounded overflow on coarse scr
     await server.close();
   }
 }, 60_000);
+
+// The existing walkthrough proves route selection, but cannot detect a focus
+// shadow cut off by the tab scroller and the island's rounded content clip.
+test("paints complete page-tab keyboard rings inside the island clips", async () => {
+  const server = await createServer({
+    configFile: false,
+    root: fileURLToPath(new URL("../..", import.meta.url)),
+    optimizeDeps: { include: ["@lenso/ui", "@lenso/ui/**", "liquid-gooey"] },
+    server: { host: "127.0.0.1", port: 0 },
+  });
+  await server.listen();
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await page.goto(`${server.resolvedUrls!.local[0]}test/browser/index.html`);
+    await page.getByRole("heading", { name: "Records page" }).waitFor();
+    for (const width of [1280, 320]) {
+      await page.setViewportSize({ width, height: 800 });
+      for (const theme of ["light", "dark"]) {
+        await page.evaluate((value) => {
+          document.documentElement.dataset.theme = value;
+          document.documentElement.classList.toggle("dark", value === "dark");
+        }, theme);
+        for (const position of ["top", "bottom", "left", "right"] as const) {
+          await page.evaluate(
+            (value) => window.shellFixture.tabsPosition(value),
+            position
+          );
+          const tab = page.getByRole("tab", {
+            name: "Records tab",
+            exact: true,
+          });
+          await tab.waitFor();
+          // Enter by real keyboard traversal, then leave and return with Shift+Tab.
+          await page.getByRole("heading", { name: "Records page" }).click();
+          for (let step = 0; step < 60; step += 1) {
+            await page.keyboard.press("Tab");
+            if (await tab.evaluate((node) => node === document.activeElement)) {
+              break;
+            }
+          }
+          expect(
+            await tab.evaluate((node) => node.matches(":focus-visible"))
+          ).toBe(true);
+          await page.keyboard.press("Tab");
+          await page.keyboard.press("Shift+Tab");
+          expect(
+            await tab.evaluate((node) => node.matches(":focus-visible"))
+          ).toBe(true);
+          await page.waitForTimeout(180);
+          const bounds = (await tab.boundingBox())!;
+          const screenshot = await page.screenshot();
+          const edges = await tab.evaluate(async (node, png) => {
+            const rect = node.getBoundingClientRect();
+            const canvas = document.createElement("canvas");
+            canvas.width = innerWidth;
+            canvas.height = innerHeight;
+            const ctx = canvas.getContext("2d")!;
+            ctx.fillStyle = getComputedStyle(node).getPropertyValue("--focus");
+            ctx.fillRect(0, 0, 1, 1);
+            const expected = ctx.getImageData(0, 0, 1, 1).data;
+            const image = new Image();
+            image.src = `data:image/png;base64,${png}`;
+            await image.decode();
+            ctx.drawImage(image, 0, 0);
+            const pixels = ctx.getImageData(0, 0, innerWidth, innerHeight).data;
+            const hasRing = (x: number, y: number) => {
+              const index = (Math.floor(y) * innerWidth + Math.floor(x)) * 4;
+              return [0, 1, 2].every(
+                (channel) =>
+                  Math.abs(pixels[index + channel]! - expected[channel]!) < 28
+              );
+            };
+            return [
+              [rect.x + rect.width / 2, rect.y + 3],
+              [rect.x + rect.width / 2, rect.bottom - 3],
+              [rect.x + 3, rect.y + rect.height / 2],
+              [rect.right - 3, rect.y + rect.height / 2],
+            ].map(([x, y]) =>
+              [-1, 0, 1].some((dx) =>
+                [-1, 0, 1].some((dy) => hasRing(x! + dx, y! + dy))
+              )
+            );
+          }, screenshot.toString("base64"));
+          expect(edges).toEqual([true, true, true, true]);
+          expect(await tab.getAttribute("aria-selected")).toBe("true");
+          await tab.hover();
+          expect(await tab.boundingBox()).toEqual(bounds);
+          await page.mouse.down();
+          expect(await tab.boundingBox()).toEqual(bounds);
+          await page.mouse.up();
+        }
+      }
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}, 60_000);

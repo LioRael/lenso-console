@@ -237,6 +237,13 @@ export const shellStyles = stylex.create({
   },
   tabLink: {
     textDecorationLine: "none",
+    // Page tabs sit inside both the scrolling list and the island's moving
+    // rounded clip. Keep the two-layer keyboard ring inside the tab's bounds.
+    boxShadow: {
+      default: null,
+      ":focus-visible":
+        "inset 0 0 0 2px var(--background), inset 0 0 0 4px var(--focus)",
+    },
   },
   horizontalTabList: {
     padding: { default: 2, "@media (pointer: coarse)": 0 },
