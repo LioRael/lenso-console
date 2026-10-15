@@ -1,7 +1,0 @@
-{
-  "purpose": "Candidate-only unpublished integration archives. Baseline versions are not new registry releases. Remove overrides after separately approved publication.",
-  "auth_source_commit": "5a24698e7c5af1f9e369d6a2f4ee03b60c9380ba",
-  "archives": {
-    "auth-preflight-7d31f51658c9.tgz": "7d31f51658c9614d3122dfaff33e17bd09751914062fb06f2e4ce743817549b4"
-  }
-}

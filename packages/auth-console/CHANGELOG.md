@@ -1,5 +1,11 @@
 # @lenso/auth-console
 
+## 2.0.2
+
+### Patch Changes
+
+- Add independent OAuth consent and connected-application components with fenced transport and cancellable async lifecycle.
+
 ## 2.0.1
 
 ### Patch Changes

@@ -45,7 +45,7 @@ try {
   fs.mkdirSync(consumer);
   const dependencies = {
     "@lenso/audit": "0.3.3",
-    "@lenso/auth": "0.5.3",
+    "@lenso/auth": "0.5.4",
     "@lenso/auth-console": pack("packages/auth-console", "@lenso/auth-console"),
     "@lenso/console-dashboard": pack(
       "packages/console-dashboard",

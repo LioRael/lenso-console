@@ -1,5 +1,11 @@
 # @lenso/console
 
+## 2.1.8
+
+### Patch Changes
+
+- Align the exact Auth runtime to 0.5.4 for native-client OAuth consumers and preserve shared Auth error identities.
+
 ## 2.1.7
 
 ### Patch Changes
