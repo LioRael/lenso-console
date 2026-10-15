@@ -22,6 +22,27 @@ guarantee. This first store deliberately supports one user binding per subject
 and flat exact-Console permissions, not inheritance, expiring bindings or
 resource-limited graphs whose semantics the UI cannot project.
 
+Directory predicates are opt-in through `directory.statusFiltering` and
+`directory.nameFiltering`. The owner receives `usersList.status` and
+`usersList.name: { operator: "contains" | "equals", value }` and applies both
+before limit/cursor calculation, together with quick search. Name `contains` is
+case-insensitive and `equals` matches the complete display name exactly; the local
+example uses SQLite's case matching. The service rejects unsupported predicates
+and contradictory output rather than filtering a partial page.
+`info.supported.userStatusFilter` / `userNameFilter` project those capabilities
+to Identity's condition builder. Existing directories and unfiltered callers
+retain their contracts. These capabilities do not imply an age field or user CRUD.
+
+Directories may additionally opt into `directory.expressionFiltering`, projected as
+`info.supported.userFilterGroups`. This supports `usersList.filter: DirectoryFilter`:
+name/status leaves and recursive AND/OR groups, limited to four group levels and 50
+nodes. Identity then exposes repeated fields and nested groups. Empty editing groups
+are neutral, including inside OR; the service validates the complete request and
+rejects contradictory returned rows. Owners must evaluate parentheses before pagination,
+not filter one returned page. Legacy `status`/`name` parameters, when supplied, remain
+additional AND constraints. The local SQLite adapter uses whitelisted SQL fragments and
+bound values. Identity has no date-bearing directory field, so it exposes no date rule.
+
 Credential creation/rotation remains a protected human-only, one-time channel,
 not a generic Manage tool. The server and Console/MCP transports select the same
 installed service. See the [local assembly and Codex setup](../../examples/ts-console/README.md)

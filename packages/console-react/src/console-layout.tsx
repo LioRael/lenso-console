@@ -9,6 +9,8 @@ import {
 import { createPortal } from "react-dom";
 
 import { cornerStyles, layoutStyles } from "./console-layout.styles";
+import { ConsoleTableHost } from "./console-table-host";
+import type { ConsoleTableControls } from "./console-table-model";
 import { ConsoleTopEdge, type TopEdgeOptions } from "./console-top-edge";
 
 const ForegroundTarget = createContext<HTMLDivElement | null | undefined>(
@@ -104,6 +106,7 @@ function Foreground({
 
 export type ConsoleLayoutProps = ComponentProps<"div"> & {
   topEdge?: Partial<TopEdgeOptions>;
+  tableControls?: ConsoleTableControls;
   xstyle?: stylex.StyleXStyles;
 };
 
@@ -111,6 +114,7 @@ function Layout({
   children,
   className,
   topEdge,
+  tableControls,
   xstyle,
   style,
   ...props
@@ -129,32 +133,35 @@ function Layout({
         .filter(Boolean)
         .join(" ")}
     >
-      <ForegroundTarget.Provider value={target}>
-        <div
-          {...content}
-          className={`console-layout-content ${content.className}`}
-        >
-          {children}
-        </div>
-        <ConsoleTopEdge
-          {...(topEdge === undefined ? {} : { options: topEdge })}
-        />
-        <div
-          {...foreground}
-          className={`console-layout-foreground ${foreground.className}`}
-          ref={setTarget}
-        >
-          {(["topLeft", "topRight", "bottomLeft", "bottomRight"] as const).map(
-            (area) => (
+      <ConsoleTableHost controls={tableControls}>
+        <ForegroundTarget.Provider value={target}>
+          <div
+            {...content}
+            className={`console-layout-content ${content.className}`}
+          >
+            {children}
+          </div>
+          <ConsoleTopEdge
+            {...(topEdge === undefined ? {} : { options: topEdge })}
+          />
+          <div
+            {...foreground}
+            data-console-foreground=""
+            className={`console-layout-foreground ${foreground.className}`}
+            ref={setTarget}
+          >
+            {(
+              ["topLeft", "topRight", "bottomLeft", "bottomRight"] as const
+            ).map((area) => (
               <div
                 key={area}
                 data-console-area={area}
                 {...stylex.props(layoutStyles.cornerRegion, cornerStyles[area])}
               />
-            )
-          )}
-        </div>
-      </ForegroundTarget.Provider>
+            ))}
+          </div>
+        </ForegroundTarget.Provider>
+      </ConsoleTableHost>
     </div>
   );
 }

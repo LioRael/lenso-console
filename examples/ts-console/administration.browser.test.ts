@@ -61,6 +61,10 @@ test("compiled administration pages manage real isolated data and retire one-tim
     const colleague = "fixture-member@localhost.test";
     initializeLocalAdministration(config, [
       { subjectId: colleague, label: "Fixture member" },
+      ...Array.from({ length: 25 }, (_, index) => ({
+        subjectId: `paging-${index}@localhost.test`,
+        label: `Paging fixture ${index}`,
+      })),
     ]);
     const host = await createHost(config);
     app = await startApp(host.app);
@@ -93,6 +97,49 @@ test("compiled administration pages manage real isolated data and retire one-tim
     await page
       .getByRole("table", { name: "Identities", exact: true })
       .waitFor();
+    // The admitted host must expose real navigation without a fake page command.
+    await page
+      .getByRole("button", { name: "Console access", exact: true })
+      .click();
+    await page.getByRole("table", { name: "Members", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Identity", exact: true }).click();
+    await page
+      .getByRole("table", { name: "Identities", exact: true })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Search identities", exact: true })
+      .click();
+    expect(
+      await page
+        .getByRole("searchbox", { name: "Search identities" })
+        .evaluate(
+          (node) =>
+            node.closest<HTMLElement>("[data-console-corner]")?.dataset
+              .consoleCorner
+        )
+    ).toBe("topLeft");
+    expect(
+      await page
+        .getByRole("button", { name: "Next page", exact: true })
+        .evaluate(
+          (node) =>
+            node.closest<HTMLElement>("[data-console-corner]")?.dataset
+              .consoleCorner
+        )
+    ).toBe("bottomRight");
+    expect(
+      await page
+        .getByRole("button", { name: "Next page", exact: true })
+        .textContent()
+    ).toBe("");
+    expect(
+      await page
+        .getByRole("button", {
+          name: "Table controls: Identities",
+          exact: true,
+        })
+        .count()
+    ).toBe(0);
 
     for (const theme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: theme });
@@ -105,12 +152,294 @@ test("compiled administration pages manage real isolated data and retire one-tim
         height: 900,
       });
       await inBounds(page);
+      for (const control of [
+        page.getByRole("searchbox", { name: "Search identities" }),
+        page.getByRole("button", { name: "Next page", exact: true }),
+        page.getByRole("button", {
+          name: /^Filter identities:/,
+          exact: true,
+        }),
+      ]) {
+        if (!(await control.isDisabled())) {
+          await control.click({ trial: true });
+        }
+        expect(
+          await control.evaluate((node) => {
+            const rect = node.getBoundingClientRect();
+            return (
+              rect.left >= 0 &&
+              rect.right <= innerWidth &&
+              rect.top >= 0 &&
+              rect.bottom <= innerHeight &&
+              (node.matches(":disabled, [aria-disabled=true]") ||
+                node.contains(
+                  document.elementFromPoint(
+                    rect.left + rect.width / 2,
+                    rect.top + rect.height / 2
+                  )
+                ))
+            );
+          })
+        ).toBe(true);
+      }
     }
+    // Cursor navigation has no URL: the rendered control must support Enter,
+    // fetch the next real page, and honestly stop at the final cursor.
+    await page.getByRole("button", { name: "Next page", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() =>
+      document
+        .querySelector<HTMLButtonElement>('button[aria-label="Next page"]')
+        ?.matches(":disabled, [aria-disabled=true]")
+    );
+    expect(
+      await page
+        .getByRole("table", { name: "Identities", exact: true })
+        .getByRole("row")
+        .count()
+    ).toBe(3);
+    await page.getByRole("button", { name: "Next page", exact: true }).focus();
+    await page
+      .getByRole("tooltip")
+      .filter({ hasText: "No next page" })
+      .waitFor();
+    const doneFilters = async () => {
+      await page
+        .getByRole("button", { name: "Apply filters", exact: true })
+        .click();
+      await page
+        .getByRole("dialog", { name: "Filters", exact: true })
+        .waitFor({ state: "hidden" });
+      await page.waitForFunction(() =>
+        document.activeElement
+          ?.getAttribute("aria-label")
+          ?.startsWith("Filter identities:")
+      );
+    };
+    const editCondition = async (field: string) => {
+      await page
+        .getByRole("button", { name: /^Filter identities:/, exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: `Edit ${field} condition`, exact: true })
+        .click();
+    };
+    await page
+      .getByRole("button", { name: /^Filter identities:/, exact: true })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Add condition to group 1", exact: true })
+      .click();
+    await page.getByRole("option", { name: "Status", exact: true }).click();
+    await page
+      .getByRole("combobox", { name: "Value for Status", exact: true })
+      .click();
+    await page.getByRole("option", { name: "Disabled", exact: true }).click();
+    await doneFilters();
+    await page.getByText("No identities found.", { exact: true }).waitFor();
+    await editCondition("Status");
+    await page
+      .getByRole("combobox", { name: "Value for Status", exact: true })
+      .click();
+    await page.getByRole("option", { name: "Active", exact: true }).click();
+    await doneFilters();
+    await page
+      .getByRole("table", { name: "Identities", exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("table", { name: "Identities", exact: true })
+        .getByRole("row")
+        .count()
+    ).toBe(26);
+    await page
+      .getByRole("button", { name: /^Filter identities:/, exact: true })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Add condition to group 1", exact: true })
+      .click();
+    await page.getByRole("option", { name: "Name", exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Value for Name", exact: true })
+      .fill("Fixture member");
+    await page.keyboard.press("Enter");
+    await doneFilters();
+    await page
+      .getByRole("link", { name: "Fixture member", exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("table", { name: "Identities", exact: true })
+        .getByRole("row")
+        .count()
+    ).toBe(2);
+    const applied = page.getByRole("group", {
+      name: "Filter identities",
+      exact: true,
+    });
+    expect(
+      await applied
+        .getByRole("combobox", { name: "Filter logic", exact: true })
+        .count()
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: /^Filter identities:/, exact: true })
+      .click();
+    // Geometry alone misses a light Select surface with white text in a dark host.
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.waitForFunction(
+        (theme) => document.documentElement.dataset.theme === theme,
+        colorScheme
+      );
+      await page
+        .getByRole("combobox", { name: "Filter logic", exact: true })
+        .evaluate(async (node) => {
+          // Theme variables change before the library's surface transition finishes.
+          node.getBoundingClientRect();
+          await Promise.all(
+            node
+              .getAnimations({ subtree: true })
+              .map((animation) => animation.finished.catch(() => undefined))
+          );
+        });
+      const contrast = await page
+        .getByRole("combobox", { name: "Filter logic", exact: true })
+        .evaluate((node) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const paint = canvas.getContext("2d")!;
+          paint.fillStyle = "white";
+          paint.fillRect(0, 0, 1, 1);
+          const ancestors: Element[] = [];
+          for (
+            let element: Element | null = node;
+            element;
+            element = element.parentElement
+          ) {
+            ancestors.unshift(element);
+          }
+          for (const element of ancestors) {
+            paint.fillStyle = getComputedStyle(element).backgroundColor;
+            paint.fillRect(0, 0, 1, 1);
+          }
+          // Serialized browser evaluators cannot capture module-level helpers.
+          // eslint-disable-next-line unicorn/consistent-function-scoping
+          const luminance = (pixels: Uint8ClampedArray) => {
+            const channels = [pixels[0]!, pixels[1]!, pixels[2]!].map(
+              (value) => {
+                const channel = value / 255;
+                return channel <= 0.04045
+                  ? channel / 12.92
+                  : ((channel + 0.055) / 1.055) ** 2.4;
+              }
+            );
+            return (
+              channels[0]! * 0.2126 +
+              channels[1]! * 0.7152 +
+              channels[2]! * 0.0722
+            );
+          };
+          const background = luminance(paint.getImageData(0, 0, 1, 1).data);
+          paint.fillStyle = getComputedStyle(node).color;
+          paint.fillRect(0, 0, 1, 1);
+          const foreground = luminance(paint.getImageData(0, 0, 1, 1).data);
+          return {
+            ratio:
+              (Math.max(background, foreground) + 0.05) /
+              (Math.min(background, foreground) + 0.05),
+            color: getComputedStyle(node).color,
+            surface: getComputedStyle(node).backgroundColor,
+            background,
+            foreground,
+          };
+        });
+      expect(contrast.ratio).toBeGreaterThanOrEqual(4.5);
+    }
+    await doneFilters();
+    expect(
+      await applied.evaluate(
+        (node) =>
+          node.closest<HTMLElement>("[data-console-corner]")?.dataset
+            .consoleCorner
+      )
+    ).toBe("topRight");
+    await page
+      .getByRole("button", { name: "Search identities", exact: true })
+      .click();
+    const expandedSearch = page.getByRole("searchbox", {
+      name: "Search identities",
+      exact: true,
+    });
+    await expandedSearch.click({ trial: true });
+    const searchBounds = await expandedSearch.boundingBox();
+    const filterBounds = await applied.boundingBox();
+    expect(searchBounds!.width >= 180).toBe(true);
+    expect(
+      searchBounds!.x < filterBounds!.x + filterBounds!.width &&
+        searchBounds!.x + searchBounds!.width > filterBounds!.x &&
+        searchBounds!.y < filterBounds!.y + filterBounds!.height &&
+        searchBounds!.y + searchBounds!.height > filterBounds!.y
+    ).toBe(false);
+    await page.waitForFunction(
+      ({ table, search }) =>
+        !!table &&
+        !!search &&
+        table.getBoundingClientRect().top >=
+          search.getBoundingClientRect().bottom + 8,
+      {
+        table: await page
+          .getByRole("table", { name: "Identities", exact: true })
+          .elementHandle(),
+        search: await expandedSearch.elementHandle(),
+      }
+    );
+    await editCondition("Name");
+    await page
+      .getByRole("combobox", { name: "Rule for Name", exact: true })
+      .click();
+    await page.getByRole("option", { name: "equals", exact: true }).click();
+    await doneFilters();
+    await editCondition("Name");
+    await page
+      .getByRole("textbox", { name: "Value for Name", exact: true })
+      .fill("Fixture");
+    await page.keyboard.press("Enter");
+    await doneFilters();
+    await page.getByText("No identities found.", { exact: true }).waitFor();
+    await editCondition("Name");
+    await page
+      .getByRole("combobox", { name: "Rule for Name", exact: true })
+      .click();
+    await page.getByRole("option", { name: "contains", exact: true }).click();
+    await doneFilters();
+    await page
+      .getByRole("table", { name: "Identities", exact: true })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("table", { name: "Identities", exact: true })
+        .getByRole("row")
+        .count()
+    ).toBe(26);
+    for (const field of ["Name", "Status"]) {
+      await editCondition(field);
+      await page
+        .getByRole("button", { name: `Remove ${field} condition`, exact: true })
+        .click();
+      await doneFilters();
+    }
+    await page
+      .getByRole("button", { name: "Search identities", exact: true })
+      .click();
     await page
       .getByRole("searchbox", { name: "Search identities" })
       .fill("no-matching-fixture");
     await page.getByText("No identities found.", { exact: true }).waitFor();
-    await page.getByRole("searchbox", { name: "Search identities" }).fill("");
+    await page
+      .getByRole("button", { name: "Clear search identities", exact: true })
+      .click();
     await page
       .getByRole("link", { name: "Fixture member", exact: true })
       .click();
@@ -119,6 +448,14 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .waitFor();
     expect(page.url()).toContain("/identity/users/");
     await page.goto(`${origin}/access/`);
+    await page.getByRole("table", { name: "Members", exact: true }).waitFor();
+    expect(
+      await page
+        .getByRole("combobox", { name: "Existing identity", exact: true })
+        .isVisible()
+    ).toBe(false);
+    await page.getByText("Manage membership", { exact: true }).focus();
+    await page.keyboard.press("Enter");
     await page
       .getByRole("combobox", { name: "Existing identity", exact: true })
       .click();
@@ -150,6 +487,22 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .getByRole("table", { name: "Members", exact: true })
       .getByText(colleague, { exact: true })
       .waitFor();
+    // Wrapped subject IDs must remain readable and selecting a row must open its actual role.
+    const memberEntry = page.getByRole("button", {
+      name: colleague,
+      exact: true,
+    });
+    expect(
+      await memberEntry.evaluate(
+        (node) => node.scrollHeight <= node.clientHeight
+      )
+    ).toBe(true);
+    await memberEntry.click();
+    expect(
+      await page
+        .getByRole("combobox", { name: "Membership role", exact: true })
+        .textContent()
+    ).toMatch(/read.?only/i);
     await page.getByRole("tab", { name: "Roles", exact: true }).click();
     expect(page.url()).toContain("/access/roles");
     await page
@@ -183,6 +536,7 @@ test("compiled administration pages manage real isolated data and retire one-tim
       exact: true,
     });
     await roleEditor.waitFor();
+    await roleEditor.getByText("Edit permissions", { exact: true }).click();
     await roleEditor
       .getByRole("checkbox", { name: "users.read", exact: true })
       .uncheck();
@@ -197,15 +551,19 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .getByRole("button", { name: "Retry session", exact: true })
       .click();
     await roleEditor.waitFor();
+    await roleEditor.getByText("Edit permissions", { exact: true }).click();
     expect(
       await roleEditor
         .getByRole("checkbox", { name: "users.read", exact: true })
         .isChecked()
     ).toBe(false);
     await page.goto(`${origin}/agent-connections/`);
-    await page
-      .getByRole("button", { name: "Create token", exact: true })
-      .waitFor();
+    await page.getByText("Create personal token", { exact: true }).waitFor();
+    expect(
+      await page
+        .getByRole("button", { name: "Create token", exact: true })
+        .isVisible()
+    ).toBe(false);
     await inBounds(page);
     // Unit coverage cannot see Context Bar text wrapping in the compiled narrow Shell.
     const events = page.getByRole("tab", { name: "Events", exact: true });
@@ -246,7 +604,11 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .getByRole("table", { name: "Observed events", exact: true })
       .waitFor();
     expect(await events.getAttribute("aria-selected")).toBe("true");
+    expect(
+      await page.getByText("Connect an MCP client", { exact: true }).count()
+    ).toBe(0);
     await page.getByRole("tab", { name: "Tokens", exact: true }).click();
+    await page.getByText("Create personal token", { exact: true }).click();
     await page
       .getByRole("button", { name: "Create token", exact: true })
       .click();
@@ -347,6 +709,7 @@ test("compiled administration pages manage real isolated data and retire one-tim
       })
     );
     await page.goto(`${origin}/agent-connections/`);
+    await page.getByText("Create personal token", { exact: true }).click();
     await page
       .getByRole("button", { name: "Create token", exact: true })
       .click();

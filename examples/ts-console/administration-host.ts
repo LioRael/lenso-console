@@ -21,7 +21,9 @@ import {
   type AdministrationMethod,
   type AdministrationContext,
   type DirectoryUser,
-  type PageInput,
+  type DirectoryListInput,
+  type DirectoryFilter,
+  hasDirectoryConditions,
 } from "@lenso/auth-console/administration/server";
 import { createSessionAdministration } from "@lenso/auth/sessions";
 import type {
@@ -54,6 +56,25 @@ const instance = {
 };
 const administrationPath = (config: HostConfiguration) =>
   `${config.databasePath}.administration`;
+
+function directoryPredicate(
+  filter: DirectoryFilter,
+  values: (string | number | null)[]
+): string {
+  if ("children" in filter) {
+    const children = filter.children.filter(hasDirectoryConditions);
+    return children.length
+      ? `(${children.map((child) => directoryPredicate(child, values)).join(filter.operator === "and" ? " AND " : " OR ")})`
+      : "1";
+  }
+  values.push(filter.value);
+  if (filter.field === "status") {
+    return "status = ?";
+  }
+  return filter.operator === "equals"
+    ? "label = ?"
+    : "instr(lower(label), lower(?)) > 0";
+}
 
 type Row = { subject_id: string; label: string; status: "active" | "disabled" };
 function project(row: Row): DirectoryUser {
@@ -194,6 +215,9 @@ export function createLocalAdministrationState(config: HostConfiguration) {
         }
       };
       const directory = {
+        statusFiltering: true,
+        nameFiltering: true,
+        expressionFiltering: true,
         async read(subjectId: string, signal?: AbortSignal) {
           signal?.throwIfAborted();
           const row = database
@@ -203,14 +227,28 @@ export function createLocalAdministrationState(config: HostConfiguration) {
             .get(subjectId);
           return row ? project(row) : null;
         },
-        async list(input: PageInput, signal?: AbortSignal) {
+        async list(input: DirectoryListInput, signal?: AbortSignal) {
           signal?.throwIfAborted();
           const limit = Math.min(input.limit ?? 50, 100);
+          const values: (string | number | null)[] = [
+            input.cursor ?? "",
+            input.search ?? "",
+            input.status ?? null,
+            input.status ?? null,
+            input.name?.operator ?? null,
+            input.name?.operator ?? null,
+            input.name?.value ?? null,
+            input.name?.value ?? null,
+          ];
+          const predicate = input.filter
+            ? directoryPredicate(input.filter, values)
+            : "1";
+          values.push(limit + 1);
           const rows = database
-            .query<Row, [string, string, number]>(
-              "SELECT subject_id, label, status FROM local_console_directory WHERE subject_id > ? AND instr(lower(label), lower(?)) > 0 ORDER BY subject_id LIMIT ?"
+            .query<Row, (string | number | null)[]>(
+              `SELECT subject_id, label, status FROM local_console_directory WHERE subject_id > ? AND instr(lower(label), lower(?)) > 0 AND (? IS NULL OR status = ?) AND (? IS NULL OR CASE ? WHEN 'equals' THEN label = ? WHEN 'contains' THEN instr(lower(label), lower(?)) > 0 ELSE 0 END) AND ${predicate} ORDER BY subject_id LIMIT ?`
             )
-            .all(input.cursor ?? "", input.search ?? "", limit + 1);
+            .all(...values);
           return {
             items: rows.slice(0, limit).map(project),
             nextCursor:

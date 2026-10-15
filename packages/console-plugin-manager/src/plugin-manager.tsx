@@ -1,7 +1,12 @@
-import { bindConsole, ConsolePageScope } from "@lenso/console-react";
-import type {
-  ConsoleLocalPageProps,
-  ConsolePluginDefinition,
+import {
+  bindConsole,
+  ConsolePageScope,
+  ConsoleTableContext,
+  ConsoleTableSearch,
+  type ConsoleFilterGroup,
+  evaluateConsoleFilter,
+  type ConsoleLocalPageProps,
+  type ConsolePluginDefinition,
 } from "@lenso/console-react";
 import type { ConsoleClient } from "@lenso/console-sdk/protocol";
 import { Button } from "@lenso/ui/button";
@@ -225,127 +230,14 @@ export function pluginManagerConsole({
                 catalog.
               </p>
             ))}
-          {!detail &&
-            !loading &&
-            !loadError &&
-            snapshot &&
-            snapshot.targets.length === 0 && (
-              <p {...stylex.props(styles.notice)}>
-                No targets are visible to this client.
-              </p>
-            )}
-          {!detail &&
-            !loading &&
-            !loadError &&
-            snapshot?.targets.map((target) => {
-              const plugins = snapshot.plugins.filter(
-                (plugin) => plugin.targetId === target.id
-              );
-              return (
-                <section key={target.id} {...stylex.props(styles.target)}>
-                  <header {...stylex.props(styles.heading)}>
-                    <h2 {...stylex.props(styles.targetTitle)}>
-                      {target.label}
-                    </h2>
-                    <p {...stylex.props(styles.subtle)}>Target {target.id}</p>
-                  </header>
-                  {plugins.length === 0 ? (
-                    <p>No plugins are listed for this target.</p>
-                  ) : (
-                    <Table.Root variant="secondary">
-                      <Table.ScrollContainer>
-                        <Table.Content
-                          aria-label={`Plugins in ${target.label}`}
-                          xstyle={styles.table}
-                        >
-                          <Table.Header>
-                            <Table.Column
-                              columnKey="plugin"
-                              xstyle={styles.cell}
-                            >
-                              Plugin
-                            </Table.Column>
-                            <Table.Column
-                              columnKey="configuration"
-                              xstyle={styles.cell}
-                            >
-                              Configuration
-                            </Table.Column>
-                            <Table.Column
-                              columnKey="operations"
-                              xstyle={styles.cell}
-                            >
-                              Operations
-                            </Table.Column>
-                          </Table.Header>
-                          <Table.Body>
-                            {plugins.map((plugin) => {
-                              const operations = snapshot.operations.filter(
-                                (operation) =>
-                                  operation.targetId === target.id &&
-                                  operation.pluginId === plugin.id
-                              );
-                              return (
-                                <Table.Row key={plugin.id} itemKey={plugin.id}>
-                                  <Table.Cell
-                                    columnKey="plugin"
-                                    xstyle={styles.cell}
-                                  >
-                                    <Link
-                                      href={navigation.href("detail", {
-                                        targetId: target.id,
-                                        pluginId: plugin.id,
-                                      })}
-                                      xstyle={styles.pluginId}
-                                      onClick={(event) => {
-                                        if (
-                                          event.defaultPrevented ||
-                                          event.button !== 0 ||
-                                          event.metaKey ||
-                                          event.ctrlKey ||
-                                          event.shiftKey ||
-                                          event.altKey
-                                        ) {
-                                          return;
-                                        }
-                                        event.preventDefault();
-                                        if (
-                                          !signal.aborted &&
-                                          activation.isCurrent()
-                                        ) {
-                                          navigation.go("detail", {
-                                            targetId: target.id,
-                                            pluginId: plugin.id,
-                                          });
-                                        }
-                                      }}
-                                    >
-                                      {plugin.id}
-                                    </Link>
-                                  </Table.Cell>
-                                  <Table.Cell
-                                    columnKey="configuration"
-                                    xstyle={styles.cell}
-                                  >
-                                    {plugin.configuration.state}
-                                  </Table.Cell>
-                                  <Table.Cell
-                                    columnKey="operations"
-                                    xstyle={styles.cell}
-                                  >
-                                    {operations.length}
-                                  </Table.Cell>
-                                </Table.Row>
-                              );
-                            })}
-                          </Table.Body>
-                        </Table.Content>
-                      </Table.ScrollContainer>
-                    </Table.Root>
-                  )}
-                </section>
-              );
-            })}
+          {!detail && !loading && !loadError && snapshot && (
+            <PluginList
+              snapshot={snapshot}
+              navigation={navigation}
+              activation={activation}
+              signal={signal}
+            />
+          )}
           {!detail &&
             !loading &&
             !loadError &&
@@ -380,6 +272,197 @@ export function pluginManagerConsole({
     },
     services: catalog,
   });
+}
+
+function PluginList({
+  snapshot,
+  navigation,
+  activation,
+  signal,
+}: Pick<
+  ConsoleLocalPageProps<ConsoleClient>,
+  "navigation" | "activation" | "signal"
+> & { snapshot: Snapshot }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<ConsoleFilterGroup>({
+    id: "plugins",
+    operator: "and",
+    children: [],
+  });
+  const rows = snapshot.plugins.flatMap((plugin) => {
+    const target = snapshot.targets.find((item) => item.id === plugin.targetId);
+    if (
+      !target ||
+      !evaluateConsoleFilter(filter, (condition) => {
+        if (typeof condition.value !== "string") {
+          return false;
+        }
+        if (condition.field === "name") {
+          return condition.operator === "contains"
+            ? plugin.id.toLowerCase().includes(condition.value.toLowerCase())
+            : condition.operator === "equals" && plugin.id === condition.value;
+        }
+        return (
+          condition.operator === "equals" &&
+          ((condition.field === "target" && target.id === condition.value) ||
+            (condition.field === "configuration" &&
+              plugin.configuration.state === condition.value))
+        );
+      }) ||
+      !`${plugin.id} ${target.id} ${target.label} ${plugin.configuration.state}`
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase())
+    ) {
+      return [];
+    }
+    return [
+      {
+        plugin,
+        target,
+        count: snapshot.operations.filter(
+          (operation) =>
+            operation.targetId === target.id && operation.pluginId === plugin.id
+        ).length,
+      },
+    ];
+  });
+  return (
+    <ConsoleTableContext
+      scopeKey={activation.key}
+      label="Plugins"
+      filters={{
+        label: "Filter plugins",
+        value: filter,
+        onValueChange: setFilter,
+        fields: [
+          {
+            id: "name",
+            label: "Plugin name",
+            kind: "text",
+            operators: ["contains", "equals"],
+          },
+          ...(snapshot.targets.length > 1
+            ? [
+                {
+                  id: "target",
+                  label: "Target",
+                  kind: "enum" as const,
+                  options: snapshot.targets.map((target) => ({
+                    value: target.id,
+                    label: `${target.label} (${target.id})`,
+                  })),
+                },
+              ]
+            : []),
+          {
+            id: "configuration",
+            label: "Configuration",
+            kind: "enum",
+            options: [
+              { value: "resolved", label: "Resolved" },
+              { value: "unconfigured", label: "Unconfigured" },
+              { value: "unavailable", label: "Unavailable" },
+            ],
+          },
+        ],
+      }}
+      groups={[
+        {
+          id: "query",
+          kind: "query",
+          label: "Search",
+          children: (
+            <ConsoleTableSearch
+              label="Search plugins"
+              value={query}
+              onValueChange={setQuery}
+            />
+          ),
+        },
+      ]}
+    >
+      {rows.length ? (
+        <Table.Root variant="secondary">
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Plugins" xstyle={styles.table}>
+              <Table.Header>
+                <Table.Column columnKey="plugin" minWidth={160}>
+                  Plugin
+                </Table.Column>
+                <Table.Column columnKey="target" minWidth={120}>
+                  Target
+                </Table.Column>
+                <Table.Column columnKey="configuration" minWidth={120}>
+                  Configuration
+                </Table.Column>
+                <Table.Column columnKey="operations" width={110}>
+                  Operations
+                </Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {rows.map(({ plugin, target, count }) => (
+                  <Table.Row
+                    key={JSON.stringify([target.id, plugin.id])}
+                    itemKey={JSON.stringify([target.id, plugin.id])}
+                  >
+                    <Table.Cell columnKey="plugin" xstyle={styles.cell}>
+                      <Link
+                        href={navigation.href("detail", {
+                          targetId: target.id,
+                          pluginId: plugin.id,
+                        })}
+                        xstyle={styles.pluginId}
+                        onClick={(event) => {
+                          if (
+                            event.defaultPrevented ||
+                            event.button !== 0 ||
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                          ) {
+                            return;
+                          }
+                          event.preventDefault();
+                          if (!signal.aborted && activation.isCurrent()) {
+                            navigation.go("detail", {
+                              targetId: target.id,
+                              pluginId: plugin.id,
+                            });
+                          }
+                        }}
+                      >
+                        {plugin.id}
+                      </Link>
+                    </Table.Cell>
+                    <Table.Cell columnKey="target" xstyle={styles.cell}>
+                      {target.label}
+                      <p {...stylex.props(styles.subtle)}>{target.id}</p>
+                    </Table.Cell>
+                    <Table.Cell columnKey="configuration" xstyle={styles.cell}>
+                      {plugin.configuration.state}
+                    </Table.Cell>
+                    <Table.Cell columnKey="operations" xstyle={styles.cell}>
+                      {count}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+          <Table.Footer>{rows.length} visible plugins</Table.Footer>
+        </Table.Root>
+      ) : (
+        <p>
+          {snapshot.targets.length === 0
+            ? "No targets are visible to this client."
+            : query || filter.children.length > 0
+              ? "No plugins match these search and filter conditions."
+              : "No plugins are listed for these targets."}
+        </p>
+      )}
+    </ConsoleTableContext>
+  );
 }
 
 function PluginDetails({

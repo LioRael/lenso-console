@@ -6,13 +6,14 @@ Use this matrix before choosing recipes. Public export availability is necessary
 | --- | --- | --- |
 | Controlled `createConsolePageContext<T>()` | Supported with its Provider | Supported with its Provider |
 | `ConsoleLayout.Corner` / `Foreground` | Shell supplies layout | Admitted/preview hosts supply layout |
+| `ConsoleTableContext` semantic groups and table arbitration | Layout supplies one shared coordinator | Supported inside the updated Layout; check the installed artifact |
 | Selection `ConsoleActionScope` | Shell renders selection | Hosts render selection through `ConsoleActionHost` and `ConsoleDock` |
 | `ConsolePageScope` commands and hidden/tabs/object/return Context Bar | Shell consumes page contribution and presents Command/Context Bar | Updated candidate admission and preview hosts consume both projections through `ConsoleInteractionHost` |
 | Plugin `dockViews` / `ConsoleDockContent` bar and tray | Explicit local bindings selected by `ConsoleShell.dock.leading` | Not installed by compiled descriptors or `ConsoleInteractionHost` |
 
 Check the consuming host and its installed artifact, not just the package version or export. Older admission/preview artifacts render selection only. Require an updated host using `ConsoleInteractionHost` (or an equivalent verified consumer) before promising page Command/Context Bar. These candidate changes are not proof of a published release.
 
-The admitted/preview interaction host offers opt-in page commands and selection at the shared Dock, with explicit hidden/tabs/object/return context. It does not invent local Shell destinations, presets or an editor. Those remain host-owned. SDK navigation still uses segment arrays; tab hrefs come from `navigation.href(segments)`.
+The admitted/preview interaction host offers page commands and selection at the shared Dock, with explicit hidden/tabs/object/return context. Its optional `destinations` are supplied by the host; production admission derives them from authorized mounts. It does not discover destinations or supply a navigation preference store/editor. SDK navigation still uses segment arrays; tab hrefs come from `navigation.href(segments)`.
 
 ## Public boundary and evidence
 
@@ -33,33 +34,23 @@ SDK `PageProps` supplies admitted services and mount/location data; navigation u
 
 ## Contextual design capability boundary
 
-Source check for this design update: verified remote main snapshot `608c5c1`. Recheck
-these contracts in the consuming artifact before page implementation. All names
-below are current public primitives, not the proposed table/scenario preset API.
+The current local candidate adds a table-specific coordinator; this is not proof
+of a published release. Recheck the installed artifact before page implementation.
 
 | Design need | Verified capability / boundary |
 | --- | --- |
 | Corner query or pagination groups | [ConsoleLayout](../../../../packages/console-react/src/console-layout.tsx): `Corner` takes `area`, React `children`, `active`, `xstyle`; it portals composed controls. It does not arbitrate contexts or declare semantic groups. Use accessible React/library composition for group meaning; no invented `group` prop. |
+| Table context and semantic operation groups | [ConsoleTableContext](../../../../packages/console-react/src/console-table-context.tsx): `scopeKey`, `label`, `mode`, `groups`, `filters`, `locked`, content children. Query/filter/insertion/view/navigation/commit kinds have overridable default placements. `filters` projects conditions and actions together as one semantic corner group, with measured wrapping and content clearance. Layout owns observation, focus/explicit precedence, dwell, hysteresis and retirement. See the [table controls contract](../../../../packages/console-react/README.md#table-controls-and-contextual-defaults). |
 | Necessary icon-only button | [ConsoleIconButton](../../../../packages/console-react/src/console-icon-button.tsx): `label`, optional `tooltip`, SVG children; supplies accessible name and tooltip composition. Pagination is composed separately, not forced through this button. |
 | Page facts and task context | [Page context](../../../../packages/console-react/src/console-page-context.tsx) and [scopes](../../../../packages/console-react/src/console-action-scope.tsx): controlled Provider/activation plus `ConsolePageScope` context/commands. Context kinds are hidden/tabs/object with supported return; there is no table-context kind or viewport policy. |
 | Multi-select Dock transformation | `ConsoleActionScope` publishes `ConsoleDockSelection`: count, scopeLabel, flat actions, running/blocked and exit. [Dock](../../../../packages/console-react/src/console-dock.tsx) renders selection; the current action type has no arbitrary semantic-group registry. Existing host ownership checks prevent stale owners executing/clearing a successor; they are not focus/viewport arbitration. |
 | Host presentation | [Local Shell](../../../../packages/console-react/src/console-shell.tsx) consumes page/selection contributions and page groups; [interaction host](../../../../packages/console-react/src/console-interaction-host.tsx) consumes admitted/preview projections. [Admission](../../../../plugins/console/shell/src/app/console-admission.tsx) mounts that host. Check installation: importing the public export alone does not install a renderer. |
-| User customization | Local Shell preferences cover navigation Dock collections/position/mode and tab placement. They do not implement arbitrary per-context corner layouts or scenario presets. Custom design requests guide composition within supported contracts; persistence of new layout choices requires host scope. |
+| User customization | Business pages have no layout editor by default. Hosts can enable `tableControls.customization` for automatic/explicit context and per-kind corner or inline placement. `ConsoleLayout.tableControls` / `ConsoleShell.tableControls` accept a controlled placement map and change handler. Durable preferences remain host-owned and separate from navigation presets. |
 
-### Minimum extension needed (design proposal only)
+### Remaining boundaries
 
-The missing capability is a Shell-owned contextual operation coordinator: a small
-content-owner declaration for identity/target and operation groups; one active
-owner; page fallback; viewport eligibility with tunable enter/exit hysteresis and
-brief dwell; real focus/explicit-choice precedence and interaction locks; cleanup
-on retirement. Shell, not each plugin, should own positioning and observation.
-A semantic-group presentation contract would also be needed where a flat selection
-array cannot faithfully express group boundaries. If persistent user-defined
-corner placements are required, add a bounded host preference contract separately.
-
-No callable coordinator, automatic table/chart focus hook, generic group registry
-or scenario preset is verified in this snapshot. These are the smallest design
-extensions to discuss, not exported names or implementation instructions. This
-skill update does not implement them. Report a missing capability and its concrete
-minimum extension; do not claim the recommended combinations can be invoked as a
-preset, patch private Shell internals, or quietly add misleading fallback buttons.
+The coordinator is table-specific, not a chart observer or universal scenario
+registry. It does not change selection-Dock action types, business state or
+authorization. Persistent placement storage needs host integration. Existing
+callers of raw `Corner` remain independent; migrate a page's related table groups
+together rather than mixing competing projections.

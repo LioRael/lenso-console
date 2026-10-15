@@ -45,6 +45,14 @@ empty when the source graph supplies StyleX, so pairing it with compiled JS lose
 layout and focus rules. Rebuild Console React after Shell changes.
 SDK/type exports and infrastructure styles still require the initial builds above.
 
+The full-page Subjects, Orders Manage and By status views share Console's corner
+search and transactional filter-state control. Queries operate on complete
+authorized client snapshots, not on one server page. Applied order queries clear
+the bulk selection; drafts and cancellation do not. Status percentages retain
+the complete order snapshot as their denominator. Sessions keep their real
+forward cursor controls and do not pretend to support server-side filtering.
+Orders Overview and detail/diagnostic tables retain their embedded or mixed roles.
+
 Focused validation:
 
 ```sh

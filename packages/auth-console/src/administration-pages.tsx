@@ -2,6 +2,12 @@ import {
   ConsoleIconButton,
   ConsoleLayout,
   ConsolePageScope,
+  ConsoleTableContext,
+  ConsoleTableSearch,
+  type ConsoleFilterCondition,
+  type ConsoleFilterField,
+  type ConsoleFilterGroup,
+  type ConsoleFilterNode,
 } from "@lenso/console-react";
 // Records invokes its cell formatters, never mounts them as React component types.
 /* eslint-disable react/no-unstable-nested-components */
@@ -15,6 +21,7 @@ import { AlertDialog } from "@lenso/ui/alert-dialog";
 import { Button } from "@lenso/ui/button";
 import { Checkbox } from "@lenso/ui/checkbox";
 import { Input } from "@lenso/ui/input";
+import { Pagination } from "@lenso/ui/pagination";
 import { SearchField } from "@lenso/ui/search-field";
 import { Select } from "@lenso/ui/select";
 import { Table } from "@lenso/ui/table";
@@ -37,6 +44,7 @@ import type {
   ConsoleRole,
   CredentialDelivery,
   DirectoryUser,
+  DirectoryFilter,
 } from "./administration-contracts";
 import { readOnlyAdministrationActions } from "./administration-contracts";
 import { administrationStyles as s } from "./administration-styles";
@@ -248,58 +256,82 @@ function Records<T>({
   items,
   columns,
   rowKey,
+  navigation,
+  mode = "embedded",
 }: {
   label: string;
   items: readonly T[];
   rowKey: (item: T) => string;
+  navigation?: ReactNode;
+  mode?: "page" | "embedded";
   columns: readonly {
     id: string;
     label: string;
     render: (item: T) => ReactNode;
   }[];
 }) {
-  if (!items.length) {
-    return <p>No {label.toLowerCase()} found.</p>;
-  }
-  return (
-    <Table.Root variant="secondary">
-      <Table.ScrollContainer>
-        <Table.Content aria-label={label} xstyle={s.table}>
-          <Table.Header>
-            {columns.map((column) => (
-              <Table.Column
-                key={column.id}
-                columnKey={column.id}
-                minWidth={120}
-              >
-                {column.label}
-              </Table.Column>
-            ))}
-          </Table.Header>
-          <Table.Body>
-            {items.map((item) => (
-              <Table.Row
-                key={rowKey(item)}
-                itemKey={rowKey(item)}
-                textValue={rowKey(item)}
-              >
-                {columns.map((column) => (
-                  <Table.Cell
-                    key={column.id}
-                    columnKey={column.id}
-                    xstyle={s.cell}
-                  >
-                    <div {...stylex.props(s.cellText)}>
-                      {column.render(item)}
-                    </div>
-                  </Table.Cell>
-                ))}
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
-    </Table.Root>
+  const workspace = useWorkspace();
+  const content =
+    items.length === 0 ? (
+      <p>No {label.toLowerCase()} found.</p>
+    ) : (
+      <Table.Root variant="secondary">
+        <Table.ScrollContainer>
+          <Table.Content aria-label={label} xstyle={s.table}>
+            <Table.Header>
+              {columns.map((column) => (
+                <Table.Column
+                  key={column.id}
+                  columnKey={column.id}
+                  minWidth={120}
+                >
+                  {column.label}
+                </Table.Column>
+              ))}
+            </Table.Header>
+            <Table.Body>
+              {items.map((item) => (
+                <Table.Row
+                  key={rowKey(item)}
+                  itemKey={rowKey(item)}
+                  textValue={rowKey(item)}
+                >
+                  {columns.map((column) => (
+                    <Table.Cell
+                      key={column.id}
+                      columnKey={column.id}
+                      xstyle={s.cell}
+                    >
+                      <div {...stylex.props(s.cellText)}>
+                        {column.render(item)}
+                      </div>
+                    </Table.Cell>
+                  ))}
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table.Root>
+    );
+  return navigation ? (
+    <ConsoleTableContext
+      scopeKey={workspace.activation?.key ?? workspace.mount.id}
+      label={label}
+      mode={mode}
+      groups={[
+        {
+          id: "navigation",
+          kind: "navigation",
+          label: "Pagination",
+          children: navigation,
+        },
+      ]}
+    >
+      {content}
+    </ConsoleTableContext>
+  ) : (
+    content
   );
 }
 function Search({
@@ -334,15 +366,37 @@ function Search({
 function Next({
   cursor,
   next,
+  count,
 }: {
   cursor: string | null | undefined;
   next: (cursor: string) => void;
+  count?: number;
 }) {
-  return cursor ? (
-    <Button variant="secondary" onClick={() => next(cursor)} xstyle={s.control}>
-      Next page
-    </Button>
-  ) : null;
+  const disabled = !cursor;
+  return (
+    <Pagination aria-label="Cursor pagination" xstyle={s.pagination}>
+      {count !== undefined && (
+        <Pagination.Summary>{count} on this page</Pagination.Summary>
+      )}
+      <Pagination.Content>
+        <Pagination.Item>
+          <ConsoleIconButton
+            label="Next page"
+            tooltip={disabled ? "No next page" : "Next page"}
+            variant="secondary"
+            disabled={disabled}
+            onClick={() => {
+              if (cursor) {
+                return next(cursor);
+              }
+            }}
+          >
+            <Pagination.NextIcon />
+          </ConsoleIconButton>
+        </Pagination.Item>
+      </Pagination.Content>
+    </Pagination>
+  );
 }
 function Choice({
   label,
@@ -602,13 +656,101 @@ export function IdentityPage(props: IdentityPageProps) {
     </Frame>
   );
 }
+function identityFilterInput(
+  conditions: readonly ConsoleFilterCondition[]
+): Pick<AdministrationInputs["usersList"], "status" | "name"> {
+  const statusCondition = conditions.find(
+    (condition) => condition.field === "status"
+  );
+  const status =
+    statusCondition?.operator === "equals" &&
+    (statusCondition.value === "active" ||
+      statusCondition.value === "disabled" ||
+      statusCondition.value === "external")
+      ? statusCondition.value
+      : undefined;
+  const nameCondition = conditions.find(
+    (condition) => condition.field === "name"
+  );
+  const name =
+    nameCondition &&
+    (nameCondition.operator === "contains" ||
+      nameCondition.operator === "equals")
+      ? { operator: nameCondition.operator, value: nameCondition.value }
+      : undefined;
+  return { ...(status ? { status } : {}), ...(name ? { name } : {}) };
+}
+
+function identityFilterFields(info: AdministrationInfo): ConsoleFilterField[] {
+  const fields: ConsoleFilterField[] = [];
+  if (info.supported.userNameFilter || info.supported.userFilterGroups) {
+    fields.push({
+      id: "name",
+      label: "Name",
+      kind: "text",
+      operators: ["contains", "equals"],
+      maxLength: 512,
+    });
+  }
+  if (info.supported.userStatusFilter || info.supported.userFilterGroups) {
+    fields.push({
+      id: "status",
+      label: "Status",
+      kind: "enum",
+      options: [
+        { value: "active", label: "Active" },
+        { value: "disabled", label: "Disabled" },
+        { value: "external", label: "External" },
+      ],
+    });
+  }
+  return fields;
+}
+
+function identityFilterTree(node: ConsoleFilterNode): DirectoryFilter {
+  if ("children" in node) {
+    return {
+      operator: node.operator,
+      children: node.children.map(identityFilterTree),
+    };
+  }
+  if (
+    node.field === "name" &&
+    (node.operator === "contains" || node.operator === "equals")
+  ) {
+    return { field: "name", operator: node.operator, value: node.value };
+  }
+  if (
+    node.field === "status" &&
+    node.operator === "equals" &&
+    (node.value === "active" ||
+      node.value === "disabled" ||
+      node.value === "external")
+  ) {
+    return { field: "status", operator: "equals", value: node.value };
+  }
+  throw new Error("Unsupported directory filter");
+}
+
 function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
   const workspace = useWorkspace();
   const [search, setSearch] = useState("");
+  const [conditions, setConditions] = useState<
+    readonly ConsoleFilterCondition[]
+  >([]);
+  const [filter, setFilter] = useState<ConsoleFilterGroup>({
+    id: "identities",
+    operator: "and",
+    children: [],
+  });
   const [cursor, setCursor] = useState<string>();
   const [selected, setSelected] = useState<string>();
+  const fields = identityFilterFields(props.info);
   const read = useRead(props.client, "usersList", {
     search,
+    ...(props.info.supported.userFilterGroups
+      ? { filter: identityFilterTree(filter) }
+      : identityFilterInput(conditions)),
     ...(cursor ? { cursor } : {}),
     limit: 25,
   });
@@ -630,81 +772,135 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
         scopeKey={workspace.activation?.key ?? workspace.mount.id}
         value={{ context: { kind: "object", label: "Identities" } }}
       />
-      <Search
-        label="Search identities"
-        value={search}
-        change={(value) => {
-          setSearch(value);
-          setCursor(undefined);
-        }}
-      />
-      <ReadState read={read}>
-        {read.data && (
-          <>
-            <Records
-              label="Identities"
-              items={read.data.items}
-              rowKey={(user) => `${user.realmId}:${user.subjectId}`}
-              columns={[
+      <ConsoleTableContext
+        scopeKey={workspace.activation?.key ?? workspace.mount.id}
+        label="Identities"
+        filters={
+          fields.length > 0
+            ? {
+                label: "Filter identities",
+                ...(props.info.supported.userFilterGroups
+                  ? {
+                      value: filter,
+                      onValueChange: (value: ConsoleFilterGroup) => {
+                        setFilter(value);
+                        setCursor(undefined);
+                      },
+                    }
+                  : {
+                      conditions,
+                      onConditionsChange: (
+                        value: readonly ConsoleFilterCondition[]
+                      ) => {
+                        setConditions(value);
+                        setCursor(undefined);
+                      },
+                    }),
+                fields,
+              }
+            : undefined
+        }
+        groups={[
+          {
+            id: "query",
+            kind: "query",
+            label: "Search",
+            children: (
+              <ConsoleTableSearch
+                label="Search identities"
+                value={search}
+                onValueChange={(value) => {
+                  setSearch(value);
+                  setCursor(undefined);
+                }}
+              />
+            ),
+          },
+          ...(read.data && !read.error
+            ? [
                 {
-                  id: "name",
-                  label: "Identity",
-                  render: (user) =>
-                    props.info.allowed.includes("users.read") ? (
-                      props.identityHref ? (
-                        <a
-                          href={props.identityHref(user.subjectId)}
-                          onClick={(event) => {
-                            if (
-                              props.onNavigate &&
-                              event.button === 0 &&
-                              !event.metaKey &&
-                              !event.ctrlKey &&
-                              !event.shiftKey &&
-                              !event.altKey
-                            ) {
-                              event.preventDefault();
-                              props.onNavigate(
-                                props.identityHref!(user.subjectId)
-                              );
-                            }
-                          }}
-                        >
-                          {user.label}
-                        </a>
+                  id: "navigation",
+                  kind: "navigation" as const,
+                  label: "Pagination",
+                  children: (
+                    <Next
+                      cursor={read.data.nextCursor}
+                      next={setCursor}
+                      count={read.data.items.length}
+                    />
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      >
+        <ReadState read={read}>
+          {read.data && (
+            <>
+              <Records
+                label="Identities"
+                items={read.data.items}
+                rowKey={(user) => `${user.realmId}:${user.subjectId}`}
+                columns={[
+                  {
+                    id: "name",
+                    label: "Identity",
+                    render: (user) =>
+                      props.info.allowed.includes("users.read") ? (
+                        props.identityHref ? (
+                          <a
+                            href={props.identityHref(user.subjectId)}
+                            onClick={(event) => {
+                              if (
+                                props.onNavigate &&
+                                event.button === 0 &&
+                                !event.metaKey &&
+                                !event.ctrlKey &&
+                                !event.shiftKey &&
+                                !event.altKey
+                              ) {
+                                event.preventDefault();
+                                props.onNavigate(
+                                  props.identityHref!(user.subjectId)
+                                );
+                              }
+                            }}
+                          >
+                            {user.label}
+                          </a>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            onClick={() => setSelected(user.subjectId)}
+                          >
+                            {user.label}
+                          </Button>
+                        )
                       ) : (
-                        <Button
-                          variant="ghost"
-                          onClick={() => setSelected(user.subjectId)}
-                        >
-                          {user.label}
-                        </Button>
-                      )
-                    ) : (
-                      user.label
-                    ),
-                },
-                {
-                  id: "subject",
-                  label: "Subject",
-                  render: (user) => user.subjectId,
-                },
-                {
-                  id: "source",
-                  label: "Source",
-                  render: (user) => user.source,
-                },
-                {
-                  id: "status",
-                  label: "Status",
-                  render: (user) => user.status,
-                },
-              ]}
-            />
-            <Next cursor={read.data.nextCursor} next={setCursor} />
-          </>
-        )}
-      </ReadState>
+                        user.label
+                      ),
+                  },
+                  {
+                    id: "subject",
+                    label: "Subject",
+                    render: (user) => user.subjectId,
+                  },
+                  {
+                    id: "source",
+                    label: "Source",
+                    render: (user) => user.source,
+                  },
+                  {
+                    id: "status",
+                    label: "Status",
+                    render: (user) => user.status,
+                  },
+                ]}
+              />
+            </>
+          )}
+        </ReadState>
+      </ConsoleTableContext>
     </div>
   );
 }
@@ -848,6 +1044,13 @@ function IdentitySessions({
           <>
             <Records
               label="Sessions"
+              navigation={
+                <Next
+                  cursor={read.data.nextCursor}
+                  next={setCursor}
+                  count={read.data.items.length}
+                />
+              }
               items={read.data.items}
               rowKey={(item) => item.id}
               columns={[
@@ -904,7 +1107,6 @@ function IdentitySessions({
                 },
               ]}
             />
-            <Next cursor={read.data.nextCursor} next={setCursor} />
           </>
         )}
       </ReadState>
@@ -940,6 +1142,8 @@ function Access({
   const [subject, setSubject] = useState("");
   const [roleId, setRoleId] = useState("");
   const [creatingRole, setCreatingRole] = useState(false);
+  const [editingMembership, setEditingMembership] = useState(false);
+  const membershipEntry = useRef<HTMLElement>(null);
   return (
     <div {...stylex.props(s.section)}>
       <AdministrationTabs
@@ -967,94 +1171,133 @@ function Access({
       <ReadState read={read}>
         {read.data && (
           <>
-            <Facts
-              entries={[
-                ["Console", read.data.consoleId],
-                ["Tenant", read.data.tenantId],
-                ["Revision", read.data.revision],
-              ]}
-            />
+            <header {...stylex.props(s.pageHeader)}>
+              <h2 {...stylex.props(s.heading)}>
+                {tab === "members" ? "Console members" : "Access roles"}
+              </h2>
+              <p {...stylex.props(s.description)}>
+                {tab === "members"
+                  ? "Manage who can access this Console and the role assigned to each member."
+                  : "Review reusable permission sets. Changes to a role affect every member assigned to it."}
+              </p>
+              <details {...stylex.props(s.scopeDetails)}>
+                <summary {...stylex.props(s.summary)}>Access scope</summary>
+                <Facts
+                  entries={[
+                    ["Console", read.data.consoleId],
+                    ["Tenant", read.data.tenantId],
+                    ["Revision", read.data.revision],
+                  ]}
+                />
+              </details>
+            </header>
             {tab === "members" ? (
               <>
-                {info.allowed.includes("users.list") && (
-                  <DirectoryPicker
-                    client={client}
-                    value={subject}
-                    change={setSubject}
-                  />
-                )}
-                {subject && <p>Selected subject: {subject}</p>}
-                {(info.allowed.includes("members.write") ||
-                  info.allowed.includes("members.promote")) && (
-                  <div {...stylex.props(s.row)}>
-                    <Choice
-                      label="Membership role"
-                      value={roleId}
-                      change={setRoleId}
-                      disabled={writes.disabled}
-                      options={read.data.roles.map((role) => ({
-                        value: role.id,
-                        label: role.label,
-                      }))}
-                    />
-                    {info.allowed.includes("members.write") && (
-                      <Button
-                        variant="primary"
-                        disabled={
-                          writes.disabled ||
-                          read.refreshing ||
-                          !subject ||
-                          !roleId ||
-                          !!read.data.roles
-                            .find((role) => role.id === roleId)
-                            ?.permissions.some(
-                              (action) =>
-                                !readOnlyAdministrationActions.includes(action)
-                            )
-                        }
-                        onClick={() => {
-                          const input = {
-                            subjectId: subject,
-                            roleId,
-                            expectedRevision: read.data!.revision,
-                          };
-                          writes.confirm(
-                            "Grant or update membership?",
-                            `Assign role ${roleId} to ${subject} in ${info.consoleId}. Privilege elevation requires the separate promotion action.`,
-                            () => client.invoke("membersSet", input)
-                          );
-                        }}
-                      >
-                        Grant membership
-                      </Button>
+                <details
+                  open={editingMembership}
+                  onToggle={(event) =>
+                    setEditingMembership(event.currentTarget.open)
+                  }
+                  {...stylex.props(s.disclosure)}
+                >
+                  <summary ref={membershipEntry} {...stylex.props(s.summary)}>
+                    Manage membership
+                  </summary>
+                  <div {...stylex.props(s.editor)}>
+                    <p {...stylex.props(s.description)}>
+                      Select an existing identity and a role. Elevated
+                      permissions require the separate promotion action.
+                    </p>
+                    {info.allowed.includes("users.list") && (
+                      <DirectoryPicker
+                        client={client}
+                        value={subject}
+                        change={setSubject}
+                      />
                     )}
-                    {info.allowed.includes("members.promote") && (
-                      <Button
-                        variant="danger-soft"
-                        disabled={
-                          writes.disabled ||
-                          read.refreshing ||
-                          !subject ||
-                          !roleId
-                        }
-                        onClick={() => {
-                          const input = {
-                            subjectId: subject,
-                            roleId,
-                            expectedRevision: read.data!.revision,
-                          };
-                          writes.confirm(
-                            "Promote member: sensitive access change",
-                            `Elevate ${subject} to ${roleId} in Console ${info.consoleId}, tenant ${info.tenantId}. Review the role permissions before confirming.`,
-                            () => client.invoke("membersPromote", input)
-                          );
-                        }}
-                      >
-                        Promote member
-                      </Button>
+                    {subject && <p>Selected subject: {subject}</p>}
+                    {(info.allowed.includes("members.write") ||
+                      info.allowed.includes("members.promote")) && (
+                      <div {...stylex.props(s.row)}>
+                        <Choice
+                          label="Membership role"
+                          value={roleId}
+                          change={setRoleId}
+                          disabled={writes.disabled}
+                          options={read.data.roles.map((role) => ({
+                            value: role.id,
+                            label: role.label,
+                          }))}
+                        />
+                        {info.allowed.includes("members.write") && (
+                          <Button
+                            variant="primary"
+                            disabled={
+                              writes.disabled ||
+                              read.refreshing ||
+                              !subject ||
+                              !roleId ||
+                              !!read.data.roles
+                                .find((role) => role.id === roleId)
+                                ?.permissions.some(
+                                  (action) =>
+                                    !readOnlyAdministrationActions.includes(
+                                      action
+                                    )
+                                )
+                            }
+                            onClick={() => {
+                              const input = {
+                                subjectId: subject,
+                                roleId,
+                                expectedRevision: read.data!.revision,
+                              };
+                              writes.confirm(
+                                "Grant or update membership?",
+                                `Assign role ${roleId} to ${subject} in ${info.consoleId}. Privilege elevation requires the separate promotion action.`,
+                                () => client.invoke("membersSet", input)
+                              );
+                            }}
+                          >
+                            Grant membership
+                          </Button>
+                        )}
+                        {info.allowed.includes("members.promote") && (
+                          <Button
+                            variant="danger-soft"
+                            disabled={
+                              writes.disabled ||
+                              read.refreshing ||
+                              !subject ||
+                              !roleId
+                            }
+                            onClick={() => {
+                              const input = {
+                                subjectId: subject,
+                                roleId,
+                                expectedRevision: read.data!.revision,
+                              };
+                              writes.confirm(
+                                "Promote member: sensitive access change",
+                                `Elevate ${subject} to ${roleId} in Console ${info.consoleId}, tenant ${info.tenantId}. Review the role permissions before confirming.`,
+                                () => client.invoke("membersPromote", input)
+                              );
+                            }}
+                          >
+                            Promote member
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {subject && info.allowed.includes("permissions.read") && (
+                      <Permissions
+                        key={subject}
+                        client={client}
+                        subjectId={subject}
+                      />
                     )}
                   </div>
-                )}
+                </details>
                 <Records
                   label="Members"
                   items={read.data.members}
@@ -1066,8 +1309,13 @@ function Access({
                       render: (member) => (
                         <Button
                           variant="ghost"
-                          xstyle={s.cellText}
-                          onClick={() => setSubject(member.subjectId)}
+                          xstyle={[s.cellText, s.subjectButton]}
+                          onClick={() => {
+                            setSubject(member.subjectId);
+                            setRoleId(member.roleId);
+                            setEditingMembership(true);
+                            membershipEntry.current?.focus();
+                          }}
                         >
                           <span {...stylex.props(s.cellText)}>
                             {member.subjectId}
@@ -1083,7 +1331,10 @@ function Access({
                     {
                       id: "role",
                       label: "Role",
-                      render: (member) => member.roleId,
+                      render: (member) =>
+                        read.data!.roles.find(
+                          (role) => role.id === member.roleId
+                        )?.label ?? member.roleId,
                     },
                     {
                       id: "status",
@@ -1122,13 +1373,6 @@ function Access({
                     },
                   ]}
                 />
-                {subject && info.allowed.includes("permissions.read") && (
-                  <Permissions
-                    key={subject}
-                    client={client}
-                    subjectId={subject}
-                  />
-                )}
               </>
             ) : (
               <>
@@ -1427,12 +1671,14 @@ function RoleEditor({
     !role.preset &&
     role.permissions.every((action) => info.allowed.includes(action));
   return (
-    <section aria-label={`Role ${role.label}`} {...stylex.props(s.section)}>
-      <h3>
+    <section aria-label={`Role ${role.label}`} {...stylex.props(s.role)}>
+      <h3 {...stylex.props(s.subheading)}>
         {role.label}
         {role.preset ? " (preset)" : ""}
       </h3>
-      <p>{role.permissions.join(", ") || "No permissions."}</p>
+      <p {...stylex.props(s.description)}>
+        {role.permissions.join(", ") || "No permissions."}
+      </p>
       {!role.preset && !editable && (
         <p>
           Editing this role requires roles.write, members.promote and authority
@@ -1440,33 +1686,36 @@ function RoleEditor({
         </p>
       )}
       {editable && (
-        <>
-          <PermissionChoices
-            allowed={info.allowed}
-            selected={permissions}
-            change={setPermissions}
-            disabled={writes.disabled}
-          />
-          <Button
-            variant="primary"
-            disabled={writes.disabled}
-            onClick={() =>
-              writes.confirm(
-                "Save role permissions?",
-                `Update role ${role.label} (${role.id}). This affects every member assigned to this role.`,
-                () =>
-                  client.invoke("rolesSave", {
-                    id: role.id,
-                    label: role.label,
-                    permissions,
-                    expectedRevision: revision,
-                  })
-              )
-            }
-          >
-            Save permissions
-          </Button>
-        </>
+        <details {...stylex.props(s.scopeDetails)}>
+          <summary {...stylex.props(s.summary)}>Edit permissions</summary>
+          <div {...stylex.props(s.editor)}>
+            <PermissionChoices
+              allowed={info.allowed}
+              selected={permissions}
+              change={setPermissions}
+              disabled={writes.disabled}
+            />
+            <Button
+              variant="primary"
+              disabled={writes.disabled}
+              onClick={() =>
+                writes.confirm(
+                  "Save role permissions?",
+                  `Update role ${role.label} (${role.id}). This affects every member assigned to this role.`,
+                  () =>
+                    client.invoke("rolesSave", {
+                      id: role.id,
+                      label: role.label,
+                      permissions,
+                      expectedRevision: revision,
+                    })
+                )
+              }
+            >
+              Save permissions
+            </Button>
+          </div>
+        </details>
       )}
     </section>
   );
@@ -1500,23 +1749,41 @@ function Agent({
             : []),
         ]}
       />
-      <Facts
-        entries={[
-          ["MCP URL", info.mcpUrl],
-          ["Authentication", "Personal access token"],
-          ["Last observed call", date(info.observedLastCallAt)],
-        ]}
-      />
-      <p>
-        Configure your MCP client with the URL above. Store your personal access
-        token in the client environment as <code>LENSO_MCP_TOKEN</code>, then
-        use custom Bearer token authentication in the client. This is not OAuth.
-        Do not paste it into a URL or commit it to configuration.
-      </p>
-      <p>
-        An observed call is historical activity, not proof that an agent is
-        currently connected.
-      </p>
+      <header {...stylex.props(s.pageHeader)}>
+        <h2 {...stylex.props(s.heading)}>
+          {tab === "tokens" ? "Personal access tokens" : "Management events"}
+        </h2>
+        <p {...stylex.props(s.description)}>
+          {tab === "tokens"
+            ? "Issue scoped credentials for your MCP clients. Tokens belong to your identity."
+            : "Review recorded management activity. These events do not indicate a live agent connection."}
+        </p>
+      </header>
+      {tab === "tokens" && (
+        <details {...stylex.props(s.disclosure)}>
+          <summary {...stylex.props(s.summary)}>Connect an MCP client</summary>
+          <div {...stylex.props(s.editor)}>
+            <Facts
+              entries={[
+                ["MCP URL", info.mcpUrl],
+                ["Authentication", "Personal access token"],
+                ["Last observed call", date(info.observedLastCallAt)],
+              ]}
+            />
+            <p>
+              Configure your MCP client with the URL above. Store your personal
+              access token in the client environment as{" "}
+              <code>LENSO_MCP_TOKEN</code>, then use custom Bearer token
+              authentication in the client. This is not OAuth. Do not paste it
+              into a URL or commit it to configuration.
+            </p>
+            <p>
+              An observed call is historical activity, not proof that an agent
+              is currently connected.
+            </p>
+          </div>
+        </details>
+      )}
       {tab === "tokens" ? (
         <Allowed info={info} action="tokens.list">
           <Tokens client={client} info={info} />
@@ -1571,72 +1838,86 @@ function Tokens({
         onDismiss={() => setDelivery(null)}
       />
       {info.allowed.includes("tokens.issue") && (
-        <section
-          aria-label="Create personal token"
-          {...stylex.props(s.section)}
-        >
-          <h3>Create personal token</h3>
-          <Button
-            variant="secondary"
-            disabled={writes.disabled}
-            onClick={() =>
-              setScopes(
-                defaultTokenScopes.filter((scope) =>
-                  info.allowed.includes(scope)
-                )
-              )
-            }
+        <details {...stylex.props(s.disclosure)}>
+          <summary {...stylex.props(s.summary)}>Create personal token</summary>
+          <section
+            aria-label="Create personal token"
+            {...stylex.props(s.editor)}
           >
-            Apply read-only preset
-          </Button>
-          <PermissionChoices
-            allowed={info.allowed}
-            choices={tokenReadScopes}
-            selected={scopes}
-            change={setScopes}
-            disabled={writes.disabled}
-          />
-          <label htmlFor={expiryId} {...stylex.props(s.field)}>
-            Expiry (local time)
-            <Input
-              id={expiryId}
-              type="datetime-local"
-              value={expiry}
-              onChange={(event) => setExpiry(event.target.value)}
-              xstyle={s.control}
+            <p {...stylex.props(s.description)}>
+              Choose the minimum permissions your client needs and an expiry
+              time. The credential will be shown only once.
+            </p>
+            <Button
+              variant="secondary"
+              disabled={writes.disabled}
+              onClick={() =>
+                setScopes(
+                  defaultTokenScopes.filter((scope) =>
+                    info.allowed.includes(scope)
+                  )
+                )
+              }
+            >
+              Apply read-only preset
+            </Button>
+            <PermissionChoices
+              allowed={info.allowed}
+              choices={tokenReadScopes}
+              selected={scopes}
+              change={setScopes}
               disabled={writes.disabled}
             />
-          </label>
-          <Button
-            variant="primary"
-            disabled={
-              writes.disabled ||
-              !scopes.length ||
-              !Number.isFinite(expiresAt) ||
-              expiresAt <= Date.now()
-            }
-            onClick={() => {
-              const input = {
-                scopes: [...scopes],
-                expiresAt,
-                requestId: crypto.randomUUID(),
-              };
-              writes.confirm(
-                "Create personal token?",
-                `Issue a personal token with ${scopes.join(", ")} until ${date(expiresAt)}. Save its one-time credential securely.`,
-                () => deliver(() => client.issueToken(input))
-              );
-            }}
-          >
-            Create token
-          </Button>
-        </section>
+            <label htmlFor={expiryId} {...stylex.props(s.field)}>
+              Expiry (local time)
+              <Input
+                id={expiryId}
+                type="datetime-local"
+                value={expiry}
+                onChange={(event) => setExpiry(event.target.value)}
+                xstyle={s.control}
+                disabled={writes.disabled}
+              />
+            </label>
+            <Button
+              variant="primary"
+              disabled={
+                writes.disabled ||
+                !scopes.length ||
+                !Number.isFinite(expiresAt) ||
+                expiresAt <= Date.now()
+              }
+              onClick={() => {
+                const input = {
+                  scopes: [...scopes],
+                  expiresAt,
+                  requestId: crypto.randomUUID(),
+                };
+                writes.confirm(
+                  "Create personal token?",
+                  `Issue a personal token with ${scopes.join(", ")} until ${date(expiresAt)}. Save its one-time credential securely.`,
+                  () => deliver(() => client.issueToken(input))
+                );
+              }}
+            >
+              Create token
+            </Button>
+          </section>
+        </details>
       )}
       <ReadState read={read}>
         {read.data && (
           <>
             <Records
               label="Personal tokens"
+              mode="page"
+              navigation={
+                <Next
+                  cursor={read.data.nextCursor}
+                  next={setCursor}
+                  count={read.data.items.length}
+                />
+              }
               items={read.data.items}
               rowKey={(token) => token.id}
               columns={[
@@ -1646,7 +1927,9 @@ function Tokens({
                   render: (token) => (
                     <>
                       {token.id}
-                      <p>{token.scopes.join(", ")}</p>
+                      <p {...stylex.props(s.secondaryText)}>
+                        {token.scopes.join(", ")}
+                      </p>
                     </>
                   ),
                 },
@@ -1731,7 +2014,6 @@ function Tokens({
                 },
               ]}
             />
-            <Next cursor={read.data.nextCursor} next={setCursor} />
           </>
         )}
       </ReadState>
@@ -1756,6 +2038,14 @@ function Audit({ client }: AdministrationPageProps) {
           <>
             <Records
               label="Observed events"
+              mode="page"
+              navigation={
+                <Next
+                  cursor={read.data.nextCursor}
+                  next={setCursor}
+                  count={read.data.items.length}
+                />
+              }
               items={read.data.items}
               rowKey={(event) => event.id}
               columns={[
@@ -1786,7 +2076,6 @@ function Audit({ client }: AdministrationPageProps) {
                 },
               ]}
             />
-            <Next cursor={read.data.nextCursor} next={setCursor} />
           </>
         )}
       </ReadState>

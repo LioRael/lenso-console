@@ -13,6 +13,59 @@ export interface PageInput {
   readonly limit?: number;
 }
 
+export interface DirectoryListInput extends PageInput {
+  /** Evaluated by an explicitly capable directory before pagination. */
+  readonly filter?: DirectoryFilter;
+  readonly status?: DirectoryUser["status"];
+  readonly name?: {
+    readonly operator: "contains" | "equals";
+    readonly value: string;
+  };
+}
+
+export type DirectoryFilter =
+  | {
+      readonly operator: "and" | "or";
+      readonly children: readonly DirectoryFilter[];
+    }
+  | {
+      readonly field: "name";
+      readonly operator: "contains" | "equals";
+      readonly value: string;
+    }
+  | {
+      readonly field: "status";
+      readonly operator: "equals";
+      readonly value: DirectoryUser["status"];
+    };
+
+export function matchesDirectoryFilter(
+  filter: DirectoryFilter,
+  user: DirectoryUser
+): boolean {
+  if ("children" in filter) {
+    const children = filter.children.filter(hasDirectoryConditions);
+    return (
+      children.length === 0 ||
+      (filter.operator === "and"
+        ? children.every((child) => matchesDirectoryFilter(child, user))
+        : children.some((child) => matchesDirectoryFilter(child, user)))
+    );
+  }
+  if (filter.field === "status") {
+    return user.status === filter.value;
+  }
+  return filter.operator === "equals"
+    ? user.label === filter.value
+    : user.label.toLowerCase().includes(filter.value.toLowerCase());
+}
+
+export function hasDirectoryConditions(filter: DirectoryFilter): boolean {
+  return (
+    !("children" in filter) || filter.children.some(hasDirectoryConditions)
+  );
+}
+
 export interface Page<T> {
   readonly items: readonly T[];
   readonly nextCursor: string | null;
@@ -122,6 +175,9 @@ export interface AdministrationInfo {
   readonly allowed: readonly AdministrationAction[];
   readonly supported: {
     readonly userDisable: boolean;
+    readonly userStatusFilter?: boolean;
+    readonly userNameFilter?: boolean;
+    readonly userFilterGroups?: boolean;
     readonly sessions: boolean;
     readonly sessionRevoke: boolean;
   };
@@ -131,7 +187,7 @@ export interface AdministrationInfo {
 
 export interface AdministrationInputs {
   info: Record<string, never>;
-  usersList: PageInput;
+  usersList: DirectoryListInput;
   usersRead: { subjectId: string };
   usersDisable: { subjectId: string; expectedRevision: string };
   sessionsList: PageInput & { subjectId: string };

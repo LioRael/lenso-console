@@ -304,12 +304,169 @@ preview pages. Place it inside `ConsoleLayout`, pass the authorized host router'
 `pathname`/`navigate` and the mount lifetime `signal`, and render the page as its
 children. It consumes selection and page contributions using the same Dock,
 Command, Context Bar, shortcut guards and focus restoration as local Shell.
-It adds no destination catalog, service discovery, preset store or editor.
+Pass `destinations` (stable `id`, visible `label`, authorized `href`, SVG `icon`)
+to show host-supplied navigation in the Dock and Command. The bar shows up to four
+destinations; Command reaches the full supplied list. The host derives these
+entries from admitted navigation, not page commands or service discovery.
+It adds no destination discovery, preset store or navigation editor.
 The host remains responsible for admitted routes, services and navigation guards.
 Mount/session changes must retire the host lifetime.
 
 These APIs belong to the updated local candidate; verify the actual installed
 host before using them with an older artifact.
+
+### Table controls and contextual defaults
+
+The repository's full-page table surfaces use this shared presentation:
+
+| Surface | Query ownership and controls |
+| --- | --- |
+| Identity | Directory-supported name/status expression evaluated before cursor pagination |
+| Plugins | Search and filter over the complete admitted catalog snapshot |
+| Auth Subjects | Search and filter over the complete authorized `listSubjects` snapshot |
+| Auth Sessions | Real cursor/append navigation; no unsupported query controls over a partial page |
+| Observed events | Real cursor navigation; the current service rejects search, so no fictitious filter is exposed |
+| Orders Manage | Complete client snapshot, scoped search and filters; only applied changes clear selection |
+| Orders By status | Filter aggregate rows while retaining the complete snapshot as the percentage denominator |
+
+Permission/credential forms with tables, Runtime's multi-section diagnostics,
+capability directories and object-detail tables remain mixed or embedded surfaces.
+They are not silently converted into full-page collection editors.
+The Orders pages are an explicit sample host, not installed business routes in
+the TypeScript operator host.
+
+`ConsoleTableContext` declares a table's content scope and semantic operation
+groups. `ConsoleLayout` supplies the shared coordinator; `ConsoleShell` uses
+that same layout. Both local and compiled pages import the public
+`@lenso/console-react` entry. Business query, paging, selection and write state
+remain with the page.
+
+```tsx
+<ConsoleTableContext
+  scopeKey={activation.key}
+  label="Identities"
+  mode="page"
+  locked={saving}
+  filters={{
+    label: "Filter identities",
+    fields: availableFilterFields,
+    value: filterTree,
+    onValueChange: updateFilterTree,
+  }}
+  groups={[
+    { id: "query", kind: "query", label: "Search and filters", children: queryControls },
+    { id: "paging", kind: "navigation", label: "Pagination", children: pagination },
+  ]}
+>
+  {table}
+</ConsoleTableContext>
+```
+
+Groups have stable owner-local IDs and accessible target-qualified labels.
+Use `ConsoleTableSearch` (`label`, controlled `value`/`onValueChange`, optional
+`disabled`) for the default compact search: an SVG button expands in place,
+focuses the search field and keeps the page's filter when collapsed. Escape
+returns focus to the button; a live filter remains indicated there. Pointer
+opening/closing uses a short clipped reveal, without scaling text or moving
+table rows. Keyboard and reduced-motion operation are immediate.
+Use `ConsoleTableContext.filters` for the condition builder. Its `fields` registry
+declares stable IDs, labels and supported text, enum, numeric or calendar-date rules.
+The controlled `value` is a `ConsoleFilterGroup` with an `id`, `operator: "and" | "or"`
+and `children` containing conditions or groups. `onValueChange` stays page-owned.
+Choosing an available field starts a query draft, not a request. Text fields can declare `maxLength`
+to match their owner contract.
+
+The corner contains one compound filter-state control, defaulting to the top right.
+It shows Filters when inactive, a readable summary for one simple condition,
+or Custom filters with a condition count for complex expressions. Boolean groups
+are not flattened into a misleading sentence. The accessible name includes the
+target label and visible state; a hover/focus tooltip preserves the full text.
+Individual condition/group buttons are not projected outside.
+The entry opens an editor containing the complete tree from its root:
+title, Match logic, condition rows, nested groups and local add actions all stay
+inside that panel. This single-entry presentation also applies to the flat API.
+The whole panel edits one draft. Adding, editing, removing, changing logic or
+collapsing rows/groups never calls the page's change callback. Apply filters
+validates the complete tree and publishes it once. Invalid conditions stay in
+the panel with field-associated errors and keyboard focus.
+Cancel, Escape, close and outside dismissal discard the session without changing
+the applied query. Clear resets the draft to an empty AND root; it also requires
+Apply filters. Enter in a value field only collapses that row, not the panel's
+transaction. There is no per-condition Apply or global Done.
+Set `filters.disabled` while the table owner is executing a guarded operation.
+It disables opening and applying filters, while cancellation remains available.
+The page still owns activation/write guards; this UI flag is not authorization.
+
+The host measures available corner space, avoids the task context and search,
+and reserves only the actual top clearance needed by the controls. Scrolling
+does not increase this clearance. A draft locks its active table context and
+stays controlled by the filter component, including through placement changes.
+`ConsoleTableFilters.renderGroup` projects the complete group, not only its entry.
+The root panel uses a vertical editor presentation: a Match all/any header,
+a vertical list of condition rows, and local Add condition / Add group actions.
+Conditions edit inline within that list. Child groups are labelled, nested
+fieldset containers in the same panel, not more summary buttons or stacked
+editor popovers. Nested groups can collapse in place without changing their data.
+Fields may repeat, including within one OR group. Trees are bounded to four group
+levels and 50 total nodes. Empty editing groups contribute no predicate, including
+inside OR. Removing a group removes its subtree and focuses the parent's add control.
+Closing restores focus to the single filter entry.
+Desktop uses an anchored Lenso UI Popover. At 600px and below the same draft is
+presented in a near-full-screen Lenso UI Modal with focus trapping. Resizing an
+open editor preserves its query data. Header and footer remain separate from
+the scrolling body; nested groups use structural boundaries instead of shrinking
+stacks of cards. Modal dropdown portals stay within its accessible boundary.
+The earlier `conditions`/`onConditionsChange` form remains available for flat,
+one-predicate-per-field AND service contracts. It uses the same entry and panel,
+but keeps Match all fixed and omits unsupported Boolean/group controls.
+
+Numeric ranges require finite ordered bounds. Date fields declare
+`kind: "date"` and supported operators `on`, `before`, `after`, `between`. Values
+are valid `YYYY-MM-DD` calendar dates; before/after are strict and ranges include
+both endpoints. Lenso `Input type="date"` uses the browser's native date entry/calendar.
+Owners decide which calendar/timezone a timestamp belongs to before comparing it;
+the component does not silently truncate local timestamps or invent relative-date rules.
+`evaluateConsoleFilter` evaluates a tree with an owner-provided condition matcher;
+`matchesConsoleFilterDate` applies the calendar rules. These are not a backend query engine.
+Pages bind finalized predicates to an explicitly capable service (before paging)
+or to a complete admitted snapshot. Show only actual owner-supported date fields.
+
+Defaults place `query` (quick search) at top left and `filter` at top right.
+Both entries share the same desktop/coarse-pointer icon-button geometry.
+Moving focus into filtering collapses expanded quick search without clearing it.
+If a narrow viewport leaves no readable expansion width, search opens below the
+occupied corner row instead of covering conditions.
+`insertion` and `commit` default to top right,
+`view` at bottom left and `navigation` at bottom right. Omit nonexistent
+capabilities. Pagination uses the actual service contract: a forward cursor
+does not imply totals, previous pages or arbitrary page jumps.
+
+For a mixed-content page, use `mode="embedded"` around the table rather than the
+whole article. The shared host observes document and nested scrolling, clips
+viewport eligibility to ancestor scroll bounds, and uses enter/exit coverage
+and dwell before switching. Focus, explicit context choice, open menus/dialogs,
+pointer-down and `locked` protect the current target. Unmount/scope replacement
+retires registration; leaving an embedded table restores the page candidate.
+Keep the page-level scope around mixed content if it has fallback controls.
+Small embedded tables also expose an explicit, keyboard-accessible activation
+button. Context switching never replaces the table content or business state.
+
+Business pages do not show a layout/configuration button by default. Hosts can
+opt into `tableControls.customization: true` to expose the active table's
+**Table controls** popover for automatic/explicit context and per-kind placement,
+including **Beside content**. A group's optional
+`placement` changes its default; user choices take precedence. Defaults leave
+unused corners empty. These are table-specific groups, not a universal action
+registry, chart coordinator or another Dock.
+
+`ConsoleLayout.tableControls` (also `ConsoleShell.tableControls`) accepts
+`customization`, `enterCoverage`, `exitCoverage`, `dwellMs`, and optional controlled `placements`
+with `onPlacementsChange`. Without controlled placements, choices last for this
+layout lifetime. Hosts may persist the bounded placement map in their own
+trusted preference store; no business state, activation IDs or credentials
+belong in it. Controlled placements without a change handler are read-only.
+This preference is separate from navigation presets and does not imply a
+new server persistence contract.
 
 ### Scoped task context and page commands
 

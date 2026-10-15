@@ -15,12 +15,15 @@ import { z } from "zod";
 
 import {
   administrationActions,
+  matchesDirectoryFilter,
+  type DirectoryFilter,
   readOnlyAdministrationActions,
   type AdministrationAction,
   type AdministrationInputs,
   type AdministrationOutputs,
   type AdministrationMethod,
   type DirectoryUser,
+  type DirectoryListInput,
   type Page,
   type PageInput,
   type AdministrationSession,
@@ -52,7 +55,16 @@ export interface ConsoleAdministrationOptions {
   readonly source?: string;
   readonly store: ConsoleAdministrationStore;
   readonly directory: {
-    list(input: PageInput, signal?: AbortSignal): Promise<Page<DirectoryUser>>;
+    /** Opt in only when status is applied before paging and cursor calculation. */
+    readonly statusFiltering?: boolean;
+    /** Supports complete name predicates before pagination. */
+    readonly nameFiltering?: boolean;
+    /** Supports the complete bounded name/status AND/OR tree before paging. */
+    readonly expressionFiltering?: boolean;
+    list(
+      input: DirectoryListInput,
+      signal?: AbortSignal
+    ): Promise<Page<DirectoryUser>>;
     read(
       subjectId: string,
       signal?: AbortSignal
@@ -89,6 +101,61 @@ export interface ConsoleAdministrationOptions {
   readonly tokenLifetimeDays?: 7 | 30;
 }
 const text = z.string().min(1).max(512);
+const directoryStatus = z.enum(["active", "disabled", "external"]);
+const directoryFilter: z.ZodType<DirectoryFilter> = z.lazy(() =>
+  z.union([
+    z.strictObject({
+      operator: z.enum(["and", "or"]),
+      children: z.array(directoryFilter).max(50),
+    }),
+    z.strictObject({
+      field: z.literal("name"),
+      operator: z.enum(["contains", "equals"]),
+      value: text,
+    }),
+    z.strictObject({
+      field: z.literal("status"),
+      operator: z.literal("equals"),
+      value: directoryStatus,
+    }),
+  ])
+);
+// Bound traversal before recursive schema parsing, including untrusted MCP input.
+const boundedDirectoryFilter = z
+  .unknown()
+  .superRefine((value, context) => {
+    const pending = [{ value, depth: 1 }];
+    let count = 0;
+    while (pending.length) {
+      const next = pending.pop()!;
+      count += 1;
+      if (count > 50 || next.depth > 4) {
+        context.addIssue({
+          code: "custom",
+          message: "Use at most 50 nodes and four group levels.",
+        });
+        return;
+      }
+      if (
+        next.value &&
+        typeof next.value === "object" &&
+        "children" in next.value &&
+        Array.isArray(next.value.children)
+      ) {
+        for (const child of next.value.children) {
+          pending.push({
+            value: child,
+            depth:
+              next.depth +
+              (child && typeof child === "object" && "children" in child
+                ? 1
+                : 0),
+          });
+        }
+      }
+    }
+  })
+  .pipe(directoryFilter);
 const revision = z.number().int().positive();
 const keyRevision = z.number().int().nonnegative();
 const accessRevision = z.string().regex(/^[1-9][0-9]*$/);
@@ -109,7 +176,13 @@ const memberInput = z
   .strict();
 const inputSchemas = {
   info: empty,
-  usersList: pageInput,
+  usersList: pageInput.extend({
+    filter: boundedDirectoryFilter.optional(),
+    status: directoryStatus.optional(),
+    name: z
+      .strictObject({ operator: z.enum(["contains", "equals"]), value: text })
+      .optional(),
+  }),
   usersRead: subjectInput,
   usersDisable: subjectInput.extend({ expectedRevision: accessRevision }),
   sessionsList: pageInput.extend({ subjectId: text }),
@@ -138,7 +211,7 @@ const directorySchema = z.object({
   realmId: text,
   label: text,
   source: text,
-  status: z.enum(["active", "disabled", "external"]),
+  status: directoryStatus,
 });
 const sessionSchema = z.object({
   id: text,
@@ -191,6 +264,9 @@ const outputSchemas = {
     allowed: actions,
     supported: z.object({
       userDisable: z.boolean(),
+      userStatusFilter: z.boolean().optional(),
+      userNameFilter: z.boolean().optional(),
+      userFilterGroups: z.boolean().optional(),
       sessions: z.boolean(),
       sessionRevoke: z.boolean(),
     }),
@@ -744,6 +820,9 @@ export function createConsoleAdministrationService(
         allowed: await allowed(context),
         supported: {
           userDisable: !!directory.disable,
+          userStatusFilter: directory.statusFiltering === true,
+          userNameFilter: directory.nameFiltering === true,
+          userFilterGroups: directory.expressionFiltering === true,
           sessions:
             !!options.sessions &&
             (context.entry === "human" || options.sessions.agent === true),
@@ -761,12 +840,40 @@ export function createConsoleAdministrationService(
       };
     },
     async usersList(input, context) {
+      if (
+        input.filter !== undefined &&
+        directory.expressionFiltering !== true
+      ) {
+        throw new AdministrationError("INVALID_INPUT");
+      }
+      if (input.status !== undefined && directory.statusFiltering !== true) {
+        throw new AdministrationError("INVALID_INPUT");
+      }
+      if (input.name !== undefined && directory.nameFiltering !== true) {
+        throw new AdministrationError("INVALID_INPUT");
+      }
       return projectPage(
         await directory.list(input, context.signal),
         (item) => {
           const user = directorySchema.parse(item);
           if (user.realmId !== options.realmId) {
             throw new AdministrationError("DENIED");
+          }
+          if (input.filter && !matchesDirectoryFilter(input.filter, user)) {
+            throw new AdministrationError("UNAVAILABLE");
+          }
+          if (input.status !== undefined && user.status !== input.status) {
+            throw new AdministrationError("UNAVAILABLE");
+          }
+          if (
+            input.name &&
+            !(input.name.operator === "equals"
+              ? user.label === input.name.value
+              : user.label
+                  .toLowerCase()
+                  .includes(input.name.value.toLowerCase()))
+          ) {
+            throw new AdministrationError("UNAVAILABLE");
           }
           return user;
         },

@@ -3,6 +3,11 @@ import {
   ConsoleIconButton,
   ConsoleLayout,
   ConsolePageScope,
+  ConsoleTableContext,
+  ConsoleTableSearch,
+  evaluateConsoleFilter,
+  type ConsoleFilterGroup,
+  type ConsoleFilterCondition,
   type ConsoleLocalPageProps,
 } from "@lenso/console-react";
 import { AlertDialog } from "@lenso/ui/alert-dialog";
@@ -14,6 +19,7 @@ import { Separator } from "@lenso/ui/separator";
 import { Table } from "@lenso/ui/table";
 import { Typography } from "@lenso/ui/typography";
 import * as stylex from "@stylexjs/stylex";
+import { ArrowUpRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -26,6 +32,7 @@ import type {
   AuthConsoleClient,
   SessionDTO,
   SessionPageDTO,
+  SubjectDTO,
 } from "./contracts";
 import { styles } from "./pages.styles";
 
@@ -254,7 +261,7 @@ function Sessions(props: Props) {
                       {
                         id: "inspect",
                         label: "Inspect session",
-                        icon: <span aria-hidden="true">↗</span>,
+                        icon: <ArrowUpRight size={18} aria-hidden="true" />,
                         onInvoke: inspectSelected,
                       },
                     ]
@@ -264,192 +271,213 @@ function Sessions(props: Props) {
             : null
         }
       />
-      <section aria-label="Sessions" {...stylex.props(styles.page)}>
-        {busy && (
-          <output {...stylex.props(styles.message)}>Loading sessions…</output>
-        )}
-        {error && (
-          <p role="alert" {...stylex.props(styles.message, styles.error)}>
-            Unable to load sessions. Reload this page to try again.
-          </p>
-        )}
-        {result.state === "ready" && (
-          <Table.Root variant="secondary">
-            {result.value.sessions.length === 0 ? (
-              <p {...stylex.props(styles.message)}>No sessions found.</p>
-            ) : (
-              <Table.ScrollContainer>
-                <Table.Content
-                  aria-label="Sessions"
-                  selectionMode={canInspect ? "multiple" : "none"}
-                  selectedKeys={selectedIds}
-                  onSelectionChange={(keys) => {
-                    if (
-                      canInspect &&
-                      props.activation.isCurrent() &&
-                      !props.signal.aborted
-                    ) {
-                      setSelectedIds(new Set([...keys].map(String)));
-                    }
-                  }}
-                  xstyle={styles.sessionTable}
-                >
-                  <Table.Header>
-                    {canInspect && (
-                      <Table.Column
-                        columnKey="selection"
-                        width={60}
-                        minWidth={60}
-                        maxWidth={60}
-                        xstyle={styles.selectionCell}
-                      >
-                        <label
-                          htmlFor={`${props.activation.key}-select-all-sessions`}
-                          {...stylex.props(styles.selectionControl)}
-                        >
-                          <Table.SelectionCheckbox
-                            id={`${props.activation.key}-select-all-sessions`}
-                            aria-label="Select all sessions"
-                            xstyle={styles.selectionCheckbox}
-                          />
-                        </label>
-                      </Table.Column>
-                    )}
-                    <Table.Column columnKey="id" width="1.3fr" minWidth={140}>
-                      Session ID
-                    </Table.Column>
-                    <Table.Column
-                      columnKey="subject"
-                      width="1fr"
-                      minWidth={120}
+      <ConsoleTableContext
+        scopeKey={props.activation.key}
+        label="Sessions"
+        groups={
+          props.services.listSessionPage && result.state === "ready"
+            ? [
+                {
+                  id: "navigation",
+                  kind: "navigation",
+                  label: "Pagination",
+                  children: (
+                    <Pagination
+                      aria-label="Session list navigation"
+                      xstyle={styles.pagination}
                     >
-                      Subject ID
-                    </Table.Column>
-                    <Table.Column
-                      columnKey="expiry"
-                      width="1.1fr"
-                      minWidth={160}
-                    >
-                      Stored expiry (UTC)
-                    </Table.Column>
-                    <Table.Column columnKey="status" width={136} minWidth={136}>
-                      Status
-                    </Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {result.value.sessions.map((session) => (
-                      <Table.Row
-                        key={session.id}
-                        itemKey={session.id}
-                        textValue={session.id}
-                      >
-                        {canInspect && (
-                          <Table.Cell
-                            columnKey="selection"
-                            xstyle={styles.selectionCell}
-                          >
-                            {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- The native label owns the checkbox hit target, not the selectable row. */}
-                            <label
-                              htmlFor={`${props.activation.key}-select-session-${encodeURIComponent(session.id)}`}
-                              {...stylex.props(styles.selectionControl)}
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => {
-                                if (
-                                  event.key === " " ||
-                                  event.key === "Enter"
-                                ) {
-                                  event.stopPropagation();
-                                }
-                              }}
-                            >
-                              <Table.SelectionCheckbox
-                                id={`${props.activation.key}-select-session-${encodeURIComponent(session.id)}`}
-                                aria-label={`Select session ${session.id}`}
-                                xstyle={styles.selectionCheckbox}
-                              />
-                            </label>
-                          </Table.Cell>
-                        )}
-                        <Table.Cell columnKey="id" xstyle={styles.tableCell}>
-                          {canInspect ? (
-                            <Link
-                              href={props.navigation.href("session", {
-                                id: session.id,
-                              })}
-                              xstyle={styles.sessionLink}
-                            >
-                              {session.id}
-                            </Link>
-                          ) : (
-                            <span {...stylex.props(styles.identifier)}>
-                              {session.id}
-                            </span>
-                          )}
-                        </Table.Cell>
-                        <Table.Cell
-                          columnKey="subject"
-                          xstyle={styles.tableCell}
-                        >
-                          {session.subjectId}
-                        </Table.Cell>
-                        <Table.Cell
-                          columnKey="expiry"
-                          xstyle={styles.tableCell}
-                        >
-                          <Timestamp value={session.expiresAt} />
-                        </Table.Cell>
-                        <Table.Cell
-                          columnKey="status"
-                          xstyle={[
-                            styles.status,
-                            session.revokedAt !== undefined && styles.revoked,
-                          ]}
-                        >
-                          {session.revokedAt === undefined
-                            ? "Not revoked"
-                            : "Revoked"}
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            )}
-            {props.services.listSessionPage && (
-              <Table.Footer>
-                <Pagination aria-label="Session list navigation">
-                  <Pagination.Summary>
-                    {result.value.sessions.length} sessions loaded
-                  </Pagination.Summary>
-                  <Pagination.Content>
-                    <Pagination.Item>
-                      <Pagination.Next
-                        render={
-                          <button
-                            aria-label="Load more sessions"
-                            type="button"
+                      <Pagination.Summary>
+                        {result.value.sessions.length} sessions loaded
+                      </Pagination.Summary>
+                      <Pagination.Content>
+                        <Pagination.Item>
+                          <ConsoleIconButton
+                            label="Load more sessions"
+                            tooltip={
+                              busy
+                                ? "Loading sessions…"
+                                : result.value.nextCursor === null
+                                  ? "All sessions loaded"
+                                  : "Load more sessions"
+                            }
+                            variant="secondary"
                             disabled={busy || result.value.nextCursor === null}
-                          />
-                        }
-                        xstyle={styles.button}
-                        disabled={busy || result.value.nextCursor === null}
-                        onClick={() => {
-                          if (!busy && result.value.nextCursor !== null) {
-                            void fetchPage(result.value.nextCursor);
-                          }
-                        }}
+                            onClick={() => {
+                              if (!busy && result.value.nextCursor !== null) {
+                                void fetchPage(result.value.nextCursor);
+                              }
+                            }}
+                          >
+                            <Pagination.NextIcon />
+                          </ConsoleIconButton>
+                        </Pagination.Item>
+                      </Pagination.Content>
+                    </Pagination>
+                  ),
+                },
+              ]
+            : []
+        }
+      >
+        <section aria-label="Sessions" {...stylex.props(styles.page)}>
+          {busy && (
+            <output {...stylex.props(styles.message)}>Loading sessions…</output>
+          )}
+          {error && (
+            <p role="alert" {...stylex.props(styles.message, styles.error)}>
+              Unable to load sessions. Reload this page to try again.
+            </p>
+          )}
+          {result.state === "ready" && (
+            <Table.Root variant="secondary">
+              {result.value.sessions.length === 0 ? (
+                <p {...stylex.props(styles.message)}>No sessions found.</p>
+              ) : (
+                <Table.ScrollContainer>
+                  <Table.Content
+                    aria-label="Sessions"
+                    selectionMode={canInspect ? "multiple" : "none"}
+                    selectedKeys={selectedIds}
+                    onSelectionChange={(keys) => {
+                      if (
+                        canInspect &&
+                        props.activation.isCurrent() &&
+                        !props.signal.aborted
+                      ) {
+                        setSelectedIds(new Set([...keys].map(String)));
+                      }
+                    }}
+                    xstyle={styles.sessionTable}
+                  >
+                    <Table.Header>
+                      {canInspect && (
+                        <Table.Column
+                          columnKey="selection"
+                          width={60}
+                          minWidth={60}
+                          maxWidth={60}
+                          xstyle={styles.selectionCell}
+                        >
+                          <label
+                            htmlFor={`${props.activation.key}-select-all-sessions`}
+                            {...stylex.props(styles.selectionControl)}
+                          >
+                            <Table.SelectionCheckbox
+                              id={`${props.activation.key}-select-all-sessions`}
+                              aria-label="Select all sessions"
+                              xstyle={styles.selectionCheckbox}
+                            />
+                          </label>
+                        </Table.Column>
+                      )}
+                      <Table.Column columnKey="id" width="1.3fr" minWidth={140}>
+                        Session ID
+                      </Table.Column>
+                      <Table.Column
+                        columnKey="subject"
+                        width="1fr"
+                        minWidth={120}
                       >
-                        Load more sessions
-                        <Pagination.NextIcon />
-                      </Pagination.Next>
-                    </Pagination.Item>
-                  </Pagination.Content>
-                </Pagination>
-              </Table.Footer>
-            )}
-          </Table.Root>
-        )}
-      </section>
+                        Subject ID
+                      </Table.Column>
+                      <Table.Column
+                        columnKey="expiry"
+                        width="1.1fr"
+                        minWidth={160}
+                      >
+                        Stored expiry (UTC)
+                      </Table.Column>
+                      <Table.Column
+                        columnKey="status"
+                        width={136}
+                        minWidth={136}
+                      >
+                        Status
+                      </Table.Column>
+                    </Table.Header>
+                    <Table.Body>
+                      {result.value.sessions.map((session) => (
+                        <Table.Row
+                          key={session.id}
+                          itemKey={session.id}
+                          textValue={session.id}
+                        >
+                          {canInspect && (
+                            <Table.Cell
+                              columnKey="selection"
+                              xstyle={styles.selectionCell}
+                            >
+                              {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- The native label owns the checkbox hit target, not the selectable row. */}
+                              <label
+                                htmlFor={`${props.activation.key}-select-session-${encodeURIComponent(session.id)}`}
+                                {...stylex.props(styles.selectionControl)}
+                                onClick={(event) => event.stopPropagation()}
+                                onKeyDown={(event) => {
+                                  if (
+                                    event.key === " " ||
+                                    event.key === "Enter"
+                                  ) {
+                                    event.stopPropagation();
+                                  }
+                                }}
+                              >
+                                <Table.SelectionCheckbox
+                                  id={`${props.activation.key}-select-session-${encodeURIComponent(session.id)}`}
+                                  aria-label={`Select session ${session.id}`}
+                                  xstyle={styles.selectionCheckbox}
+                                />
+                              </label>
+                            </Table.Cell>
+                          )}
+                          <Table.Cell columnKey="id" xstyle={styles.tableCell}>
+                            {canInspect ? (
+                              <Link
+                                href={props.navigation.href("session", {
+                                  id: session.id,
+                                })}
+                                xstyle={styles.sessionLink}
+                              >
+                                {session.id}
+                              </Link>
+                            ) : (
+                              <span {...stylex.props(styles.identifier)}>
+                                {session.id}
+                              </span>
+                            )}
+                          </Table.Cell>
+                          <Table.Cell
+                            columnKey="subject"
+                            xstyle={styles.tableCell}
+                          >
+                            {session.subjectId}
+                          </Table.Cell>
+                          <Table.Cell
+                            columnKey="expiry"
+                            xstyle={styles.tableCell}
+                          >
+                            <Timestamp value={session.expiresAt} />
+                          </Table.Cell>
+                          <Table.Cell
+                            columnKey="status"
+                            xstyle={[
+                              styles.status,
+                              session.revokedAt !== undefined && styles.revoked,
+                            ]}
+                          >
+                            {session.revokedAt === undefined
+                              ? "Not revoked"
+                              : "Revoked"}
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table.Content>
+                </Table.ScrollContainer>
+              )}
+            </Table.Root>
+          )}
+        </section>
+      </ConsoleTableContext>
     </>
   );
 }
@@ -820,76 +848,166 @@ function Subjects(props: Props) {
         value={{ context: { kind: "object", label: "Subjects" } }}
       />
       <Load {...props} load={load}>
-        {(subjects) =>
-          subjects.length === 0 ? (
-            <p {...stylex.props(styles.message)}>No subjects found.</p>
-          ) : (
-            <Table.Root variant="secondary">
-              <Table.ScrollContainer>
-                <Table.Content
-                  aria-label="Subjects"
-                  selectionMode="none"
-                  xstyle={styles.subjectTable}
-                >
-                  <Table.Header>
-                    <Table.Column
-                      columnKey="label"
-                      width="1.2fr"
-                      minWidth={100}
-                    >
-                      Label
-                    </Table.Column>
-                    <Table.Column columnKey="id" width="1.5fr" minWidth={120}>
-                      Subject ID
-                    </Table.Column>
-                    <Table.Column columnKey="realm" width="1fr" minWidth={90}>
-                      Realm
-                    </Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {subjects.map((subject) => {
-                      const key = JSON.stringify([
-                        subject.realmId,
-                        subject.subjectId,
-                      ]);
-                      return (
-                        <Table.Row
-                          key={key}
-                          itemKey={key}
-                          textValue={subject.label ?? subject.subjectId}
-                        >
-                          <Table.Cell
-                            columnKey="label"
-                            xstyle={styles.subjectCell}
-                          >
-                            {subject.label ?? (
-                              <span {...stylex.props(styles.label)}>
-                                Not provided
-                              </span>
-                            )}
-                          </Table.Cell>
-                          <Table.Cell
-                            columnKey="id"
-                            xstyle={styles.subjectCell}
-                          >
-                            {subject.subjectId}
-                          </Table.Cell>
-                          <Table.Cell
-                            columnKey="realm"
-                            xstyle={styles.subjectCell}
-                          >
-                            {subject.realmId}
-                          </Table.Cell>
-                        </Table.Row>
-                      );
-                    })}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table.Root>
-          )
-        }
+        {(subjects) => <SubjectTable {...props} subjects={subjects} />}
       </Load>
     </section>
+  );
+}
+
+function matchesSubject(
+  subject: SubjectDTO,
+  condition: ConsoleFilterCondition
+) {
+  const value =
+    condition.field === "label"
+      ? (subject.label ?? "")
+      : condition.field === "id"
+        ? subject.subjectId
+        : condition.field === "realm"
+          ? subject.realmId
+          : undefined;
+  return (
+    value !== undefined &&
+    typeof condition.value === "string" &&
+    (condition.operator === "contains"
+      ? value.toLowerCase().includes(condition.value.toLowerCase())
+      : condition.operator === "equals" && value === condition.value)
+  );
+}
+
+function SubjectTable({
+  subjects,
+  ...props
+}: Props & { subjects: readonly SubjectDTO[] }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<ConsoleFilterGroup>({
+    id: "subjects",
+    operator: "and",
+    children: [],
+  });
+  const visible = subjects.filter(
+    (subject) =>
+      `${subject.label ?? ""} ${subject.subjectId} ${subject.realmId}`
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()) &&
+      evaluateConsoleFilter(filter, (condition) =>
+        matchesSubject(subject, condition)
+      )
+  );
+  const current = () => !props.signal.aborted && props.activation.isCurrent();
+  return (
+    <ConsoleTableContext
+      scopeKey={props.activation.key}
+      label="Subjects"
+      filters={{
+        label: "Filter subjects",
+        value: filter,
+        onValueChange: (value) => {
+          if (current()) {
+            setFilter(value);
+          }
+        },
+        fields: [
+          {
+            id: "label",
+            label: "Label",
+            kind: "text",
+            operators: ["contains", "equals"],
+          },
+          {
+            id: "id",
+            label: "Subject ID",
+            kind: "text",
+            operators: ["contains", "equals"],
+          },
+          {
+            id: "realm",
+            label: "Realm",
+            kind: "text",
+            operators: ["equals", "contains"],
+          },
+        ],
+      }}
+      groups={[
+        {
+          id: "query",
+          kind: "query",
+          label: "Search",
+          children: (
+            <ConsoleTableSearch
+              label="Search subjects"
+              value={query}
+              onValueChange={(value) => {
+                if (current()) {
+                  setQuery(value);
+                }
+              }}
+            />
+          ),
+        },
+      ]}
+    >
+      {visible.length === 0 ? (
+        <p {...stylex.props(styles.message)}>
+          {subjects.length
+            ? "No subjects match these search and filter conditions."
+            : "No subjects found."}
+        </p>
+      ) : (
+        <Table.Root variant="secondary">
+          <Table.ScrollContainer>
+            <Table.Content
+              aria-label="Subjects"
+              selectionMode="none"
+              xstyle={styles.subjectTable}
+            >
+              <Table.Header>
+                <Table.Column columnKey="label" width="1.2fr" minWidth={100}>
+                  Label
+                </Table.Column>
+                <Table.Column columnKey="id" width="1.5fr" minWidth={120}>
+                  Subject ID
+                </Table.Column>
+                <Table.Column columnKey="realm" width="1fr" minWidth={90}>
+                  Realm
+                </Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {visible.map((subject) => {
+                  const key = JSON.stringify([
+                    subject.realmId,
+                    subject.subjectId,
+                  ]);
+                  return (
+                    <Table.Row
+                      key={key}
+                      itemKey={key}
+                      textValue={subject.label ?? subject.subjectId}
+                    >
+                      <Table.Cell columnKey="label" xstyle={styles.subjectCell}>
+                        {subject.label ?? (
+                          <span {...stylex.props(styles.label)}>
+                            Not provided
+                          </span>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell columnKey="id" xstyle={styles.subjectCell}>
+                        {subject.subjectId}
+                      </Table.Cell>
+                      <Table.Cell columnKey="realm" xstyle={styles.subjectCell}>
+                        {subject.realmId}
+                      </Table.Cell>
+                    </Table.Row>
+                  );
+                })}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+          <Table.Footer>
+            {visible.length} of {subjects.length} subjects
+          </Table.Footer>
+        </Table.Root>
+      )}
+    </ConsoleTableContext>
   );
 }

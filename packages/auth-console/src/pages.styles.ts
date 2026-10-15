@@ -21,6 +21,11 @@ export const styles = stylex.create({
     marginBottom: 20,
   },
   heading: { margin: 0, fontSize: 24, fontWeight: 600, lineHeight: 1.3 },
+  pagination: {
+    flexWrap: "wrap",
+    maxWidth: "100%",
+    justifyContent: "flex-end",
+  },
   metadata: {
     display: "grid",
     gridTemplateColumns: {

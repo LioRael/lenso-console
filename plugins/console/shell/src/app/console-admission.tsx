@@ -14,6 +14,7 @@ import * as consoleLocale from "@lenso/console-sdk/react/locale";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
+import { Blocks, Cable, KeyRound, Users } from "lucide-react";
 import * as React from "react";
 
 import { ConsoleLayout } from "../components/console/console-layout";
@@ -182,9 +183,31 @@ function AdmittedActionHost({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const admission = React.useContext(AdmissionContext)?.admission;
+  const destinations = (admission?.mounts ?? [])
+    .filter((mount) => mount.navigation.items.length > 0)
+    .map((mount) => ({
+      id: consoleMountKey(admission!, mount),
+      label: mount.navigation.label,
+      href: consoleMountHref(
+        mount,
+        mount.index ?? mount.navigation.items[0]!.path
+      ),
+      icon:
+        mount.id === "identity" ? (
+          <Users size={18} aria-hidden="true" />
+        ) : mount.id === "access" ? (
+          <KeyRound size={18} aria-hidden="true" />
+        ) : mount.id === "agent" ? (
+          <Cable size={18} aria-hidden="true" />
+        ) : (
+          <Blocks size={18} aria-hidden="true" />
+        ),
+    }));
   return (
     <consoleReact.ConsoleInteractionHost
       signal={signal}
+      destinations={destinations}
       router={{
         pathname: location.pathname,
         navigate: (href) => {

@@ -1,13 +1,53 @@
 # Table contexts and semantic groups
 
-Read for table-dominant pages or tables within mixed content. These are design
-conventions and recommended combinations, not a runtime preset or fixed position
+Read for table-dominant pages or tables within mixed content. The local candidate's
+`ConsoleTableContext` implements these table defaults; verify the consuming
+artifact through [runtime support](runtime-support.md). They are not a fixed position
 schema. Explicit user customization takes priority with clear targets,
 accessibility, unobstructed content and stable interaction context. Use
 [runtime support](runtime-support.md#contextual-design-capability-boundary) before
 implementation; do not generalize this table specialization to ordinary pages.
 
 ## Full-page table
+
+Search defaults to the `ConsoleTableSearch` button, expanding in place on
+activation rather than showing a permanently open input. Keep the query controlled
+by the page; collapsing preserves it and indicates an active filter. Keyboard and
+reduced-motion activation are immediate; pointer expansion is brief and anchored.
+Quick search defaults to top left, with a same-size filter entry at top right.
+Use `ConsoleTableContext.filters` to declare owner-supported fields and controlled
+conditions. Project one compound filter-state control in the
+top-right corner, not individual condition or group summary buttons. Both flat
+and tree APIs use this presentation. Show Filters when inactive, a readable
+single-condition summary when simple, or Custom filters with a condition count
+when complex. Keep Boolean grouping in the editor rather than flattening it.
+The entry opens one shared, theme-scoped editor from the root. Titles, Match logic,
+conditions, groups and add actions all stay inside.
+Conditions edit inline, but all changes belong to one query draft. Only the
+panel's Apply filters validates and publishes the whole draft, once. Cancel,
+Escape, close and outside dismissal preserve the previously applied query.
+Clear resets only the draft until Apply filters; omit per-condition Apply and Done.
+Desktop uses an anchored Popover; narrow screens use a near-full-screen Modal
+with preserved draft data, accessible dropdowns and a bounded scrolling body.
+Separate semantic groups distinguish conditions and actions inside the editor.
+Keep the corner free of scattered condition controls and duplicate bars.
+The shared host handles measured clearance, search/task-context avoidance and
+draft interaction locks. Cancel leaves the query unchanged; applying/removing a
+query resets the initial cursor once, on Apply filters. For capable owners, use controlled `value` /
+`onValueChange` with `ConsoleFilterGroup`: AND/OR groups, repeated fields and
+bounded nesting stay in the same editor. The panel offers local Add condition
+and Add group controls.
+Inside the shared root popover, use a separate vertical editor: Match logic in the
+header, condition rows with inline editing, and child groups as labelled nested
+containers. Add condition / Add group are local actions, not another filter-icon
+toolbar. Keep the root and its complete subtree in the same editor popover.
+Keep removal inside the corresponding condition/group editor. Bind the
+tree before pagination, or evaluate a complete snapshot. Calendar-date fields use
+`on`/`before`/`after`/inclusive `between`; the owner defines timestamp-to-calendar
+conversion. See the public [table contract](../../../../packages/console-react/README.md#table-controls-and-contextual-defaults)
+for bounds and empty-group semantics. Keep flat `conditions` / `onConditionsChange`
+for services that only support flat AND predicates. Layout customization is separate and
+does not get a default business corner button.
 
 When comparable records occupy the page, default to the needed search, filter
 and sort controls in compact top-corner query groups. Create/import belong in a
@@ -19,6 +59,8 @@ Default pagination to a bottom-right navigation group: page state, previous,
 next and jump-to-page where the service supports them. Group navigation tightly;
 keep query, insertion and navigation groups visually distinct through modest
 spacing or semantic separators. Do not split every control into a floating island.
+Previous/next steps use icon buttons with accessible names and hover/focus
+tooltips; summaries, page numbers and page-entry controls retain meaningful text.
 Give each group a clear accessible purpose and target. Pagination is a compound
 control, not an obligation to turn page numbers/inputs into icons. Forward-only
 cursors support next/append and honest loaded counts, not fabricated totals,
@@ -74,11 +116,12 @@ Design the policy with these conditions:
   remains; do not rely on hover or scrolling alone. Respect reduced motion and
   avoid switching animations for keyboard interaction.
 
-The minimum host extension and currently available primitives are documented in
-[runtime support](runtime-support.md#contextual-design-capability-boundary).
-Do not write a fictitious observer hook, owner-registration API or preset call.
-If that extension is outside scope, report it and a concrete design proposal;
-implement a supported alternative only when the user chooses it.
+Use `ConsoleTableContext mode="embedded"` for the table's content and groups;
+Layout owns the observation and arbitration. Hosts may opt into a controls menu
+for automatic or explicit context; small tables also expose a local activation
+button. Keep page fallback groups in a page-mode context. On older hosts without
+this contract, report the missing host support instead of implementing a private
+observer in the plugin.
 
 ## Real situations: apply the reasoning
 

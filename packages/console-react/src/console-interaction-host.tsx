@@ -20,6 +20,14 @@ import { shellStyles as styles } from "./console-shell.styles";
 
 const hostStyles = stylex.create({ root: { display: "contents" } });
 
+export interface ConsoleInteractionDestination {
+  id: string;
+  label: string;
+  href: string;
+  icon: ReactNode;
+}
+const noDestinations: readonly ConsoleInteractionDestination[] = [];
+
 /**
  * Interaction presentation for externally routed pages. The host supplies
  * authorized navigation; this surface never discovers services or destinations.
@@ -28,10 +36,12 @@ export function ConsoleInteractionHost({
   children,
   router,
   signal,
+  destinations = noDestinations,
 }: {
   children: ReactNode;
   router: Pick<ConsoleRouterAdapter, "pathname" | "navigate">;
   signal?: AbortSignal;
+  destinations?: readonly ConsoleInteractionDestination[];
 }) {
   const [open, setOpen] = useState(false);
   const [mount, setMount] = useState<HTMLDivElement | null>(null);
@@ -81,12 +91,26 @@ export function ConsoleInteractionHost({
           render={(selection, page) => (
             <ConsoleLayout.Foreground>
               <ConsoleDock
-                visible={!!selection || open || !!page?.commands?.length}
+                visible={
+                  !!destinations.length ||
+                  !!selection ||
+                  open ||
+                  !!page?.commands?.length
+                }
                 position="bottom"
                 compact={false}
-                activeId=""
-                items={
-                  page?.commands?.length
+                activeId={
+                  destinations.find(
+                    (entry) =>
+                      router.pathname === entry.href ||
+                      router.pathname.startsWith(
+                        `${entry.href.replace(/\/$/u, "")}/`
+                      )
+                  )?.id ?? ""
+                }
+                items={[
+                  ...destinations.slice(0, 4),
+                  ...(destinations.length || page?.commands?.length
                     ? [
                         {
                           id: "command",
@@ -95,8 +119,8 @@ export function ConsoleInteractionHost({
                           icon: <Search size={16} aria-hidden="true" />,
                         },
                       ]
-                    : []
-                }
+                    : []),
+                ]}
                 selection={selection}
                 running={selection?.running ?? false}
                 dockRef={dockRef}
@@ -127,7 +151,17 @@ export function ConsoleInteractionHost({
                             >
                               <ConsoleCommand
                                 inputRef={inputRef}
-                                destinations={[]}
+                                destinations={destinations.map((entry) => ({
+                                  id: entry.id,
+                                  label: entry.label,
+                                  onInvoke() {
+                                    if (signal?.aborted) {
+                                      return;
+                                    }
+                                    close();
+                                    router.navigate(entry.href);
+                                  },
+                                }))}
                                 presets={[]}
                                 actions={(page?.commands ?? []).map(
                                   (action) => ({
@@ -147,7 +181,19 @@ export function ConsoleInteractionHost({
                     </div>
                   ) : null
                 }
-                onNavigate={show}
+                onNavigate={(destinationId) => {
+                  const destination = destinations.find(
+                    (entry) => entry.id === destinationId
+                  );
+                  if (signal?.aborted) {
+                    return;
+                  }
+                  if (destination) {
+                    router.navigate(destination.href);
+                  } else {
+                    show();
+                  }
+                }}
                 onExpand={show}
                 onFocusDock={() => undefined}
               />

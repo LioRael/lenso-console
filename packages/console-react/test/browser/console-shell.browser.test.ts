@@ -1,8 +1,879 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-import { chromium, type Locator } from "playwright";
+import { chromium, type Locator, type Page } from "playwright";
 import { createServer } from "vite";
+
+async function nativeCancelDisplay(page: Page, label: string) {
+  // getComputedStyle(input, pseudo) returns the host input's display in
+  // Chromium. Inspect the actual user-agent shadow control instead.
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send("DOM.enable");
+    await cdp.send("CSS.enable");
+    const { root } = await cdp.send("DOM.getDocument", {
+      depth: -1,
+      pierce: true,
+    });
+    const pending = [root];
+    while (pending.length) {
+      const node = pending.pop()!;
+      if (node.nodeName === "INPUT") {
+        if (node.attributes?.includes(label)) {
+          pending.length = 0;
+          pending.push(...(node.shadowRoots ?? []));
+        }
+      } else if (node.attributes?.includes("-webkit-search-cancel-button")) {
+        const { computedStyle } = await cdp.send(
+          "CSS.getComputedStyleForNode",
+          { nodeId: node.nodeId }
+        );
+        return computedStyle.find((property) => property.name === "display")
+          ?.value;
+      } else {
+        pending.push(...(node.children ?? []), ...(node.shadowRoots ?? []));
+      }
+    }
+    throw new Error("The native search cancel control was not found.");
+  } finally {
+    await cdp.detach();
+  }
+}
+
+// Pure arbitration tests cannot prove portal focus, scroll dwell, customization
+// or restoration in the compiled host. Reuse this host fixture for those seams.
+test("edits nested OR groups and calendar rules in the corner without losing focus or content clearance", async () => {
+  const server = await createServer({
+    configFile: false,
+    root: fileURLToPath(new URL("../..", import.meta.url)),
+    optimizeDeps: { include: ["@lenso/ui", "liquid-gooey"] },
+    server: { host: "127.0.0.1", port: 0 },
+  });
+  await server.listen();
+  const browser = await chromium.launch();
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+  });
+  page.setDefaultTimeout(6000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await page.goto(
+      `${server.resolvedUrls!.local[0]}test/browser/?tables&filter-tree`
+    );
+    const result = page.getByRole("status", {
+      name: "Matching fixture records",
+      exact: true,
+      includeHidden: true,
+    });
+    const rootEntry = page.getByRole("button", {
+      name: /^Filter records:/,
+      exact: true,
+    });
+    const addName = async (entry: Locator, name: string) => {
+      await entry.click();
+      await page
+        .getByRole("combobox", {
+          name: "Add condition to group 1",
+          exact: true,
+        })
+        .click();
+      await page.getByRole("option", { name: "Name", exact: true }).click();
+      await page
+        .getByRole("textbox", { name: "Value for Name", exact: true })
+        .fill(name);
+      await page.keyboard.press("Enter");
+      await page
+        .getByRole("button", { name: "Apply filters", exact: true })
+        .click();
+    };
+    await addName(rootEntry, "Alice");
+    const corner = page.getByRole("group", {
+      name: "Filter records",
+      exact: true,
+    });
+    expect(
+      await corner
+        .getByRole("combobox", { name: "Filter logic", exact: true })
+        .count()
+    ).toBe(0);
+    expect(await corner.getByRole("button").count()).toBe(1);
+    expect(await corner.textContent()).toBe("Name contains Alice");
+    const commits = page.getByRole("status", {
+      name: "Filter commits",
+      exact: true,
+      includeHidden: true,
+    });
+    expect(await commits.textContent()).toBe("1");
+    await rootEntry.focus();
+    await page.keyboard.press("Enter");
+    const rootEditor = page.getByRole("dialog", {
+      name: "Filters",
+      exact: true,
+    });
+    expect(
+      await rootEditor
+        .getByRole("group", { name: "Condition group 1", exact: true })
+        .count()
+    ).toBe(1);
+    await rootEditor
+      .getByRole("button", { name: "Edit Name condition", exact: true })
+      .click();
+    await page
+      .getByRole("textbox", { name: "Value for Name", exact: true })
+      .fill("cancelled");
+    await page.keyboard.press("Escape");
+    expect(await result.textContent()).toBe("Alice");
+    await rootEntry.click();
+    await page
+      .getByRole("button", { name: "Add group to group 1", exact: true })
+      .click();
+    const nestedEntry = page.getByRole("combobox", {
+      name: "Add condition to group 1.1",
+      exact: true,
+    });
+    expect(
+      await nestedEntry.evaluate((node) => document.activeElement === node)
+    ).toBe(true);
+    expect(await result.textContent()).toBe("Alice");
+    await nestedEntry.click();
+    await page.getByRole("option", { name: "Name", exact: true }).click();
+    await page.keyboard.type("Bob");
+    expect(
+      await page
+        .getByRole("textbox", { name: "Value for Name", exact: true })
+        .inputValue()
+    ).toBe("Bob");
+    await page.keyboard.press("Enter");
+    expect(await result.textContent()).toBe("Alice");
+    await page
+      .getByRole("combobox", { name: "Filter logic", exact: true })
+      .click();
+    await page.getByRole("option", { name: "Any", exact: true }).click();
+    expect(await result.textContent()).toBe("Alice");
+    expect(await commits.textContent()).toBe("1");
+    await nestedEntry.click();
+    await page
+      .getByRole("option", { name: "Created date", exact: true })
+      .click();
+    const date = page.getByLabel("Value for Created date", { exact: true });
+    await date.fill("2024-03-01");
+    await page
+      .getByRole("button", {
+        name: "Collapse Created date condition",
+        exact: true,
+      })
+      .click();
+    expect(await result.textContent()).toBe("Alice");
+    await page
+      .getByRole("button", { name: "Edit Created date condition", exact: true })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Rule for Created date", exact: true })
+      .click();
+    await page.getByRole("option", { name: "is between", exact: true }).click();
+    await page.getByLabel("Upper bound", { exact: true }).fill("2024-02-29");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    expect(await page.getByRole("alert").textContent()).toContain("start date");
+    await page.waitForFunction(
+      () => document.activeElement?.getAttribute("aria-invalid") === "true"
+    );
+    expect(await commits.textContent()).toBe("1");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(
+      () => !!document.querySelector('[role="dialog"][aria-modal="true"]')
+    );
+    // A group is one editor surface. Conditions edit inline rather than opening
+    // another corner toolbar or a second condition popover.
+    const dateEditor = page.getByRole("dialog", {
+      name: "Filters",
+      exact: true,
+    });
+    expect(await page.getByRole("dialog").count()).toBe(1);
+    expect(await dateEditor.getAttribute("aria-modal")).toBe("true");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .focus();
+    await page.keyboard.press("Tab");
+    await page.waitForFunction(
+      (node) => !!node?.contains(document.activeElement),
+      await dateEditor.elementHandle()
+    );
+    expect(
+      await page
+        .getByRole("list", { name: "Conditions in group 1.1", exact: true })
+        .getByRole("listitem")
+        .count()
+    ).toBe(2);
+    expect(
+      await dateEditor
+        .getByRole("button", { name: "Condition group 1.1", exact: true })
+        .count()
+    ).toBe(0);
+    await page.waitForFunction(
+      (node) => {
+        const box = node!.getBoundingClientRect();
+        return (
+          box.left >= 0 &&
+          box.right <= innerWidth &&
+          box.top >= 0 &&
+          box.bottom <= innerHeight
+        );
+      },
+      await dateEditor.elementHandle()
+    );
+    for (const control of await dateEditor.getByRole("button").all()) {
+      if (!(await control.isDisabled())) {
+        await control.click({ trial: true });
+      }
+    }
+    await page.screenshot({
+      path: ".artifacts/table-controls/filter-editor-narrow.png",
+    });
+    await page.getByLabel("Upper bound", { exact: true }).fill("2024-03-02");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    expect(await result.textContent()).toBe("Alice, Bob");
+    expect(await commits.textContent()).toBe("2");
+    await page
+      .getByText("Filters", { exact: true })
+      .waitFor({ state: "hidden" });
+    expect(
+      await page
+        .getByRole("button", { name: /^Filter records:/, exact: true })
+        .evaluate((node) => node === document.activeElement)
+    ).toBe(true);
+    expect(
+      await page.getByRole("dialog", { name: "Filters", exact: true }).count()
+    ).toBe(0);
+    expect(await corner.getByRole("button").count()).toBe(1);
+    expect(await corner.textContent()).toBe("Custom filters · 3 conditions");
+    expect(await rootEntry.getAttribute("aria-description")).toBe(
+      "3 applied conditions"
+    );
+    expect(
+      await page
+        .getByRole("button", {
+          name: "Edit Created date condition",
+          exact: true,
+        })
+        .count()
+    ).toBe(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const group = page.getByRole("group", {
+      name: "Filter records",
+      exact: true,
+    });
+    await page.waitForFunction(
+      ({ output, filters }) =>
+        !!output &&
+        !!filters &&
+        filters.getBoundingClientRect().right <= innerWidth &&
+        output.getBoundingClientRect().top >=
+          filters.getBoundingClientRect().bottom,
+      {
+        output: await result.elementHandle(),
+        filters: await group.elementHandle(),
+      }
+    );
+    await page.screenshot({
+      path: ".artifacts/table-controls/nested-date-narrow.png",
+    });
+    expect(
+      await group.evaluate(
+        (node) =>
+          node.closest<HTMLElement>("[data-console-corner]")?.dataset
+            .consoleCorner
+      )
+    ).toBe("topRight");
+    for (const control of await group.locator("button").all()) {
+      expect(
+        await control.evaluate((node) => {
+          const box = node.getBoundingClientRect();
+          return (
+            box.left >= 0 &&
+            box.right <= innerWidth &&
+            box.top >= 0 &&
+            box.bottom <= innerHeight &&
+            node.contains(
+              document.elementFromPoint(
+                box.left + box.width / 2,
+                box.top + box.height / 2
+              )
+            )
+          );
+        }),
+        (await control.getAttribute("aria-label")) ??
+          (await control.textContent()) ??
+          "control"
+      ).toBe(true);
+    }
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.screenshot({
+      path: ".artifacts/table-controls/nested-date-desktop.png",
+    });
+    await page
+      .getByRole("button", { name: /^Filter records:/, exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Remove group 1.1", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    expect(await result.textContent()).toBe("Alice, Bob");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    await page
+      .getByText("Filters", { exact: true })
+      .waitFor({ state: "hidden" });
+    expect(
+      await rootEntry.evaluate((node) => document.activeElement === node)
+    ).toBe(true);
+    expect(await result.textContent()).toBe("Alice");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await rootEntry.click();
+    await page
+      .getByRole("button", { name: "Add group to group 1", exact: true })
+      .click();
+    for (const path of ["1.1", "1.1.1"]) {
+      await page
+        .getByRole("button", {
+          name: `Add group to group ${path}`,
+          exact: true,
+        })
+        .click();
+    }
+    const groupEntry = page.getByRole("combobox", {
+      name: "Add condition to group 1.1.1.1",
+      exact: true,
+    });
+    await groupEntry.click();
+    await page.getByRole("option", { name: "Name", exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Value for Name", exact: true })
+      .fill("Alice");
+    await page.keyboard.press("Enter");
+    expect(
+      await page
+        .getByRole("button", {
+          name: "Add group to group 1.1.1.1",
+          exact: true,
+        })
+        .count()
+    ).toBe(0);
+    const parentGroup = page.getByRole("group", {
+      name: "Condition group 1.1.1",
+      exact: true,
+    });
+    expect(
+      await parentGroup
+        .getByRole("group", { name: "Condition group 1.1.1.1", exact: true })
+        .count()
+    ).toBe(1);
+    expect(await page.getByRole("dialog").count()).toBe(1);
+    for (const control of await dateEditor.getByRole("button").all()) {
+      await control.click({ trial: true });
+    }
+    await page.screenshot({
+      path: ".artifacts/table-controls/group-hierarchy-narrow.png",
+    });
+    await page
+      .getByRole("button", { name: "Remove group 1.1.1.1", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    expect(
+      await page
+        .getByRole("combobox", {
+          name: "Add condition to group 1.1.1",
+          exact: true,
+        })
+        .evaluate((node) => node === document.activeElement)
+    ).toBe(true);
+    expect(await commits.textContent()).toBe("3");
+    await page
+      .getByRole("button", { name: "Collapse group 1.1", exact: true })
+      .click();
+    expect(
+      await page
+        .getByRole("group", { name: "Condition group 1.1.1", exact: true })
+        .count()
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Expand group 1.1", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Cancel filters", exact: true })
+      .click();
+    expect(await result.textContent()).toBe("Alice");
+    await rootEntry.click();
+    await page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .click();
+    expect(await commits.textContent()).toBe("3");
+    await page
+      .getByRole("button", { name: "Cancel filters", exact: true })
+      .click();
+    expect(await rootEntry.textContent()).toBe("Name contains Alice");
+    await rootEntry.click();
+    await page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    expect(await result.textContent()).toBe("Alice, Bob, Carol");
+    expect(await rootEntry.textContent()).toBe("Filters");
+    await rootEntry.click();
+    expect(
+      await page
+        .getByRole("combobox", { name: "Filter logic", exact: true })
+        .textContent()
+    ).toContain("All");
+    await page
+      .getByRole("button", { name: "Cancel filters", exact: true })
+      .click();
+    expect(errors).toEqual([]);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}, 40000);
+
+test("shares table control presets, protects focused contexts and restores page controls after embedded tables", async () => {
+  const server = await createServer({
+    configFile: false,
+    root: fileURLToPath(new URL("../..", import.meta.url)),
+    optimizeDeps: { include: ["@lenso/ui", "liquid-gooey"] },
+    server: { host: "127.0.0.1", port: 0 },
+  });
+  await server.listen();
+  const browser = await chromium.launch();
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+  });
+  page.setDefaultTimeout(6000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const query = page.getByRole("searchbox", {
+    name: "Search records",
+    exact: true,
+  });
+  const embedded = page.getByRole("region", {
+    name: "Transactions table context",
+    exact: true,
+    includeHidden: true,
+  });
+  const blur = () =>
+    page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+  const openQuery = async () => {
+    if (!(await query.isVisible())) {
+      await page
+        .getByRole("button", { name: "Search records", exact: true })
+        .click();
+    }
+    await query.waitFor();
+  };
+  try {
+    await page.goto(
+      `${server.resolvedUrls!.local[0]}test/browser/index.html?tables&customize`
+    );
+    const searchEntry = page.getByRole("button", {
+      name: "Search records",
+      exact: true,
+    });
+    const filterEntry = page.getByRole("button", {
+      name: /^Filter records:/,
+      exact: true,
+    });
+    await filterEntry.waitFor();
+    const searchBox = await searchEntry.boundingBox();
+    const filterBox = await filterEntry.boundingBox();
+    expect(searchBox!.height).toBe(filterBox!.height);
+    expect(searchBox!.x < filterBox!.x).toBe(true);
+    expect(await query.count()).toBe(0);
+    await openQuery();
+    await query.fill("retained");
+    // Chromium/WebKit's native cancel affordance must not duplicate the
+    // library clear button; this cannot be proven by counting DOM buttons.
+    expect(await nativeCancelDisplay(page, "Search records")).toBe("none");
+    await page
+      .getByRole("button", { name: "Clear search records", exact: true })
+      .click();
+    expect(await query.inputValue()).toBe("");
+    await query.fill("retained");
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-label") === "Search records"
+    );
+    await page.keyboard.press("Enter");
+    await query.waitFor();
+    expect(await query.inputValue()).toBe("retained");
+    expect(
+      await query.evaluate((node) => node === document.activeElement)
+    ).toBe(true);
+    await embedded.evaluate((node) => node.scrollIntoView({ block: "start" }));
+    // Scrolling cannot steal a live query, even after the dwell window.
+    await page.waitForTimeout(250);
+    expect(await query.isVisible()).toBe(true);
+    expect(await query.inputValue()).toBe("retained");
+    await blur();
+    await page
+      .getByRole("textbox", { name: "Search transactions", exact: true })
+      .waitFor();
+    await page.evaluate(() => scrollTo(0, 0));
+    await openQuery();
+    expect(await query.inputValue()).toBe("retained");
+    if (process.env.LENSO_TABLE_SCREENSHOTS) {
+      await page.screenshot({
+        path: `${process.env.LENSO_TABLE_SCREENSHOTS}/records-desktop.png`,
+      });
+    }
+    const tools = page.getByRole("button", {
+      name: "Table controls: Records",
+      exact: true,
+    });
+    await tools.focus();
+    await page.keyboard.press("Enter");
+    await page
+      .getByRole("combobox", {
+        name: "Search placement",
+        exact: true,
+      })
+      .click();
+    await page.getByRole("option", { name: "Top right", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-label") ===
+        "Table controls: Records"
+    );
+    await openQuery();
+    expect(
+      await query.evaluate(
+        (node) =>
+          node.closest<HTMLElement>("[data-console-corner]")?.dataset
+            .consoleCorner
+      )
+    ).toBe("topRight");
+    await tools.click();
+    await page
+      .getByRole("combobox", { name: "Control context", exact: true })
+      .click();
+    await page
+      .getByRole("option", { name: "Transactions", exact: true })
+      .click();
+    await page
+      .getByRole("textbox", { name: "Search transactions", exact: true })
+      .waitFor();
+    const transactionsTools = page.getByRole("button", {
+      name: "Table controls: Transactions",
+      exact: true,
+    });
+    await transactionsTools.click();
+    await page
+      .getByRole("combobox", { name: "Control context", exact: true })
+      .click();
+    await page.getByRole("option", { name: "Automatic", exact: true }).click();
+    await page.waitForFunction(
+      () =>
+        document.activeElement?.getAttribute("aria-label") ===
+        "Table controls: Transactions"
+    );
+    await blur();
+    await openQuery();
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate((value) => {
+        document.documentElement.dataset.theme = value;
+      }, theme);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.waitForFunction(
+        () => document.documentElement.scrollWidth <= innerWidth
+      );
+      for (const control of [
+        query,
+        page.getByRole("button", { name: "Records page 1", exact: true }),
+        tools,
+      ]) {
+        await control.scrollIntoViewIfNeeded();
+        expect(
+          await control.evaluate((node) => {
+            const rect = node.getBoundingClientRect();
+            return (
+              rect.left >= 0 &&
+              rect.right <= innerWidth &&
+              rect.top >= 0 &&
+              rect.bottom <= innerHeight &&
+              node.contains(
+                document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2
+                )
+              )
+            );
+          })
+        ).toBe(true);
+      }
+      if (process.env.LENSO_TABLE_SCREENSHOTS) {
+        await page.screenshot({
+          path: `${process.env.LENSO_TABLE_SCREENSHOTS}/records-narrow-${theme}.png`,
+        });
+      }
+    }
+    // The entire builder belongs to one corner projection. Drafts must not
+    // reach the page; numeric fields here are test data, not Auth attributes.
+    const entryBefore = await filterEntry.boundingBox();
+    const chooseField = async (name: string) => {
+      if (
+        !(await page
+          .getByRole("dialog", { name: "Filters", exact: true })
+          .isVisible())
+      ) {
+        await filterEntry.click();
+      }
+      expect(await query.isVisible()).toBe(false);
+      await page
+        .getByRole("combobox", {
+          name: "Add condition to group 1",
+          exact: true,
+        })
+        .click();
+      await page.getByRole("option", { name, exact: true }).click();
+      await page
+        .getByRole("group", { name: "Edit condition", exact: true })
+        .waitFor();
+      expect(
+        await page
+          .getByRole("combobox", { name: "Filter logic", exact: true })
+          .count()
+      ).toBe(0);
+    };
+    await chooseField("Name");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Enter a value." })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("status", {
+          name: "Filter commits",
+          exact: true,
+          includeHidden: true,
+        })
+        .textContent()
+    ).toBe("0");
+    const nameValue = page.getByRole("textbox", {
+      name: "Value for Name",
+      exact: true,
+    });
+    await nameValue.fill("Alice");
+    await blur();
+    const heightBeforeScroll = await page.evaluate(
+      () => document.documentElement.scrollHeight
+    );
+    await embedded.evaluate((node) => node.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(250);
+    expect(await nameValue.inputValue()).toBe("Alice");
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight)
+    ).toBe(heightBeforeScroll);
+    await nameValue.focus();
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => scrollTo(0, 0));
+    expect(
+      await page
+        .getByRole("status", { name: "Applied conditions", exact: true })
+        .textContent()
+    ).toBe("0");
+    await chooseField("Name");
+    await nameValue.fill("Alice");
+    await page.keyboard.press("Enter");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    await chooseField("Name");
+    await page
+      .getByRole("textbox", { name: "Value for Name", exact: true })
+      .fill("cancelled");
+    await page.keyboard.press("Escape");
+    expect(await filterEntry.textContent()).toContain("Alice");
+    expect(
+      await page
+        .getByRole("group", { name: "Edit condition", exact: true })
+        .count()
+    ).toBe(0);
+    await chooseField("Age");
+    await page
+      .getByRole("combobox", { name: "Rule for Age", exact: true })
+      .click();
+    await page.getByRole("option", { name: "is between", exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Lower bound", exact: true })
+      .fill("30");
+    await page
+      .getByRole("textbox", { name: "Upper bound", exact: true })
+      .fill("18");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "The lower bound must not exceed the upper bound." })
+      .waitFor();
+    expect(
+      await page
+        .getByRole("status", {
+          name: "Applied conditions",
+          exact: true,
+          includeHidden: true,
+        })
+        .textContent()
+    ).toBe("1");
+    await page
+      .getByRole("textbox", { name: "Upper bound", exact: true })
+      .fill("40");
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    expect(
+      await page
+        .getByRole("status", { name: "Applied conditions", exact: true })
+        .textContent()
+    ).toBe("2");
+    await page
+      .getByText("Filters", { exact: true })
+      .waitFor({ state: "hidden" });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth
+      )
+    ).toBe(true);
+    const filterGroup = page.getByRole("group", {
+      name: "Filter records",
+      exact: true,
+    });
+    expect(
+      await filterGroup.evaluate(
+        (node) =>
+          node.closest<HTMLElement>("[data-console-corner]")?.dataset
+            .consoleCorner
+      )
+    ).toBe("topRight");
+    expect(
+      await page
+        .getByRole("button", { name: "Add condition", exact: true })
+        .count()
+    ).toBe(0);
+    const entryAfter = await filterEntry.boundingBox();
+    expect(entryAfter!.x + entryAfter!.width).toBe(
+      entryBefore!.x + entryBefore!.width
+    );
+    expect(entryAfter!.y).toBe(entryBefore!.y);
+    expect(await filterGroup.getByRole("button").count()).toBe(1);
+    expect(await filterGroup.textContent()).toBe(
+      "Custom filters · 2 conditions"
+    );
+    await page.waitForFunction(
+      ({ controls, content }) =>
+        !!controls &&
+        !!content &&
+        content.getBoundingClientRect().top >=
+          controls.getBoundingClientRect().bottom + 8,
+      {
+        controls: await filterGroup.elementHandle(),
+        content: await page
+          .getByRole("status", { name: "Applied conditions", exact: true })
+          .elementHandle(),
+      }
+    );
+    await filterEntry.click();
+    for (const field of ["Age", "Name"]) {
+      await page
+        .getByRole("button", { name: `Remove ${field} condition`, exact: true })
+        .click();
+    }
+    await page
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    await page.waitForFunction(() =>
+      document.activeElement
+        ?.getAttribute("aria-label")
+        ?.startsWith("Filter records:")
+    );
+    expect(
+      await page
+        .getByRole("group", {
+          name: "Filter records: conditions",
+          exact: true,
+        })
+        .count()
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Leave records", exact: true })
+      .click();
+    await page.getByText("Other page", { exact: true }).waitFor();
+    expect(await query.count()).toBe(0);
+    await page.getByRole("button", { name: "Records", exact: true }).click();
+    await openQuery();
+    expect(errors).toEqual([]);
+    const touch = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+    });
+    await touch.goto(
+      `${server.resolvedUrls!.local[0]}test/browser/index.html?tables`
+    );
+    const touchSearch = touch.getByRole("button", {
+      name: "Search records",
+      exact: true,
+    });
+    const touchFilters = touch.getByRole("button", {
+      name: /^Filter records:/,
+      exact: true,
+    });
+    await touchFilters.waitFor();
+    expect((await touchSearch.boundingBox())!.height).toBe(44);
+    expect((await touchFilters.boundingBox())!.height).toBe(44);
+    await touchFilters.click();
+    await touch
+      .getByRole("combobox", { name: "Add condition to group 1", exact: true })
+      .click();
+    await touch.getByRole("option", { name: "Name", exact: true }).click();
+    await touch
+      .getByRole("textbox", { name: "Value for Name", exact: true })
+      .fill("Alice");
+    await touch
+      .getByRole("button", { name: "Collapse Name condition", exact: true })
+      .click();
+    for (const control of await touch
+      .getByRole("group", { name: "Name condition", exact: true })
+      .getByRole("button")
+      .all()) {
+      expect((await control.boundingBox())!.height >= 44).toBe(true);
+    }
+    await touch
+      .getByRole("button", { name: "Apply filters", exact: true })
+      .click();
+    const touchCorner = touch.getByRole("group", {
+      name: "Filter records",
+      exact: true,
+    });
+    expect(await touchCorner.getByRole("button").count()).toBe(1);
+    expect(await touchCorner.textContent()).toBe("Name contains Alice");
+    await touch.close();
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}, 30000);
 
 // Unit tests cannot prove capture, delayed holds, focus restoration or occlusion.
 // Extend the compiled-shell walkthrough rather than duplicate its browser fixture.

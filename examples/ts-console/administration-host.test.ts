@@ -231,9 +231,11 @@ test("local administration shares authenticated service policy across Console an
     ]);
     await migrateLocalLocaleStore(config.databasePath);
     const colleague = "existing@localhost.test";
+    const inactive = "disabled-filter@localhost.test";
     expect(
       initializeLocalAdministration(config, [
         { subjectId: colleague, label: "Existing directory user" },
+        { subjectId: inactive, label: "Disabled filter fixture" },
       ])
     ).toBe(true);
     expect(initializeLocalAdministration(config)).toBe(false);
@@ -289,6 +291,91 @@ test("local administration shares authenticated service policy across Console an
     const users = await invoke<Page<DirectoryUser>>("usersList", {});
     expect(users.items.map((user) => user.subjectId)).toContain(colleague);
     let access = await invoke<AccessSnapshot>("accessRead", {});
+    await invoke("usersDisable", {
+      subjectId: inactive,
+      expectedRevision: access.revision,
+    });
+    access = await invoke<AccessSnapshot>("accessRead", {});
+    const activeFirst = await invoke<Page<DirectoryUser>>("usersList", {
+      status: "active",
+      limit: 1,
+    });
+    expect(activeFirst.items).toHaveLength(1);
+    expect(activeFirst.items.every((user) => user.status === "active")).toBe(
+      true
+    );
+    expect(activeFirst.nextCursor).not.toBeNull();
+    const activeLast = await invoke<Page<DirectoryUser>>("usersList", {
+      status: "active",
+      limit: 1,
+      cursor: activeFirst.nextCursor,
+    });
+    expect(activeLast.items).toHaveLength(1);
+    expect(activeLast.items[0]!.status).toBe("active");
+    expect(activeLast.nextCursor).toBeNull();
+    expect(
+      new Set(
+        [...activeFirst.items, ...activeLast.items].map(
+          (user) => user.subjectId
+        )
+      ).size
+    ).toBe(2);
+    const disabled = await invoke<Page<DirectoryUser>>("usersList", {
+      status: "disabled",
+    });
+    expect(disabled.items.map((user) => user.subjectId)).toEqual([inactive]);
+    const combined = await invoke<Page<DirectoryUser>>("usersList", {
+      status: "disabled",
+      search: "Existing",
+    });
+    expect(combined.items).toEqual([]);
+    const named = await invoke<Page<DirectoryUser>>("usersList", {
+      name: { operator: "contains", value: "DIRECTORY" },
+      status: "active",
+      limit: 1,
+    });
+    expect(named.items.map((user) => user.subjectId)).toEqual([colleague]);
+    expect(named.nextCursor).toBeNull();
+    const exact = await invoke<Page<DirectoryUser>>("usersList", {
+      name: { operator: "equals", value: "Existing directory user" },
+    });
+    expect(exact.items.map((user) => user.subjectId)).toEqual([colleague]);
+    const notExact = await invoke<Page<DirectoryUser>>("usersList", {
+      name: { operator: "equals", value: "directory" },
+    });
+    expect(notExact.items).toEqual([]);
+    // A page-only filter or flattened AND would miss one branch or repeat a cursor.
+    const tree = {
+      operator: "or",
+      children: [
+        { field: "name", operator: "equals", value: "Existing directory user" },
+        {
+          operator: "and",
+          children: [
+            { field: "status", operator: "equals", value: "disabled" },
+            { field: "name", operator: "contains", value: "filter fixture" },
+          ],
+        },
+        { operator: "and", children: [] },
+      ],
+    };
+    const firstMatch = await invoke<Page<DirectoryUser>>("usersList", {
+      filter: tree,
+      limit: 1,
+    });
+    expect(firstMatch.items).toHaveLength(1);
+    expect(firstMatch.nextCursor).not.toBeNull();
+    const lastMatch = await invoke<Page<DirectoryUser>>("usersList", {
+      filter: tree,
+      limit: 1,
+      cursor: firstMatch.nextCursor,
+    });
+    expect(lastMatch.nextCursor).toBeNull();
+    expect(
+      [...firstMatch.items, ...lastMatch.items]
+        .map((user) => user.subjectId)
+        .sort()
+    ).toEqual([colleague, inactive].sort());
     const viewer = access.roles.find((role) => role.id === "readonly")!;
     expect(viewer).toBeDefined();
     access = await invoke<AccessSnapshot>("membersSet", {

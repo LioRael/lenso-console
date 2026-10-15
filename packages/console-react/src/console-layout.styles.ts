@@ -48,6 +48,11 @@ export const cornerStyles = stylex.create({
   bottomRight: { bottom: 24, right: 28 },
 });
 
+export const tableCornerSpacing = stylex.create({
+  top: { marginBlockStart: { default: 0, "@media (max-width: 760px)": 56 } },
+  bottom: { marginBlockEnd: { default: 0, "@media (max-width: 760px)": 72 } },
+});
+
 export const edgeStyles = stylex.create({
   root: {
     position: "fixed",

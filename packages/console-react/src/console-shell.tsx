@@ -90,6 +90,7 @@ export interface ConsoleShellProps {
   preferences?: ConsolePreferenceStore;
   tabsPosition?: ConsolePreferences["position"] | "content";
   topEdge?: ConsoleLayoutProps["topEdge"];
+  tableControls?: ConsoleLayoutProps["tableControls"];
   /** Also show the corner entry while the Dock already provides navigation. */
   navigationButton?: boolean;
   renderStatus?: (status: ConsoleShellStatus) => ReactNode;
@@ -313,6 +314,7 @@ export function ConsoleShell({
   preferences: store,
   tabsPosition,
   topEdge,
+  tableControls,
   navigationButton = false,
   renderStatus,
   children,
@@ -721,6 +723,7 @@ export function ConsoleShell({
   );
   const layout = (
     <ConsoleLayout
+      tableControls={tableControls}
       {...(topEdge ? { topEdge } : {})}
       onPointerDownCapture={() => {
         pointerIntent.current = true;

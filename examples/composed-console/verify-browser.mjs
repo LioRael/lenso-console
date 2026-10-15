@@ -24,6 +24,45 @@ page.on("response", (response) => {
 const button = (name) => page.getByRole("button", { exact: true, name });
 const link = (name) => page.getByRole("link", { exact: true, name });
 const heading = (name) => page.getByRole("heading", { exact: true, name });
+const fillOrderSearch = async (value) => {
+  const input = page.getByRole("searchbox", {
+    exact: true,
+    name: "Filter order IDs",
+  });
+  if (!(await input.isVisible())) {
+    await button("Filter order IDs").click();
+  }
+  await input.fill(value);
+};
+const draftTableFilter = async (label, field, value) => {
+  await page
+    .getByRole("button", { name: new RegExp(`^${label}:`, "u") })
+    .click();
+  await page
+    .getByRole("combobox", { exact: true, name: "Add condition to group 1" })
+    .click();
+  await page.getByRole("option", { exact: true, name: field }).click();
+  await page
+    .getByRole("textbox", { exact: true, name: `Value for ${field}` })
+    .fill(value);
+  await page.keyboard.press("Enter");
+};
+const finishTableFilter = async (action = "Apply filters") => {
+  await button(action).click();
+  await page
+    .getByRole("dialog", { exact: true, name: "Filters" })
+    .waitFor({ state: "hidden" });
+  await page.waitForFunction(() =>
+    document.activeElement?.getAttribute("aria-label")?.startsWith("Filter ")
+  );
+};
+const clearTableFilter = async (label) => {
+  await page
+    .getByRole("button", { name: new RegExp(`^${label}:`, "u") })
+    .click();
+  await button("Clear filters").click();
+  await finishTableFilter();
+};
 const setTheme = (theme) =>
   page.evaluate((value) => {
     document.documentElement.dataset.theme = value;
@@ -1187,6 +1226,52 @@ try {
     const destination = realm === "Workforce" ? "Workforce" : "Customer";
     await navigate(realm, `/${path}`);
     await navigate(`${destination} subjects`, `/${path}/subjects`);
+    // Shared widget tests do not prove that these bindings filter their complete
+    // subject snapshot or preserve the independent Auth realm.
+    const subjects = page.getByRole("table", { exact: true, name: "Subjects" });
+    await subjects.waitFor();
+    assert.equal(await subjects.getByRole("row").count(), 4);
+    await button("Search subjects").focus();
+    await page.keyboard.press("Enter");
+    await page
+      .getByRole("searchbox", { exact: true, name: "Search subjects" })
+      .fill("sample-subject-2");
+    assert.equal(await subjects.getByRole("row").count(), 2);
+    await page
+      .getByRole("searchbox", { exact: true, name: "Search subjects" })
+      .fill("");
+    await page.keyboard.press("Escape");
+    await draftTableFilter(
+      "Filter subjects",
+      "Realm",
+      `sample-${path === "workforce" ? "customers" : "workforce"}`
+    );
+    assert.equal(await subjects.getByRole("row").count(), 4);
+    await finishTableFilter("Cancel filters");
+    assert.equal(await subjects.getByRole("row").count(), 4);
+    await draftTableFilter("Filter subjects", "Subject ID", "sample-subject-2");
+    await finishTableFilter();
+    assert.equal(await subjects.getByRole("row").count(), 2);
+    assert.equal(
+      await subjects
+        .getByRole("cell", { exact: true, name: `sample-${path}` })
+        .count(),
+      1
+    );
+    for (const [label, area] of [
+      ["Search subjects", "topLeft"],
+      ["Filter subjects: Subject ID contains sample-subject-2", "topRight"],
+    ]) {
+      const control = button(label);
+      assert.equal(
+        await control.evaluate(
+          (node) => node.closest("[data-console-corner]")?.dataset.consoleCorner
+        ),
+        area
+      );
+      await control.click({ trial: true });
+    }
+    await clearTableFilter("Filter subjects");
     await navigate(`${destination} sessions`, `/${path}/sessions`);
     // Click-through alone cannot detect missing extracted styles or undersized targets.
     const sessions = page.getByRole("region", {
@@ -1242,8 +1327,16 @@ try {
     await button("Load more sessions").click();
     await link(`sample-${path}-3`).waitFor();
     assert.equal(await button("Load more sessions").isDisabled(), true);
-    await sessions
-      .getByRole("navigation", { name: "Session list navigation" })
+    const sessionNavigation = page.getByRole("navigation", {
+      name: "Session list navigation",
+    });
+    assert.equal(
+      await sessionNavigation.evaluate(
+        (node) => node.closest("[data-console-corner]")?.dataset.consoleCorner
+      ),
+      "bottomRight"
+    );
+    await sessionNavigation
       .getByText("3 sessions loaded", { exact: true })
       .waitFor();
     // The selection checkboxes control the table and the contextual Dock.
@@ -1371,11 +1464,48 @@ try {
   await navigate("Orders", "/orders");
   await page.getByRole("tab", { exact: true, name: "Manage" }).click();
   await page.waitForURL(`${origin}/orders/manage`);
+  const orderTable = page.getByRole("table", { exact: true, name: "Orders" });
+  await page
+    .getByRole("checkbox", { exact: true, name: "Select order sample-order-1" })
+    .check();
+  await draftTableFilter("Filter orders", "Order ID", "sample-order-2");
+  assert.equal(await orderTable.getByRole("row").count(), 4);
+  assert.equal(
+    await page
+      .getByRole("checkbox", {
+        exact: true,
+        name: "Select order sample-order-1",
+      })
+      .isChecked(),
+    true
+  );
+  await finishTableFilter("Cancel filters");
+  assert.equal(
+    await page
+      .getByRole("checkbox", {
+        exact: true,
+        name: "Select order sample-order-1",
+      })
+      .isChecked(),
+    true
+  );
+  await draftTableFilter("Filter orders", "Order ID", "sample-order-2");
+  await finishTableFilter();
+  assert.equal(await orderTable.getByRole("row").count(), 2);
+  assert.equal(await button("Archive selected orders").count(), 0);
+  assert.equal(
+    await page
+      .getByRole("checkbox", {
+        exact: true,
+        name: "Select order sample-order-2",
+      })
+      .isChecked(),
+    false
+  );
+  await clearTableFilter("Filter orders");
   // Launcher-only coverage cannot catch Command opening detached from the Dock,
   // losing text-entry/launcher focus, or discovering unsafe selection handlers.
-  await page
-    .getByRole("searchbox", { name: "Filter order IDs" })
-    .fill("sample-order-1");
+  await fillOrderSearch("sample-order-1");
   await page.keyboard.press(commandKey);
   await commandInput.waitFor();
   assert.equal(
@@ -1509,17 +1639,14 @@ try {
     mobileNavigationBox.x + mobileNavigationBox.width < 390,
     JSON.stringify({ mobileNavigationBox })
   );
-  const mobileCorner = await page
-    .locator('[data-console-corner="topLeft"]')
-    .boundingBox();
   const mobileTabs = await page
     .getByRole("tablist", { name: "Orders" })
     .boundingBox();
   assert.ok(
-    mobileCorner.x + mobileCorner.width <= mobileTabs.x ||
-      mobileCorner.y + mobileCorner.height <= mobileTabs.y ||
-      mobileTabs.y + mobileTabs.height <= mobileCorner.y,
-    JSON.stringify({ mobileCorner, mobileTabs })
+    mobileNavigationBox.x + mobileNavigationBox.width <= mobileTabs.x ||
+      mobileNavigationBox.y + mobileNavigationBox.height <= mobileTabs.y ||
+      mobileTabs.y + mobileTabs.height <= mobileNavigationBox.y,
+    JSON.stringify({ mobileNavigationBox, mobileTabs })
   );
   await page.setViewportSize({ height: 900, width: 1280 });
   const centeredTabs = await page
@@ -1558,9 +1685,7 @@ try {
       name: "Inspect workforce authentication information",
     })
     .waitFor();
-  await page
-    .getByRole("searchbox", { name: "Filter order IDs" })
-    .fill("sample-order-1");
+  await fillOrderSearch("sample-order-1");
   await page
     .getByRole("checkbox", { exact: true, name: "Select order sample-order-1" })
     .check();
@@ -1600,7 +1725,7 @@ try {
   page.once("dialog", (dialog) => dialog.accept());
   await button("Archive selected orders").click();
   await page.getByText("Archived 1 order.", { exact: true }).waitFor();
-  await button("Clear order filter").click();
+  await button("Clear filter order ids").click();
   assert.equal(await page.getByRole("checkbox").count(), 4);
   for (const [label, path] of [
     ["Manage", "/orders/manage"],
@@ -1609,6 +1734,19 @@ try {
     await page.getByRole("tab", { exact: true, name: label }).click();
     await page.waitForURL(`${origin}${path}`);
   }
+  // Filtering the aggregate must not turn one archived order out of three into 100%.
+  await draftTableFilter("Filter order statuses", "Status", "Sample: archived");
+  await finishTableFilter();
+  const distribution = page.getByRole("table", {
+    exact: true,
+    name: "Order status distribution",
+  });
+  assert.equal(await distribution.getByRole("row").count(), 2);
+  assert.equal(
+    await distribution.getByRole("cell", { exact: true, name: "33%" }).count(),
+    1
+  );
+  await clearTableFilter("Filter order statuses");
   await page.getByRole("tab", { exact: true, name: "Manage" }).click();
   await page.waitForURL(`${origin}/orders/manage`);
   // The return-cap seam is not proof of a tabs/object handoff. These frames

@@ -16,6 +16,14 @@ import {
   ConsolePageScope,
   ConsoleShell,
   ConsoleDockContent,
+  ConsoleLayout,
+  ConsoleTableContext,
+  ConsoleTableSearch,
+  type ConsoleFilterCondition,
+  type ConsoleFilterGroup,
+  evaluateConsoleFilter,
+  matchesConsoleFilterDate,
+  ConsoleInteractionHost,
   bindConsole,
   defineConsolePlugin,
 } from "../../dist/index.js";
@@ -661,11 +669,216 @@ function Fixture() {
     />
   );
 }
+function TableFixture() {
+  const treeMode = new URLSearchParams(location.search).has("filter-tree");
+  const [filter, setFilter] = useState<ConsoleFilterGroup>({
+    id: "records",
+    operator: "and",
+    children: [],
+  });
+  const [query, setQuery] = useState("");
+  const [conditions, setConditions] = useState<
+    readonly ConsoleFilterCondition[]
+  >([]);
+  const [commits, setCommits] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pathname, setPathname] = useState("/records");
+  return (
+    <ConsoleLayout
+      tableControls={{
+        customization: new URLSearchParams(location.search).has("customize"),
+      }}
+    >
+      <ConsoleInteractionHost
+        router={{ pathname, navigate: setPathname }}
+        destinations={[
+          {
+            id: "records",
+            label: "Records",
+            href: "/records",
+            icon: (
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  d="M3 3h14v14H3zM3 8h14M8 3v14"
+                  fill="none"
+                  stroke="currentColor"
+                />
+              </svg>
+            ),
+          },
+        ]}
+      >
+        <main style={{ padding: "90px 24px 180px" }}>
+          {pathname === "/records" ? (
+            <ConsoleTableContext
+              scopeKey="records"
+              label="Records"
+              filters={{
+                label: "Filter records",
+                ...(treeMode
+                  ? {
+                      value: filter,
+                      onValueChange: (value: ConsoleFilterGroup) => {
+                        setFilter(value);
+                        setCommits((count) => count + 1);
+                      },
+                    }
+                  : {
+                      conditions,
+                      onConditionsChange: (
+                        value: readonly ConsoleFilterCondition[]
+                      ) => {
+                        setConditions(value);
+                        setCommits((count) => count + 1);
+                      },
+                    }),
+                fields: [
+                  {
+                    id: "name",
+                    label: "Name",
+                    kind: "text",
+                    operators: ["contains", "equals"],
+                  },
+                  {
+                    id: "age",
+                    label: "Age",
+                    kind: "number",
+                    operators: ["gt", "equals", "between"],
+                  },
+                  {
+                    id: "status",
+                    label: "Status",
+                    kind: "enum",
+                    options: [
+                      { value: "active", label: "Active" },
+                      { value: "disabled", label: "Disabled" },
+                    ],
+                  },
+                  {
+                    id: "created",
+                    label: "Created date",
+                    kind: "date",
+                    operators: ["on", "before", "after", "between"],
+                  },
+                ],
+              }}
+              groups={[
+                {
+                  id: "query",
+                  kind: "query",
+                  label: "Search",
+                  children: (
+                    <ConsoleTableSearch
+                      label="Search records"
+                      value={query}
+                      onValueChange={setQuery}
+                    />
+                  ),
+                },
+                {
+                  id: "pagination",
+                  kind: "navigation",
+                  label: "Pagination",
+                  children: (
+                    <button
+                      onClick={() => setPage((value) => value + 1)}
+                      style={{ minHeight: 44 }}
+                    >
+                      Records page {page}
+                    </button>
+                  ),
+                },
+              ]}
+            >
+              <p>Controlled query: {query || "empty"}</p>
+              <output aria-label="Applied conditions">
+                {conditions.length}
+              </output>
+              <output aria-label="Filter commits">{commits}</output>
+              {treeMode && (
+                <output aria-label="Matching fixture records">
+                  {[
+                    { name: "Alice", created: "2024-02-29" },
+                    { name: "Bob", created: "2024-03-01" },
+                    { name: "Carol", created: "2024-03-02" },
+                  ]
+                    .filter((record) =>
+                      evaluateConsoleFilter(filter, (condition) => {
+                        if (condition.field === "created") {
+                          return matchesConsoleFilterDate(
+                            record.created,
+                            condition
+                          );
+                        }
+                        return (
+                          typeof condition.value === "string" &&
+                          (condition.operator === "contains"
+                            ? record.name.includes(condition.value)
+                            : record.name === condition.value)
+                        );
+                      })
+                    )
+                    .map((record) => record.name)
+                    .join(", ")}
+                </output>
+              )}
+              <div style={{ height: 950 }}>
+                Read the document before its embedded transactions.
+              </div>
+              <ConsoleTableContext
+                scopeKey="records"
+                label="Transactions"
+                mode="embedded"
+                groups={[
+                  {
+                    id: "query",
+                    kind: "query",
+                    label: "Search",
+                    children: (
+                      <input
+                        aria-label="Search transactions"
+                        style={{ width: 100, minHeight: 44 }}
+                      />
+                    ),
+                  },
+                  {
+                    id: "pagination",
+                    kind: "navigation",
+                    label: "Pagination",
+                    children: (
+                      <button style={{ minHeight: 44 }}>
+                        Next transactions
+                      </button>
+                    ),
+                  },
+                ]}
+              >
+                <div style={{ height: 1000 }}>
+                  Embedded transactions viewport
+                </div>
+              </ConsoleTableContext>
+              <div style={{ height: 1000 }}>Continue reading the document.</div>
+              <button onClick={() => setPathname("/other")}>
+                Leave records
+              </button>
+            </ConsoleTableContext>
+          ) : (
+            <p>Other page</p>
+          )}
+        </main>
+      </ConsoleInteractionHost>
+    </ConsoleLayout>
+  );
+}
 createRoot(document.getElementById("root")!).render(
-  <>
-    <Fixture />
-    <PageLeaseProbe />
-  </>
+  new URLSearchParams(location.search).has("tables") ? (
+    <TableFixture />
+  ) : (
+    <>
+      <Fixture />
+      <PageLeaseProbe />
+    </>
+  )
 );
 declare global {
   interface Window {

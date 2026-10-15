@@ -1,9 +1,13 @@
 export {
   administrationActions,
   readOnlyAdministrationActions,
+  matchesDirectoryFilter,
+  hasDirectoryConditions,
 } from "./administration-contracts";
 export type {
   DirectoryUser,
+  DirectoryListInput,
+  DirectoryFilter,
   PageInput,
   Page,
   AdministrationAction,

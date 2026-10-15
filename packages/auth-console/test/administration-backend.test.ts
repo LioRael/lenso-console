@@ -17,6 +17,8 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 
 import {
   administrationActions,
+  matchesDirectoryFilter,
+  type DirectoryFilter,
   type DirectoryUser,
 } from "../src/administration-contracts";
 import {
@@ -199,6 +201,109 @@ function fixture() {
     },
   };
 }
+
+// Old adapters may ignore unknown fields. A status predicate must be explicit,
+// and a claimed filtering adapter must never return a contradictory page.
+test("directory status filtering is opt-in and fails closed on contradictory results", async () => {
+  const f = fixture();
+  const owner = f.context();
+  await expect(
+    f.service.usersList({ status: "disabled" }, owner)
+  ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  await expect(
+    f.service.usersList(
+      { name: { operator: "equals", value: "reader" } },
+      owner
+    )
+  ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  let ignoreStatus = false;
+  const expression: DirectoryFilter = {
+    operator: "or",
+    children: [
+      { field: "name", operator: "equals", value: "reader" },
+      { field: "status", operator: "equals", value: "external" },
+    ],
+  };
+  await expect(
+    f.service.usersList({ filter: expression }, owner)
+  ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  f.users.set("reader", { ...f.users.get("reader")!, status: "disabled" });
+  const filtered = createConsoleAdministrationService({
+    ...f.options,
+    directory: {
+      ...f.directory,
+      statusFiltering: true,
+      nameFiltering: true,
+      expressionFiltering: true,
+      async list(input) {
+        return {
+          items: [...f.users.values()].filter(
+            (user) =>
+              ignoreStatus ||
+              ((input.filter === undefined ||
+                matchesDirectoryFilter(input.filter, user)) &&
+                (input.status === undefined || user.status === input.status) &&
+                (input.name === undefined ||
+                  (input.name.operator === "equals"
+                    ? user.label === input.name.value
+                    : user.label
+                        .toLowerCase()
+                        .includes(input.name.value.toLowerCase()))))
+          ),
+          nextCursor: null,
+        };
+      },
+    },
+  });
+  cleanup.push(() => {
+    void filtered.apiKeys.close();
+  });
+  const page = await filtered.usersList(
+    { status: "disabled", limit: 1 },
+    owner
+  );
+  expect(page.items.map((user) => user.subjectId)).toEqual(["reader"]);
+  const named = await filtered.usersList(
+    { status: "disabled", name: { operator: "equals", value: "reader" } },
+    owner
+  );
+  expect(named.items.map((user) => user.subjectId)).toEqual(["reader"]);
+  const expressionPage = await filtered.usersList(
+    { filter: expression },
+    owner
+  );
+  expect(expressionPage.items.map((user) => user.subjectId)).toEqual([
+    "reader",
+  ]);
+  let deep: DirectoryFilter = expression;
+  for (let i = 0; i < 4; i += 1) {
+    deep = { operator: "and", children: [deep] };
+  }
+  await expect(filtered.usersList({ filter: deep }, owner)).rejects.toThrow(
+    "four group levels"
+  );
+  await expect(
+    filtered.usersList(
+      {
+        filter: {
+          operator: "and",
+          children: Array.from({ length: 50 }, () => expression),
+        },
+      },
+      owner
+    )
+  ).rejects.toThrow("50 nodes");
+  ignoreStatus = true;
+  await expect(
+    filtered.usersList({ status: "disabled" }, owner)
+  ).rejects.toMatchObject({ code: "UNAVAILABLE" });
+  await expect(
+    filtered.usersList({ name: { operator: "equals", value: "reader" } }, owner)
+  ).rejects.toMatchObject({ code: "UNAVAILABLE" });
+  await expect(
+    filtered.usersList({ filter: expression }, owner)
+  ).rejects.toMatchObject({ code: "UNAVAILABLE" });
+});
 
 test("disabled surviving owners and missing activity facts cannot satisfy recovery", () => {
   const f = fixture();
