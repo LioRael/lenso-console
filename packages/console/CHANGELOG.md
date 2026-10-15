@@ -4,6 +4,8 @@
 
 ### Patch Changes
 
+- Align the runtime Auth owner with managed session status support and avoid duplicate Auth error identities.
+
 - Updated dependencies
   - @lenso/console-sdk@1.2.1
 

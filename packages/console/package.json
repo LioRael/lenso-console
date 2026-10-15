@@ -67,7 +67,7 @@
     "test": "bun test test"
   },
   "dependencies": {
-    "@lenso/auth": "0.5.2",
+    "@lenso/auth": "0.5.3",
     "@lenso/console-sdk": "workspace:*",
     "@lenso/core": "0.3.1",
     "@lenso/engine": "0.6.0",

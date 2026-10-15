@@ -65,7 +65,7 @@
     "@fontsource/roboto-mono": "^5.3.0",
     "@lenso/api-keys": "0.1.6",
     "@lenso/audit": "0.3.3",
-    "@lenso/auth": "0.5.2",
+    "@lenso/auth": "0.5.3",
     "@lenso/auth-console": "workspace:*",
     "@lenso/authorization": "0.3.3",
     "@lenso/console": "workspace:*",
