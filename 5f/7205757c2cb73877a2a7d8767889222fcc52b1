@@ -1,0 +1,24 @@
+CONTRIBUTING.md
+  h_9d56aba080c170 91-95
+README.md
+  h_9d56aba080c170 56-78
+package.json
+  h_9d56aba080c170 34
+packages/console-runtime/README.md
+  h_9d56aba080c170 22-26,29-32,36-41,45-47,50-67
+tooling/distribution/prepare-runtime-deps.mjs
+  h_9d56aba080c170 1,15,36,220-295,298-299,333-335,340-346,480,516-529,531,536-540
+tooling/distribution/prepare-runtime-deps.test.mjs
+  h_9d56aba080c170 10,253-329
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f7205757c2cb73877a2a7d8767889222fcc52b1",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

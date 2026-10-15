@@ -1,0 +1,16 @@
+.github/workflows/ci.yml
+  h_9d56aba080c170 45
+.github/workflows/console-development-host.yml
+  h_9d56aba080c170 6,15,17,20,27-30,40-45,48-50,57,62-64,71,75,80,86,88-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96074cb579ff64d2b4d2f0e33d74ffcee26c5565",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

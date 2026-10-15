@@ -1,0 +1,45 @@
+.changeset/projects-context-navigation.md
+  s_32e3f4c758eed4::t_14453b11fde281 6-7
+AGENTS.md
+  s_32e3f4c758eed4::t_4e4296603d0f8a 32-35
+docs/design/README.md
+  s_32e3f4c758eed4::t_cd19c42dfb705e 1-46
+docs/design/components.md
+  s_32e3f4c758eed4::t_cbbe82170e286c 1-50
+docs/design/geometry.md
+  s_32e3f4c758eed4::t_63b87dc24ec589 1-62
+docs/design/review-template.md
+  s_32e3f4c758eed4::t_f33e6df27bb219 1-42
+docs/design/reviews/2026-09-12-projects-alignment.md
+  s_32e3f4c758eed4::t_e76bcdaa43e280 1-19
+service/Cargo.lock
+  s_32e3f4c758eed4::t_1a771d3d312814 2527
+service/Cargo.toml
+  s_32e3f4c758eed4::t_6fe5145ba691bd 33
+service/crates/lenso-console-projects-workspace-plugin/assets/manifest.json
+  s_32e3f4c758eed4::t_b1f566885ae372 4-5
+service/crates/lenso-console-projects-workspace-plugin/assets/workspace.css
+  s_32e3f4c758eed4::t_7683ea3c905c0c 1
+service/crates/lenso-console-projects-workspace-plugin/assets/workspace.js
+  s_32e3f4c758eed4::t_32293bde513144 6
+service/crates/lenso-console-projects-workspace-plugin/src/connection.rs
+  s_32e3f4c758eed4::t_8b4cc1d5c27898 254-257,262-268,369-374,377,380-389
+src/features/extensions/projects-sidebar.browser.test.tsx
+  s_32e3f4c758eed4::t_217fb76903c012 1-2,10-11,19-24,152-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e47bc4a71ec378b8b8954d76907198958ec8362",
+  "prompts": {},
+  "sessions": {
+    "s_32e3f4c758eed4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07871-c9ff-7bb3-a3cd-23c719471594",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

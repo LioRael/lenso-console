@@ -1,0 +1,33 @@
+plugins/management-mcp/Cargo.lock
+  s_f4202e28c6b5b1::t_ad5483350a43f0 1002,1017
+plugins/management-mcp/Cargo.toml
+  s_f4202e28c6b5b1::t_8c31134d9e893f 15-16
+plugins/management/Cargo.lock
+  s_f4202e28c6b5b1::t_c8e3614a87f367 1073,1080,1082,1116,1120,1205,1251,1296,1312,1462,1469
+plugins/management/crates/lenso-management-authority/Cargo.toml
+  s_f4202e28c6b5b1::t_78d7ec6fd88fe7 11,16-17,33-35
+service/Cargo.lock
+  s_f4202e28c6b5b1::t_6da700fd1748d7 1888,1919,1943,1967,2007,2022,2105,2121,2137,2153,2169,2202,2284,2300,2350,2431
+service/Cargo.toml
+  s_f4202e28c6b5b1::t_c9aee4522a3f5f 26,36,93
+service/crates/lenso-console-app/Cargo.toml
+  s_f4202e28c6b5b1::t_af98449e7461d5 23-27,42,64,66
+service/tests/fixtures/password-session-consumer/Cargo.toml
+  s_f4202e28c6b5b1::t_da4b8ffbcb6b1f 15-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08c1cbdef73fd4acb92e6eb830192dd81b1c2fcf",
+  "prompts": {},
+  "sessions": {
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

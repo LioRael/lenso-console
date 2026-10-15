@@ -1,0 +1,30 @@
+bun.lock
+  h_9d56aba080c170 11,97,99,541,1377-1382
+package.json
+  h_9d56aba080c170 66
+packages/console/CHANGELOG.md
+  h_9d56aba080c170 3-8
+packages/console/package.json
+  h_9d56aba080c170 3,70
+packages/console/src/auth.ts
+  h_9d56aba080c170 268-318
+packages/console/src/service.ts
+  h_9d56aba080c170 167-168,171-203,228-230,232-235,239-259,261-269,271
+packages/console/src/types.ts
+  h_9d56aba080c170 43-48,128-138
+packages/console/test/auth.test.ts
+  h_9d56aba080c170 144-156,185-187
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 61-62,97-104,471-569,747-749,943-945
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dd21d0a58ef2c8ad84a94a17ac32f6c666cbb630",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

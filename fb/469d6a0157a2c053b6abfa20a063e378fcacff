@@ -1,0 +1,16 @@
+apps/shell/src/features/extensions/authorized-workspaces.browser.test.tsx
+  h_9d56aba080c170 205-207
+apps/shell/src/features/extensions/page-contribution-catalog.ts
+  h_9d56aba080c170 441-450,547,563-565
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb469d6a0157a2c053b6abfa20a063e378fcacff",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

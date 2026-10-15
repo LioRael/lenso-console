@@ -1,0 +1,71 @@
+plugins/console/shell/src/components/runtime/use-console-navigation.ts
+  h_9d56aba080c170 41-44,66,75,77,79
+plugins/console/shell/src/components/runtime/console-navigation-rail.tsx
+  h_9d56aba080c170 1,32,36,43-149,161-194
+docs/design/reviews/sidebar-primitive-migration.md
+  h_9d56aba080c170 1-58
+plugins/console/shell/src/routes/__root.tsx
+  h_9d56aba080c170 1,8,49,74-76
+docs/design/reviews/page-bodies-plugins-profiles.md
+  h_9d56aba080c170 1-68
+plugins/console/shell/src/components/runtime/context-navigation.browser.test.tsx
+  h_9d56aba080c170 21,32,45,51-52,56,66-70,138-176,181-186,222-236,244,247,251-297,313-333,452-462,489-490,507-514
+plugins/console/shell/src/features/settings/settings-page.tsx
+  h_9d56aba080c170 44
+plugins/console/shell/src/components/runtime/console-page-header.tsx
+  h_9d56aba080c170 7,34-41,48,53,56
+plugins/console/shell/src/features/agent/agent-profiles-page.browser.test.tsx
+  h_9d56aba080c170 15,27-28,50,61,66-68,166-189,196
+plugins/console/shell/src/dev/README.md
+  h_9d56aba080c170 3-13
+plugins/console/shell/package.json
+  h_9d56aba080c170 21,53
+pnpm-lock.yaml
+  h_9d56aba080c170 343-345,434-436,902-908,1497-1502,1509-1514,1576-1578,1582-1585,2133-2143,4186-4194,4627-4633,4641-4648,4769-4770,4773-4776,5240-5244
+plugins/console/shell/src/components/runtime/console-shell.stylex.ts
+  h_9d56aba080c170 114-140,154-156,191-193,219,221-242
+plugins/console/shell/src/features/agent/agent-settings-page.tsx
+  h_9d56aba080c170 117
+docs/design/geometry.md
+  h_9d56aba080c170 39-46,53
+plugins/console/shell/src/components/runtime/console-frame.tsx
+  h_9d56aba080c170 1-2,4,16,23,28,48-51,54,56-57,61,63-78,95
+plugins/console/shell/src/features/plugins/plugin-workbench-page.tsx
+  h_9d56aba080c170 2-6,8-9,30-33,47,50,52-53,55,57-58,60-68,70,84-86,88-92,94-95,97-103,105-106,111,116-119,129-130,134-136,144-145,148-149,155-156,176-177,181,183,216,232,298,300-303,307,309-339,341-349,352-386,388,390,463-467,472-547,549,551-580,583-592,594,597-624,627-630,644,648
+plugins/console/shell/src/components/runtime/console-shell.tsx
+  h_9d56aba080c170 203,208,213
+plugins/console/shell/src/features/agent/agent-profiles-page.stylex.ts
+  h_9d56aba080c170 4-9,23-24,33,37,44-49,51-52,65,74,79-85
+plugins/console/shell/src/components/runtime/console-navigation-model.ts
+  h_9d56aba080c170 54
+plugins/console/shell/src/components/lenso/recipes/console-navigation.tsx
+  h_9d56aba080c170 1,17,22,24-27,30-41,44-55,58-63,65,72-80,83-89,109-118,122,127-128,136
+docs/design/components.md
+  h_9d56aba080c170 3,10,25,38,40,42-46,62
+  h_9d56aba080c170 24
+plugins/console/shell/src/features/agent/agent-profiles-page.tsx
+  h_9d56aba080c170 2-4,6-7,37,48,106-117,120,124-125,154,164,189,203,206-242,244-248,250-270,274-318
+plugins/console/shell/src/features/plugins/plugin-target-select.tsx
+  h_9d56aba080c170 10
+docs/design/reviews/console-navigation-simplification.md
+  h_9d56aba080c170 1-47
+plugins/console/shell/src/features/settings/settings-page.stylex.ts
+  h_9d56aba080c170 35
+plugins/console/shell/src/features/plugins/plugin-scope.browser.test.tsx
+  h_9d56aba080c170 2,15,23-29,41-60,87,145-208,216-220,239-242,253-257,282-287,306,314-372
+plugins/console/shell/src/components/runtime/console-header.tsx
+  h_9d56aba080c170 1,4,43-52,65,74
+plugins/console/shell/src/features/settings/assistant-settings-page.tsx
+  h_9d56aba080c170 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7a045c0ea80506695fd815d053fb058451f9948",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
