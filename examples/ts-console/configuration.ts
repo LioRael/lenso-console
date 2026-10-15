@@ -28,9 +28,21 @@ export const hostConfiguration = definePluginConfig({
         .string()
         .default("../../.artifacts/ts-console/locale.sqlite"),
       runtimePort: z.coerce.number().int().min(1024).max(65535).optional(),
+      runtimeManifestPath: z.string().min(1).max(4096).optional(),
+      runtimeGreetingTrial: z.boolean().default(false),
       administration: z.boolean().default(false),
     })
     .superRefine((value, context) => {
+      if (
+        !value.runtimePort &&
+        (value.runtimeManifestPath || value.runtimeGreetingTrial)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["runtimePort"],
+          message: "Runtime inspection options require a local Runtime port",
+        });
+      }
       let origin: URL;
       try {
         origin = new URL(value.origin);
@@ -105,6 +117,12 @@ export function hostSources(
         shellDirectory: { name: "LENSO_TS_SHELL", empty: "error" },
         databasePath: { name: "LENSO_TS_DATABASE", empty: "error" },
         runtimePort: { name: "LENSO_RUNTIME_PORT", empty: "error" },
+        runtimeManifestPath: { name: "LENSO_RUNTIME_MANIFEST", empty: "error" },
+        runtimeGreetingTrial: {
+          name: "LENSO_RUNTIME_GREETING_TRIAL",
+          type: "boolean",
+          empty: "error",
+        },
         administration: {
           name: "LENSO_TS_ADMINISTRATION",
           type: "boolean",
@@ -127,5 +145,8 @@ export async function resolveHostConfiguration(
     ...value,
     shellDirectory: path.resolve(root, value.shellDirectory),
     databasePath: path.resolve(root, value.databasePath),
+    ...(value.runtimeManifestPath
+      ? { runtimeManifestPath: path.resolve(root, value.runtimeManifestPath) }
+      : {}),
   };
 }

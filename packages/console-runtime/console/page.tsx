@@ -1,170 +1,146 @@
 import {
+  ConsoleIconButton,
+  ConsoleLayout,
+  ConsolePageScope,
+  useConsoleActivation,
+} from "@lenso/console-react";
+import {
+  runtimeCatalogueSchema,
   runtimeSnapshotSchema,
+  type RuntimeCatalogue,
   type RuntimeSnapshot,
 } from "@lenso/console-runtime/client";
 import { definePage, type PageProps } from "@lenso/console-sdk";
 import { useWorkspaceRead } from "@lenso/console-sdk/react";
-import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
+import { RefreshCw } from "lucide-react";
+import { useRef } from "react";
 
-const styles = stylex.create({
-  page: {
-    padding: 20,
-    paddingTop: 72,
-    paddingBottom: 144,
-    minWidth: 0,
-    color: "var(--foreground)",
-    overflowWrap: "anywhere",
-  },
-  heading: { fontSize: 20, marginTop: 0, marginBottom: 8 },
-  section: { marginTop: 28 },
-  title: { fontSize: 16, marginBottom: 8 },
-  list: { listStyleType: "none", paddingLeft: 0, margin: 0 },
-  row: {
-    paddingTop: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: "var(--border)",
-  },
-  metadata: { marginTop: 4, marginBottom: 0, fontSize: 14 },
-  refresh: { minHeight: 44, marginTop: 12 },
-});
+import { CapabilityDirectory } from "./capability-directory";
+import { styles } from "./page.styles";
+import { RuntimeDiagnostics } from "./runtime-diagnostics";
 
-function RuntimePage({ services }: PageProps) {
+function RuntimePage(props: PageProps) {
+  const lifetime = useConsoleActivation(
+    props.activation?.key ?? props.mount,
+    props.signal
+  );
+  return (
+    <RuntimeContent
+      key={lifetime.activation.key}
+      {...props}
+      activation={props.activation ?? lifetime.activation}
+      signal={lifetime.signal}
+    />
+  );
+}
+
+function RuntimeContent({
+  services,
+  activation,
+  signal,
+}: PageProps & { activation: NonNullable<PageProps["activation"]> }) {
   const status = useWorkspaceRead({
     key: "runtime.status",
     params: {},
-    read: async ({ signal }) =>
+    read: async ({ signal: readSignal }) =>
       runtimeSnapshotSchema.parse(
         await services.invoke<Record<string, never>, RuntimeSnapshot>(
           "runtime",
           "status",
           {},
-          { signal }
+          { signal: readSignal }
         )
       ),
   });
+  const catalogue = useWorkspaceRead({
+    key: "runtime.catalogue",
+    params: {},
+    read: async ({ signal: readSignal }) =>
+      runtimeCatalogueSchema.parse(
+        await services.invoke<Record<string, never>, RuntimeCatalogue>(
+          "runtime",
+          "catalogue",
+          {},
+          { signal: readSignal }
+        )
+      ),
+  });
+  const refreshLock = useRef(false);
+  const refreshing = status.refreshing || catalogue.refreshing;
+
+  async function refresh() {
+    if (
+      refreshLock.current ||
+      refreshing ||
+      signal.aborted ||
+      !activation.isCurrent()
+    ) {
+      return;
+    }
+    refreshLock.current = true;
+    try {
+      // Each read owns its error state and retains its last successful snapshot.
+      await Promise.allSettled([status.refetch(), catalogue.refetch()]);
+    } finally {
+      refreshLock.current = false;
+    }
+  }
+
   return (
     <main aria-label="Runtime" {...stylex.props(styles.page)}>
-      <h1 {...stylex.props(styles.heading)}>Runtime</h1>
-      <p>Read-only diagnostics for this host’s connected Runtime.</p>
-      <Button
-        xstyle={styles.refresh}
-        disabled={status.refreshing}
-        onClick={async () => {
-          try {
-            await status.refetch();
-          } catch {
-            /* The read's alert reports the failure. */
-          }
-        }}
-      >
-        Refresh runtime
-      </Button>
-      {status.error ? (
-        <p role="alert">
-          Runtime diagnostics could not be read. Refresh to try again.
-          {status.data ? " Showing the last successful snapshot." : ""}
+      <ConsolePageScope
+        scopeKey={activation.key}
+        value={{ context: { kind: "object", label: "Runtime" } }}
+      />
+      <ConsoleLayout.Corner area="topRight">
+        <ConsoleIconButton
+          label="Refresh runtime"
+          tooltip="Refresh runtime"
+          side="bottom"
+          variant="secondary"
+          disabled={refreshing || status.blocking || catalogue.blocking}
+          onClick={() => void refresh()}
+        >
+          <RefreshCw size={18} aria-hidden="true" />
+        </ConsoleIconButton>
+      </ConsoleLayout.Corner>
+
+      <p {...stylex.props(styles.intro)}>
+        Inspect declared capabilities and the host’s connected Runtime.
+      </p>
+      {refreshing ? (
+        <output {...stylex.props(styles.message)}>
+          Refreshing runtime diagnostics…
+        </output>
+      ) : null}
+
+      <CapabilityDirectory
+        catalogue={catalogue}
+        services={services}
+        signal={signal}
+        activation={activation}
+      />
+
+      <section {...stylex.props(styles.section)} aria-label="Live diagnostics">
+        <h2 {...stylex.props(styles.title)}>Live diagnostics</h2>
+        <p {...stylex.props(styles.description)}>
+          A snapshot of this host’s Runtime kernel. Registered capabilities,
+          instances and calls may differ from the static build manifest.
         </p>
-      ) : null}
-      {!status.data && !status.error ? (
-        <output aria-busy="true">Loading runtime diagnostics…</output>
-      ) : null}
-      {status.refreshing ? (
-        <output>Refreshing runtime diagnostics…</output>
-      ) : null}
-      {status.data ? (
-        <>
-          <section {...stylex.props(styles.section)} aria-label="Instances">
-            <h2 {...stylex.props(styles.title)}>Instances</h2>
-            {status.data.services.length ? (
-              <ul {...stylex.props(styles.list)}>
-                {status.data.services.map((service) => (
-                  <li key={service.generation} {...stylex.props(styles.row)}>
-                    <strong>
-                      {service.namespace}/{service.service}
-                    </strong>
-                    : {service.instance}
-                    <p {...stylex.props(styles.metadata)}>
-                      {service.state} · contract{" "}
-                      {service.contract_version ?? "not registered"} ·{" "}
-                      generation {service.generation} · {service.active_calls}{" "}
-                      active / {service.max_concurrency} capacity
-                    </p>
-                    <p {...stylex.props(styles.metadata)}>
-                      Capabilities:{" "}
-                      {service.capabilities.length
-                        ? service.capabilities
-                            .map(
-                              (capability) =>
-                                `${capability.method} (${capability.mode})`
-                            )
-                            .join(", ")
-                        : "none exported"}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No Runtime instances are connected.</p>
-            )}
-          </section>
-          <section
-            {...stylex.props(styles.section)}
-            aria-label="Active and waiting calls"
-          >
-            <h2 {...stylex.props(styles.title)}>Active and waiting calls</h2>
-            {status.data.calls.length ? (
-              <ul {...stylex.props(styles.list)}>
-                {status.data.calls.map((call) => (
-                  <li key={call.id} {...stylex.props(styles.row)}>
-                    <strong>
-                      {call.namespace}/{call.service}.{call.method}
-                    </strong>{" "}
-                    · {call.state}
-                    <p {...stylex.props(styles.metadata)}>
-                      Call {call.id} · {Math.round(call.remaining_ms)} ms
-                      remaining · trace {call.trace_id ?? "not supplied"}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No active or waiting calls.</p>
-            )}
-          </section>
-          <section
-            {...stylex.props(styles.section)}
-            aria-label="Recent outcomes"
-          >
-            <h2 {...stylex.props(styles.title)}>Recent outcomes</h2>
-            <p>
-              Bounded recent terminal metadata. Request and response payloads
-              are not shown.
-            </p>
-            {status.data.recent.length ? (
-              <ul {...stylex.props(styles.list)}>
-                {status.data.recent.toReversed().map((call) => (
-                  <li key={call.id} {...stylex.props(styles.row)}>
-                    <strong>
-                      {call.namespace}/{call.service}.{call.method}
-                    </strong>{" "}
-                    · {call.outcome}
-                    {call.code ? ` (${call.code})` : ""}
-                    <p {...stylex.props(styles.metadata)}>
-                      {Math.round(call.duration_ms)} ms · call {call.id} · trace{" "}
-                      {call.trace_id ?? "not supplied"}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No terminal calls have been recorded.</p>
-            )}
-          </section>
-        </>
-      ) : null}
+        {status.error ? (
+          <p role="alert" {...stylex.props(styles.message)}>
+            Runtime diagnostics could not be read. Refresh to try again.
+            {status.data ? " Showing the last successful snapshot." : ""}
+          </p>
+        ) : null}
+        {!status.data && !status.error ? (
+          <output aria-busy="true" {...stylex.props(styles.message)}>
+            Loading runtime diagnostics…
+          </output>
+        ) : null}
+        {status.data ? <RuntimeDiagnostics snapshot={status.data} /> : null}
+      </section>
     </main>
   );
 }

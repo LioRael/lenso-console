@@ -3,21 +3,29 @@ import { access, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+import { createConsoleClient } from "@lenso/console-sdk/transport";
 import { valuesSource } from "@lenso/core";
 import { chromium, type Page } from "playwright";
 
 import { resolveHostConfiguration } from "./configuration";
 import { createHost } from "./host";
+import { csrfCookie } from "./local-auth";
 import { migrateLocalLocaleStore } from "./locale-store";
 import { freePort } from "./test/port";
+import {
+  startGreetingFixture,
+  writeGreetingManifest,
+} from "./test/runtime-greeting";
 
 // Only a real Shell, admitted module and kernel can prove this optional page's
-// transport, theme, refresh and interaction geometry together.
+// transport, theme, refresh and interaction geometry together. The previous
+// status-only proof could not catch static declarations masquerading as live
+// registration or a trial that bypasses the admitted Manage/authentication path.
 const runtimeRequired = process.env.LENSO_REQUIRE_RUNTIME === "1";
 const runtimeTest =
   process.env.LENSO_RUNTIME_ROOT || runtimeRequired ? test : test.skip;
 runtimeTest(
-  "Runtime page reads live metadata through authenticated Console and retires safely",
+  "Runtime page separates build contracts from live metadata and invokes only an admitted greeting",
   async () => {
     const runtimeRoot = process.env.LENSO_RUNTIME_ROOT;
     if (!runtimeRoot) {
@@ -87,11 +95,22 @@ runtimeTest(
         port: runtimePort,
         contract: { version: "1", methods: {} },
       });
+      let greetingCalls = 0;
+      let beforeGreetingReply: (() => Promise<void>) | undefined;
+      const greeting = await startGreetingFixture(runtimePort, async () => {
+        greetingCalls += 1;
+        await beforeGreetingReply?.();
+      });
+      cleanup.push(async () => greeting.close());
+      const runtimeManifestPath = path.join(directory, "build-manifest.json");
+      await writeGreetingManifest(runtimeManifestPath);
       const token = crypto.randomUUID();
       const config = await resolveHostConfiguration(directory, [
         valuesSource({
           token,
           runtimePort,
+          runtimeManifestPath,
+          runtimeGreetingTrial: true,
           origin: `http://127.0.0.1:${await freePort()}`,
           shellDirectory: path.resolve("plugins/console/shell/dist/client"),
           databasePath: path.join(directory, "locale.sqlite"),
@@ -109,7 +128,16 @@ runtimeTest(
       page = await browserContext.newPage();
       page.setDefaultTimeout(10000);
       const errors: string[] = [];
+      let recordConsole = false;
       page.on("pageerror", (error) => errors.push(error.message));
+      page.on("console", (message) => {
+        if (
+          recordConsole &&
+          (message.type() === "error" || message.type() === "warning")
+        ) {
+          errors.push(message.text());
+        }
+      });
       let release!: () => void;
       const gate = new Promise<void>((resolve) => {
         release = resolve;
@@ -130,9 +158,8 @@ runtimeTest(
       await page.getByLabel("Account", { exact: true }).fill(config.subject);
       await page.getByLabel("Password", { exact: true }).fill(token);
       await page.getByRole("button", { name: "Sign in", exact: true }).click();
-      await page
-        .getByRole("heading", { name: "Runtime", exact: true })
-        .waitFor();
+      await page.getByRole("main", { name: "Runtime", exact: true }).waitFor();
+      recordConsole = true;
       await page
         .getByText("Loading runtime diagnostics…", { exact: true })
         .waitFor();
@@ -149,6 +176,112 @@ runtimeTest(
           .getByText("No active or waiting calls.", { exact: true })
           .count()
       ).toBe(1);
+
+      expect(page.url()).toBe(`${origin}/plugins/local/runtime/runtime/`);
+      const title = await page.title();
+      expect(title.length).toBeGreaterThan(0);
+      await page
+        .getByRole("region", { name: "Capability directory", exact: true })
+        .getByText("Static build manifest", { exact: false })
+        .waitFor();
+      await page
+        .getByRole("heading", {
+          name: "console-demo/planned-greeting",
+          exact: true,
+        })
+        .waitFor();
+      expect(
+        await page
+          .getByRole("table", { name: "Runtime instances" })
+          .getByText("console-demo/planned-greeting", { exact: true })
+          .count()
+      ).toBe(0);
+      const schemas = page.getByRole("button", {
+        name: "View schemas for console-demo/greeting.greet",
+        exact: true,
+      });
+      await schemas.focus();
+      await page.keyboard.press("Enter");
+      await page.getByText('"maxLength": 80', { exact: false }).waitFor();
+      await page.keyboard.press("Enter");
+
+      // Actual Auth cookies and the public Console client exercise the same
+      // admitted path as the form, including server rejection before dispatch.
+      const cookies = await browserContext.cookies();
+      const client = createConsoleClient({
+        origin,
+        url: "/api/console/v2/rpc",
+        headers: {
+          origin,
+          cookie: cookies
+            .map(({ name, value }) => `${name}=${value}`)
+            .join("; "),
+          "x-csrf-token": cookies.find(({ name }) => name === csrfCookie)!
+            .value,
+        },
+      });
+      const invoke = (operation: string, input: unknown) =>
+        client.workspace.invoke({
+          mountId: "runtime",
+          service: "runtime",
+          operation,
+          input,
+        });
+      for (const input of [
+        { name: " " },
+        { name: "x".repeat(81) },
+        { name: "Ada", method: "delete" },
+        { name: "Ada", namespace: "other" },
+      ]) {
+        await expect(invoke("greet", input)).rejects.toThrow();
+      }
+      await expect(
+        invoke("call", { method: "greet", name: "Ada" })
+      ).rejects.toThrow();
+      const anonymous = createConsoleClient({
+        origin,
+        url: "/api/console/v2/rpc",
+      });
+      await expect(
+        anonymous.workspace.invoke({
+          mountId: "runtime",
+          service: "runtime",
+          operation: "greet",
+          input: { name: "Ada" },
+        })
+      ).rejects.toThrow();
+      expect(greetingCalls).toBe(0);
+
+      let finishGreeting!: () => void;
+      let markGreetingStarted!: () => void;
+      const greetingStarted = new Promise<void>((resolve) => {
+        markGreetingStarted = resolve;
+      });
+      beforeGreetingReply = () =>
+        new Promise<void>((resolve) => {
+          finishGreeting = resolve;
+          markGreetingStarted();
+        });
+      const runGreeting = page.getByRole("button", {
+        name: "Run greeting",
+        exact: true,
+      });
+      await page
+        .getByRole("textbox", { name: "Name", exact: true })
+        .fill("Ada");
+      await runGreeting.focus();
+      await page.keyboard.press("Enter");
+      await page.getByText("Running greeting…", { exact: true }).waitFor();
+      expect(await runGreeting.isDisabled()).toBe(true);
+      await page.waitForFunction(
+        () => document.querySelector("form[aria-busy='true']") !== null
+      );
+      // The handler gate proves a real Runtime dispatch, not a rendered mock.
+      await greetingStarted;
+      expect(greetingCalls).toBe(1);
+      finishGreeting();
+      beforeGreetingReply = undefined;
+      await page.getByText("Hello, Ada!", { exact: true }).waitFor();
       expect(
         await page
           .getByText("No terminal calls have been recorded.", { exact: true })
@@ -179,6 +312,9 @@ runtimeTest(
         exact: true,
       });
       await refresh.focus();
+      await page
+        .getByRole("tooltip", { name: "Refresh runtime", exact: true })
+        .waitFor();
       expect(
         await refresh.evaluate((node) => node === document.activeElement)
       ).toBe(true);
@@ -215,13 +351,15 @@ runtimeTest(
             color: getComputedStyle(node).color,
           };
         });
-        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.height).toBeGreaterThanOrEqual(32);
         expect(box.visible).toBe(true);
         const contrast = await page
           .getByRole("main", { name: "Runtime", exact: true })
           .evaluate((node) => {
             const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d")!;
+            const context = canvas.getContext("2d", {
+              willReadFrequently: true,
+            })!;
             const luminance = (color: string) => {
               context.fillStyle = color;
               context.fillRect(0, 0, 1, 1);
@@ -251,7 +389,7 @@ runtimeTest(
         expect(contrast).toBeGreaterThanOrEqual(4.5);
         const last = page
           .getByRole("region", { name: "Recent outcomes", exact: true })
-          .getByRole("listitem")
+          .getByRole("row")
           .last();
         await last.scrollIntoViewIfNeeded();
         expect(
@@ -273,7 +411,77 @@ runtimeTest(
         });
         await refresh.scrollIntoViewIfNeeded();
         await refresh.click();
+        await page.waitForFunction(
+          (node) => !(node as HTMLButtonElement).disabled,
+          await refresh.elementHandle()
+        );
+        await page.evaluate(() => window.scrollTo(0, 0));
+        const pageContext = page.getByText("Runtime", { exact: true });
+        // Shell context uses a short opacity transition after a refreshed
+        // contribution. Capture its settled label, not an intermediate frame.
+        await page.waitForFunction(
+          (node) => {
+            let current = node as HTMLElement | null;
+            while (current) {
+              if (Number(getComputedStyle(current).opacity) < 0.99) {
+                return false;
+              }
+              current = current.parentElement;
+            }
+            return true;
+          },
+          await pageContext.elementHandle()
+        );
+        await page.screenshot({
+          path: path.join(
+            process.env.DELTA_SCRATCH_DIR ?? directory,
+            `runtime-console-${theme}.png`
+          ),
+          fullPage: true,
+        });
+        await page.screenshot({
+          path: path.join(
+            process.env.DELTA_SCRATCH_DIR ?? directory,
+            `runtime-console-${theme}-viewport.png`
+          ),
+        });
       }
+      const touchContext = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+        colorScheme: "dark",
+        storageState: await browserContext.storageState(),
+      });
+      const touchPage = await touchContext.newPage();
+      await touchPage.goto(`${origin}/plugins/local/runtime/runtime/`);
+      const touchRefresh = touchPage.getByRole("button", {
+        name: "Refresh runtime",
+        exact: true,
+      });
+      await touchRefresh.waitFor();
+      expect(
+        await touchPage.evaluate(() => matchMedia("(pointer: coarse)").matches)
+      ).toBe(true);
+      const touchBox = await touchRefresh.boundingBox();
+      expect(touchBox!.width).toBeGreaterThanOrEqual(44);
+      expect(touchBox!.height).toBeGreaterThanOrEqual(44);
+      await touchRefresh.tap();
+      await touchPage
+        .getByRole("textbox", { name: "Name", exact: true })
+        .fill("Touch");
+      await touchPage
+        .getByRole("button", { name: "Run greeting", exact: true })
+        .tap();
+      await touchPage.getByText("Hello, Touch!", { exact: true }).waitFor();
+      await touchPage.screenshot({
+        path: path.join(
+          process.env.DELTA_SCRATCH_DIR ?? directory,
+          "runtime-console-touch.png"
+        ),
+      });
+      await touchContext.close();
+      expect(await page.locator("vite-error-overlay").count()).toBe(0);
       expect(errors).toEqual([]);
       await page.waitForFunction(
         (node) => !(node as HTMLButtonElement).disabled,
@@ -286,6 +494,40 @@ runtimeTest(
         ),
         fullPage: true,
       });
+      // Navigating away while the owner is still working must retire form
+      // feedback and abort the browser request; a late reply cannot reach a new page.
+      let finishRetiredGreeting!: () => void;
+      let markRetiredGreetingStarted!: () => void;
+      const retireStarted = new Promise<void>((resolve) => {
+        markRetiredGreetingStarted = resolve;
+      });
+      beforeGreetingReply = () =>
+        new Promise<void>((resolve) => {
+          finishRetiredGreeting = resolve;
+          markRetiredGreetingStarted();
+        });
+      await page
+        .getByRole("textbox", { name: "Name", exact: true })
+        .fill("Retired");
+      await runGreeting.click();
+      await page.getByText("Running greeting…", { exact: true }).waitFor();
+      await retireStarted;
+      expect(finishRetiredGreeting).toBeDefined();
+      await page.goto(`${origin}/`);
+      finishRetiredGreeting();
+      beforeGreetingReply = undefined;
+      await page.goto(`${origin}/plugins/local/runtime/runtime/`);
+      await page.getByRole("textbox", { name: "Name", exact: true }).waitFor();
+      expect(
+        await page.getByText("Hello, Retired!", { exact: true }).count()
+      ).toBe(0);
+      expect(
+        await page
+          .getByRole("textbox", { name: "Name", exact: true })
+          .inputValue()
+      ).toBe("");
+      // The following 5xx is an intentional disconnect proof.
+      recordConsole = false;
       await disposeCompanions();
       await refresh.click();
       await page
@@ -299,17 +541,34 @@ runtimeTest(
           checks: [
             "login",
             "real instances and capabilities",
+            "static manifest separated from live registration",
+            "schema disclosure keyboard interaction",
+            "invalid and anonymous trial rejected before dispatch",
+            "explicit greeting request and guarded running state",
             "loading",
             "empty calls/outcomes",
             "keyboard refresh",
             "both themes and contrast",
             "narrow overflow",
+            "coarse-pointer target and greeting",
+            "retired trial feedback discarded",
             "final-row clearance",
             "disconnected error state",
           ],
         })
       );
     } catch (error) {
+      if (page && process.env.DELTA_SCRATCH_DIR) {
+        await page
+          .screenshot({
+            path: path.join(
+              process.env.DELTA_SCRATCH_DIR,
+              "runtime-console-failure.png"
+            ),
+            fullPage: true,
+          })
+          .catch(() => undefined);
+      }
       failures.push(error);
     } finally {
       for (const dispose of [

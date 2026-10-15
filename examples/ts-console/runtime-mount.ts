@@ -14,7 +14,8 @@ import { localScope, localTarget } from "./local-auth";
 export async function createRuntimeMount(
   authentication: Plugin<ConsoleAuthentication>,
   port: number,
-  apiBasePath: string
+  apiBasePath: string,
+  options: { manifestPath?: string; greetingTrial?: boolean } = {}
 ) {
   let source: string;
   try {
@@ -52,6 +53,19 @@ export async function createRuntimeMount(
     authentication,
     targetId: localTarget,
     tenantId: localScope.id,
+    ...(options.manifestPath ? { manifestPath: options.manifestPath } : {}),
+    // This local operator host only opts into the reviewed synthetic fixture.
+    // The browser cannot choose a Runtime endpoint, service or method.
+    ...(options.greetingTrial
+      ? {
+          greetingTrial: {
+            namespace: "console-demo",
+            service: "greeting",
+            contractVersion: "1",
+            sideEffectFree: true as const,
+          },
+        }
+      : {}),
   });
   const assets = new Map(artifact.assets.map((asset) => [asset.path, asset]));
   const assetBase = `${apiBasePath.replace(/\/$/, "")}/console/v1/pages/runtime/assets/${artifact.revision}/`;
@@ -82,7 +96,9 @@ export async function createRuntimeMount(
           service_id: "runtime",
           capability_id: "console.runtime.inspect",
           descriptor_version: "1",
-          operations: ["status"],
+          operations: inspection.operations.map(
+            (operation) => operation.method
+          ),
           available: true,
           required: true,
           source: "owner",

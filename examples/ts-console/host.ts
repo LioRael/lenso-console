@@ -66,7 +66,13 @@ export async function createHost(config: HostConfiguration) {
     runtime = await createRuntimeMount(
       local.authentication,
       config.runtimePort,
-      config.apiBasePath
+      config.apiBasePath,
+      {
+        ...(config.runtimeManifestPath
+          ? { manifestPath: config.runtimeManifestPath }
+          : {}),
+        greetingTrial: config.runtimeGreetingTrial,
+      }
     );
   }
   const mounts = [

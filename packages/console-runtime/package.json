@@ -1,12 +1,11 @@
 {
   "name": "@lenso/console-runtime",
   "version": "1.0.0",
-  "description": "Optional read-only Runtime Console inspection",
+  "description": "Optional Runtime Console diagnostics and restricted greeting trial",
   "license": "MIT",
   "files": [
     "dist",
-    "console/page.tsx",
-    "console/workspace.ts",
+    "console",
     "README.md"
   ],
   "type": "module",
@@ -29,19 +28,25 @@
   "dependencies": {
     "@lenso/ui": "0.9.1",
     "@stylexjs/stylex": "^0.19.0",
+    "lucide-react": "^1.28.0",
     "zod": "4.6.5"
   },
   "peerDependencies": {
     "@lenso/console": "*",
+    "@lenso/console-react": "*",
     "@lenso/console-sdk": "*",
     "@lenso/core": "^0.3.1",
     "@lenso/engine": "^0.6.0",
     "@lenso/manage": "^0.5.2",
     "@lenso/runtime": "*",
+    "@lenso/runtime-sdk": "0.1.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
     "@lenso/runtime": {
+      "optional": true
+    },
+    "@lenso/runtime-sdk": {
       "optional": true
     }
   }
