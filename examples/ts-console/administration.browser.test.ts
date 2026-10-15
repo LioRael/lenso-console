@@ -262,8 +262,19 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .locator("pre")
       .textContent();
     expect(oneTime).toMatch(/^lk_/);
+    const delivery = page.getByRole("dialog", {
+      name: "Save your full PAT now",
+      exact: true,
+    });
+    await delivery.waitFor();
+    expect(
+      await delivery.evaluate((node) => node.contains(document.activeElement))
+    ).toBe(true);
+    await page.keyboard.press("Escape");
+    expect(await delivery.isVisible()).toBe(true);
+    expect(await delivery.locator("pre").textContent()).toBe(oneTime);
     await page
-      .getByRole("button", { name: "Dismiss credential", exact: true })
+      .getByRole("button", { name: "I've saved the full PAT", exact: true })
       .click();
     expect(await page.getByText(oneTime!, { exact: true }).count()).toBe(0);
     const persisted = await page.evaluate(() =>
