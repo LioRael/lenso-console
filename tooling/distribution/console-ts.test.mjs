@@ -77,7 +77,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
         dependencies: {
           "@lenso/api-keys": "0.1.6",
           "@lenso/audit": "0.3.3",
-          "@lenso/auth": "0.5.2",
+          "@lenso/auth": "0.5.3",
           "@lenso/authorization": "0.3.3",
           "@lenso/console": backend.spec,
           "@lenso/console-react": react.spec,
