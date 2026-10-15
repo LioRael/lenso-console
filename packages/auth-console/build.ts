@@ -19,6 +19,7 @@ await build({
     lib: {
       entry: {
         react: "src/react.ts",
+        "oauth-react": "src/oauth-react.tsx",
         "administration-react": "src/administration-react.ts",
       },
       formats: ["es"],
@@ -49,6 +50,7 @@ const result = await Bun.build({
   entrypoints: [
     `${import.meta.dir}/src/server.ts`,
     `${import.meta.dir}/src/client.ts`,
+    `${import.meta.dir}/src/oauth-client.ts`,
     `${import.meta.dir}/src/administration-server.ts`,
     `${import.meta.dir}/src/administration-portable.ts`,
   ],
