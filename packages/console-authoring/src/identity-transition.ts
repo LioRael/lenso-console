@@ -35,6 +35,35 @@ export async function withIdentityTransition<T>(
   return transition(work, notify, signal);
 }
 
+/** Check current deadlines under the existing cookie-write lock before retiring providers. */
+export async function withConditionalIdentityTransition(
+  needed: () => Promise<boolean>,
+  work: () => Promise<void>,
+  signal: AbortSignal
+): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.locks) {
+    return false;
+  }
+  return navigator.locks.request(
+    identityTransitionLock,
+    { signal },
+    async () => {
+      signal.throwIfAborted();
+      if (!(await needed())) {
+        return false;
+      }
+      try {
+        signal.throwIfAborted();
+        notify("begin");
+        await work();
+        return true;
+      } finally {
+        notify("complete");
+      }
+    }
+  );
+}
+
 // Same cookie-write lock, separate notification: exchanging an operator cookie
 // must retire operator providers without signing the ordinary account out.
 export function withWorkspaceIdentityTransition<T>(

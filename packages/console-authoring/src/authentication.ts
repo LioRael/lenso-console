@@ -9,7 +9,9 @@ export {
 } from "./browser-session-events";
 
 export type ConsoleLoginMethod = LoginMethod;
-export type ConsoleAuthDiscovery = AuthDiscovery;
+export type ConsoleAuthDiscovery = AuthDiscovery & {
+  session?: { logout?: string; renew?: string; status?: string };
+};
 
 export type ConsoleAuthenticationState =
   | "loading"
@@ -110,7 +112,7 @@ export function parseConsoleAuthDiscovery(
       throw new TypeError("Invalid session capabilities.");
     }
     session = {};
-    for (const key of ["logout", "renew"] as const) {
+    for (const key of ["logout", "renew", "status"] as const) {
       if (key in value.session) {
         const path = (value.session as Record<string, unknown>)[key];
         if (typeof path !== "string") {

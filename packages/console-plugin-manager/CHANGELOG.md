@@ -1,5 +1,14 @@
 # @lenso/console-plugin-manager
 
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @lenso/console-react@0.3.3
+  - @lenso/console-sdk@1.2.1
+
 ## 0.1.5
 
 ### Patch Changes

@@ -40,6 +40,7 @@ import type {
 } from "./administration-contracts";
 import { readOnlyAdministrationActions } from "./administration-contracts";
 import { administrationStyles as s } from "./administration-styles";
+import { TokenCredentialDialog } from "./token-credential-dialog";
 
 export interface AdministrationPageProps {
   client: AdministrationClient;
@@ -1564,26 +1565,11 @@ function Tokens({
   return (
     <section aria-label="Own personal tokens" {...stylex.props(s.section)}>
       {writes.controls}
-      {delivery && (
-        <section aria-label="One-time credential" {...stylex.props(s.section)}>
-          <h3>Save your token now</h3>
-          <p>
-            This credential is displayed once and held only in page memory.
-            Dismiss this view after saving it in your client environment.
-          </p>
-          {delivery.credential ? (
-            <pre {...stylex.props(s.secret)}>{delivery.credential}</pre>
-          ) : (
-            <p>
-              The credential is no longer available. Inspect the token before
-              rotating it; do not automatically repeat issuance.
-            </p>
-          )}
-          <Button variant="secondary" onClick={() => setDelivery(null)}>
-            Dismiss credential
-          </Button>
-        </section>
-      )}
+      <TokenCredentialDialog
+        delivery={delivery}
+        pending={writes.pending}
+        onDismiss={() => setDelivery(null)}
+      />
       {info.allowed.includes("tokens.issue") && (
         <section
           aria-label="Create personal token"
@@ -1656,7 +1642,7 @@ function Tokens({
               columns={[
                 {
                   id: "id",
-                  label: "Token",
+                  label: "Token ID",
                   render: (token) => (
                     <>
                       {token.id}

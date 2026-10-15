@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 
+import type { ApiKeyStore } from "@lenso/api-keys";
 import { sqliteApiKeyStore } from "@lenso/api-keys/drizzle/sqlite";
 import {
   effectivePermissions,
@@ -17,30 +18,9 @@ import {
   type AccessSnapshot,
   type Member,
 } from "./administration-contracts";
+import { AdministrationError } from "./administration-error";
 
-export class AdministrationError extends Error {
-  readonly code:
-    | "DENIED"
-    | "CONFLICT"
-    | "INVALID_INPUT"
-    | "UNAVAILABLE"
-    | "OUTCOME_UNKNOWN";
-  readonly intentId: string | undefined;
-  constructor(
-    code:
-      | "DENIED"
-      | "CONFLICT"
-      | "INVALID_INPUT"
-      | "UNAVAILABLE"
-      | "OUTCOME_UNKNOWN",
-    intentId?: string
-  ) {
-    super(code);
-    this.name = "AdministrationError";
-    this.code = code;
-    this.intentId = intentId;
-  }
-}
+export { AdministrationError } from "./administration-error";
 
 export const readOnlyActions = readOnlyAdministrationActions;
 const operatorActions = [
@@ -185,13 +165,17 @@ export function createConsoleAdministrationStore(options: {
   function commit(
     expectedRevision: string,
     next: RoleSnapshot<AdministrationAction>,
-    labels?: Record<string, string>
+    labels?: Record<string, string>,
+    guard?: { readonly subjectId: string }
   ) {
     return database
       .transaction(() => {
         const current = state();
         if (current.snapshot.revision !== expectedRevision) {
           return false;
+        }
+        if (guard && options.subjectActiveAtCommit(guard.subjectId) !== true) {
+          throw new AdministrationError("DENIED");
         }
         const immutable = snapshotCopy(next);
         if (
@@ -345,7 +329,8 @@ export function createConsoleAdministrationStore(options: {
       change: (
         snapshot: RoleSnapshot<AdministrationAction>
       ) => RoleSnapshot<AdministrationAction>,
-      labels?: Record<string, string>
+      labels?: Record<string, string>,
+      guard?: { readonly subjectId: string }
     ): AccessSnapshot {
       const current = state();
       if (current.snapshot.revision !== expectedRevision) {
@@ -354,8 +339,9 @@ export function createConsoleAdministrationStore(options: {
       if (
         !commit(
           expectedRevision,
-          change(current.snapshot),
-          labels ? { ...current.labels, ...labels } : undefined
+          change(snapshotCopy(current.snapshot)),
+          labels ? { ...current.labels, ...labels } : undefined,
+          guard
         )
       ) {
         throw new AdministrationError("CONFLICT");
@@ -364,6 +350,28 @@ export function createConsoleAdministrationStore(options: {
     },
   };
 }
-export type ConsoleAdministrationStore = ReturnType<
-  typeof createConsoleAdministrationStore
->;
+/** Portable store contract: local SQLite can return values; network stores return promises. */
+export interface ConsoleAdministrationStore {
+  readonly consoleId: string;
+  readonly tenantId: string;
+  readonly realmId: string;
+  readonly scope: Scope;
+  readonly roleStore: RoleStore<AdministrationAction>;
+  readonly apiKeyStore: ApiKeyStore;
+  revokeKey(
+    subjectId: string,
+    id: string,
+    expectedRevision: number
+  ): boolean | Promise<boolean>;
+  read(): AccessSnapshot | Promise<AccessSnapshot>;
+  admission(subjectId: string): Member | null | Promise<Member | null>;
+  initializeInstance(firstSubjectId: string): boolean | Promise<boolean>;
+  mutate(
+    expectedRevision: string,
+    change: (
+      snapshot: RoleSnapshot<AdministrationAction>
+    ) => RoleSnapshot<AdministrationAction>,
+    labels?: Record<string, string>,
+    guard?: { readonly subjectId: string }
+  ): AccessSnapshot | Promise<AccessSnapshot>;
+}

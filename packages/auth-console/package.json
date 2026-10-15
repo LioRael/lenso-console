@@ -1,6 +1,6 @@
 {
   "name": "@lenso/auth-console",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Optional capability-driven Auth Console adapter",
   "license": "MIT",
   "repository": {
@@ -37,6 +37,10 @@
     "./administration/react": {
       "types": "./dist/administration-react.d.ts",
       "default": "./dist/administration-react.js"
+    },
+    "./administration/portable": {
+      "types": "./dist/administration-portable.d.ts",
+      "default": "./dist/administration-portable.js"
     }
   },
   "publishConfig": {
@@ -73,8 +77,8 @@
   },
   "peerDependencies": {
     "@lenso/auth": "^0.5.2",
-    "@lenso/console-react": "^0.3.2",
-    "@lenso/console-sdk": "^1.2.0",
+    "@lenso/console-react": "^0.3.3",
+    "@lenso/console-sdk": "^1.2.1",
     "@lenso/core": "^0.3.1",
     "react": "^19.0.0"
   },

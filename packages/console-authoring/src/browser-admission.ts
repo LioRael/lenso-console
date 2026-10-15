@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { readAdmissionBootstrap } from "./admission-bootstrap";
 import {
@@ -23,6 +23,7 @@ import { consoleHttpPaths } from "./http-paths";
 import {
   subscribeIdentityTransitions,
   withIdentityTransition,
+  withConditionalIdentityTransition,
 } from "./identity-transition";
 import {
   configureSessionCsrf,
@@ -30,6 +31,11 @@ import {
   retireSessionReads,
   sessionFetch,
 } from "./session-fetch";
+import {
+  parseSessionRenewalStatus,
+  sessionRenewalDue,
+  startSessionRenewal,
+} from "./session-renewal";
 
 export type BrowserMount = ReturnType<
   typeof consolePageDescriptorSchema.parse
@@ -90,10 +96,16 @@ export function useConsoleAdmission(
     };
     const expired = () => retire();
     window.addEventListener("lenso-session-expired", expired);
-    const stopStorage = onConsoleSessionChange(expired);
+    const stopStorage = onConsoleSessionChange(() => {
+      retire();
+      setAttempt((value) => value + 1);
+    });
     const stopTransitions = subscribeIdentityTransitions((phase, remote) => {
       if (phase === "begin") {
         retire("expired", !remote && operation.current !== undefined);
+      } else if (remote) {
+        // Renewal/login/logout all re-enter through a fresh authoritative admission.
+        setAttempt((value) => value + 1);
       }
     });
     setAdmission(undefined);
@@ -284,13 +296,35 @@ export function useConsoleAdmission(
       setState("loading");
     }
     try {
-      await withIdentityTransition(
-        () =>
-          submitConsoleAuthAction(action, input, controller.signal, subject),
-        controller.signal
-      );
+      if (kind === "renew" && discovery?.session?.status) {
+        const changed = await withConditionalIdentityTransition(
+          async () => {
+            const status = await renewalStatus(
+              discovery.session!.status!,
+              subject,
+              controller.signal,
+              true
+            );
+            return sessionRenewalDue(status);
+          },
+          () =>
+            submitConsoleAuthAction(action, input, controller.signal, subject),
+          controller.signal
+        );
+        if (!changed) {
+          return;
+        }
+      } else {
+        await withIdentityTransition(
+          () =>
+            submitConsoleAuthAction(action, input, controller.signal, subject),
+          controller.signal
+        );
+      }
       controller.signal.throwIfAborted();
-      broadcastConsoleSessionChange();
+      if (kind !== "renew") {
+        broadcastConsoleSessionChange();
+      }
       if (logout) {
         previouslyAdmitted.current = false;
       }
@@ -334,6 +368,58 @@ export function useConsoleAdmission(
       }
     }
   }
+  const automaticRenew = useEffectEvent(() =>
+    discovery?.session?.renew
+      ? act(discovery.session.renew, {}, "renew")
+      : Promise.resolve()
+  );
+  useEffect(() => {
+    if (
+      state !== "authenticated" ||
+      !session ||
+      !discovery?.session?.status ||
+      !discovery.session.renew ||
+      typeof navigator === "undefined" ||
+      !navigator.locks
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    const stop = startSessionRenewal({
+      signal: controller.signal,
+      status: () =>
+        renewalStatus(
+          discovery.session!.status!,
+          session.subject,
+          controller.signal
+        ),
+      renew: () => automaticRenew(),
+      unavailable(error) {
+        if (
+          error instanceof ConsoleAuthenticationError &&
+          ["expired", "unauthenticated", "forbidden"].includes(error.state)
+        ) {
+          setAttempt((value) => value + 1);
+          return;
+        }
+        setActionError(
+          error instanceof Error
+            ? error
+            : new Error("Session renewal unavailable")
+        );
+      },
+    });
+    return () => {
+      controller.abort();
+      stop();
+    };
+  }, [
+    state,
+    session,
+    discovery?.session?.status,
+    discovery?.session?.renew,
+    attempt,
+  ]);
   return {
     admission,
     error: admissionError,
@@ -414,3 +500,37 @@ export function assertConsoleMountPaths(mounts: readonly BrowserMount[]) {
     }
   }
 }
+
+async function renewalStatus(
+  path: string,
+  subject: string | undefined,
+  signal: AbortSignal,
+  writeLockHeld = false
+) {
+  // The conditional renewal check already owns the exclusive identity lock.
+  // Re-entering sessionFetch would queue a shared lock behind ourselves.
+  const reader = writeLockHeld ? fetch : sessionFetch;
+  const response = await reader(path, {
+    credentials: "same-origin",
+    cache: "no-store",
+    redirect: "error",
+    signal,
+    headers: subject ? { "x-lenso-expected-subject": subject } : {},
+  });
+  if (!response.ok) {
+    throw consoleAuthenticationError(response.status, true);
+  }
+  const status = parseSessionRenewalStatus(await response.json());
+  signal.throwIfAborted();
+  if (status.subjectId !== subject) {
+    throw new ConsoleAuthenticationError("expired");
+  }
+  return status;
+}
+
+export {
+  parseSessionRenewalStatus,
+  sessionRenewalDue,
+  startSessionRenewal,
+} from "./session-renewal";
+export type { SessionRenewalStatus } from "./session-renewal";

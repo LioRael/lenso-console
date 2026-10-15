@@ -50,6 +50,7 @@ const result = await Bun.build({
     `${import.meta.dir}/src/server.ts`,
     `${import.meta.dir}/src/client.ts`,
     `${import.meta.dir}/src/administration-server.ts`,
+    `${import.meta.dir}/src/administration-portable.ts`,
   ],
   outdir: `${import.meta.dir}/dist`,
   target: "browser",

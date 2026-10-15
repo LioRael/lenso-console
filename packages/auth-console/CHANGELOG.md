@@ -1,5 +1,15 @@
 # @lenso/auth-console
 
+## 2.0.1
+
+### Patch Changes
+
+- Coordinate foreground browser session renewal and present newly issued full personal tokens in a dedicated, copyable success dialog. Preserve the portable asynchronous administration service used by Workers hosts.
+- Updated dependencies
+- Updated dependencies
+  - @lenso/console-react@0.3.3
+  - @lenso/console-sdk@1.2.1
+
 ## 2.0.0
 
 ### Minor Changes

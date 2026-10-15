@@ -1,5 +1,12 @@
 # @lenso/console-dashboard
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @lenso/console-react@0.3.3
+
 ## 0.2.3
 
 ### Patch Changes

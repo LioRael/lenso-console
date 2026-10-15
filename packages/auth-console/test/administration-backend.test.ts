@@ -801,3 +801,59 @@ test("read disclosure rechecks caller membership after the awaited audit outcome
   release();
   await expect(read).rejects.toMatchObject({ code: "DENIED" });
 });
+
+// The synchronous SQLite fixtures cannot detect promise-valued store facts or a
+// missing commit-time actor guard in the Workers-compatible public service.
+test("portable service awaits remote store facts and preserves the commit actor fence", async () => {
+  const f = fixture();
+  const { createConsoleAdministrationService: portableService } =
+    await import("../src/administration-portable");
+  let guardedSubject: string | undefined;
+  const service = portableService({
+    ...f.options,
+    store: {
+      ...f.store,
+      async read() {
+        return f.store.read();
+      },
+      async admission(subjectId) {
+        return f.store.admission(subjectId);
+      },
+      async revokeKey(subjectId, id, revision) {
+        return f.store.revokeKey(subjectId, id, revision);
+      },
+      async mutate(revision, change, labels, guard) {
+        guardedSubject = guard?.subjectId;
+        return f.store.mutate(revision, change, labels, guard);
+      },
+    },
+  });
+  cleanup.push(() => {
+    void service.apiKeys.close();
+  });
+  const owner = f.context();
+  await service.membersSet(
+    { subjectId: "reader", roleId: "readonly", expectedRevision: "1" },
+    owner
+  );
+  expect(guardedSubject).toBe("owner");
+  const permissions = await service.permissionsRead(
+    { subjectId: "reader" },
+    owner
+  );
+  expect(permissions.allowed).toContain("users.list");
+  expect(permissions.sources[0]?.roleId).toBe("readonly");
+  const delivered = await service.issueToken(
+    {
+      scopes: ["users.list"],
+      requestId: crypto.randomUUID(),
+      expiresAt: Date.now() + 60_000,
+    },
+    owner
+  );
+  const revoked = await service.tokensRevoke(
+    { id: delivered.token.id, expectedRevision: delivered.token.revision },
+    owner
+  );
+  expect(revoked.revoked).toBe(true);
+});
