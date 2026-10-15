@@ -102,14 +102,14 @@
     "vite": "^8.2.0",
     "zod": "4.6.5"
   },
+  "overrides": {
+    "@lenso/auth": "file:./tooling/fixtures/oauth-candidate/auth-preflight-7d31f51658c9.tgz"
+  },
   "engines": {
     "bun": "1.4.3"
   },
   "packageManager": "bun@1.4.3",
   "trustedDependencies": [
     "esbuild"
-  ],
-  "overrides": {
-    "@lenso/auth": "file:./tooling/fixtures/oauth-candidate/auth-preflight-7d31f51658c9.tgz"
-  }
+  ]
 }
