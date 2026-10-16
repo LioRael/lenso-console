@@ -70,7 +70,7 @@
     },
     "packages/auth-console": {
       "name": "@lenso/auth-console",
-      "version": "2.0.3",
+      "version": "2.1.0",
       "dependencies": {
         "@lenso/api-keys": "0.1.6",
         "@lenso/audit": "0.3.3",
@@ -268,7 +268,7 @@
     },
     "packages/console-plugin-manager": {
       "name": "@lenso/console-plugin-manager",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "dependencies": {
         "@lenso/console-react": "workspace:*",
         "@lenso/console-sdk": "workspace:*",

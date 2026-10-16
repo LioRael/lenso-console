@@ -1,5 +1,11 @@
 # @lenso/console-plugin-manager
 
+## 0.1.9
+
+### Patch Changes
+
+- Simplify the installed-plugin catalog by removing redundant visible-plugin counts and read-only explanatory copy.
+
 ## 0.1.8
 
 ### Patch Changes

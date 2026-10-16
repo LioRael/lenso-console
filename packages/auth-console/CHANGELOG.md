@@ -1,5 +1,17 @@
 # @lenso/auth-console
 
+## 2.1.0
+
+### Minor Changes
+
+- Refine membership, role, personal-token and connected-application management with table corner controls, modal creation and drawer inspection.
+- Allow Access and Agent pages to use host-owned tabs while preserving the default workspace-owned navigation.
+
+### Patch Changes
+
+- Keep one-time credential delivery focused after write confirmation and anchor Select menus within overlay bounds.
+- Remove redundant subject counts and keep scope and connection information in contextual popovers.
+
 ## 2.0.3
 
 ### Patch Changes
