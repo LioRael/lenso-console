@@ -2131,6 +2131,23 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
         })
       ).toEqual({ viewport: true, hit: true, scrollable: true });
       await page.keyboard.press("End");
+      // Observe the keyboard-driven focus/scroll commit without scrolling the
+      // item ourselves: a broken End action must still time out and fail.
+      await page.waitForFunction(
+        (node) => {
+          if (!node || document.activeElement !== node) {
+            return false;
+          }
+          const rect = node.getBoundingClientRect();
+          return node.contains(
+            document.elementFromPoint(
+              rect.x + rect.width / 2,
+              rect.y + rect.height / 2
+            )
+          );
+        },
+        await page.getByRole("menuitemradio").last().elementHandle()
+      );
       expect(
         await page
           .getByRole("menuitemradio")
