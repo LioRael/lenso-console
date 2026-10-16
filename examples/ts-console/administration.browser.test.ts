@@ -454,7 +454,7 @@ test("compiled administration pages manage real isolated data and retire one-tim
         .getByRole("combobox", { name: "Existing identity", exact: true })
         .isVisible()
     ).toBe(false);
-    await page.getByText("Manage membership", { exact: true }).focus();
+    await page.getByRole("button", { name: "Add member", exact: true }).focus();
     await page.keyboard.press("Enter");
     await page
       .getByRole("combobox", { name: "Existing identity", exact: true })
@@ -489,7 +489,7 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .waitFor();
     // Wrapped subject IDs must remain readable and selecting a row must open its actual role.
     const memberEntry = page.getByRole("button", {
-      name: colleague,
+      name: `Inspect member ${colleague}`,
       exact: true,
     });
     expect(
@@ -503,17 +503,24 @@ test("compiled administration pages manage real isolated data and retire one-tim
         .getByRole("combobox", { name: "Membership role", exact: true })
         .textContent()
     ).toMatch(/read.?only/i);
+    await page
+      .getByRole("button", { name: "Close membership editor", exact: true })
+      .click();
     await page.getByRole("tab", { name: "Roles", exact: true }).click();
     expect(page.url()).toContain("/access/roles");
+    await page
+      .getByRole("button", { name: "Inspect role readonly", exact: true })
+      .click();
     await page
       .getByRole("region", { name: "Role readonly", exact: true })
       .getByText(/users.list/)
       .waitFor();
     await inBounds(page);
+    await page.getByRole("button", { name: "Close role", exact: true }).click();
     await page
       .getByRole("button", { name: "Create role", exact: true })
       .click();
-    const roleForm = page.getByRole("region", {
+    const roleForm = page.getByRole("form", {
       name: "Create custom role",
       exact: true,
     });
@@ -521,7 +528,8 @@ test("compiled administration pages manage real isolated data and retire one-tim
     await roleForm
       .getByLabel("Role name", { exact: true })
       .fill("Fixture permissions");
-    await roleForm
+    await page
+      .getByRole("dialog", { name: "Create role", exact: true })
       .getByRole("button", { name: "Create custom role", exact: true })
       .click();
     await page
@@ -535,8 +543,12 @@ test("compiled administration pages manage real isolated data and retire one-tim
       name: "Role Fixture permissions",
       exact: true,
     });
-    await roleEditor.waitFor();
-    await roleEditor.getByText("Edit permissions", { exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "Inspect role Fixture permissions",
+        exact: true,
+      })
+      .click();
     await roleEditor
       .getByRole("checkbox", { name: "users.read", exact: true })
       .uncheck();
@@ -550,15 +562,21 @@ test("compiled administration pages manage real isolated data and retire one-tim
     await page
       .getByRole("button", { name: "Retry session", exact: true })
       .click();
-    await roleEditor.waitFor();
-    await roleEditor.getByText("Edit permissions", { exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "Inspect role Fixture permissions",
+        exact: true,
+      })
+      .click();
     expect(
       await roleEditor
         .getByRole("checkbox", { name: "users.read", exact: true })
         .isChecked()
     ).toBe(false);
     await page.goto(`${origin}/agent-connections/`);
-    await page.getByText("Create personal token", { exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "Create personal token", exact: true })
+      .waitFor();
     expect(
       await page
         .getByRole("button", { name: "Create token", exact: true })
@@ -608,7 +626,9 @@ test("compiled administration pages manage real isolated data and retire one-tim
       await page.getByText("Connect an MCP client", { exact: true }).count()
     ).toBe(0);
     await page.getByRole("tab", { name: "Tokens", exact: true }).click();
-    await page.getByText("Create personal token", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Create personal token", exact: true })
+      .click();
     await page
       .getByRole("button", { name: "Create token", exact: true })
       .click();
@@ -735,7 +755,9 @@ test("compiled administration pages manage real isolated data and retire one-tim
       })
     );
     await page.goto(`${origin}/agent-connections/`);
-    await page.getByText("Create personal token", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Create personal token", exact: true })
+      .click();
     await page
       .getByRole("button", { name: "Create token", exact: true })
       .click();

@@ -1,9 +1,9 @@
 import {
   ConsoleIconButton,
-  ConsoleLayout,
   ConsolePageScope,
   ConsoleTableContext,
   ConsoleTableSearch,
+  evaluateConsoleFilter,
   type ConsoleFilterCondition,
   type ConsoleFilterField,
   type ConsoleFilterGroup,
@@ -17,23 +17,34 @@ import {
   useWorkspaceReadClient,
 } from "@lenso/console-sdk/react";
 import { ThemeScope } from "@lenso/ui";
+import { Accordion } from "@lenso/ui/accordion";
 import { AlertDialog } from "@lenso/ui/alert-dialog";
 import { Button } from "@lenso/ui/button";
 import { Checkbox } from "@lenso/ui/checkbox";
+import { Description } from "@lenso/ui/description";
+import { Drawer } from "@lenso/ui/drawer";
+import { FieldError } from "@lenso/ui/field-error";
+import { Form } from "@lenso/ui/form";
 import { Input } from "@lenso/ui/input";
+import { Label } from "@lenso/ui/label";
+import { Modal } from "@lenso/ui/modal";
 import { Pagination } from "@lenso/ui/pagination";
+import { Popover } from "@lenso/ui/popover";
 import { SearchField } from "@lenso/ui/search-field";
 import { Select } from "@lenso/ui/select";
 import { Table } from "@lenso/ui/table";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
-import { Plus } from "lucide-react";
+import { Info, Plus, X } from "lucide-react";
 import {
   Fragment,
   useEffect,
   useId,
   useRef,
   useState,
+  type ComponentProps,
   type ReactNode,
+  type RefObject,
 } from "react";
 
 import type {
@@ -41,10 +52,13 @@ import type {
   AdministrationClient,
   AdministrationInfo,
   AdministrationInputs,
+  AccessSnapshot,
   ConsoleRole,
   CredentialDelivery,
   DirectoryUser,
   DirectoryFilter,
+  PersonalToken,
+  ManagementEvent,
 } from "./administration-contracts";
 import { readOnlyAdministrationActions } from "./administration-contracts";
 import { administrationStyles as s } from "./administration-styles";
@@ -52,6 +66,8 @@ import { TokenCredentialDialog } from "./token-credential-dialog";
 
 export interface AdministrationPageProps {
   client: AdministrationClient;
+  /** Set to host when the Shell supplies persistent pageGroups. */
+  tabs?: "workspace" | "host";
 }
 export interface IdentityPageProps extends AdministrationPageProps {
   subjectId?: string;
@@ -267,6 +283,8 @@ function Records<T>({
   columns: readonly {
     id: string;
     label: string;
+    width?: ComponentProps<typeof Table.Column>["width"];
+    minWidth?: number;
     render: (item: T) => ReactNode;
   }[];
 }) {
@@ -283,7 +301,10 @@ function Records<T>({
                 <Table.Column
                   key={column.id}
                   columnKey={column.id}
-                  minWidth={120}
+                  {...(column.width === undefined
+                    ? {}
+                    : { width: column.width })}
+                  minWidth={column.minWidth ?? 120}
                 >
                   {column.label}
                 </Table.Column>
@@ -404,11 +425,13 @@ function Choice({
   change,
   options,
   disabled = false,
+  placeholder = "Choose…",
 }: {
   label: string;
   value: string;
   change: (value: string) => void;
   disabled?: boolean;
+  placeholder?: string;
   options: readonly { value: string; label: string }[];
 }) {
   return (
@@ -421,7 +444,7 @@ function Choice({
       >
         <Select.Label>{label}</Select.Label>
         <Select.Trigger fullWidth xstyle={s.control}>
-          <Select.Value placeholder="Choose…" />
+          <Select.Value placeholder={placeholder} />
           <Select.Indicator />
         </Select.Trigger>
         <ThemeScope>
@@ -448,7 +471,8 @@ function Choice({
 /** A failed write locks out repetition until an explicit reload. */
 function useWrites(
   verifyReload?: () => Promise<void>,
-  afterReload?: () => void
+  afterReload?: () => void,
+  afterConfirmationClose?: () => void
 ) {
   const cache = useWorkspaceReadClient();
   const [pending, setPending] = useState(false);
@@ -542,6 +566,7 @@ function useWrites(
   }
   return {
     pending,
+    confirming: confirmation !== null,
     disabled: pending || blocked,
     confirm(title: string, detail: string, run: () => Promise<unknown>) {
       if (!lock.current && !blocked) {
@@ -580,6 +605,11 @@ function useWrites(
         )}
         <AlertDialog.Root
           open={confirmation !== null}
+          onOpenChangeComplete={(open) => {
+            if (!open) {
+              afterConfirmationClose?.();
+            }
+          }}
           onOpenChange={(open, details) => {
             if (lock.current) {
               details.cancel();
@@ -1114,13 +1144,16 @@ function IdentitySessions({
   );
 }
 
-export function AccessPage({ client }: AdministrationPageProps) {
+export function AccessPage({
+  client,
+  tabs = "workspace",
+}: AdministrationPageProps) {
   return (
     <Frame client={client} label="Console access">
       {(info) =>
         info.allowed.includes("members.list") &&
         info.allowed.includes("roles.list") ? (
-          <Access client={client} info={info} />
+          <Access client={client} info={info} tabs={tabs} />
         ) : (
           <output>
             You need both members.list and roles.list permissions to view this
@@ -1134,6 +1167,7 @@ export function AccessPage({ client }: AdministrationPageProps) {
 function Access({
   client,
   info,
+  tabs = "workspace",
 }: AdministrationPageProps & { info: AdministrationInfo }) {
   const workspace = useWorkspace();
   const tab = workspace.location.segments[0] === "roles" ? "roles" : "members";
@@ -1142,266 +1176,714 @@ function Access({
   const [subject, setSubject] = useState("");
   const [roleId, setRoleId] = useState("");
   const [creatingRole, setCreatingRole] = useState(false);
-  const [editingMembership, setEditingMembership] = useState(false);
-  const membershipEntry = useRef<HTMLElement>(null);
+  const [roleQuery, setRoleQuery] = useState("");
+  const [roleEditor, setRoleEditor] = useState({ id: "", open: false });
+  const roleEntry = useRef<HTMLHeadingElement>(null);
+  const roleOpener = useRef<HTMLElement | null>(null);
+  const roleList = useRef<HTMLDivElement>(null);
+  const [membershipEditor, setMembershipEditor] = useState<{
+    mode: "add" | "edit";
+    open: boolean;
+  }>({ mode: "add", open: false });
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<ConsoleFilterGroup>({
+    id: "members",
+    operator: "and",
+    children: [],
+  });
+  const membershipMode = membershipEditor.mode;
+  const editingMembership = membershipEditor.open;
+  const membershipEntry = useRef<HTMLHeadingElement>(null);
+  const membershipOpener = useRef<HTMLElement | null>(null);
+  const memberList = useRef<HTMLDivElement>(null);
+  const visibleMembers =
+    read.data?.members.filter((member) => {
+      const role = read.data!.roles.find((item) => item.id === member.roleId);
+      return (
+        `${member.subjectId} ${member.realmId} ${role?.label ?? member.roleId}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase()) &&
+        evaluateConsoleFilter(filter, (condition) => {
+          if (condition.field !== "role" && condition.field !== "status") {
+            return false;
+          }
+          const value =
+            condition.field === "role" ? member.roleId : member.status;
+          return condition.operator === "equals" && value === condition.value;
+        })
+      );
+    }) ?? [];
+  const selectedMember = read.data?.members.find(
+    (member) => member.subjectId === subject
+  );
+  const selectedRole = read.data?.roles.find(
+    (role) => role.id === roleEditor.id
+  );
+  const visibleRoles =
+    read.data?.roles.filter((role) =>
+      `${role.label} ${role.id} ${role.permissions.join(" ")}`
+        .toLowerCase()
+        .includes(roleQuery.trim().toLowerCase())
+    ) ?? [];
+  const roleReturnFocus = () =>
+    roleOpener.current?.isConnected
+      ? roleOpener.current
+      : (roleList.current ?? false);
+  function closeRole() {
+    if (!writes.pending && !writes.confirming) {
+      setRoleEditor((current) => ({ ...current, open: false }));
+    }
+  }
+  function closeMembership() {
+    if (!writes.pending && !writes.confirming) {
+      setMembershipEditor((current) => ({ ...current, open: false }));
+    }
+  }
   return (
     <div {...stylex.props(s.section)}>
-      <AdministrationTabs
-        label="Console access"
-        tabs={[
-          { id: "members", label: "Members", segments: [] },
-          { id: "roles", label: "Roles", segments: ["roles"] },
-        ]}
-      />
-      {writes.controls}
-      {tab === "roles" &&
-        info.allowed.includes("roles.write") &&
-        info.allowed.includes("members.promote") && (
-          <ConsoleLayout.Corner area="topRight">
-            <ConsoleIconButton
-              label="Create role"
-              variant="primary"
-              disabled={writes.disabled || creatingRole}
-              onClick={() => setCreatingRole(true)}
-            >
-              <Plus aria-hidden="true" />
-            </ConsoleIconButton>
-          </ConsoleLayout.Corner>
-        )}
+      {tabs === "workspace" && (
+        <AdministrationTabs
+          label="Console access"
+          tabs={[
+            { id: "members", label: "Members", segments: [] },
+            { id: "roles", label: "Roles", segments: ["roles"] },
+          ]}
+        />
+      )}
+      {!editingMembership &&
+        !creatingRole &&
+        !roleEditor.open &&
+        writes.controls}
       <ReadState read={read}>
         {read.data && (
           <>
-            <header {...stylex.props(s.pageHeader)}>
-              <h2 {...stylex.props(s.heading)}>
-                {tab === "members" ? "Console members" : "Access roles"}
-              </h2>
-              <p {...stylex.props(s.description)}>
-                {tab === "members"
-                  ? "Manage who can access this Console and the role assigned to each member."
-                  : "Review reusable permission sets. Changes to a role affect every member assigned to it."}
-              </p>
-              <details {...stylex.props(s.scopeDetails)}>
-                <summary {...stylex.props(s.summary)}>Access scope</summary>
-                <Facts
-                  entries={[
-                    ["Console", read.data.consoleId],
-                    ["Tenant", read.data.tenantId],
-                    ["Revision", read.data.revision],
-                  ]}
-                />
-              </details>
-            </header>
             {tab === "members" ? (
-              <>
-                <details
-                  open={editingMembership}
-                  onToggle={(event) =>
-                    setEditingMembership(event.currentTarget.open)
-                  }
-                  {...stylex.props(s.disclosure)}
-                >
-                  <summary ref={membershipEntry} {...stylex.props(s.summary)}>
-                    Manage membership
-                  </summary>
-                  <div {...stylex.props(s.editor)}>
-                    <p {...stylex.props(s.description)}>
-                      Select an existing identity and a role. Elevated
-                      permissions require the separate promotion action.
-                    </p>
-                    {info.allowed.includes("users.list") && (
-                      <DirectoryPicker
-                        client={client}
-                        value={subject}
-                        change={setSubject}
-                      />
-                    )}
-                    {subject && <p>Selected subject: {subject}</p>}
-                    {(info.allowed.includes("members.write") ||
-                      info.allowed.includes("members.promote")) && (
-                      <div {...stylex.props(s.row)}>
-                        <Choice
-                          label="Membership role"
-                          value={roleId}
-                          change={setRoleId}
-                          disabled={writes.disabled}
-                          options={read.data.roles.map((role) => ({
-                            value: role.id,
-                            label: role.label,
-                          }))}
-                        />
-                        {info.allowed.includes("members.write") && (
-                          <Button
-                            variant="primary"
-                            disabled={
-                              writes.disabled ||
-                              read.refreshing ||
-                              !subject ||
-                              !roleId ||
-                              !!read.data.roles
-                                .find((role) => role.id === roleId)
-                                ?.permissions.some(
-                                  (action) =>
-                                    !readOnlyAdministrationActions.includes(
-                                      action
-                                    )
-                                )
-                            }
-                            onClick={() => {
-                              const input = {
-                                subjectId: subject,
-                                roleId,
-                                expectedRevision: read.data!.revision,
-                              };
-                              writes.confirm(
-                                "Grant or update membership?",
-                                `Assign role ${roleId} to ${subject} in ${info.consoleId}. Privilege elevation requires the separate promotion action.`,
-                                () => client.invoke("membersSet", input)
-                              );
-                            }}
-                          >
-                            Grant membership
-                          </Button>
-                        )}
-                        {info.allowed.includes("members.promote") && (
-                          <Button
-                            variant="danger-soft"
-                            disabled={
-                              writes.disabled ||
-                              read.refreshing ||
-                              !subject ||
-                              !roleId
-                            }
-                            onClick={() => {
-                              const input = {
-                                subjectId: subject,
-                                roleId,
-                                expectedRevision: read.data!.revision,
-                              };
-                              writes.confirm(
-                                "Promote member: sensitive access change",
-                                `Elevate ${subject} to ${roleId} in Console ${info.consoleId}, tenant ${info.tenantId}. Review the role permissions before confirming.`,
-                                () => client.invoke("membersPromote", input)
-                              );
-                            }}
-                          >
-                            Promote member
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    {subject && info.allowed.includes("permissions.read") && (
-                      <Permissions
-                        key={subject}
-                        client={client}
-                        subjectId={subject}
-                      />
-                    )}
-                  </div>
-                </details>
-                <Records
-                  label="Members"
-                  items={read.data.members}
-                  rowKey={(member) => `${member.realmId}:${member.subjectId}`}
-                  columns={[
-                    {
-                      id: "subject",
-                      label: "Subject",
-                      render: (member) => (
-                        <Button
-                          variant="ghost"
-                          xstyle={[s.cellText, s.subjectButton]}
-                          onClick={() => {
-                            setSubject(member.subjectId);
-                            setRoleId(member.roleId);
-                            setEditingMembership(true);
-                            membershipEntry.current?.focus();
-                          }}
-                        >
-                          <span {...stylex.props(s.cellText)}>
-                            {member.subjectId}
-                          </span>
-                        </Button>
-                      ),
-                    },
-                    {
-                      id: "realm",
-                      label: "Realm",
-                      render: (member) => member.realmId,
-                    },
+              <ConsoleTableContext
+                scopeKey={workspace.activation?.key ?? workspace.mount.id}
+                label="Members"
+                filters={{
+                  label: "Filter members",
+                  value: filter,
+                  onValueChange: setFilter,
+                  fields: [
                     {
                       id: "role",
                       label: "Role",
-                      render: (member) =>
-                        read.data!.roles.find(
-                          (role) => role.id === member.roleId
-                        )?.label ?? member.roleId,
+                      kind: "enum",
+                      options: read.data.roles.map((role) => ({
+                        value: role.id,
+                        label: role.label,
+                      })),
                     },
                     {
                       id: "status",
                       label: "Status",
-                      render: (member) => member.status,
+                      kind: "enum",
+                      options: [
+                        { value: "active", label: "Active" },
+                        { value: "revoked", label: "Revoked" },
+                      ],
                     },
-                    {
-                      id: "action",
-                      label: "Action",
-                      render: (member) =>
-                        info.allowed.includes("members.write") ? (
-                          <Button
-                            variant="danger-soft"
-                            disabled={
-                              writes.disabled ||
-                              read.refreshing ||
-                              member.status === "revoked"
-                            }
-                            onClick={() => {
-                              const input = {
-                                subjectId: member.subjectId,
-                                expectedRevision: read.data!.revision,
-                              };
-                              writes.confirm(
-                                "Revoke Console membership?",
-                                `Remove ${member.subjectId}'s membership in ${info.consoleId}. This does not delete their identity.`,
-                                () => client.invoke("membersRevoke", input)
-                              );
-                            }}
-                          >
-                            Revoke
-                          </Button>
-                        ) : (
-                          "Unavailable"
-                        ),
-                    },
-                  ]}
-                />
-              </>
+                  ],
+                }}
+                groups={[
+                  {
+                    id: "scope",
+                    kind: "view",
+                    label: "Access scope",
+                    placement: "bottomLeft",
+                    children: <AccessScope snapshot={read.data} />,
+                  },
+                  {
+                    id: "query",
+                    kind: "query",
+                    label: "Search",
+                    children: (
+                      <ConsoleTableSearch
+                        label="Search members"
+                        value={query}
+                        onValueChange={setQuery}
+                      />
+                    ),
+                  },
+                  ...(info.allowed.includes("users.list") &&
+                  (info.allowed.includes("members.write") ||
+                    info.allowed.includes("members.promote"))
+                    ? [
+                        {
+                          id: "add",
+                          kind: "insertion" as const,
+                          label: "Membership",
+                          children: (
+                            <ConsoleIconButton
+                              label="Add member"
+                              variant="primary"
+                              disabled={writes.disabled || editingMembership}
+                              onClick={(event) => {
+                                membershipOpener.current = event.currentTarget;
+                                setSubject("");
+                                setRoleId("");
+                                setMembershipEditor({
+                                  mode: "add",
+                                  open: true,
+                                });
+                              }}
+                            >
+                              <Plus size={18} aria-hidden="true" />
+                            </ConsoleIconButton>
+                          ),
+                        },
+                      ]
+                    : []),
+                ]}
+              >
+                <>
+                  <div
+                    ref={memberList}
+                    tabIndex={-1}
+                    {...stylex.props(s.accessList)}
+                  >
+                    {visibleMembers.length ? (
+                      <Records
+                        label="Members"
+                        items={visibleMembers}
+                        rowKey={(member) =>
+                          `${member.realmId}:${member.subjectId}`
+                        }
+                        columns={[
+                          {
+                            id: "subject",
+                            label: "Member",
+                            width: "1.5fr",
+                            minWidth: 176,
+                            render: (member) => (
+                              <Button
+                                variant="ghost"
+                                xstyle={[s.subjectButton, s.memberButton]}
+                                aria-label={`Inspect member ${member.subjectId}`}
+                                disabled={writes.pending}
+                                onClick={(event) => {
+                                  membershipOpener.current =
+                                    event.currentTarget;
+                                  setSubject(member.subjectId);
+                                  setRoleId(member.roleId);
+                                  setMembershipEditor({
+                                    mode: "edit",
+                                    open: true,
+                                  });
+                                }}
+                              >
+                                <span {...stylex.props(s.memberIdentity)}>
+                                  {member.subjectId}
+                                </span>
+                                <span {...stylex.props(s.accessSecondary)}>
+                                  {member.realmId}
+                                </span>
+                              </Button>
+                            ),
+                          },
+                          {
+                            id: "role",
+                            label: "Role",
+                            width: "1fr",
+                            minWidth: 136,
+                            render: (member) =>
+                              read.data!.roles.find(
+                                (role) => role.id === member.roleId
+                              )?.label ?? member.roleId,
+                          },
+                          {
+                            id: "status",
+                            label: "Status",
+                            width: 96,
+                            minWidth: 88,
+                            render: (member) => (
+                              <span {...stylex.props(s.accessSecondary)}>
+                                {member.status === "active"
+                                  ? "Active"
+                                  : "Revoked"}
+                              </span>
+                            ),
+                          },
+                        ]}
+                      />
+                    ) : (
+                      <p {...stylex.props(s.accessSecondary)}>
+                        {read.data.members.length
+                          ? "No members match this search and filter."
+                          : "No Console members."}
+                      </p>
+                    )}
+                  </div>
+                  <AdministrationSurface
+                    presentation={membershipMode === "add" ? "modal" : "drawer"}
+                    open={editingMembership}
+                    busy={writes.pending || writes.confirming}
+                    title={membershipMode === "add" ? "Add member" : subject}
+                    description={
+                      membershipMode === "add"
+                        ? "Choose an existing identity to grant Console access."
+                        : (selectedMember?.realmId ?? info.realmId)
+                    }
+                    initialFocus={membershipEntry}
+                    finalFocus={() =>
+                      membershipOpener.current?.isConnected
+                        ? membershipOpener.current
+                        : (memberList.current ?? false)
+                    }
+                    onClose={closeMembership}
+                    closeLabel="Close membership editor"
+                  >
+                    {editingMembership && writes.controls}
+                    <div {...stylex.props(s.membershipFields)}>
+                      {(info.allowed.includes("members.write") ||
+                        info.allowed.includes("members.promote")) && (
+                        <p {...stylex.props(s.accessSecondary)}>
+                          Elevated permissions require the separate promotion
+                          action.
+                        </p>
+                      )}
+                      {membershipMode === "add" &&
+                        info.allowed.includes("users.list") && (
+                          <DirectoryPicker
+                            client={client}
+                            value={subject}
+                            change={setSubject}
+                          />
+                        )}
+                      {selectedMember &&
+                        !info.allowed.includes("members.write") &&
+                        !info.allowed.includes("members.promote") && (
+                          <Facts
+                            entries={[
+                              [
+                                "Role",
+                                read.data.roles.find(
+                                  (role) => role.id === selectedMember.roleId
+                                )?.label ?? selectedMember.roleId,
+                              ],
+                              [
+                                "Status",
+                                selectedMember.status === "active"
+                                  ? "Active"
+                                  : "Revoked",
+                              ],
+                            ]}
+                          />
+                        )}
+                      {(info.allowed.includes("members.write") ||
+                        info.allowed.includes("members.promote")) && (
+                        <div {...stylex.props(s.membershipForm)}>
+                          <Choice
+                            label="Membership role"
+                            value={roleId}
+                            change={setRoleId}
+                            disabled={writes.disabled}
+                            options={read.data.roles.map((role) => ({
+                              value: role.id,
+                              label: role.label,
+                            }))}
+                          />
+                          <div {...stylex.props(s.row)}>
+                            {info.allowed.includes("members.write") && (
+                              <Button
+                                variant="primary"
+                                disabled={
+                                  writes.disabled ||
+                                  read.refreshing ||
+                                  !subject ||
+                                  !roleId ||
+                                  !!read.data.roles
+                                    .find((role) => role.id === roleId)
+                                    ?.permissions.some(
+                                      (action) =>
+                                        !readOnlyAdministrationActions.includes(
+                                          action
+                                        )
+                                    )
+                                }
+                                onClick={() => {
+                                  const input = {
+                                    subjectId: subject,
+                                    roleId,
+                                    expectedRevision: read.data!.revision,
+                                  };
+                                  writes.confirm(
+                                    "Grant or update membership?",
+                                    `Assign role ${roleId} to ${subject} in ${info.consoleId}. Privilege elevation requires the separate promotion action.`,
+                                    () => client.invoke("membersSet", input)
+                                  );
+                                }}
+                              >
+                                Grant membership
+                              </Button>
+                            )}
+                            {info.allowed.includes("members.promote") && (
+                              <Button
+                                variant="secondary"
+                                disabled={
+                                  writes.disabled ||
+                                  read.refreshing ||
+                                  !subject ||
+                                  !roleId
+                                }
+                                onClick={() => {
+                                  const input = {
+                                    subjectId: subject,
+                                    roleId,
+                                    expectedRevision: read.data!.revision,
+                                  };
+                                  writes.confirm(
+                                    "Promote member: sensitive access change",
+                                    `Elevate ${subject} to ${roleId} in Console ${info.consoleId}, tenant ${info.tenantId}. Review the role permissions before confirming.`,
+                                    () => client.invoke("membersPromote", input)
+                                  );
+                                }}
+                              >
+                                Promote member
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {subject && info.allowed.includes("permissions.read") && (
+                        <Permissions
+                          key={subject}
+                          client={client}
+                          subjectId={subject}
+                        />
+                      )}
+                      {membershipMode === "edit" &&
+                        selectedMember &&
+                        info.allowed.includes("members.write") && (
+                          <div {...stylex.props(s.membershipRemoval)}>
+                            <h3 {...stylex.props(s.accessLabel)}>
+                              Remove Console access
+                            </h3>
+                            <Button
+                              variant="danger-soft"
+                              disabled={
+                                writes.disabled ||
+                                read.refreshing ||
+                                selectedMember.status === "revoked"
+                              }
+                              onClick={() => {
+                                const input = {
+                                  subjectId: selectedMember.subjectId,
+                                  expectedRevision: read.data!.revision,
+                                };
+                                writes.confirm(
+                                  "Revoke Console membership?",
+                                  `Remove ${selectedMember.subjectId}'s membership in ${info.consoleId}. This does not delete their identity.`,
+                                  () => client.invoke("membersRevoke", input)
+                                );
+                              }}
+                            >
+                              Revoke membership
+                            </Button>
+                          </div>
+                        )}
+                    </div>
+                  </AdministrationSurface>
+                </>
+              </ConsoleTableContext>
             ) : (
-              <>
-                {creatingRole && (
-                  <RoleCreator
-                    client={client}
-                    info={info}
-                    revision={read.data.revision}
-                    writes={writes}
-                    templates={read.data.roles.filter((role) => role.preset)}
-                    onClose={() => setCreatingRole(false)}
-                  />
+              <ConsoleTableContext
+                scopeKey={workspace.activation?.key ?? workspace.mount.id}
+                label="Roles"
+                groups={[
+                  {
+                    id: "scope",
+                    kind: "view",
+                    label: "Access scope",
+                    placement: "bottomLeft",
+                    children: <AccessScope snapshot={read.data} />,
+                  },
+                  {
+                    id: "query",
+                    kind: "query",
+                    label: "Search",
+                    children: (
+                      <ConsoleTableSearch
+                        label="Search roles"
+                        value={roleQuery}
+                        onValueChange={setRoleQuery}
+                      />
+                    ),
+                  },
+                  ...(info.allowed.includes("roles.write") &&
+                  info.allowed.includes("members.promote")
+                    ? [
+                        {
+                          id: "create",
+                          kind: "insertion" as const,
+                          label: "Roles",
+                          children: (
+                            <ConsoleIconButton
+                              label="Create role"
+                              variant="primary"
+                              disabled={
+                                writes.disabled ||
+                                creatingRole ||
+                                roleEditor.open
+                              }
+                              onClick={(event) => {
+                                roleOpener.current = event.currentTarget;
+                                setCreatingRole(true);
+                              }}
+                            >
+                              <Plus size={18} aria-hidden="true" />
+                            </ConsoleIconButton>
+                          ),
+                        },
+                      ]
+                    : []),
+                ]}
+              >
+                <div
+                  ref={roleList}
+                  tabIndex={-1}
+                  {...stylex.props(s.accessList)}
+                >
+                  {visibleRoles.length ? (
+                    <Records
+                      label="Roles"
+                      items={visibleRoles}
+                      rowKey={(role) => role.id}
+                      columns={[
+                        {
+                          id: "role",
+                          label: "Role",
+                          width: "1.5fr",
+                          minWidth: 176,
+                          render: (role) => (
+                            <Button
+                              variant="ghost"
+                              xstyle={[s.subjectButton, s.memberButton]}
+                              aria-label={`Inspect role ${role.label}`}
+                              disabled={writes.pending}
+                              onClick={(event) => {
+                                roleOpener.current = event.currentTarget;
+                                setRoleEditor({ id: role.id, open: true });
+                              }}
+                            >
+                              <span {...stylex.props(s.memberIdentity)}>
+                                {role.label}
+                              </span>
+                              <span {...stylex.props(s.accessSecondary)}>
+                                {role.id}
+                              </span>
+                            </Button>
+                          ),
+                        },
+                        {
+                          id: "type",
+                          label: "Type",
+                          width: 112,
+                          minWidth: 96,
+                          render: (role) => (
+                            <span {...stylex.props(s.accessSecondary)}>
+                              {role.preset ? "Preset" : "Custom"}
+                            </span>
+                          ),
+                        },
+                        {
+                          id: "permissions",
+                          label: "Permissions",
+                          width: "1fr",
+                          minWidth: 168,
+                          render: (role) => (
+                            <span {...stylex.props(s.accessSecondary)}>
+                              {role.permissions.length === 0
+                                ? "No permissions"
+                                : role.permissions.every((action) =>
+                                      readOnlyAdministrationActions.includes(
+                                        action
+                                      )
+                                    )
+                                  ? "Read-only"
+                                  : "Includes write access"}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <p {...stylex.props(s.accessSecondary)}>
+                      {read.data.roles.length
+                        ? "No roles match this search."
+                        : "No roles in this Console."}
+                    </p>
+                  )}
+                </div>
+                <RoleCreator
+                  open={creatingRole}
+                  client={client}
+                  info={info}
+                  revision={read.data.revision}
+                  writes={writes}
+                  roles={read.data.roles}
+                  finalFocus={roleReturnFocus}
+                  onClose={() => setCreatingRole(false)}
+                />
+                {selectedRole && (
+                  <AdministrationSurface
+                    presentation="drawer"
+                    open={roleEditor.open}
+                    busy={writes.pending || writes.confirming}
+                    title={selectedRole.label}
+                    description={selectedRole.id}
+                    initialFocus={roleEntry}
+                    finalFocus={roleReturnFocus}
+                    onClose={closeRole}
+                    closeLabel="Close role"
+                  >
+                    {roleEditor.open && writes.controls}
+                    <RoleEditor
+                      key={`${read.data.revision}:${selectedRole.id}`}
+                      client={client}
+                      info={info}
+                      role={selectedRole}
+                      revision={read.data.revision}
+                      writes={writes}
+                    />
+                  </AdministrationSurface>
                 )}
-                {read.data.roles.map((role) => (
-                  <RoleEditor
-                    key={`${read.data!.revision}:${role.id}`}
-                    client={client}
-                    info={info}
-                    role={role}
-                    revision={read.data!.revision}
-                    writes={writes}
-                  />
-                ))}
-              </>
+              </ConsoleTableContext>
             )}
           </>
         )}
       </ReadState>
     </div>
+  );
+}
+function AdministrationSurface({
+  presentation,
+  open,
+  busy,
+  title,
+  description,
+  initialFocus,
+  finalFocus,
+  onClose,
+  closeLabel,
+  children,
+}: {
+  presentation: "modal" | "drawer";
+  open: boolean;
+  busy: boolean;
+  title: string;
+  description: string;
+  initialFocus: RefObject<HTMLHeadingElement | null>;
+  finalFocus(): HTMLElement | false;
+  onClose(): void;
+  closeLabel: string;
+  children: ReactNode;
+}) {
+  const Header = presentation === "modal" ? Modal.Header : Drawer.Header;
+  const Title = presentation === "modal" ? Modal.Title : Drawer.Title;
+  const SurfaceDescription =
+    presentation === "modal" ? Modal.Description : Drawer.Description;
+  const Body = presentation === "modal" ? Modal.Body : Drawer.Body;
+  function handleOpenChange(next: boolean, details: { cancel(): void }) {
+    if (busy) {
+      details.cancel();
+    } else if (!next) {
+      onClose();
+    }
+  }
+  const content = (
+    <>
+      <Header xstyle={s.membershipHeader}>
+        <div {...stylex.props(s.membershipHeading)}>
+          <Title ref={initialFocus} tabIndex={-1} xstyle={s.subheading}>
+            {title}
+          </Title>
+          <SurfaceDescription xstyle={s.accessSecondary}>
+            {description}
+          </SurfaceDescription>
+        </div>
+        <ConsoleIconButton
+          label={closeLabel}
+          variant="secondary"
+          disabled={busy}
+          onClick={onClose}
+        >
+          <X size={18} aria-hidden="true" />
+        </ConsoleIconButton>
+      </Header>
+      <Body xstyle={s.membershipOverlayBody}>{children}</Body>
+    </>
+  );
+  return presentation === "modal" ? (
+    <Modal.Root open={open} scroll="inside" onOpenChange={handleOpenChange}>
+      <Modal.Portal>
+        <Modal.Backdrop variant="opaque" />
+        <Modal.Viewport xstyle={s.overlayViewport}>
+          <Modal.Popup
+            placement="center"
+            size="md"
+            initialFocus={initialFocus}
+            finalFocus={finalFocus}
+            xstyle={s.membershipModal}
+          >
+            {content}
+          </Modal.Popup>
+        </Modal.Viewport>
+      </Modal.Portal>
+    </Modal.Root>
+  ) : (
+    <Drawer.Root
+      open={open}
+      swipeDirection="right"
+      onOpenChange={handleOpenChange}
+    >
+      <Drawer.Portal>
+        <Drawer.Backdrop variant="opaque" />
+        <Drawer.Viewport>
+          <Drawer.Popup
+            initialFocus={initialFocus}
+            finalFocus={finalFocus}
+            xstyle={s.membershipDrawer}
+          >
+            <Drawer.Content xstyle={s.membershipDrawerContent}>
+              {content}
+            </Drawer.Content>
+          </Drawer.Popup>
+        </Drawer.Viewport>
+      </Drawer.Portal>
+    </Drawer.Root>
+  );
+}
+function AccessScope({
+  snapshot,
+}: {
+  snapshot: Pick<AccessSnapshot, "consoleId" | "tenantId" | "revision">;
+}) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        render={<ConsoleIconButton label="Access scope" variant="secondary" />}
+      >
+        <Info size={18} aria-hidden="true" />
+      </Popover.Trigger>
+      <ThemeScope>
+        <Popover.Portal>
+          <Popover.Positioner side="top" align="start" sideOffset={8}>
+            <Popover.Popup xstyle={s.accessScope}>
+              <Popover.Title>Access scope</Popover.Title>
+              <Facts
+                entries={[
+                  ["Console", snapshot.consoleId],
+                  ["Tenant", snapshot.tenantId],
+                  ["Revision", snapshot.revision],
+                ]}
+              />
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </ThemeScope>
+    </Popover.Root>
   );
 }
 function DirectoryPicker({
@@ -1420,7 +1902,10 @@ function DirectoryPicker({
     limit: 25,
   });
   return (
-    <section aria-label="Select existing identity" {...stylex.props(s.section)}>
+    <section
+      aria-label="Select existing identity"
+      {...stylex.props(s.membershipForm)}
+    >
       <Search
         label="Search existing identities"
         value={search}
@@ -1448,7 +1933,9 @@ function DirectoryPicker({
               ]}
             />
             {!read.data.items.length && <p>No identities match this search.</p>}
-            <Next cursor={read.data.nextCursor} next={setCursor} />
+            {read.data.nextCursor && (
+              <Next cursor={read.data.nextCursor} next={setCursor} />
+            )}
           </>
         )}
       </ReadState>
@@ -1462,36 +1949,65 @@ function Permissions({
   const read = useRead(client, "permissionsRead", { subjectId });
   return (
     <section aria-label="Effective permissions" {...stylex.props(s.section)}>
-      <h3>Effective permissions</h3>
+      <h3 {...stylex.props(s.accessLabel)}>Effective permissions</h3>
       <ReadState read={read}>
         {read.data && (
           <>
-            <p>
-              {read.data.allowed.length
-                ? read.data.allowed.join(", ")
-                : "No effective permissions."}
-            </p>
-            <Records
-              label="Permission sources"
-              items={read.data.sources}
-              rowKey={(source) => source.roleId}
-              columns={[
-                {
-                  id: "role",
-                  label: "Source role",
-                  render: (source) => source.roleId,
-                },
-                {
-                  id: "permissions",
-                  label: "Permissions",
-                  render: (source) => source.permissions.join(", ") || "None",
-                },
-              ]}
-            />
+            <PermissionList actions={read.data.allowed} />
+            <Accordion hideSeparator>
+              <Accordion.Item value="sources">
+                <Accordion.Heading>
+                  <Accordion.Trigger xstyle={s.accessScopeTrigger}>
+                    Permission sources
+                    <Accordion.Indicator />
+                  </Accordion.Trigger>
+                </Accordion.Heading>
+                <Accordion.Panel>
+                  <Accordion.Body xstyle={s.accessScopeBody}>
+                    <Records
+                      label="Permission sources"
+                      items={read.data.sources}
+                      rowKey={(source) => source.roleId}
+                      columns={[
+                        {
+                          id: "role",
+                          label: "Source role",
+                          render: (source) => source.roleId,
+                        },
+                        {
+                          id: "permissions",
+                          label: "Permissions",
+                          render: (source) =>
+                            source.permissions.join(", ") || "None",
+                        },
+                      ]}
+                    />
+                  </Accordion.Body>
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
           </>
         )}
       </ReadState>
     </section>
+  );
+}
+function PermissionList({
+  actions,
+}: {
+  actions: readonly AdministrationAction[];
+}) {
+  return actions.length ? (
+    // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- Safari drops list semantics when list-style is none.
+    <ul role="list" {...stylex.props(s.permissionList)}>
+      {actions.map((action) => (
+        <li key={action}>
+          <code>{action}</code>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p {...stylex.props(s.accessSecondary)}>No permissions.</p>
   );
 }
 function PermissionChoices({
@@ -1500,17 +2016,26 @@ function PermissionChoices({
   selected,
   change,
   disabled,
+  label = "Permissions",
+  layout = "columns",
 }: {
   allowed: readonly AdministrationAction[];
   choices?: readonly AdministrationAction[];
   selected: readonly AdministrationAction[];
   change: (actions: AdministrationAction[]) => void;
   disabled: boolean;
+  label?: string;
+  layout?: "columns" | "stack";
 }) {
   const labelPrefix = useId();
   return (
-    <fieldset disabled={disabled} {...stylex.props(s.permissions)}>
-      <legend>Permissions</legend>
+    <fieldset
+      disabled={disabled}
+      {...stylex.props(s.permissions, layout === "stack" && s.permissionStack)}
+    >
+      <legend {...stylex.props(layout === "stack" && s.permissionGroupLabel)}>
+        {label}
+      </legend>
       {choices
         .filter((action) => allowed.includes(action))
         .map((action) => (
@@ -1518,6 +2043,7 @@ function PermissionChoices({
             <Checkbox
               aria-labelledby={`${labelPrefix}-${action}`}
               xstyle={s.choice}
+              disabled={disabled}
               checked={selected.includes(action)}
               onCheckedChange={(checked) =>
                 change(
@@ -1539,114 +2065,277 @@ function PermissionChoices({
     </fieldset>
   );
 }
-function RoleCreator({
+const permissionGroupLabels: Record<string, string> = {
+  users: "Directory",
+  sessions: "Sessions",
+  members: "Membership",
+  roles: "Roles",
+  permissions: "Permission inspection",
+  tokens: "Personal tokens",
+  audit: "Audit events",
+};
+function groupPermissions(actions: readonly AdministrationAction[]) {
+  const groups = new Map<string, AdministrationAction[]>();
+  for (const action of actions) {
+    const id = action.split(".")[0]!;
+    const group = groups.get(id) ?? [];
+    group.push(action);
+    groups.set(id, group);
+  }
+  return [...groups].map(([id, values]) => ({
+    id,
+    label: permissionGroupLabels[id] ?? id,
+    actions: values,
+  }));
+}
+function RolePermissionChoices(
+  props: Pick<
+    ComponentProps<typeof PermissionChoices>,
+    "allowed" | "selected" | "change" | "disabled"
+  >
+) {
+  return (
+    <section
+      aria-label="Role permissions"
+      {...stylex.props(s.rolePermissionGroups)}
+    >
+      {groupPermissions(props.allowed).map((group) => (
+        <PermissionChoices
+          key={group.id}
+          {...props}
+          choices={group.actions}
+          label={group.label}
+          layout="stack"
+        />
+      ))}
+    </section>
+  );
+}
+type RoleCreationProps = AdministrationPageProps & {
+  info: AdministrationInfo;
+  revision: string;
+  roles: readonly ConsoleRole[];
+  writes: Writes;
+  open: boolean;
+  finalFocus(): HTMLElement | false;
+  onClose(): void;
+};
+function RoleCreator(props: RoleCreationProps) {
+  const nameInput = useRef<HTMLInputElement>(null);
+  return (
+    <Modal.Root
+      open={props.open}
+      scroll="inside"
+      onOpenChange={(open, details) => {
+        if (props.writes.pending || props.writes.confirming) {
+          details.cancel();
+        } else if (!open) {
+          props.onClose();
+        }
+      }}
+    >
+      <Modal.Portal>
+        <Modal.Backdrop variant="opaque" />
+        <Modal.Viewport xstyle={s.overlayViewport}>
+          <Modal.Popup
+            size="lg"
+            placement="center"
+            initialFocus={nameInput}
+            finalFocus={props.finalFocus}
+            xstyle={s.roleCreationDialog}
+          >
+            <RoleCreationForm {...props} nameInput={nameInput} />
+          </Modal.Popup>
+        </Modal.Viewport>
+      </Modal.Portal>
+    </Modal.Root>
+  );
+}
+function RoleCreationForm({
   client,
   info,
   revision,
-  templates,
+  roles,
   writes,
+  open,
   onClose,
-}: AdministrationPageProps & {
-  info: AdministrationInfo;
-  revision: string;
-  templates: readonly ConsoleRole[];
-  writes: Writes;
-  onClose(): void;
-}) {
+  nameInput,
+}: RoleCreationProps & { nameInput: RefObject<HTMLInputElement | null> }) {
+  const formId = useId();
+  const templates = roles.filter((role) => role.preset);
+  const initialTemplate = templates.find(
+    (role) =>
+      role.permissions.length > 0 &&
+      role.permissions.every((action) =>
+        readOnlyAdministrationActions.includes(action)
+      )
+  );
   const [id, setId] = useState("");
   const [label, setLabel] = useState("");
-  const [template, setTemplate] = useState("");
+  const [template, setTemplate] = useState(initialTemplate?.id ?? "");
   const [permissions, setPermissions] = useState<
     readonly AdministrationAction[]
   >(
-    readOnlyAdministrationActions.filter((action) =>
-      info.allowed.includes(action)
+    (initialTemplate?.permissions ?? readOnlyAdministrationActions).filter(
+      (action) => info.allowed.includes(action)
     )
   );
+  const created = useRef(false);
+  const duplicate =
+    !created.current && roles.some((role) => role.id === id.trim());
+  useEffect(() => {
+    if (created.current && open && !writes.disabled && !writes.confirming) {
+      onClose();
+    }
+  }, [open, writes.disabled, writes.confirming, onClose]);
   return (
-    <section aria-label="Create custom role" {...stylex.props(s.section)}>
-      <h3>Create custom role</h3>
-      <Choice
-        label="Role template"
-        value={template}
-        options={templates.map((role) => ({
-          value: role.id,
-          label: role.label,
-        }))}
-        disabled={writes.disabled}
-        change={(templateId) => {
-          setTemplate(templateId);
-          setPermissions(
-            templates
-              .find((role) => role.id === templateId)
-              ?.permissions.filter((action) => info.allowed.includes(action)) ??
-              []
-          );
-        }}
-      />
-      <p>
-        Templates copy permissions into this Console-scoped role; they do not
-        grant membership.
-      </p>
-      <label htmlFor="administration-role-id" {...stylex.props(s.field)}>
-        Role ID
-        <Input
-          id="administration-role-id"
-          value={id}
-          onChange={(event) => setId(event.target.value)}
-          disabled={writes.disabled}
-          xstyle={s.control}
-          maxLength={512}
-        />
-      </label>
-      <label htmlFor="administration-role-name" {...stylex.props(s.field)}>
-        Role name
-        <Input
-          id="administration-role-name"
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          disabled={writes.disabled}
-          xstyle={s.control}
-          maxLength={512}
-        />
-      </label>
-      <PermissionChoices
-        allowed={info.allowed}
-        selected={permissions}
-        change={setPermissions}
-        disabled={writes.disabled}
-      />
-      <Button
-        variant="primary"
-        disabled={
-          writes.disabled ||
-          !id.trim() ||
-          !label.trim() ||
-          templates.some((role) => role.id === id)
-        }
-        onClick={() => {
-          const input = {
-            id,
-            label,
-            permissions: [...permissions],
-            expectedRevision: revision,
-          };
-          writes.confirm(
-            "Create custom role?",
-            `Create ${label} (${id}) in ${info.consoleId}.`,
-            async () => {
-              await client.invoke("rolesSave", input);
-              onClose();
+    <>
+      <Modal.Header xstyle={s.membershipHeader}>
+        <div {...stylex.props(s.membershipHeading)}>
+          <Modal.Title>Create role</Modal.Title>
+          <Modal.Description>
+            Define a permission set. Creating a role does not assign members.
+          </Modal.Description>
+        </div>
+        <ConsoleIconButton
+          label="Close role creation"
+          variant="secondary"
+          disabled={writes.pending || writes.confirming}
+          onClick={onClose}
+        >
+          <X size={18} aria-hidden="true" />
+        </ConsoleIconButton>
+      </Modal.Header>
+      <Modal.Body xstyle={s.membershipOverlayBody}>
+        {open && writes.controls}
+        <Form
+          id={formId}
+          aria-label="Create custom role"
+          errors={
+            duplicate ? { id: "A role with this ID already exists." } : {}
+          }
+          xstyle={s.roleForm}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (
+              writes.disabled ||
+              writes.confirming ||
+              created.current ||
+              duplicate ||
+              !id.trim() ||
+              !label.trim()
+            ) {
+              return;
             }
-          );
-        }}
-      >
-        Create custom role
-      </Button>
-      <Button variant="secondary" disabled={writes.pending} onClick={onClose}>
-        Cancel creation
-      </Button>
-    </section>
+            const input = {
+              id: id.trim(),
+              label: label.trim(),
+              permissions: [...permissions],
+              expectedRevision: revision,
+            };
+            writes.confirm(
+              "Create custom role?",
+              `Create ${input.label} (${input.id}) in ${info.consoleId}.`,
+              async () => {
+                await client.invoke("rolesSave", input);
+                created.current = true;
+              }
+            );
+          }}
+        >
+          <div {...stylex.props(s.roleIdentityFields)}>
+            <TextField name="label">
+              <Label htmlFor={`${formId}-name`}>Role name</Label>
+              <Input
+                id={`${formId}-name`}
+                ref={nameInput}
+                required
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
+                disabled={writes.disabled}
+                maxLength={512}
+                xstyle={s.control}
+              />
+              <FieldError />
+            </TextField>
+            <TextField name="id">
+              <Label htmlFor={`${formId}-id`}>Role ID</Label>
+              <Input
+                id={`${formId}-id`}
+                required
+                value={id}
+                onChange={(event) => setId(event.target.value)}
+                disabled={writes.disabled}
+                maxLength={512}
+                xstyle={s.control}
+              />
+              <Description>Unique within this Console.</Description>
+              <FieldError />
+            </TextField>
+          </div>
+          <div {...stylex.props(s.membershipForm)}>
+            <Choice
+              label="Role template"
+              value={template}
+              placeholder="Custom permissions"
+              options={templates.map((role) => ({
+                value: role.id,
+                label: role.label,
+              }))}
+              disabled={writes.disabled}
+              change={(templateId) => {
+                setTemplate(templateId);
+                setPermissions(
+                  templates
+                    .find((role) => role.id === templateId)
+                    ?.permissions.filter((action) =>
+                      info.allowed.includes(action)
+                    ) ?? []
+                );
+              }}
+            />
+            <p {...stylex.props(s.accessSecondary)}>
+              A template copies permissions into this draft. You can change them
+              below.
+            </p>
+          </div>
+          <RolePermissionChoices
+            allowed={info.allowed}
+            selected={permissions}
+            disabled={writes.disabled}
+            change={(next) => {
+              setPermissions(next);
+              setTemplate("");
+            }}
+          />
+        </Form>
+      </Modal.Body>
+      <Modal.Footer xstyle={s.roleCreationFooter}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={writes.pending || writes.confirming}
+          onClick={onClose}
+        >
+          Cancel creation
+        </Button>
+        <Button
+          type="submit"
+          form={formId}
+          variant="primary"
+          disabled={
+            writes.disabled ||
+            writes.confirming ||
+            created.current ||
+            duplicate ||
+            !id.trim() ||
+            !label.trim()
+          }
+        >
+          Create custom role
+        </Button>
+      </Modal.Footer>
+    </>
   );
 }
 
@@ -1671,66 +2360,76 @@ function RoleEditor({
     !role.preset &&
     role.permissions.every((action) => info.allowed.includes(action));
   return (
-    <section aria-label={`Role ${role.label}`} {...stylex.props(s.role)}>
-      <h3 {...stylex.props(s.subheading)}>
-        {role.label}
-        {role.preset ? " (preset)" : ""}
-      </h3>
-      <p {...stylex.props(s.description)}>
-        {role.permissions.join(", ") || "No permissions."}
+    <section aria-label={`Role ${role.label}`} {...stylex.props(s.roleForm)}>
+      <p {...stylex.props(s.accessSecondary)}>
+        {role.preset
+          ? "Preset role. Permissions are read-only."
+          : "Permission changes affect every member assigned to this role."}
       </p>
-      {!role.preset && !editable && (
-        <p>
-          Editing this role requires roles.write, members.promote and authority
-          for every permission it contains.
-        </p>
+      {editable ? (
+        <>
+          <RolePermissionChoices
+            allowed={info.allowed}
+            selected={permissions}
+            change={setPermissions}
+            disabled={writes.disabled}
+          />
+          <Button
+            variant="primary"
+            disabled={writes.disabled}
+            onClick={() =>
+              writes.confirm(
+                "Save role permissions?",
+                `Update role ${role.label} (${role.id}). This affects every member assigned to this role.`,
+                () =>
+                  client.invoke("rolesSave", {
+                    id: role.id,
+                    label: role.label,
+                    permissions,
+                    expectedRevision: revision,
+                  })
+              )
+            }
+          >
+            Save permissions
+          </Button>
+        </>
+      ) : role.permissions.length ? (
+        <div {...stylex.props(s.rolePermissionGroups)}>
+          {groupPermissions(role.permissions).map((group) => (
+            <section key={group.id}>
+              <h3 {...stylex.props(s.permissionGroupLabel)}>{group.label}</h3>
+              <PermissionList actions={group.actions} />
+            </section>
+          ))}
+        </div>
+      ) : (
+        <PermissionList actions={[]} />
       )}
-      {editable && (
-        <details {...stylex.props(s.scopeDetails)}>
-          <summary {...stylex.props(s.summary)}>Edit permissions</summary>
-          <div {...stylex.props(s.editor)}>
-            <PermissionChoices
-              allowed={info.allowed}
-              selected={permissions}
-              change={setPermissions}
-              disabled={writes.disabled}
-            />
-            <Button
-              variant="primary"
-              disabled={writes.disabled}
-              onClick={() =>
-                writes.confirm(
-                  "Save role permissions?",
-                  `Update role ${role.label} (${role.id}). This affects every member assigned to this role.`,
-                  () =>
-                    client.invoke("rolesSave", {
-                      id: role.id,
-                      label: role.label,
-                      permissions,
-                      expectedRevision: revision,
-                    })
-                )
-              }
-            >
-              Save permissions
-            </Button>
-          </div>
-        </details>
+      {!role.preset && !editable && (
+        <p {...stylex.props(s.accessSecondary)}>
+          Editing requires roles.write, members.promote and authority for every
+          permission in this role.
+        </p>
       )}
     </section>
   );
 }
 
-export function AgentPage({ client }: AdministrationPageProps) {
+export function AgentPage({
+  client,
+  tabs = "workspace",
+}: AdministrationPageProps) {
   return (
     <Frame client={client} label="Agent">
-      {(info) => <Agent client={client} info={info} />}
+      {(info) => <Agent client={client} info={info} tabs={tabs} />}
     </Frame>
   );
 }
 function Agent({
   client,
   info,
+  tabs = "workspace",
 }: AdministrationPageProps & { info: AdministrationInfo }) {
   const workspace = useWorkspace();
   const tab =
@@ -1740,49 +2439,16 @@ function Agent({
       : "tokens";
   return (
     <div {...stylex.props(s.section)}>
-      <AdministrationTabs
-        label="Agent connections"
-        tabs={[
-          { id: "tokens", label: "Tokens", segments: [] },
-          ...(info.allowed.includes("audit.list")
-            ? [{ id: "events", label: "Events", segments: ["events"] }]
-            : []),
-        ]}
-      />
-      <header {...stylex.props(s.pageHeader)}>
-        <h2 {...stylex.props(s.heading)}>
-          {tab === "tokens" ? "Personal access tokens" : "Management events"}
-        </h2>
-        <p {...stylex.props(s.description)}>
-          {tab === "tokens"
-            ? "Issue scoped credentials for your MCP clients. Tokens belong to your identity."
-            : "Review recorded management activity. These events do not indicate a live agent connection."}
-        </p>
-      </header>
-      {tab === "tokens" && (
-        <details {...stylex.props(s.disclosure)}>
-          <summary {...stylex.props(s.summary)}>Connect an MCP client</summary>
-          <div {...stylex.props(s.editor)}>
-            <Facts
-              entries={[
-                ["MCP URL", info.mcpUrl],
-                ["Authentication", "Personal access token"],
-                ["Last observed call", date(info.observedLastCallAt)],
-              ]}
-            />
-            <p>
-              Configure your MCP client with the URL above. Store your personal
-              access token in the client environment as{" "}
-              <code>LENSO_MCP_TOKEN</code>, then use custom Bearer token
-              authentication in the client. This is not OAuth. Do not paste it
-              into a URL or commit it to configuration.
-            </p>
-            <p>
-              An observed call is historical activity, not proof that an agent
-              is currently connected.
-            </p>
-          </div>
-        </details>
+      {tabs === "workspace" && (
+        <AdministrationTabs
+          label="Agent connections"
+          tabs={[
+            { id: "tokens", label: "Tokens", segments: [] },
+            ...(info.allowed.includes("audit.list")
+              ? [{ id: "events", label: "Events", segments: ["events"] }]
+              : []),
+          ]}
+        />
       )}
       {tab === "tokens" ? (
         <Allowed info={info} action="tokens.list">
@@ -1800,12 +2466,19 @@ function Tokens({
   client,
   info,
 }: AdministrationPageProps & { info: AdministrationInfo }) {
+  const workspace = useWorkspace();
   const [cursor, setCursor] = useState<string>();
   const read = useRead(client, "tokensList", {
     ...(cursor ? { cursor } : {}),
     limit: 25,
   });
-  const writes = useWrites(read.refetch, () => setCursor(undefined));
+  const [deliveryReady, setDeliveryReady] = useState(false);
+  // Wait for the confirmation's focus trap to retire before opening credential delivery.
+  const writes = useWrites(
+    read.refetch,
+    () => setCursor(undefined),
+    () => setDeliveryReady(true)
+  );
   const [scopes, setScopes] = useState<readonly AdministrationAction[]>(
     defaultTokenScopes.filter((scope) => info.allowed.includes(scope))
   );
@@ -1813,6 +2486,14 @@ function Tokens({
   const [delivery, setDelivery] = useState<CredentialDelivery | null>(null);
   const lifetime = useRef({ value: 0 });
   const expiryId = useId();
+  const [creating, setCreating] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const entry = useRef<HTMLHeadingElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const selected = read.data?.items.find((token) => token.id === selectedId);
+  const returnFocus = () =>
+    opener.current?.isConnected ? opener.current : (list.current ?? false);
   useEffect(() => {
     const generation = lifetime.current;
     generation.value += 1;
@@ -1822,6 +2503,7 @@ function Tokens({
   }, []);
   async function deliver(work: () => Promise<CredentialDelivery>) {
     const generation = lifetime.current.value;
+    setDeliveryReady(false);
     setDelivery(null);
     const result = await work();
     if (lifetime.current.value === generation) {
@@ -1829,25 +2511,141 @@ function Tokens({
     }
   }
   const expiresAt = new Date(expiry).getTime();
+  const credentialDialog = (
+    <TokenCredentialDialog
+      delivery={delivery}
+      pending={writes.pending || !deliveryReady}
+      onDismiss={() => {
+        setDelivery(null);
+        setCreating(false);
+      }}
+    />
+  );
   return (
     <section aria-label="Own personal tokens" {...stylex.props(s.section)}>
-      {writes.controls}
-      <TokenCredentialDialog
-        delivery={delivery}
-        pending={writes.pending}
-        onDismiss={() => setDelivery(null)}
-      />
+      {!creating && !selected && writes.controls}
+      {!creating && !selected && credentialDialog}
+      <ConsoleTableContext
+        scopeKey={workspace.activation?.key ?? workspace.mount.id}
+        label="Personal tokens"
+        groups={[
+          {
+            id: "connection",
+            kind: "view",
+            label: "Connection information",
+            placement: "bottomLeft",
+            children: <AgentInformation info={info} />,
+          },
+          ...(info.allowed.includes("tokens.issue")
+            ? [
+                {
+                  id: "create",
+                  kind: "insertion" as const,
+                  label: "Personal tokens",
+                  children: (
+                    <ConsoleIconButton
+                      label="Create personal token"
+                      variant="primary"
+                      disabled={
+                        writes.disabled || creating || !!selected || !!delivery
+                      }
+                      onClick={(event) => {
+                        opener.current = event.currentTarget;
+                        setScopes(
+                          defaultTokenScopes.filter((scope) =>
+                            info.allowed.includes(scope)
+                          )
+                        );
+                        setExpiry(localDateTimeAfter(7));
+                        setCreating(true);
+                      }}
+                    >
+                      <Plus size={18} aria-hidden="true" />
+                    </ConsoleIconButton>
+                  ),
+                },
+              ]
+            : []),
+          ...(read.data?.nextCursor
+            ? [
+                {
+                  id: "navigation",
+                  kind: "navigation" as const,
+                  label: "Pagination",
+                  children: (
+                    <Next cursor={read.data.nextCursor} next={setCursor} />
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      >
+        <div ref={list} tabIndex={-1} {...stylex.props(s.accessList)}>
+          <ReadState read={read}>
+            {read.data && (
+              <Records
+                label="Personal tokens"
+                items={read.data.items}
+                rowKey={(token) => token.id}
+                columns={[
+                  {
+                    id: "id",
+                    label: "Token",
+                    width: "1.5fr",
+                    minWidth: 200,
+                    render: (token) => (
+                      <Button
+                        variant="ghost"
+                        xstyle={[s.subjectButton, s.memberButton]}
+                        aria-label={`Inspect token ${token.id}`}
+                        onClick={(event) => {
+                          opener.current = event.currentTarget;
+                          setSelectedId(token.id);
+                        }}
+                      >
+                        <span {...stylex.props(s.memberIdentity)}>
+                          {token.id}
+                        </span>
+                      </Button>
+                    ),
+                  },
+                  {
+                    id: "state",
+                    label: "Status",
+                    width: 112,
+                    minWidth: 96,
+                    render: tokenStatus,
+                  },
+                  {
+                    id: "expires",
+                    label: "Expires",
+                    minWidth: 176,
+                    render: (token) => date(token.expiresAt),
+                  },
+                ]}
+              />
+            )}
+          </ReadState>
+        </div>
+      </ConsoleTableContext>
       {info.allowed.includes("tokens.issue") && (
-        <details {...stylex.props(s.disclosure)}>
-          <summary {...stylex.props(s.summary)}>Create personal token</summary>
+        <AdministrationSurface
+          presentation="modal"
+          open={creating}
+          busy={writes.pending || writes.confirming || !!delivery}
+          title="Create personal token"
+          description="Choose the minimum permissions your MCP client needs. The credential is shown only once."
+          initialFocus={entry}
+          finalFocus={returnFocus}
+          closeLabel="Close token creation"
+          onClose={() => setCreating(false)}
+        >
+          {creating && writes.controls}
+          {creating && credentialDialog}
           <section
             aria-label="Create personal token"
             {...stylex.props(s.editor)}
           >
-            <p {...stylex.props(s.description)}>
-              Choose the minimum permissions your client needs and an expiry
-              time. The credential will be shown only once.
-            </p>
             <Button
               variant="secondary"
               disabled={writes.disabled}
@@ -1864,6 +2662,7 @@ function Tokens({
             <PermissionChoices
               allowed={info.allowed}
               choices={tokenReadScopes}
+              layout="stack"
               selected={scopes}
               change={setScopes}
               disabled={writes.disabled}
@@ -1883,6 +2682,7 @@ function Tokens({
               variant="primary"
               disabled={
                 writes.disabled ||
+                !!delivery ||
                 !scopes.length ||
                 !Number.isFinite(expiresAt) ||
                 expiresAt <= Date.now()
@@ -1903,183 +2703,315 @@ function Tokens({
               Create token
             </Button>
           </section>
-        </details>
+        </AdministrationSurface>
       )}
-      <ReadState read={read}>
-        {read.data && (
-          <>
-            <Records
-              label="Personal tokens"
-              mode="page"
-              navigation={
-                <Next
-                  cursor={read.data.nextCursor}
-                  next={setCursor}
-                  count={read.data.items.length}
-                />
-              }
-              items={read.data.items}
-              rowKey={(token) => token.id}
-              columns={[
-                {
-                  id: "id",
-                  label: "Token ID",
-                  render: (token) => (
-                    <>
-                      {token.id}
-                      <p {...stylex.props(s.secondaryText)}>
-                        {token.scopes.join(", ")}
-                      </p>
-                    </>
-                  ),
-                },
-                {
-                  id: "expires",
-                  label: "Expiry",
-                  render: (token) => date(token.expiresAt),
-                },
-                {
-                  id: "state",
-                  label: "State",
-                  render: (token) => (
-                    <>
-                      {token.revokedAt
-                        ? "Revoked"
-                        : token.expiresAt <= Date.now()
-                          ? "Expired"
-                          : "Active"}
-                      {token.overlapUntil !== null && (
-                        <p>Rotation overlap until {date(token.overlapUntil)}</p>
-                      )}
-                    </>
-                  ),
-                },
-                {
-                  id: "actions",
-                  label: "Actions",
-                  render: (token) => (
-                    <div {...stylex.props(s.row)}>
-                      {info.allowed.includes("tokens.rotate") && (
-                        <Button
-                          variant="secondary"
-                          disabled={
-                            writes.disabled ||
-                            read.refreshing ||
-                            !!token.revokedAt ||
-                            token.expiresAt <= Date.now()
-                          }
-                          onClick={() =>
-                            writes.confirm(
-                              "Rotate personal token?",
-                              `Replace ${token.id}. The previous credential will stop working immediately. Update your MCP client with the new one-time credential.`,
-                              () =>
-                                deliver(() =>
-                                  client.rotateToken({
-                                    id: token.id,
-                                    expectedRevision: token.revision,
-                                    overlapMs: 0,
-                                  })
-                                )
-                            )
-                          }
-                        >
-                          Rotate
-                        </Button>
-                      )}
-                      {info.allowed.includes("tokens.revoke") && (
-                        <Button
-                          variant="danger-soft"
-                          disabled={
-                            writes.disabled ||
-                            read.refreshing ||
-                            !!token.revokedAt
-                          }
-                          onClick={() =>
-                            writes.confirm(
-                              "Revoke personal token?",
-                              `End access using token ${token.id}. Clients using it will need another credential.`,
-                              () =>
-                                client.invoke("tokensRevoke", {
-                                  id: token.id,
-                                  expectedRevision: token.revision,
-                                })
-                            )
-                          }
-                        >
-                          Revoke
-                        </Button>
-                      )}
-                    </div>
-                  ),
-                },
-              ]}
+      {selected && (
+        <AdministrationSurface
+          presentation="drawer"
+          open={true}
+          busy={writes.pending || writes.confirming || !!delivery}
+          title="Personal token"
+          description={selected.id}
+          initialFocus={entry}
+          finalFocus={returnFocus}
+          closeLabel="Close token"
+          onClose={() => setSelectedId(null)}
+        >
+          {writes.controls}
+          {credentialDialog}
+          <div {...stylex.props(s.roleForm)}>
+            <TokenDetails token={selected} />
+            <TokenActions
+              token={selected}
+              info={info}
+              writes={writes}
+              refreshing={read.refreshing || !!delivery}
+              client={client}
+              deliver={deliver}
             />
-          </>
-        )}
-      </ReadState>
+          </div>
+        </AdministrationSurface>
+      )}
     </section>
   );
 }
+function tokenStatus(token: PersonalToken) {
+  return token.revokedAt
+    ? "Revoked"
+    : token.expiresAt <= Date.now()
+      ? "Expired"
+      : "Active";
+}
+function TokenDetails({ token }: { token: PersonalToken }) {
+  return (
+    <div {...stylex.props(s.membershipFields)}>
+      <Facts
+        entries={[
+          ["Status", tokenStatus(token)],
+          ["Issued", date(token.issuedAt)],
+          ["Expires", date(token.expiresAt)],
+          ...(token.revokedAt === null
+            ? []
+            : [["Revoked", date(token.revokedAt)] as const]),
+          ...(token.overlapUntil === null
+            ? []
+            : [["Rotation overlap until", date(token.overlapUntil)] as const]),
+        ]}
+      />
+      <section aria-label="Token permissions">
+        <h3 {...stylex.props(s.accessLabel)}>Permissions</h3>
+        <PermissionList actions={token.scopes} />
+      </section>
+    </div>
+  );
+}
+function TokenActions({
+  token,
+  info,
+  writes,
+  refreshing,
+  client,
+  deliver,
+}: {
+  token: PersonalToken;
+  info: AdministrationInfo;
+  writes: Writes;
+  refreshing: boolean;
+  client: AdministrationClient;
+  deliver(work: () => Promise<CredentialDelivery>): Promise<void>;
+}) {
+  return (
+    <div {...stylex.props(s.row)}>
+      {info.allowed.includes("tokens.rotate") && (
+        <Button
+          variant="secondary"
+          disabled={
+            writes.disabled ||
+            refreshing ||
+            !!token.revokedAt ||
+            token.expiresAt <= Date.now()
+          }
+          onClick={() =>
+            writes.confirm(
+              "Rotate personal token?",
+              `Replace ${token.id}. The previous credential will stop working immediately. Update your MCP client with the new one-time credential.`,
+              () =>
+                deliver(() =>
+                  client.rotateToken({
+                    id: token.id,
+                    expectedRevision: token.revision,
+                    overlapMs: 0,
+                  })
+                )
+            )
+          }
+        >
+          Rotate
+        </Button>
+      )}
+      {info.allowed.includes("tokens.revoke") && (
+        <Button
+          variant="danger-soft"
+          disabled={writes.disabled || refreshing || !!token.revokedAt}
+          onClick={() =>
+            writes.confirm(
+              "Revoke personal token?",
+              `End access using token ${token.id}. Clients using it will need another credential.`,
+              () =>
+                client.invoke("tokensRevoke", {
+                  id: token.id,
+                  expectedRevision: token.revision,
+                })
+            )
+          }
+        >
+          Revoke
+        </Button>
+      )}
+    </div>
+  );
+}
 function Audit({ client }: AdministrationPageProps) {
+  const workspace = useWorkspace();
   const [cursor, setCursor] = useState<string>();
   const read = useRead(client, "auditList", {
     ...(cursor ? { cursor } : {}),
     limit: 25,
   });
-  const writes = useWrites(read.refetch, () => setCursor(undefined));
+  const [selected, setSelected] = useState<ManagementEvent | null>(null);
+  const entry = useRef<HTMLHeadingElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const list = useRef<HTMLDivElement>(null);
   return (
     <section
       aria-label="Observed management events"
       {...stylex.props(s.section)}
     >
-      {writes.controls}
-      <ReadState read={read}>
-        {read.data && (
-          <>
-            <Records
-              label="Observed events"
-              mode="page"
-              navigation={
-                <Next
-                  cursor={read.data.nextCursor}
-                  next={setCursor}
-                  count={read.data.items.length}
+      <ConsoleTableContext
+        scopeKey={workspace.activation?.key ?? workspace.mount.id}
+        label="Observed events"
+        groups={[
+          {
+            id: "information",
+            kind: "view",
+            label: "Event information",
+            placement: "bottomLeft",
+            children: <AgentInformation />,
+          },
+          ...(read.data?.nextCursor
+            ? [
+                {
+                  id: "navigation",
+                  kind: "navigation" as const,
+                  label: "Pagination",
+                  children: (
+                    <Next cursor={read.data.nextCursor} next={setCursor} />
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      >
+        <div ref={list} tabIndex={-1} {...stylex.props(s.accessList)}>
+          <ReadState read={read}>
+            {read.data && (
+              <>
+                <Records
+                  label="Observed events"
+                  items={read.data.items}
+                  rowKey={(event) => event.id}
+                  columns={[
+                    {
+                      id: "action",
+                      label: "Action",
+                      width: "1.5fr",
+                      minWidth: 200,
+                      render: (event) => (
+                        <Button
+                          variant="ghost"
+                          xstyle={[s.subjectButton, s.memberButton]}
+                          aria-label={`Inspect event ${event.id}`}
+                          onClick={(click) => {
+                            opener.current = click.currentTarget;
+                            setSelected(event);
+                          }}
+                        >
+                          <span {...stylex.props(s.memberIdentity)}>
+                            {event.action}
+                          </span>
+                          {event.targetId && (
+                            <span {...stylex.props(s.accessSecondary)}>
+                              {event.targetId}
+                            </span>
+                          )}
+                        </Button>
+                      ),
+                    },
+                    {
+                      id: "subject",
+                      label: "Subject",
+                      render: (event) => event.subjectId,
+                    },
+                    {
+                      id: "time",
+                      label: "Observed at",
+                      minWidth: 176,
+                      render: (event) => date(event.occurredAt),
+                    },
+                    {
+                      id: "result",
+                      label: "Result",
+                      render: (event) => event.result,
+                    },
+                  ]}
                 />
-              }
-              items={read.data.items}
-              rowKey={(event) => event.id}
-              columns={[
-                {
-                  id: "time",
-                  label: "Observed at",
-                  render: (event) => date(event.occurredAt),
-                },
-                {
-                  id: "action",
-                  label: "Action",
-                  render: (event) => event.action,
-                },
-                {
-                  id: "subject",
-                  label: "Subject",
-                  render: (event) => event.subjectId,
-                },
-                {
-                  id: "target",
-                  label: "Target",
-                  render: (event) => event.targetId,
-                },
-                {
-                  id: "result",
-                  label: "Result",
-                  render: (event) => event.result,
-                },
-              ]}
-            />
-          </>
-        )}
-      </ReadState>
+              </>
+            )}
+          </ReadState>
+        </div>
+      </ConsoleTableContext>
+      {selected && (
+        <AdministrationSurface
+          presentation="drawer"
+          open={true}
+          busy={false}
+          title={selected.action}
+          description="Recorded management activity, not live connection status."
+          initialFocus={entry}
+          finalFocus={() =>
+            opener.current?.isConnected
+              ? opener.current
+              : (list.current ?? false)
+          }
+          onClose={() => setSelected(null)}
+          closeLabel="Close event"
+        >
+          <Facts
+            entries={[
+              ["Event ID", selected.id],
+              ["Observed at", date(selected.occurredAt)],
+              ["Subject", selected.subjectId],
+              ["Target", selected.targetId ?? "No target"],
+              ["Result", selected.result],
+            ]}
+          />
+        </AdministrationSurface>
+      )}
     </section>
+  );
+}
+function AgentInformation({ info }: { info?: AdministrationInfo }) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        render={
+          <ConsoleIconButton
+            label={info ? "Connection information" : "Event information"}
+            variant="secondary"
+          />
+        }
+      >
+        <Info size={18} aria-hidden="true" />
+      </Popover.Trigger>
+      <ThemeScope>
+        <Popover.Portal>
+          <Popover.Positioner side="top" align="start" sideOffset={8}>
+            <Popover.Popup xstyle={s.accessScope}>
+              <Popover.Title>
+                {info ? "Connect an MCP client" : "Management events"}
+              </Popover.Title>
+              {info ? (
+                <>
+                  <Facts
+                    entries={[
+                      ["MCP URL", info.mcpUrl],
+                      ["Authentication", "Personal access token"],
+                      ["Last observed call", date(info.observedLastCallAt)],
+                    ]}
+                  />
+                  <p {...stylex.props(s.accessSecondary)}>
+                    Store your token as <code>LENSO_MCP_TOKEN</code> in the
+                    client environment and use custom Bearer authentication, not
+                    OAuth. Do not put the credential in a URL or commit it to
+                    configuration.
+                  </p>
+                  <p {...stylex.props(s.accessSecondary)}>
+                    Tokens belong to your identity. An observed call is
+                    historical activity, not proof that an agent is currently
+                    connected.
+                  </p>
+                </>
+              ) : (
+                <p {...stylex.props(s.accessSecondary)}>
+                  These records show management activity, not live agent
+                  connections. Open an action to inspect its full record.
+                </p>
+              )}
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </ThemeScope>
+    </Popover.Root>
   );
 }
 export function ConsoleAdministrationPages({
@@ -2090,7 +3022,9 @@ export function ConsoleAdministrationPages({
     return <IdentityPage {...props} />;
   }
   if (page === "access") {
-    return <AccessPage client={props.client} />;
+    return (
+      <AccessPage client={props.client} tabs={props.tabs ?? "workspace"} />
+    );
   }
-  return <AgentPage client={props.client} />;
+  return <AgentPage client={props.client} tabs={props.tabs ?? "workspace"} />;
 }

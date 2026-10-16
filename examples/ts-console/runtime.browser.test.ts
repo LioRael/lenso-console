@@ -203,7 +203,7 @@ runtimeTest(
       await schemas.focus();
       await page.keyboard.press("Enter");
       await page.getByText('"maxLength": 80', { exact: false }).waitFor();
-      await page.keyboard.press("Enter");
+      await page.keyboard.press("Escape");
 
       // Actual Auth cookies and the public Console client exercise the same
       // admitted path as the form, including server rejection before dispatch.
@@ -262,6 +262,9 @@ runtimeTest(
           finishGreeting = resolve;
           markGreetingStarted();
         });
+      await page
+        .getByRole("button", { name: "Open greeting trial", exact: true })
+        .click();
       const runGreeting = page.getByRole("button", {
         name: "Run greeting",
         exact: true,
@@ -282,6 +285,9 @@ runtimeTest(
       finishGreeting();
       beforeGreetingReply = undefined;
       await page.getByText("Hello, Ada!", { exact: true }).waitFor();
+      await page
+        .getByRole("button", { name: "Close greeting trial", exact: true })
+        .click();
       expect(
         await page
           .getByText("No terminal calls have been recorded.", { exact: true })
@@ -467,6 +473,9 @@ runtimeTest(
       expect(touchBox!.width).toBeGreaterThanOrEqual(44);
       expect(touchBox!.height).toBeGreaterThanOrEqual(44);
       await touchRefresh.tap();
+      await touchPage
+        .getByRole("button", { name: "Open greeting trial", exact: true })
+        .tap();
       await touchPage
         .getByRole("textbox", { name: "Name", exact: true })
         .fill("Touch");

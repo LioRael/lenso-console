@@ -238,16 +238,6 @@ export function pluginManagerConsole({
               signal={signal}
             />
           )}
-          {!detail &&
-            !loading &&
-            !loadError &&
-            snapshot &&
-            snapshot.targets.length > 0 && (
-              <p {...stylex.props(styles.catalogNote)}>
-                Read-only catalog. Configuration resolution is not runtime
-                health. Values and secrets are never shown.
-              </p>
-            )}
         </section>
       </>
     );
@@ -450,7 +440,6 @@ function PluginList({
               </Table.Body>
             </Table.Content>
           </Table.ScrollContainer>
-          <Table.Footer>{rows.length} visible plugins</Table.Footer>
         </Table.Root>
       ) : (
         <p>

@@ -16,6 +16,12 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { ComposedConsole } from "./composition";
+import { bindReviewPages, ReviewLogin, ReviewNotice } from "./review-pages";
+import {
+  createReviewAdministration,
+  createReviewOAuth,
+  createReviewWorkspaceServices,
+} from "./review-samples";
 import {
   createSampleAuth,
   createSampleDashboard,
@@ -142,6 +148,18 @@ const clients = {
   catalog: sampleCatalog,
 };
 const session = { state: "ready", scopeKey: "local-sample-preview" } as const;
+function navigate(href: string) {
+  window.history.pushState(null, "", href);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+const reviewPlugins = [
+  bindReviewPages({
+    administration: createReviewAdministration(),
+    oauth: createReviewOAuth(),
+    workspace: createReviewWorkspaceServices(),
+    navigate,
+  }),
+];
 const preferenceKey = "lenso.composed-console.local-sample-preview.navigation";
 const preferences: ConsolePreferenceStore = {
   async read() {
@@ -246,21 +264,28 @@ function Preview() {
   }, []);
   const router: ConsoleRouterAdapter = {
     pathname,
-    navigate(href) {
-      window.history.pushState(null, "", href);
-      setPathname(window.location.pathname);
-    },
+    navigate,
     match: matchRoute,
   };
+  const loginState = pathname.startsWith("/review/auth/")
+    ? pathname.slice("/review/auth/".length)
+    : null;
   return (
     <Tooltip.Provider delay={150}>
-      <ComposedConsole
-        {...clients}
-        router={router}
-        session={session}
-        preferences={preferences}
-        confirmArchive={confirmSampleArchive}
-      />
+      {loginState ? (
+        <ReviewLogin state={loginState} navigate={navigate} />
+      ) : (
+        <ComposedConsole
+          {...clients}
+          router={router}
+          session={session}
+          preferences={preferences}
+          confirmArchive={confirmSampleArchive}
+          additionalPlugins={reviewPlugins}
+        >
+          <ReviewNotice />
+        </ComposedConsole>
+      )}
       {DevelopmentFeedback && <PreviewFeedback />}
     </Tooltip.Provider>
   );

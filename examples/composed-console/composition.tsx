@@ -13,19 +13,15 @@ import {
   ConsoleShell,
   bindConsole,
   defineConsolePlugin,
+  type ConsoleLocalPageProps,
   type ConsolePreferenceStore,
   type ConsoleRouterAdapter,
   type ConsoleSessionAdapter,
 } from "@lenso/console-react";
 import { ContactRound, KeyRound, ShoppingBag, UsersRound } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, type ComponentProps } from "react";
 
-import {
-  OrderDetail,
-  OrdersManage,
-  OrdersOverview,
-  OrdersStatus,
-} from "./orders-pages";
+import { lazyPage } from "./lazy-page";
 
 export interface OrdersClient {
   list(options: {
@@ -40,6 +36,24 @@ export interface OrdersClient {
 export interface OrdersServices extends OrdersClient {
   confirmArchive(ids: readonly string[]): Promise<boolean>;
 }
+
+type OrdersPageProps = ConsoleLocalPageProps<OrdersServices>;
+const OrderDetail = lazyPage<OrdersPageProps>(async () => {
+  const pages = await import("./orders-pages");
+  return { default: pages.OrderDetail };
+});
+const OrdersManage = lazyPage<OrdersPageProps>(async () => {
+  const pages = await import("./orders-pages");
+  return { default: pages.OrdersManage };
+});
+const OrdersOverview = lazyPage<OrdersPageProps>(async () => {
+  const pages = await import("./orders-pages");
+  return { default: pages.OrdersOverview };
+});
+const OrdersStatus = lazyPage<OrdersPageProps>(async () => {
+  const pages = await import("./orders-pages");
+  return { default: pages.OrdersStatus };
+});
 
 const ordersUI = defineConsolePlugin<OrdersServices>({
   id: "orders",
@@ -80,6 +94,7 @@ export interface ComposedConsoleProps {
   session: ConsoleSessionAdapter;
   preferences?: ConsolePreferenceStore;
   children?: React.ReactNode;
+  additionalPlugins?: ComponentProps<typeof ConsoleShell>["plugins"];
   orders: OrdersClient;
   confirmArchive(ids: readonly string[]): Promise<boolean>;
   workforce: AuthConsoleClient;
@@ -179,7 +194,14 @@ export function ComposedConsole(props: ComposedConsoleProps) {
       path: "/plugins",
       catalog: props.catalog,
     });
-    return [orders, workforce, customers, dashboard, pluginManager];
+    return [
+      orders,
+      workforce,
+      customers,
+      dashboard,
+      pluginManager,
+      ...(props.additionalPlugins ?? []),
+    ];
   }, [
     props.orders,
     props.confirmArchive,
@@ -188,6 +210,7 @@ export function ComposedConsole(props: ComposedConsoleProps) {
     props.dashboard,
     props.catalog,
     props.session.scopeKey,
+    props.additionalPlugins,
   ]);
   return (
     <ConsoleShell

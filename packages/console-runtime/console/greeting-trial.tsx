@@ -121,7 +121,6 @@ export function GreetingTrial({
 
   return (
     <section aria-label="Greeting trial" {...stylex.props(styles.trial)}>
-      <h3 {...stylex.props(styles.trialTitle)}>Greeting trial</h3>
       <p {...stylex.props(styles.description)}>
         The host has enabled this side-effect-free greeting only. It calls{" "}
         <strong>

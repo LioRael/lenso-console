@@ -12,8 +12,10 @@ import {
 } from "@lenso/console-runtime/client";
 import { definePage, type PageProps } from "@lenso/console-sdk";
 import { useWorkspaceRead } from "@lenso/console-sdk/react";
+import { ThemeScope } from "@lenso/ui";
+import { Popover } from "@lenso/ui/popover";
 import * as stylex from "@stylexjs/stylex";
-import { RefreshCw } from "lucide-react";
+import { Info, RefreshCw } from "lucide-react";
 import { useRef } from "react";
 
 import { CapabilityDirectory } from "./capability-directory";
@@ -106,9 +108,44 @@ function RuntimeContent({
         </ConsoleIconButton>
       </ConsoleLayout.Corner>
 
-      <p {...stylex.props(styles.intro)}>
-        Inspect declared capabilities and the host’s connected Runtime.
-      </p>
+      <ConsoleLayout.Corner area="bottomLeft">
+        <Popover.Root>
+          <Popover.Trigger
+            render={
+              <ConsoleIconButton
+                label="Runtime information"
+                variant="secondary"
+              />
+            }
+          >
+            <Info size={18} aria-hidden="true" />
+          </Popover.Trigger>
+          <ThemeScope>
+            <Popover.Portal>
+              <Popover.Positioner side="top" align="start" sideOffset={8}>
+                <Popover.Popup xstyle={styles.information}>
+                  <Popover.Title>Runtime inspection</Popover.Title>
+                  <p {...stylex.props(styles.description)}>
+                    The capability directory is a static build manifest, not
+                    proof that a service is registered or callable. Live
+                    diagnostics are a separate snapshot of the host kernel.
+                  </p>
+                  <p {...stylex.props(styles.description)}>
+                    Recent outcomes contain bounded terminal metadata, newest
+                    first. Request and response payloads are not shown. Refresh
+                    to read a new snapshot.
+                  </p>
+                  <p {...stylex.props(styles.description)}>
+                    {catalogue.data?.greetingTrial.enabled && !catalogue.error
+                      ? "The host allows a side-effect-free greeting trial. Open the trial from the flask button."
+                      : "Greeting trial is unavailable. This view exposes read-only diagnostics."}
+                  </p>
+                </Popover.Popup>
+              </Popover.Positioner>
+            </Popover.Portal>
+          </ThemeScope>
+        </Popover.Root>
+      </ConsoleLayout.Corner>
       {refreshing ? (
         <output {...stylex.props(styles.message)}>
           Refreshing runtime diagnostics…
@@ -124,10 +161,6 @@ function RuntimeContent({
 
       <section {...stylex.props(styles.section)} aria-label="Live diagnostics">
         <h2 {...stylex.props(styles.title)}>Live diagnostics</h2>
-        <p {...stylex.props(styles.description)}>
-          A snapshot of this host’s Runtime kernel. Registered capabilities,
-          instances and calls may differ from the static build manifest.
-        </p>
         {status.error ? (
           <p role="alert" {...stylex.props(styles.message)}>
             Runtime diagnostics could not be read. Refresh to try again.

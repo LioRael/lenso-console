@@ -11,9 +11,9 @@ type Call = Snapshot["calls"][number] | Snapshot["recent"][number];
 function CallIdentity({ call }: { call: Call }) {
   return (
     <>
-      <strong>
+      <span {...stylex.props(styles.primary)}>
         {call.namespace}/{call.service}.{call.method}
-      </strong>
+      </span>
       <p {...stylex.props(styles.metadata)}>Call {call.id}</p>
       <p {...stylex.props(styles.metadata)}>
         trace {call.trace_id ?? "not supplied"}
@@ -60,9 +60,9 @@ export function RuntimeDiagnostics({ snapshot }: { snapshot: Snapshot }) {
                     textValue={`${service.namespace}/${service.service} ${service.instance}`}
                   >
                     <Table.Cell columnKey="instance" xstyle={styles.cell}>
-                      <strong>
+                      <span {...stylex.props(styles.primary)}>
                         {service.namespace}/{service.service}
-                      </strong>
+                      </span>
                       <p {...stylex.props(styles.metadata)}>
                         {service.instance}
                       </p>
@@ -95,11 +95,6 @@ export function RuntimeDiagnostics({ snapshot }: { snapshot: Snapshot }) {
                 ))}
               </Table.Body>
             </Table.Content>
-            <Table.Footer xstyle={styles.footer}>
-              {snapshot.services.length}{" "}
-              {snapshot.services.length === 1 ? "instance" : "instances"} in
-              this snapshot
-            </Table.Footer>
           </Table.Root>
         ) : (
           <p {...stylex.props(styles.message)}>
@@ -155,10 +150,6 @@ export function RuntimeDiagnostics({ snapshot }: { snapshot: Snapshot }) {
                 ))}
               </Table.Body>
             </Table.Content>
-            <Table.Footer xstyle={styles.footer}>
-              {snapshot.calls.length}{" "}
-              {snapshot.calls.length === 1 ? "call" : "calls"} in this snapshot
-            </Table.Footer>
           </Table.Root>
         ) : (
           <p {...stylex.props(styles.message)}>No active or waiting calls.</p>
@@ -167,10 +158,6 @@ export function RuntimeDiagnostics({ snapshot }: { snapshot: Snapshot }) {
 
       <section aria-label="Recent outcomes">
         <h3 {...stylex.props(styles.subtitle)}>Recent outcomes</h3>
-        <p {...stylex.props(styles.description)}>
-          Bounded recent terminal metadata, newest first. Request and response
-          payloads are not shown. Refresh for a new snapshot.
-        </p>
         {snapshot.recent.length ? (
           <Table.Root variant="secondary">
             <Table.Content
@@ -219,10 +206,6 @@ export function RuntimeDiagnostics({ snapshot }: { snapshot: Snapshot }) {
                 ))}
               </Table.Body>
             </Table.Content>
-            <Table.Footer xstyle={styles.footer}>
-              {snapshot.recent.length} recent{" "}
-              {snapshot.recent.length === 1 ? "outcome" : "outcomes"} retained
-            </Table.Footer>
           </Table.Root>
         ) : (
           <p {...stylex.props(styles.message)}>

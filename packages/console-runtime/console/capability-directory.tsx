@@ -1,12 +1,16 @@
+import { ConsoleIconButton, ConsoleLayout } from "@lenso/console-react";
 import type { RuntimeCatalogue } from "@lenso/console-runtime/client";
 import type {
   PageProps,
   ReadSnapshot,
   WorkspaceReadResult,
 } from "@lenso/console-sdk";
-import { Accordion } from "@lenso/ui/accordion";
+import { Button } from "@lenso/ui/button";
+import { Drawer } from "@lenso/ui/drawer";
+import { Modal } from "@lenso/ui/modal";
 import { Table } from "@lenso/ui/table";
 import * as stylex from "@stylexjs/stylex";
+import { FlaskConical, X } from "lucide-react";
 
 import { GreetingTrial } from "./greeting-trial";
 import { styles } from "./page.styles";
@@ -24,41 +28,65 @@ function MethodSchemas({
   contract: Method;
 }) {
   return (
-    <Accordion hideSeparator xstyle={styles.disclosure}>
-      <Accordion.Item value="schemas">
-        <Accordion.Heading>
-          <Accordion.Trigger
+    <Drawer.Root swipeDirection="right">
+      <Drawer.Trigger
+        render={
+          <Button
+            variant="secondary"
             aria-label={`View schemas for ${service}.${method}`}
-            xstyle={styles.disclosureTrigger}
-          >
-            Schemas
-            <Accordion.Indicator />
-          </Accordion.Trigger>
-        </Accordion.Heading>
-        <Accordion.Panel>
-          <Accordion.Body xstyle={styles.disclosureBody}>
-            <dl {...stylex.props(styles.schemas)}>
-              {(["input", "output", "error"] as const).map((kind) => (
-                <div key={kind}>
-                  <dt {...stylex.props(styles.schemaLabel)}>
-                    {kind === "input"
-                      ? "Input"
-                      : kind === "output"
-                        ? "Output"
-                        : "Error"}
-                  </dt>
-                  <dd {...stylex.props(styles.schemaValue)}>
-                    <pre {...stylex.props(styles.code)}>
-                      <code>{JSON.stringify(contract[kind], null, 2)}</code>
-                    </pre>
-                  </dd>
+          />
+        }
+      >
+        Schemas
+      </Drawer.Trigger>
+      <Drawer.Portal>
+        <Drawer.Backdrop variant="opaque" />
+        <Drawer.Viewport>
+          <Drawer.Popup xstyle={styles.drawer}>
+            <Drawer.Content xstyle={styles.drawerContent}>
+              <Drawer.Header xstyle={styles.overlayHeader}>
+                <div {...stylex.props(styles.overlayHeading)}>
+                  <Drawer.Title>Schemas</Drawer.Title>
+                  <Drawer.Description>
+                    {service}.{method}
+                  </Drawer.Description>
                 </div>
-              ))}
-            </dl>
-          </Accordion.Body>
-        </Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+                <Drawer.Close
+                  render={
+                    <ConsoleIconButton
+                      label="Close schemas"
+                      variant="secondary"
+                    />
+                  }
+                >
+                  <X size={18} aria-hidden="true" />
+                </Drawer.Close>
+              </Drawer.Header>
+              <Drawer.Body xstyle={styles.overlayBody}>
+                <dl {...stylex.props(styles.schemas)}>
+                  {(["input", "output", "error"] as const).map((kind) => (
+                    <div key={kind}>
+                      <dt {...stylex.props(styles.schemaLabel)}>
+                        {kind === "input"
+                          ? "Input"
+                          : kind === "output"
+                            ? "Output"
+                            : "Error"}
+                      </dt>
+                      <dd {...stylex.props(styles.schemaValue)}>
+                        <pre {...stylex.props(styles.code)}>
+                          <code>{JSON.stringify(contract[kind], null, 2)}</code>
+                        </pre>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </Drawer.Body>
+            </Drawer.Content>
+          </Drawer.Popup>
+        </Drawer.Viewport>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }
 
@@ -103,7 +131,7 @@ function DeclaredService({ service }: { service: Service }) {
                   textValue={`${identity}.${name}`}
                 >
                   <Table.Cell columnKey="method" xstyle={styles.cell}>
-                    <strong>{name}</strong>
+                    <span {...stylex.props(styles.primary)}>{name}</span>
                     <p {...stylex.props(styles.metadata)}>{method.mode}</p>
                   </Table.Cell>
                   <Table.Cell columnKey="schemas" xstyle={styles.cell}>
@@ -117,10 +145,6 @@ function DeclaredService({ service }: { service: Service }) {
               ))}
             </Table.Body>
           </Table.Content>
-          <Table.Footer xstyle={styles.footer}>
-            {methods.length} declared{" "}
-            {methods.length === 1 ? "method" : "methods"}
-          </Table.Footer>
         </Table.Root>
       ) : (
         <p {...stylex.props(styles.message)}>
@@ -150,10 +174,8 @@ export function CapabilityDirectory({
       aria-label="Capability directory"
     >
       <h2 {...stylex.props(styles.title)}>Capability directory</h2>
-      <p {...stylex.props(styles.description)}>
-        Static build manifest · availability unverified. These are declared
-        contracts selected by the host, not proof that a service is registered
-        or callable now.
+      <p {...stylex.props(styles.metadata)}>
+        Static build manifest · availability unverified
       </p>
       {catalogue.error ? (
         <p role="alert" {...stylex.props(styles.message)}>
@@ -186,26 +208,56 @@ export function CapabilityDirectory({
               This host has not configured a static capability manifest.
             </p>
           )}
-          {trial?.enabled && !catalogue.error ? (
-            <GreetingTrial
-              key={JSON.stringify(trial)}
-              trial={trial}
-              services={services}
-              signal={signal}
-              parentActivation={activation}
-            />
-          ) : (
-            <section
-              aria-label="Greeting trial"
-              {...stylex.props(styles.trial)}
-            >
-              <h3 {...stylex.props(styles.trialTitle)}>Greeting trial</h3>
-              <p {...stylex.props(styles.description)}>
-                {catalogue.error
-                  ? "Greeting trial is unavailable until the host configuration can be read."
-                  : "Greeting trial is disabled. This host exposes read-only diagnostics."}
-              </p>
-            </section>
+          {trial?.enabled && !catalogue.error && (
+            <Modal.Root scroll="inside">
+              <ConsoleLayout.Corner area="topLeft">
+                <Modal.Trigger
+                  render={
+                    <ConsoleIconButton
+                      label="Open greeting trial"
+                      variant="secondary"
+                    />
+                  }
+                >
+                  <FlaskConical size={18} aria-hidden="true" />
+                </Modal.Trigger>
+              </ConsoleLayout.Corner>
+              <Modal.Portal>
+                <Modal.Backdrop variant="opaque" />
+                <Modal.Viewport xstyle={styles.overlayViewport}>
+                  <Modal.Popup
+                    placement="center"
+                    size="lg"
+                    xstyle={styles.trialDialog}
+                  >
+                    <Modal.Header xstyle={styles.overlayHeader}>
+                      <Modal.Title xstyle={styles.overlayHeading}>
+                        Greeting trial
+                      </Modal.Title>
+                      <Modal.Close
+                        render={
+                          <ConsoleIconButton
+                            label="Close greeting trial"
+                            variant="secondary"
+                          />
+                        }
+                      >
+                        <X size={18} aria-hidden="true" />
+                      </Modal.Close>
+                    </Modal.Header>
+                    <Modal.Body xstyle={styles.overlayBody}>
+                      <GreetingTrial
+                        key={JSON.stringify(trial)}
+                        trial={trial}
+                        services={services}
+                        signal={signal}
+                        parentActivation={activation}
+                      />
+                    </Modal.Body>
+                  </Modal.Popup>
+                </Modal.Viewport>
+              </Modal.Portal>
+            </Modal.Root>
           )}
         </>
       ) : null}

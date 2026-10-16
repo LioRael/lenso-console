@@ -26,6 +26,16 @@ export default defineConfig({
         find: "@lenso/auth-console/react",
         replacement: source("../../packages/auth-console/src/react.ts"),
       },
+      {
+        find: "@lenso/auth-console/administration/react",
+        replacement: source(
+          "../../packages/auth-console/src/administration-react.ts"
+        ),
+      },
+      {
+        find: "@lenso/auth-console/oauth/react",
+        replacement: source("../../packages/auth-console/src/oauth-react.tsx"),
+      },
     ],
     dedupe: ["react", "react-dom"],
   },
@@ -39,5 +49,31 @@ export default defineConfig({
     ],
   },
   server: { host: "127.0.0.1", port: 5175, strictPort: true },
-  build: { outDir: "dist", cssCodeSplit: false },
+  build: {
+    outDir: "dist",
+    cssCodeSplit: false,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          // Keep CommonJS grid initializers with their dependency closure.
+          includeDependenciesRecursively: true,
+          groups: [
+            {
+              name: "react",
+              test: /[/\\]node_modules[/\\](?:react|react-dom|scheduler)[/\\]/u,
+            },
+            { name: "ui", test: /[/\\]node_modules[/\\]@lenso[/\\]ui[/\\]/u },
+            {
+              name: "motion",
+              test: /[/\\]node_modules[/\\](?:motion|motion-dom|motion-utils|framer-motion)[/\\]/u,
+            },
+            {
+              name: "grid",
+              test: /[/\\]node_modules[/\\](?:react-grid-layout|react-resizable|react-draggable)[/\\]/u,
+            },
+          ],
+        },
+      },
+    },
+  },
 });

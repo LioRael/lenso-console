@@ -270,9 +270,6 @@ export function OrdersStatus(props: Props) {
                     </Table.Body>
                   </Table.Content>
                 </Table.ScrollContainer>
-                <Table.Footer>
-                  {visible.length} of {distribution.length} statuses
-                </Table.Footer>
               </Table.Root>
             )}
           </>
@@ -492,7 +489,6 @@ function Manage(props: Props) {
             <OrderTable
               props={props}
               rows={visible}
-              total={rows.length}
               selected={selected}
               pending={pending}
               onSelectionChange={(keys) => {
@@ -527,14 +523,12 @@ function OrderTable({
   selected,
   pending = false,
   onSelectionChange,
-  total,
 }: {
   props: Props;
   rows: Rows;
   selected?: Set<string>;
   pending?: boolean;
   onSelectionChange?: (keys: Set<string | number | bigint>) => void;
-  total?: number;
 }) {
   return (
     <Table.Root variant="secondary">
@@ -621,11 +615,6 @@ function OrderTable({
           </Table.Body>
         </Table.Content>
       </Table.ScrollContainer>
-      {total !== undefined && (
-        <Table.Footer>
-          {rows.length} of {total} orders
-        </Table.Footer>
-      )}
     </Table.Root>
   );
 }

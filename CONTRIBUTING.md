@@ -39,7 +39,15 @@ contributor authorship and the Issue link.
 
 Choose the smallest checks that prove the changed behavior. For Console code,
 use the current root and affected package scripts. Console's runtime is the
-TypeScript plugin, not the retired native Host. Common Shell checks are:
+TypeScript plugin, not the retired native Host.
+
+For visual-only edits, inspect the affected view in the browser. Do not add tests
+for CSS values, class names, spacing, radii or animation trajectories, or run an
+unrelated browser suite as a routine checklist. A new regression test needs a
+concrete failure worth preventing; it should protect behavior, not freeze a
+design. Preserve independent authorization, isolation, CAS and protocol coverage.
+
+Choose from these Shell checks as relevant; this is not a per-edit checklist:
 
 ```sh
 bun run format:check
@@ -61,7 +69,8 @@ application, checking declarations and browser/server import boundaries.
 Read the current manifests for the exact commands; a script name alone does not
 prove it validates the TS implementation.
 
-Browser checks are required for changed interactive surfaces. Backend tests
+Record browser evidence for changed interactive behavior; manual exercise is
+valid evidence and does not require a new automated test. Backend tests
 must exercise real Fetch/oRPC/Auth/Manage calls, instance isolation and applicable
 write safeguards. Use only disposable test-owned data. Record skipped checks
 and limitations; local results do not cover platform CI. Workflow, executable

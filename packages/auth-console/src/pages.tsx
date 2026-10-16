@@ -1003,9 +1003,6 @@ function SubjectTable({
               </Table.Body>
             </Table.Content>
           </Table.ScrollContainer>
-          <Table.Footer>
-            {visible.length} of {subjects.length} subjects
-          </Table.Footer>
         </Table.Root>
       )}
     </ConsoleTableContext>
