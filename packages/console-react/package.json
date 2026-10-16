@@ -38,7 +38,9 @@
   "scripts": {
     "build": "bun build.ts && bun run --bun tsc -p tsconfig.build.json",
     "typecheck": "bun run --bun tsc --noEmit -p tsconfig.json",
-    "test": "bun test --preload ../../plugins/console/shell/test/stylex-preload.ts"
+    "test": "bun run test:local && bun run test:browser",
+    "test:local": "bun test --preload ../../plugins/console/shell/test/stylex-preload.ts ./test/*.test.ts",
+    "test:browser": "bun test --preload ../../plugins/console/shell/test/stylex-preload.ts ./test/browser"
   },
   "dependencies": {
     "@lenso/tokens": "0.9.1",

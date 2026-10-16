@@ -3,10 +3,14 @@ import { spawnSync } from "node:child_process";
 
 const run = (args) => {
   console.log(`+ bun ${args.join(" ")}`);
+  const started = performance.now();
   const result = spawnSync("bun", args, {
     env: { ...process.env },
     stdio: "inherit",
   });
+  console.log(
+    `Console gate: bun ${args.join(" ")} elapsed=${((performance.now() - started) / 1000).toFixed(2)}s status=${result.status}`
+  );
   assert.equal(
     result.status,
     0,

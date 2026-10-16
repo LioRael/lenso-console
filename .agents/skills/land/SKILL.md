@@ -6,6 +6,7 @@ description: >-
   changes, not for review, preparation, successful checks, or skill installation.
 metadata:
   delta-action: land
+  internal: true
 ---
 
 # Land Console changes
@@ -103,6 +104,11 @@ from that procedure, rather than replacing it.
   when backend behavior changes. SDK or packaging changes need a built archive
   consumed outside source aliases, including declaration and browser import
   boundaries. Only use disposable test-owned data for write checks.
+- Choose focused local checks from the affected contracts; use the full local
+  gate for cross-boundary changes or unresolved integration risk. Reuse successful
+  evidence only for the identical source SHA, command, toolchain and environment;
+  edits or a rebase invalidate affected proof. The final Linux candidate gate
+  always runs in full, even after a successful local gate.
 - Keep focused diagnostics distinct from the full gate. Browser changes need
   actual browser evidence with the repository-pinned Playwright revision.
   Unit fixtures, preflight alone and macOS results do not replace the required

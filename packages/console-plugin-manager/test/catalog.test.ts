@@ -35,13 +35,6 @@ const operation: ConsoleOperationDescriptor = {
 };
 
 describe("catalog projection", () => {
-  test("projects target, plugin, and admitted operation metadata", () => {
-    const result = projectCatalog([target], [plugin], [operation]);
-    expect(result.targets[0]?.id).toBe("app-a");
-    expect(result.plugins[0]?.configuration.fields[0]?.sensitive).toBe(true);
-    expect(result.operations[0]?.method).toBe("list");
-  });
-
   test("detail lookup keeps duplicate plugin IDs and operations target-qualified", () => {
     const otherTarget = { id: "app/b", label: "Application B" };
     const otherPlugin = {

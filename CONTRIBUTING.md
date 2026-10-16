@@ -49,6 +49,11 @@ bun run test:local
 bun run build:local
 ```
 
+`test:local` selects the React model tests and the other package/Shell local
+suites. `test:browser` runs both the React Shell scenarios and the Shell layout/
+Dock fixtures. Root `test` and the React package `test` retain their complete
+local-plus-browser coverage; use the explicitly named subsets for fast feedback.
+
 For backend changes, run the Console package's typecheck, tests and build.
 For SDK changes, run its compile and focused transport/authoring checks.
 For packaging changes, consume the actual built archives in a clean external
@@ -105,6 +110,14 @@ archives in an isolated application with normal published framework packages. It
 checks actual authoring, typed invocation, authentication and browser/server
 boundaries. The required staged Shell must exist with every referenced asset;
 missing build output fails validation rather than skipping it.
+
+Choose local checks by the affected contract; run the full local gate for
+cross-boundary changes or unresolved integration risk. Local success does not
+replace the full Linux candidate gate. Reuse proof only for an identical source
+SHA, command, toolchain and environment; edits or rebases invalidate affected
+proof. The full gate builds each prerequisite once: `check:preflight` owns SDK
+and optional-plugin builds, while `check:full` consumes those outputs. For a
+standalone TS-host check, `service:ts:check` still builds its Auth prerequisite.
 
 The shared local and CI gate must cover the TS plugin, SDK and Shell, including
 actual archive consumption and pinned-browser validation where applicable. The
