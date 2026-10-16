@@ -4,9 +4,9 @@
 
 ### Patch Changes
 
-- ebca2f7: Count scrolling inside nested panes as session activity by capturing non-bubbling scroll events, and remove the matching capture listener during cleanup. Preserve existing idle and absolute deadlines, foreground restrictions, and authoritative session checks.
+- ebca2f7: Count scrolling inside nested panes as session activity by capturing non-bubbling scroll events, and remove the matching capture listener during cleanup. Renew rolling idle deadlines after the server-provided minimum instead of waiting until near expiry. Preserve explicit near-expiry filters, idle and absolute limits, foreground restrictions, and authoritative session checks.
 
-  Regression coverage verifies nested-scroll renewal, cleanup, foreground recovery, shared-cookie rotation under browser locks, persistent-cookie browser restart, and rejection after logout, revocation, or expiry.
+  Regression coverage verifies nested-scroll renewal, cleanup, foreground recovery, shared-cookie rotation under browser locks, persistent-cookie browser restart from a day-3 visit to day 8 with a one-hour server minimum, inactive/hidden suppression, absolute-cap scheduling, and rejection after logout, revocation, or expiry.
 
 ## 1.2.2
 

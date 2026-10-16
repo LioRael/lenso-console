@@ -8,6 +8,14 @@ import { createManagedSessions } from "@lenso/auth/sessions";
 import type { SessionRecord } from "@lenso/auth/sessions";
 import { chromium } from "playwright";
 
+type BrowserFixture = {
+  renew(): Promise<boolean>;
+  visit(): void;
+  statusChecks: number;
+  pending: number;
+  errors: number;
+};
+
 const readCredential = (request: Request) =>
   /(?:^|;\s*)synthetic_console=([^;]+)/u.exec(
     request.headers.get("cookie") ?? ""
@@ -25,7 +33,7 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
     renewals = 0;
   let initialCredential = "";
   const sessions = createManagedSessions({
-    lifetime: { absolute: 30 * day, idle: 7 * day, renewAfter: 60_000 },
+    lifetime: { absolute: 30 * day, idle: 7 * day, renewAfter: 3_600_000 },
     login: defineSource<string>({
       capabilities: { authenticatedAt: true },
       async verify() {
@@ -81,7 +89,7 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
       const path = new URL(request.url).pathname;
       if (path === "/") {
         return new Response(
-          '<!doctype html><script src="/fixture.js"></script>',
+          '<!doctype html><div id="pane"></div><script src="/fixture.js"></script>',
           { headers: { "content-type": "text/html" } }
         );
       }
@@ -149,8 +157,12 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
     await writeFile(
       entry,
       `import {withConditionalIdentityTransition} from ${JSON.stringify(new URL("../../console-authoring/src/identity-transition.ts", import.meta.url).pathname)};
-      import {sessionRenewalDue,parseSessionRenewalStatus} from ${JSON.stringify(new URL("../../console-authoring/src/session-renewal.ts", import.meta.url).pathname)};
-      globalThis.fixture={async read(){return (await fetch('/status')).status},async renew(){return withConditionalIdentityTransition(async()=>{const response=await fetch('/status');if(!response.ok)throw new Error('unavailable');return sessionRenewalDue(parseSessionRenewalStatus(await response.json()))},async()=>{if(!(await fetch('/renew',{method:'POST'})).ok)throw new Error('unavailable')},new AbortController().signal)}};`
+      import {sessionRenewalDue,parseSessionRenewalStatus,startSessionRenewal} from ${JSON.stringify(new URL("../../console-authoring/src/session-renewal.ts", import.meta.url).pathname)};
+      const fixture={pending:0,statusChecks:0,errors:0};
+      const status=async()=>{fixture.pending++;try{const response=await fetch('/status');if(!response.ok)throw new Error('unavailable');const value=parseSessionRenewalStatus(await response.json());fixture.statusChecks++;return value}finally{fixture.pending--}};
+      const performRenew=()=>withConditionalIdentityTransition(async()=>sessionRenewalDue(await status()),async()=>{fixture.pending++;try{if(!(await fetch('/renew',{method:'POST'})).ok)throw new Error('unavailable')}finally{fixture.pending--}},new AbortController().signal);
+      Object.assign(fixture,{renew:performRenew,visit(){const controller=new AbortController();startSessionRenewal({signal:controller.signal,status,async renew(){await performRenew()},unavailable(){fixture.errors++}});document.getElementById('pane').dispatchEvent(new Event('scroll'))}});
+      globalThis.fixture=fixture;`
     );
     const bundle = await Bun.build({
       entrypoints: [entry],
@@ -185,7 +197,7 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
     expect(before[0]!.httpOnly).toBe(true);
     expect(before[0]!.expires).toBeGreaterThan(Date.now() / 1000 + 3600);
     expect(await first.evaluate(() => document.cookie)).toBe("");
-    now += 7 * day - 30_000;
+    now += day;
     const outcomes = await Promise.all(
       [first, second].map((page) =>
         page.evaluate(async () =>
@@ -212,10 +224,36 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
         return response.status;
       })
     ).toBe(200);
+    // An immediate second attempt is suppressed by the server's one-hour minimum.
+    expect(
+      await first.evaluate(() =>
+        (globalThis as unknown as { fixture: BrowserFixture }).fixture.renew()
+      )
+    ).toBe(false);
+    expect(renewals).toBe(1);
+    now += 2 * day;
+    await second.bringToFront();
+    await second.evaluate(() =>
+      (globalThis as unknown as { fixture: BrowserFixture }).fixture.visit()
+    );
+    await second.waitForFunction(() => {
+      const f = (globalThis as unknown as { fixture: BrowserFixture }).fixture;
+      return f.statusChecks >= 3 && f.pending === 0;
+    });
+    expect(renewals).toBe(2);
+    expect(
+      await second.evaluate(
+        () =>
+          (globalThis as unknown as { fixture: BrowserFixture }).fixture.errors
+      )
+    ).toBe(0);
+    const dayThree = await context.cookies();
+    expect(dayThree[0]!.value === rotated[0]!.value).toBe(false);
     await context.close();
     context = undefined;
-    now += 3_600_000;
+    now += 5 * day;
     context = await launch();
+    // Day 8 is only five idle days after the acknowledged day-3 activity.
     const revisited = await context.newPage();
     await revisited.goto(String(server.url));
     expect(
@@ -225,7 +263,7 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
       })
     ).toBe(200);
     expect(logins).toBe(1);
-    expect(renewals).toBe(1);
+    expect(renewals).toBe(2);
     const other = await context.newPage();
     await other.goto(String(server.url));
     expect(
@@ -261,7 +299,7 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
         ).fixture.renew()
       )
     ).rejects.toBeDefined();
-    expect(renewals).toBe(1);
+    expect(renewals).toBe(2);
     await revisited.evaluate(() => fetch("/login", { method: "POST" }));
     now += 7 * day + 1;
     expect(
@@ -277,7 +315,7 @@ test("shared Cookie rotates once under browser locks, persists browser restart, 
         ).fixture.renew()
       )
     ).rejects.toBeDefined();
-    expect(renewals).toBe(1);
+    expect(renewals).toBe(2);
   } finally {
     await context?.close();
     await server.stop(true);

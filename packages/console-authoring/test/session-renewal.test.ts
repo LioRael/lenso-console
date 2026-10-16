@@ -7,7 +7,7 @@ import {
   sessionRenewalDue,
 } from "../src/session-renewal";
 // Stops expiry/cap bypass and premature writes; deadline hints never authorize anything.
-test("renew only a live near-expiry session inside the server's idle and absolute bounds", () => {
+test("renew active sessions after the server minimum while preserving explicit near-expiry filters", () => {
   const s = {
     subjectId: "synthetic",
     serverNow: 100_000,
@@ -16,8 +16,9 @@ test("renew only a live near-expiry session inside the server's idle and absolut
     renewAfterAt: 0,
   };
   expect(sessionRenewalDue(parseSessionRenewalStatus(s))).toBe(true);
+  expect(sessionRenewalDue({ ...s, expiresAt: 200_000 })).toBe(true);
+  expect(sessionRenewalDue({ ...s, expiresAt: 200_000 }, 60_000)).toBe(false);
   for (const value of [
-    { ...s, expiresAt: 200_000 },
     { ...s, renewAfterAt: 110_000 },
     { ...s, expiresAt: 100_000 },
     { ...s, absoluteExpiresAt: 120_000 },
@@ -35,6 +36,7 @@ type RenewalFixture = {
     renew: number;
     unavailable: number;
     expiry: number;
+    renewAfterAt: number;
     scroll: number;
     denied: boolean;
   };
@@ -78,6 +80,7 @@ async function renewalPage(browser: Pick<Browser, "newPage">) {
       renew: 0,
       unavailable: 0,
       expiry: Date.now() + 3_600_000,
+      renewAfterAt: Date.now() + 60_000,
       scroll: 0,
       denied: false,
     };
@@ -103,12 +106,13 @@ async function renewalPage(browser: Pick<Browser, "newPage">) {
           serverNow: Date.now(),
           expiresAt: state.expiry,
           absoluteExpiresAt: 1_700_000_000_000 + 86_400_000,
-          renewAfterAt: 1_700_000_000_000 + 60_000,
+          renewAfterAt: state.renewAfterAt,
         };
       },
       async renew() {
         state.renew += 1;
         state.expiry = Date.now() + 3_600_000;
+        state.renewAfterAt = Date.now() + 60_000;
       },
       unavailable() {
         state.unavailable += 1;
@@ -147,18 +151,16 @@ test("nested scroll renews an active tab and cleanup cannot affect another tab",
       (globalThis as unknown as RenewalFixture).close();
     });
     const baseline = await closed.state();
-    for (let minute = 0; minute < 59; minute += 1) {
+    for (let minute = 0; minute < 3; minute += 1) {
       await active.scroll();
       await closed.scroll();
       await active.page.clock.runFor(60_000);
     }
     const activeState = await active.state();
-    expect(activeState.scroll).toBeGreaterThan(50);
-    expect(await active.state()).toMatchObject({
-      status: 3,
-      renew: 1,
-      unavailable: 0,
-    });
+    expect(activeState.scroll).toBeGreaterThanOrEqual(3);
+    expect(activeState.renew).toBeGreaterThanOrEqual(2);
+    expect(activeState.renew).toBeLessThanOrEqual(3);
+    expect(activeState.unavailable).toBe(0);
     expect(await closed.state()).toMatchObject({
       status: baseline.status,
       renew: baseline.renew,
@@ -186,23 +188,30 @@ test("activity resumes after an idle timer stops, while hidden panes never renew
   const browser = await isolatedBrowser();
   try {
     const fixture = await renewalPage(browser);
-    await fixture.page.clock.runFor(59 * 60_000);
-    expect(await fixture.state()).toMatchObject({ status: 1, renew: 0 });
+    await fixture.page.clock.runFor(3 * 60_000);
+    const inactive = await fixture.state();
+    expect(inactive.renew).toBeLessThanOrEqual(2);
+    await fixture.page.clock.runFor(10 * 60_000);
+    expect(await fixture.state()).toMatchObject({
+      status: inactive.status,
+      renew: inactive.renew,
+    });
     await fixture.page.evaluate(() => {
       (globalThis as unknown as RenewalFixture).hide(true);
     });
     await fixture.scroll();
-    await fixture.page.clock.runFor(1000);
-    expect(await fixture.state()).toMatchObject({ status: 1, renew: 0 });
+    await fixture.page.clock.runFor(60_000);
+    expect(await fixture.state()).toMatchObject({
+      status: inactive.status,
+      renew: inactive.renew,
+    });
     await fixture.page.evaluate(() => {
       (globalThis as unknown as RenewalFixture).hide(false);
     });
     await fixture.page.clock.runFor(1000);
-    expect(await fixture.state()).toMatchObject({
-      status: 3,
-      renew: 1,
-      unavailable: 0,
-    });
+    const resumed = await fixture.state();
+    expect(resumed.renew).toBe(inactive.renew + 1);
+    expect(resumed.unavailable).toBe(0);
   } finally {
     await browser.close();
   }
@@ -213,11 +222,12 @@ test("resuming nested activity cannot renew expired or authoritatively rejected 
   try {
     const denied = await renewalPage(browser),
       expired = await renewalPage(browser);
-    await expired.page.clock.runFor(60 * 60_000 + 1000);
+    await expired.page.clock.runFor(65 * 60_000);
+    const beforeExpiryCheck = await expired.state();
     await expired.scroll();
     await expired.page.clock.runFor(1000);
     const expiredState = await expired.state();
-    expect(expiredState.renew).toBe(0);
+    expect(expiredState.renew).toBe(beforeExpiryCheck.renew);
     expect(expiredState.status).toBeGreaterThanOrEqual(2);
     expect(expiredState.unavailable).toBeGreaterThanOrEqual(1);
     await denied.page.evaluate(() => {
@@ -230,6 +240,37 @@ test("resuming nested activity cannot renew expired or authoritatively rejected 
     expect(deniedState.renew).toBe(0);
     expect(deniedState.status).toBeGreaterThanOrEqual(2);
     expect(deniedState.unavailable).toBeGreaterThanOrEqual(1);
+  } finally {
+    await browser.close();
+  }
+}, 30_000);
+
+// Once idle expiry reaches the absolute deadline, activity cannot extend it or poll every minimum interval.
+test("absolute cap schedules only the final expiry read", async () => {
+  const browser = await isolatedBrowser();
+  try {
+    const fixture = await renewalPage(browser);
+    await fixture.page.evaluate(() => {
+      (globalThis as unknown as RenewalFixture).state.expiry =
+        1_700_000_000_000 + 86_400_000;
+    });
+    await fixture.scroll();
+    await fixture.page.clock.runFor(60_000);
+    const capped = await fixture.state();
+    expect(capped.renew).toBe(0);
+    for (let minute = 0; minute < 5; minute += 1) {
+      await fixture.scroll();
+      await fixture.page.clock.runFor(60_000);
+    }
+    expect(await fixture.state()).toMatchObject({
+      status: capped.status,
+      renew: 0,
+      unavailable: 0,
+    });
+    await fixture.page.clock.runFor(86_400_000);
+    await fixture.scroll();
+    await fixture.page.clock.runFor(1000);
+    expect(await fixture.state()).toMatchObject({ renew: 0, unavailable: 1 });
   } finally {
     await browser.close();
   }

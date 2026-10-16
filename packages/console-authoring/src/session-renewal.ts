@@ -32,21 +32,16 @@ export function parseSessionRenewalStatus(
     renewAfterAt: v.renewAfterAt as number,
   };
 }
-function renewalWindow(status: SessionRenewalStatus) {
-  return Math.min(
-    60_000,
-    Math.max(1000, Math.floor((status.expiresAt - status.renewAfterAt) / 5))
-  );
-}
+/** Rolling idle renewal follows the server minimum; withinMs optionally limits it to near expiry. */
 export function sessionRenewalDue(
   status: SessionRenewalStatus,
-  withinMs = renewalWindow(status)
+  withinMs?: number
 ) {
   return (
     status.serverNow < status.expiresAt &&
     status.expiresAt < status.absoluteExpiresAt &&
     status.serverNow >= status.renewAfterAt &&
-    status.expiresAt - status.serverNow <= withinMs
+    (withinMs === undefined || status.expiresAt - status.serverNow <= withinMs)
   );
 }
 /** Foreground and recently active only. No interval polling or credentials in browser storage. */
@@ -77,7 +72,7 @@ export function startSessionRenewal(options: {
     const serverNow = s.serverNow + at - snapshot.at;
     const due =
       s.expiresAt < s.absoluteExpiresAt
-        ? Math.max(s.renewAfterAt, s.expiresAt - renewalWindow(s))
+        ? Math.min(s.renewAfterAt, s.expiresAt)
         : s.expiresAt;
     timer = setTimeout(() => void check(true), Math.max(1000, due - serverNow));
   }
@@ -105,7 +100,10 @@ export function startSessionRenewal(options: {
       const s = snapshot.status,
         serverNow = s.serverNow + Date.now() - snapshot.at;
       if (
-        serverNow < Math.max(s.renewAfterAt, s.expiresAt - renewalWindow(s))
+        serverNow <
+        (s.expiresAt < s.absoluteExpiresAt
+          ? Math.min(s.renewAfterAt, s.expiresAt)
+          : s.expiresAt)
       ) {
         schedule();
         return;
