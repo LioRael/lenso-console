@@ -149,13 +149,17 @@ export function startSessionRenewal(options: {
   };
   const events = ["pointerdown", "keydown", "scroll", "focus"] as const;
   for (const name of events) {
-    window.addEventListener(name, activity, { passive: true });
+    // Element scroll does not bubble; capture includes activity inside nested panes.
+    window.addEventListener(name, activity, {
+      passive: true,
+      capture: name === "scroll",
+    });
   }
   document.addEventListener("visibilitychange", visibility);
   const close = () => {
     stopTimer();
     for (const name of events) {
-      window.removeEventListener(name, activity);
+      window.removeEventListener(name, activity, name === "scroll");
     }
     document.removeEventListener("visibilitychange", visibility);
   };
