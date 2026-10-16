@@ -1,0 +1,14 @@
+.agents/skills/console-page-interactions/references/component-form-example.tsx
+  h_9d56aba080c170 1-2,5-7,9-10,13-16,27-30,45,47,74-78,85,88-105,109-115,117-124,127-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fdd0b5129b8eccb15d773dc1418b4807c09f1bee",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
