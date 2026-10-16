@@ -37,7 +37,9 @@ import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { Info, Plus, X } from "lucide-react";
 import {
+  createContext,
   Fragment,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -419,6 +421,9 @@ function Next({
     </Pagination>
   );
 }
+// Modal and drawer selects must stay inside their owner's accessible subtree.
+const AdministrationPortalContext = createContext<HTMLElement | null>(null);
+
 function Choice({
   label,
   value,
@@ -434,6 +439,7 @@ function Choice({
   placeholder?: string;
   options: readonly { value: string; label: string }[];
 }) {
+  const portal = useContext(AdministrationPortalContext);
   return (
     <div {...stylex.props(s.field)}>
       <Select.Root
@@ -448,7 +454,7 @@ function Choice({
           <Select.Indicator />
         </Select.Trigger>
         <ThemeScope>
-          <Select.Portal>
+          <Select.Portal container={portal ?? undefined}>
             <Select.Positioner sideOffset={8}>
               <Select.Popup>
                 <Select.List>
@@ -1780,6 +1786,7 @@ function AdministrationSurface({
   closeLabel: string;
   children: ReactNode;
 }) {
+  const [portal, setPortal] = useState<HTMLElement | null>(null);
   const Header = presentation === "modal" ? Modal.Header : Drawer.Header;
   const Title = presentation === "modal" ? Modal.Title : Drawer.Title;
   const SurfaceDescription =
@@ -1793,7 +1800,7 @@ function AdministrationSurface({
     }
   }
   const content = (
-    <>
+    <AdministrationPortalContext.Provider value={portal}>
       <Header xstyle={s.membershipHeader}>
         <div {...stylex.props(s.membershipHeading)}>
           <Title ref={initialFocus} tabIndex={-1} xstyle={s.subheading}>
@@ -1813,7 +1820,7 @@ function AdministrationSurface({
         </ConsoleIconButton>
       </Header>
       <Body xstyle={s.membershipOverlayBody}>{children}</Body>
-    </>
+    </AdministrationPortalContext.Provider>
   );
   return presentation === "modal" ? (
     <Modal.Root open={open} scroll="inside" onOpenChange={handleOpenChange}>
@@ -1821,6 +1828,7 @@ function AdministrationSurface({
         <Modal.Backdrop variant="opaque" />
         <Modal.Viewport xstyle={s.overlayViewport}>
           <Modal.Popup
+            ref={setPortal}
             placement="center"
             size="md"
             initialFocus={initialFocus}
@@ -1842,6 +1850,7 @@ function AdministrationSurface({
         <Drawer.Backdrop variant="opaque" />
         <Drawer.Viewport>
           <Drawer.Popup
+            ref={setPortal}
             initialFocus={initialFocus}
             finalFocus={finalFocus}
             xstyle={s.membershipDrawer}
@@ -2122,6 +2131,7 @@ type RoleCreationProps = AdministrationPageProps & {
 };
 function RoleCreator(props: RoleCreationProps) {
   const nameInput = useRef<HTMLInputElement>(null);
+  const [portal, setPortal] = useState<HTMLElement | null>(null);
   return (
     <Modal.Root
       open={props.open}
@@ -2138,13 +2148,16 @@ function RoleCreator(props: RoleCreationProps) {
         <Modal.Backdrop variant="opaque" />
         <Modal.Viewport xstyle={s.overlayViewport}>
           <Modal.Popup
+            ref={setPortal}
             size="lg"
             placement="center"
             initialFocus={nameInput}
             finalFocus={props.finalFocus}
             xstyle={s.roleCreationDialog}
           >
-            <RoleCreationForm {...props} nameInput={nameInput} />
+            <AdministrationPortalContext.Provider value={portal}>
+              <RoleCreationForm {...props} nameInput={nameInput} />
+            </AdministrationPortalContext.Provider>
           </Modal.Popup>
         </Modal.Viewport>
       </Modal.Portal>

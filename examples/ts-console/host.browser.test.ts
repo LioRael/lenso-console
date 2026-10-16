@@ -231,7 +231,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     await page.getByText("local-operator", { exact: true }).waitFor();
     expect(
       await page
-        .getByRole("heading", { name: "Authorization", exact: true })
+        .getByRole("main", { name: "Authorization", exact: true })
         .count()
     ).toBe(1);
     await page.reload();

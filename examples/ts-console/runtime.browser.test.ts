@@ -287,7 +287,10 @@ runtimeTest(
       await page.getByText("Hello, Ada!", { exact: true }).waitFor();
       await page
         .getByRole("button", { name: "Close greeting trial", exact: true })
-        .click();
+        .press("Enter");
+      await page
+        .getByRole("dialog", { name: "Greeting trial", exact: true })
+        .waitFor({ state: "detached" });
       expect(
         await page
           .getByText("No terminal calls have been recorded.", { exact: true })
@@ -516,6 +519,9 @@ runtimeTest(
           markRetiredGreetingStarted();
         });
       await page
+        .getByRole("button", { name: "Open greeting trial", exact: true })
+        .click();
+      await page
         .getByRole("textbox", { name: "Name", exact: true })
         .fill("Retired");
       await runGreeting.click();
@@ -526,6 +532,9 @@ runtimeTest(
       finishRetiredGreeting();
       beforeGreetingReply = undefined;
       await page.goto(`${origin}/plugins/local/runtime/runtime/`);
+      await page
+        .getByRole("button", { name: "Open greeting trial", exact: true })
+        .click();
       await page.getByRole("textbox", { name: "Name", exact: true }).waitFor();
       expect(
         await page.getByText("Hello, Retired!", { exact: true }).count()
@@ -535,6 +544,12 @@ runtimeTest(
           .getByRole("textbox", { name: "Name", exact: true })
           .inputValue()
       ).toBe("");
+      await page
+        .getByRole("button", { name: "Close greeting trial", exact: true })
+        .click();
+      await page
+        .getByRole("dialog", { name: "Greeting trial", exact: true })
+        .waitFor({ state: "detached" });
       // The following 5xx is an intentional disconnect proof.
       recordConsole = false;
       await disposeCompanions();
