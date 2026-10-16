@@ -2130,24 +2130,77 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
           };
         })
       ).toEqual({ viewport: true, hit: true, scrollable: true });
-      await page.keyboard.press("End");
-      // Observe the keyboard-driven focus/scroll commit without scrolling the
-      // item ourselves: a broken End action must still time out and fail.
-      await page.waitForFunction(
-        (node) => {
-          if (!node || document.activeElement !== node) {
-            return false;
-          }
-          const rect = node.getBoundingClientRect();
-          return node.contains(
-            document.elementFromPoint(
-              rect.x + rect.width / 2,
-              rect.y + rect.height / 2
-            )
+      const waitForKeyboardFocus = async (lastItem: boolean) => {
+        try {
+          await page.waitForFunction(
+            ({ container, item }) => {
+              if (!container) {
+                return false;
+              }
+              if (!item) {
+                return container.contains(document.activeElement);
+              }
+              if (document.activeElement !== item) {
+                return false;
+              }
+              const rect = item.getBoundingClientRect();
+              return item.contains(
+                document.elementFromPoint(
+                  rect.x + rect.width / 2,
+                  rect.y + rect.height / 2
+                )
+              );
+            },
+            {
+              container: await menu.elementHandle(),
+              item: lastItem
+                ? await page.getByRole("menuitemradio").last().elementHandle()
+                : null,
+            },
+            { timeout: 5000 }
           );
-        },
-        await page.getByRole("menuitemradio").last().elementHandle()
-      );
+        } catch (error) {
+          console.error("Preset menu keyboard observation failed", {
+            position,
+            stage: lastItem ? "end" : "open",
+            geometry: await menu
+              .evaluate((node) => {
+                const items = [
+                  ...node.querySelectorAll('[role="menuitemradio"]'),
+                ];
+                const item = items.at(-1);
+                const rect = item?.getBoundingClientRect();
+                const hit = rect
+                  ? document.elementFromPoint(
+                      rect.x + rect.width / 2,
+                      rect.y + rect.height / 2
+                    )
+                  : null;
+                return {
+                  activeTag: document.activeElement?.tagName,
+                  activeRole: document.activeElement?.getAttribute("role"),
+                  activeItemIndex: items.indexOf(document.activeElement!),
+                  itemCount: items.length,
+                  menuRect: node.getBoundingClientRect().toJSON(),
+                  lastItemRect: rect?.toJSON() ?? null,
+                  scrollTop: node.scrollTop,
+                  scrollHeight: node.scrollHeight,
+                  clientHeight: node.clientHeight,
+                  hitTag: hit?.tagName,
+                  hitRole: hit?.getAttribute("role"),
+                  lastItemHit: item?.contains(hit) ?? false,
+                };
+              })
+              .catch(() => ({ unavailable: true })),
+          });
+          throw error;
+        }
+      };
+      // Visibility precedes the menu's queued focus commit. Only observe it;
+      // never click or scroll an item to repair a failed keyboard action.
+      await waitForKeyboardFocus(false);
+      await page.keyboard.press("End");
+      await waitForKeyboardFocus(true);
       expect(
         await page
           .getByRole("menuitemradio")
