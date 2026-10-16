@@ -1,5 +1,12 @@
 # @lenso/console-plugin-manager
 
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies [ebca2f7]
+  - @lenso/console-sdk@1.2.3
+
 ## 0.1.7
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-web",
-  "version": "1.22.6",
+  "version": "1.22.7",
   "private": true,
   "type": "module",
   "scripts": {

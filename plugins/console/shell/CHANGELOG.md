@@ -1,5 +1,12 @@
 # @lenso/console-web
 
+## 1.22.7
+
+### Patch Changes
+
+- Updated dependencies [ebca2f7]
+  - @lenso/console-sdk@1.2.3
+
 ## 1.22.6
 
 ### Patch Changes
