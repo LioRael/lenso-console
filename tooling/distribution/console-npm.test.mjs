@@ -221,3 +221,31 @@ test("local publication fails before opening a receipt or invoking npm", async (
     publish("does-not-exist", { ...ci, GITHUB_REF: "refs/heads/feature" })
   ).rejects.toThrow("protected main OIDC");
 });
+
+// The approved plugin-manager patch must not repackage other existing frontend versions.
+test("plugin-manager-only receipt rejects other owners, multiple archives and cross-scope reuse", () => {
+  const manager = {
+    ...receipt,
+    package_scope: "plugin-manager",
+    packages: [receipt.packages[4]],
+  };
+  const managerEnv = { ...env, RELEASE_PACKAGE_SCOPE: "plugin-manager" };
+  expect(() => validateReceipt(manager, managerEnv)).not.toThrow();
+  expect(() => validateReceipt(manager, env)).toThrow();
+  expect(() => validateReceipt(receipt, managerEnv)).toThrow();
+  expect(() =>
+    validateReceipt({ ...manager, packages: receipt.packages }, managerEnv)
+  ).toThrow();
+  for (const foreign of receipt.packages.slice(0, 4)) {
+    expect(() =>
+      validateReceipt({ ...manager, packages: [foreign] }, managerEnv)
+    ).toThrow();
+  }
+  expect(() =>
+    validateReceipt(manager, { ...managerEnv, GITHUB_SHA: "c".repeat(40) })
+  ).toThrow();
+  expect(() =>
+    validateReceipt(manager, { ...managerEnv, GITHUB_RUN_ID: "2" })
+  ).toThrow();
+  expect(releaseTag("0.1.8", "plugin-manager")).toBe("latest");
+});

@@ -18,6 +18,9 @@ const scopes = {
     ["auth-console", "@lenso/auth-console"],
     ["console-plugin-manager", "@lenso/console-plugin-manager"],
   ],
+  "plugin-manager": [
+    ["console-plugin-manager", "@lenso/console-plugin-manager"],
+  ],
   react: [["console-react", "@lenso/console-react"]],
   sdk: [["console-authoring", "@lenso/console-sdk"]],
 };
