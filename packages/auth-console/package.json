@@ -1,6 +1,6 @@
 {
   "name": "@lenso/auth-console",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Optional capability-driven Auth Console adapter",
   "license": "MIT",
   "repository": {
@@ -85,8 +85,8 @@
   },
   "peerDependencies": {
     "@lenso/auth": "^0.5.2",
-    "@lenso/console-react": "^0.3.3",
-    "@lenso/console-sdk": "^1.2.1",
+    "@lenso/console-react": "^0.3.4",
+    "@lenso/console-sdk": "^1.2.2",
     "@lenso/core": "^0.3.1",
     "react": "^19.0.0"
   },

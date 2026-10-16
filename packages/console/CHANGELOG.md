@@ -1,5 +1,13 @@
 # @lenso/console
 
+## 2.1.9
+
+### Patch Changes
+
+- Release the landed Console table controls and transactional filter editing, including the matching Shell, Auth administration and plugin manager integration.
+- Updated dependencies
+  - @lenso/console-sdk@1.2.2
+
 ## 2.1.8
 
 ### Patch Changes

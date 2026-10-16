@@ -1,5 +1,13 @@
 # @lenso/console-dashboard
 
+## 0.2.5
+
+### Patch Changes
+
+- Release the landed Console table controls and transactional filter editing, including the matching Shell, Auth administration and plugin manager integration.
+- Updated dependencies
+  - @lenso/console-react@0.3.4
+
 ## 0.2.4
 
 ### Patch Changes
