@@ -12,49 +12,57 @@ Before editing files for a substantial task:
 
 <!-- intent-skills:end -->
 
-# Agent instructions
+# Console project rules
 
-Registry publication and OCI writes still require explicit release authorization and the repository's approved Trusted Publisher workflows; do not infer production authority from repository write access or restore the retired central release runtime.
+## Start here
 
-## Agent skills
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) for focused validation, fork/Issue
+  handoffs and candidate-first landing. The optional [Land skill](.agents/skills/land/SKILL.md)
+  is an entry point, not a permission grant. Issues/PRDs live in `LioRael/lenso`.
+- For plugins and pages, start with [Console plugin development](.agents/skills/console-plugin-development/SKILL.md).
+  Check the consuming host and public exports before choosing a presentation API.
+- Read [Console interaction direction](docs/design/console-interaction-direction.md)
+  before changing controls, layouts or visual details. Keep domain docs local to
+  their owner; [CONTEXT.md](CONTEXT.md) defines shared Console terminology.
 
-For Console plugin or page development, start with
-[Console plugin development](.agents/skills/console-plugin-development/SKILL.md).
-It routes directory authoring, scoped page interactions, and Dashboard widgets;
-check the consuming host before using an exported presentation API.
+## Ownership and request paths
 
-### Issue tracker
+- Console composes app-owned pages; plugins retain business facts and final
+  authorization. Marketplace source/delivery belongs to `LioRael/lenso-marketplace`.
+  Console Agent remains the installation authority and consumes public contracts.
+- Initialize schemas/migrations at explicit startup, never in request handlers;
+  do not initialize unrelated queues or services on a request path.
+- Reuse a request's verified identity, keeping operation authorization, instance
+  binding, revocation and commit/disclosure fences independent. Do not cache an
+  authorization decision across principals, scopes or revisions.
 
-Issues and PRDs are tracked in the central `LioRael/lenso` GitHub repository.
+## UI changes
 
-### Triage labels
+- Reuse Lenso UI Form, Select and Disclosure components and existing themes.
+  Corner actions belong to current page/table content; avoid unrelated refresh,
+  theme and Home controls. Preserve user-edited Identity/Access pages.
+- Use the built-in browser or isolated headless Playwright; do not launch the
+  user's Chrome. Record real browser proof for changed interactive surfaces:
+  visible geometry/occlusion, accessibility semantics and keyboard operation.
 
-Use the canonical triage labels in the central tracker.
+## Feedback and tests
 
-### Domain docs
+- Choose the lowest-cost check that proves the changed contract; inspect scripts
+  and their full command chain first. Keep full Linux candidate quality required.
+  Reuse same-SHA evidence only with matching commands, tools and environment.
+- Before adding a test, identify the concrete missed regression. Update existing
+  coverage before adding another fixture; avoid simple prop forwarding, static
+  copy, class names, private DOM shape and whole-HTML snapshots.
+- Keep independent Auth/revocation, instance isolation, CAS/persistence, protocol
+  and archive-consumer coverage. Browser tests must need a real browser; retain
+  purposeful theme/geometry/keyboard checks without redundant state matrices.
+- Measure actual I/O, serial round trips and latency when optimizing requests or
+  CI. Report commands, timings and limits; distinguish local, merged, deployed
+  and genuinely exercised behavior. Never invent remote validation results.
 
-Domain documentation uses a single-context layout.
+## Delivery
 
-## Contribution and delivery
-
-Use [CONTRIBUTING.md](CONTRIBUTING.md) as the human entry point for optional Delta/AI/editor use, fork Issue handoffs, focused validation, and candidate-first landing. The repository Land skill at `.agents/skills/land/SKILL.md` is only an optional agent entry point; `/land` is not a universal command or permission grant. Preserve Console architecture and domain ownership while reviewing untrusted workflow or executable-script changes before upstream credentials are available.
-
-## Testing discipline
-
-- Before adding a test, name the concrete failure it prevents and explain why existing coverage does not catch it.
-- Prefer observable behavior, public contracts, and real regressions. Do not add tests for simple prop forwarding, configuration constants, static copy, or purely decorative changes by default.
-- Do not couple tests to class names, private DOM structure, complete HTML strings, or a CSS implementation technique unless that detail is an explicit public contract or protects a documented browser, security, or protocol regression.
-- Verify a behavior at the lowest-cost layer that proves it. Browser tests must exercise a real browser dependency and should not duplicate an equivalent unit test.
-- For visual behavior, focus on theme propagation, visibility, occlusion, overflow, and interaction geometry. Exact visual baselines need a stated acceptance purpose; avoid copying token values across many tests.
-- Keep one focused proof for each applicable contract category: visual state and geometry, accessibility semantics, and keyboard behavior. These checks are required for changed interactive surfaces, but overlapping fixtures and broad state matrices should be merged or reduced.
-- When behavior changes, update or merge existing coverage instead of mechanically adding another test file.
-
-## UI design and review
-
-Before creating a page, changing controls/layout, or fixing visual details, read [the Console interaction direction](docs/design/console-interaction-direction.md). Keep Lenso UI as the base component library, reuse existing components and themes, and record real browser verification before claiming completion. This also applies to plugin pages inside Console.
-
-## Marketplace ownership
-
-Marketplace application source and delivery live in `LioRael/lenso-marketplace`.
-Do not reintroduce its Web, Directory, publisher or Workers code into Console.
-Console Agent remains the installation authority and consumes public contracts.
+- Review workflow/executable changes before upstream credentials are available.
+  Registry/OCI publication requires explicit release authorization and approved
+  Trusted Publisher workflows; repository write access is not release authority.
+  Do not restore the retired central release runtime.

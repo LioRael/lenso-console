@@ -3,13 +3,14 @@ name: ci
 on:
   push:
     branches:
+      - main
       - "delta/verify/**"
       - "codex/verify/**"
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read

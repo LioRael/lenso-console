@@ -1,8 +1,24 @@
-import { expect, test } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
 import { chromium, type Locator, type Page } from "playwright";
-import { createServer } from "vite";
+import { createServer, type ViteDevServer } from "vite";
+
+// This fixture has browser-owned state only. Share compilation within this file,
+// while every scenario still creates a fresh browser and context.
+let server: ViteDevServer;
+beforeAll(async () => {
+  server = await createServer({
+    configFile: false,
+    root: fileURLToPath(new URL("../..", import.meta.url)),
+    optimizeDeps: { include: ["@lenso/ui", "@lenso/ui/**", "liquid-gooey"] },
+    server: { host: "127.0.0.1", port: 0 },
+  });
+  await server.listen();
+});
+afterAll(async () => {
+  await server?.close();
+});
 
 async function nativeCancelDisplay(page: Page, label: string) {
   // getComputedStyle(input, pseudo) returns the host input's display in
@@ -43,13 +59,6 @@ async function nativeCancelDisplay(page: Page, label: string) {
 // Pure arbitration tests cannot prove portal focus, scroll dwell, customization
 // or restoration in the compiled host. Reuse this host fixture for those seams.
 test("edits nested OR groups and calendar rules in the corner without losing focus or content clearance", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    optimizeDeps: { include: ["@lenso/ui", "liquid-gooey"] },
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const browser = await chromium.launch();
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
@@ -439,18 +448,10 @@ test("edits nested OR groups and calendar rules in the corner without losing foc
     expect(errors).toEqual([]);
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 40000);
 
 test("shares table control presets, protects focused contexts and restores page controls after embedded tables", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    optimizeDeps: { include: ["@lenso/ui", "liquid-gooey"] },
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const browser = await chromium.launch();
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
@@ -871,30 +872,12 @@ test("shares table control presets, protects focused contexts and restores page 
     await touch.close();
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 30000);
 
 // Unit tests cannot prove capture, delayed holds, focus restoration or occlusion.
 // Extend the compiled-shell walkthrough rather than duplicate its browser fixture.
 test("preserves pages, preset drafts, scoped CAS and selection safety through launcher interactions", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    optimizeDeps: {
-      include: [
-        "@lenso/ui/tooltip",
-        "@lenso/ui/button",
-        "@lenso/ui/popover",
-        "@lenso/ui/hooks",
-        "@lenso/ui/surface",
-        "@lenso/ui/select",
-        "liquid-gooey",
-      ],
-    },
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const executablePath = process.env.LENSO_BROWSER_EXECUTABLE_PATH?.trim();
   const browser = await chromium.launch(
     executablePath ? { executablePath } : {}
@@ -2210,19 +2193,12 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
     expect(errors).toEqual([]);
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 60_000);
 
 // The seam-only walkthrough cannot catch a body that teleports when the page
 // changes between its tabs and object identity. Sample the actual painted skin.
 test("retains task surface travel in both directions through route changes", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const browser = await chromium.launch();
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
@@ -2382,31 +2358,12 @@ test("retains task surface travel in both directions through route changes", asy
     ).toBe("false");
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 20_000);
 
 // Page-only proofs cannot verify retained plugin owners, IME/overlay dismissal,
 // admission revocation or the physical geometry of a projected bar and tray.
 test("projects a plugin Dock with staged focus, preserved drafts, selection restoration and revoked controllers", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    optimizeDeps: {
-      include: [
-        "@lenso/ui/tooltip",
-        "@lenso/ui/button",
-        "@lenso/ui/modal",
-        "@lenso/ui/popover",
-        "@lenso/ui/hooks",
-        "@lenso/ui/surface",
-        "@lenso/ui/select",
-        "liquid-gooey",
-      ],
-    },
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const executablePath = process.env.LENSO_BROWSER_EXECUTABLE_PATH?.trim();
   const browser = await chromium.launch(
     executablePath ? { executablePath } : {}
@@ -2846,20 +2803,12 @@ test("projects a plugin Dock with staged focus, preserved drafts, selection rest
     ).toBe(true);
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 60_000);
 
 // The short plugin fixture proves surface projection, not whether a long page's
 // boundary controls remain hit-testable behind a tall floating tray.
 test("keeps page boundary controls unobstructed by measured plugin Dock clearance", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    optimizeDeps: { include: ["@lenso/ui", "@lenso/ui/**", "liquid-gooey"] },
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const executablePath = process.env.LENSO_BROWSER_EXECUTABLE_PATH?.trim();
   const browser = await chromium.launch(
     executablePath ? { executablePath } : {}
@@ -3063,20 +3012,12 @@ test("keeps page boundary controls unobstructed by measured plugin Dock clearanc
     expect(errors).toEqual([]);
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 60_000);
 
 // A single admitted view cannot reveal clipping of explicitly ordered leading
 // entries, which the navigation-only directory cannot recover.
 test("keeps admitted Dock views reachable through bounded overflow on coarse screens", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    optimizeDeps: { include: ["@lenso/ui", "@lenso/ui/**", "liquid-gooey"] },
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const browser = await chromium.launch();
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 },
@@ -3237,20 +3178,12 @@ test("keeps admitted Dock views reachable through bounded overflow on coarse scr
     expect(errors).toEqual([]);
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 60_000);
 
 // The existing walkthrough proves route selection, but cannot detect a focus
 // shadow cut off by the tab scroller and the island's rounded content clip.
 test("paints complete page-tab keyboard rings inside the island clips", async () => {
-  const server = await createServer({
-    configFile: false,
-    root: fileURLToPath(new URL("../..", import.meta.url)),
-    optimizeDeps: { include: ["@lenso/ui", "@lenso/ui/**", "liquid-gooey"] },
-    server: { host: "127.0.0.1", port: 0 },
-  });
-  await server.listen();
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
@@ -3341,6 +3274,5 @@ test("paints complete page-tab keyboard rings inside the island clips", async ()
     expect(errors).toEqual([]);
   } finally {
     await browser.close();
-    await server.close();
   }
 }, 60_000);
