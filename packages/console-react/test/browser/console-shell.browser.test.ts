@@ -885,6 +885,7 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
   });
+  await page.clock.install();
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const button = (name: string) =>
@@ -1928,37 +1929,51 @@ test("preserves pages, preset drafts, scoped CAS and selection safety through la
     // animated path rather than the deliberately immediate keyboard path.
     await page.mouse.click(20, 70);
     await button("Return to record tabs").focus();
-    const reversal = await page.evaluate(async () => {
-      const context = document.querySelector('[aria-label="Task context"]')!;
-      const gap = () => {
-        const cap = context
-          .querySelector('[data-context-surface="return"]')!
-          .getBoundingClientRect();
-        const body = context
-          .querySelector('[data-context-surface="object"]')!
-          .getBoundingClientRect();
-        return body.left - cap.right;
-      };
-      window.shellFixture.returnAvailable(false);
-      const start = performance.now();
-      while (performance.now() - start < 200) {
-        await new Promise(requestAnimationFrame);
-        if (gap() > 2 && gap() < 6) {
-          const before = gap();
-          const focus =
-            document.activeElement ===
-            document.querySelector('[data-context-surface="object"]')!
-              .parentElement;
-          const inert = !!document
+    // Freeze scheduled animation frames before closing so a busy runner cannot skip the
+    // intermediate pose and observe an already-unmounted return cap.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+    const readReversalPose = () =>
+      page.evaluate(() => {
+        const context = document.querySelector('[aria-label="Task context"]')!;
+        const cap = context.querySelector('[data-context-surface="return"]');
+        const body = context.querySelector('[data-context-surface="object"]')!;
+        return {
+          gap: cap
+            ? body.getBoundingClientRect().left -
+              cap.getBoundingClientRect().right
+            : null,
+          focus: document.activeElement === body.parentElement,
+          inert: !!document
             .querySelector('[aria-label="Return to record tabs"]')
-            ?.closest("[inert]");
-          window.shellFixture.returnAvailable(true);
-          await new Promise(requestAnimationFrame);
-          return { before, after: gap(), focus, inert };
+            ?.closest("[inert]"),
+        };
+      });
+    let reversal: {
+      before: number;
+      after: number;
+      focus: boolean;
+      inert: boolean;
+    } | null = null;
+    await page.evaluate(() => window.shellFixture.returnAvailable(false));
+    for (let frame = 0; frame < 12; frame += 1) {
+      await page.clock.runFor(16);
+      const pose = await readReversalPose();
+      if (pose.gap !== null && pose.gap > 2 && pose.gap < 6) {
+        await page.evaluate(() => window.shellFixture.returnAvailable(true));
+        await page.clock.runFor(16);
+        const reversedPose = await readReversalPose();
+        if (reversedPose.gap !== null) {
+          reversal = {
+            before: pose.gap,
+            after: reversedPose.gap,
+            focus: pose.focus,
+            inert: pose.inert,
+          };
         }
+        break;
       }
-      return null;
-    });
+    }
+    await page.clock.resume();
     expect(reversal).not.toBeNull();
     expect(reversal!.focus).toBe(true);
     expect(reversal!.inert).toBe(true);
@@ -2708,6 +2723,9 @@ test("projects a plugin Dock with staged focus, preserved drafts, selection rest
       await entry.press("Enter");
       await waitForComposerFocus();
       await conversation.waitFor();
+      // Focus/visibility can precede the final hit-testable Dock pose.
+      // Trial actionability waits for stability and event reception without clicking.
+      await back.click({ trial: true });
       for (const surface of [composer, conversation, back]) {
         const bounds = (await surface.boundingBox())!;
         expect(bounds.x).toBeGreaterThanOrEqual(0);
