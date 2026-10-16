@@ -1,0 +1,14 @@
+examples/ts-console/cli.test.ts
+  h_9d56aba080c170 4,9,34-35,37,52,73-77,79-82,111-132,143-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d79f5e2807e35be7c3c11410d10fdffb7a34cda1",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

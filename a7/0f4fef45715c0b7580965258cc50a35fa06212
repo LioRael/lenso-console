@@ -1,0 +1,34 @@
+.github/workflows/ci.yml
+  h_9d56aba080c170 48-50
+plugins/console/Cargo.toml
+  h_9d56aba080c170 45,49-58
+plugins/console/README.md
+  h_9d56aba080c170 128-133
+plugins/console/src/app_management.rs
+  h_9d56aba080c170 35-53
+plugins/console/src/http.rs
+  h_9d56aba080c170 7-9,13-17,72,80,97-113,256
+plugins/console/src/lib.rs
+  h_9d56aba080c170 7,10,12,17,32,56,84,179-180,233-250,352,377,383,547-556,559-560,630,675-696,706,738,744,761,905-907,909-910,932,939-940,946,960,1001,1088,1126,1183,1191-1208,1230,1245,1293-1295,1297-1298,1302,1352,1364,1494,1525,1756,1767,1774,1811-1868
+plugins/console/src/workspace_services.rs
+  h_9d56aba080c170 7,318,359-363,365,412,418-425
+tooling/fixtures/console-wasm/Cargo.lock
+  h_9d56aba080c170 1-2370
+tooling/fixtures/console-wasm/Cargo.toml
+  h_9d56aba080c170 1-34
+tooling/fixtures/console-wasm/README.md
+  h_9d56aba080c170 1-12
+tooling/fixtures/console-wasm/lib.rs
+  h_9d56aba080c170 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a70f4fef45715c0b7580965258cc50a35fa06212",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+apps/shell/src/features/plugins/plugin-detail.browser.test.tsx
+  h_9d56aba080c170 396-401
+apps/shell/src/features/plugins/plugin-inspector.tsx
+  h_9d56aba080c170 108
+docs/design/reviews/2026-10-02-console-slice-native-attempt.md
+  h_9d56aba080c170 1-88
+docs/design/reviews/2026-10-02-console-slice-remaining-acceptance.md
+  h_9d56aba080c170 108
+docs/design/reviews/2026-10-02-generic-plugin-detail-visual-followup.md
+  h_9d56aba080c170 39-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e41bd2df3152caf51d364972642bc2b43e5c0703",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

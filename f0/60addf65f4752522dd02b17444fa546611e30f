@@ -1,0 +1,14 @@
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 1584-1589,1627,2008-2013
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f060addf65f4752522dd02b17444fa546611e30f",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

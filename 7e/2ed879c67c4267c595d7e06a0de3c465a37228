@@ -1,0 +1,192 @@
+.changeset/console-authoring-dx.md
+  h_9d56aba080c170 1-8
+.github/workflows/agent-npm.yml
+  h_9d56aba080c170 9,12,15-16,61,63,66-67,128,131
+.github/workflows/ci.yml
+  h_9d56aba080c170 34,47
+.github/workflows/console-development-host.yml
+  h_9d56aba080c170 67-68,78
+.gitignore
+  h_9d56aba080c170 19
+.node-version
+  h_9d56aba080c170 1
+CONTRIBUTING.md
+  h_9d56aba080c170 57-81
+Cargo.toml
+  h_9d56aba080c170 5-8,22-23,26
+README.md
+  h_9d56aba080c170 31-32,47-48,86,165-175,177,182,184,186,191-192,194-195,257-259
+apps/reference-host/Cargo.toml
+  h_9d56aba080c170 23-26,39,49-50,72,74,77-78
+apps/reference-host/src/auth_plugins.rs
+  h_9d56aba080c170 74
+apps/reference-host/src/auth_plugins_live.rs
+  h_9d56aba080c170 37
+apps/reference-host/src/tests.rs
+  h_9d56aba080c170 30,74,131,187,204,259,311,505
+apps/shell/package.json
+  h_9d56aba080c170 1-62
+apps/shell/src/features/agent/agent-composer-controls.browser.test.tsx
+  h_9d56aba080c170 17,203
+apps/shell/src/features/agent/agent-quick-panel.browser.test.tsx
+  h_9d56aba080c170 29,128-129,139-140
+apps/shell/src/features/agent/menu-hover.browser.ts
+  h_9d56aba080c170 1-37
+apps/shell/src/features/extensions/convention-router.browser.test.tsx
+  h_9d56aba080c170 7-8
+apps/shell/src/features/extensions/observe-workspace.browser.test.tsx
+  h_9d56aba080c170 8
+apps/shell/src/features/extensions/page-contribution-outlet.browser.test.tsx
+  h_9d56aba080c170 1-2,111,147,150-175
+apps/shell/src/features/extensions/page-contribution-outlet.tsx
+  h_9d56aba080c170 98-99,185
+apps/shell/src/features/extensions/workspace-service-client.ts
+  h_9d56aba080c170 1,9,26,28,69-71,74,102,122,162,181-185,191
+apps/shell/src/features/management/human-approval-panel.tsx
+  h_9d56aba080c170 12
+apps/shell/src/features/management/management-page.tsx
+  h_9d56aba080c170 14
+docs/acceptance/projects-browser-connection-2026-09-10.md
+  h_9d56aba080c170 32,52
+docs/adr/0010-separate-console-shell-from-app-assembly.md
+  h_9d56aba080c170 22-23
+docs/agent-npm-distribution.md
+  h_9d56aba080c170 38,52-54
+docs/app-console-implementation.md
+  h_9d56aba080c170 24
+docs/app-plugin-management.md
+  h_9d56aba080c170 56-57
+docs/architecture/optional-assistant-boundary.md
+  h_9d56aba080c170 60-64,143-144,146,149,310
+docs/console-authentication.md
+  h_9d56aba080c170 116
+docs/console-page-contributions.md
+  h_9d56aba080c170 17,23,25,104-110,599-601
+docs/design/components.md
+  h_9d56aba080c170 21-23,29-30
+docs/precompiled-console-host.md
+  h_9d56aba080c170 9,14-18,22-24,28,36-43,67-72
+docs/reviews/console-authoring-dx-2026-10-02.md
+  h_9d56aba080c170 1-342
+examples/app-console/README.md
+  h_9d56aba080c170 25-34
+examples/app-console/app/orders/console/orders/[id]/page.tsx
+  h_9d56aba080c170 2-3,5-46,49
+examples/plugin-host/Cargo.toml
+  h_9d56aba080c170 20
+oxfmt.config.ts
+  h_9d56aba080c170 11,15
+oxlint.config.ts
+  h_9d56aba080c170 9,13,19,24
+package.json
+  h_9d56aba080c170 2,7,11-15,18,23-24,30-31,33-40,43,50-51,69
+packages/agent/README.md
+  h_9d56aba080c170 39
+packages/console-authoring/LICENSE
+  h_9d56aba080c170 1-21
+packages/console-authoring/README.md
+  h_9d56aba080c170 1,3-6,8,10-15,17-22,24-31,33-39,41,43-52,54-57,59-63,65-73,75-128,131-157
+packages/console-authoring/author.mjs
+  h_9d56aba080c170 1-80
+packages/console-authoring/compiler/client-generation.mjs
+  h_9d56aba080c170 1-71
+packages/console-authoring/compiler/compiler.mjs
+  h_9d56aba080c170 165,170,203-208,264,271,283,303,310-313
+packages/console-authoring/compiler/router.ts
+  h_9d56aba080c170 3
+packages/console-authoring/compiler/test/compiler.test.mjs
+  h_9d56aba080c170 60
+packages/console-authoring/compiler/test/consumer.test.mjs
+  h_9d56aba080c170 1-179
+packages/console-authoring/compiler/test/services.test.ts
+  h_9d56aba080c170 3,8,53-99
+packages/console-authoring/compiler/typecheck.mjs
+  h_9d56aba080c170 2,5-6,8,18-56,82-85,97-102,104-109,116-122
+packages/console-authoring/create-app.mjs
+  h_9d56aba080c170 24
+packages/console-authoring/development-host.md
+  h_9d56aba080c170 49-59
+packages/console-authoring/package.json
+  h_9d56aba080c170 4-18,24-25,28,31-34,37
+packages/console-authoring/service-example/orders/[id]/page.tsx
+  h_9d56aba080c170 1-53
+packages/console-authoring/src/client.ts
+  h_9d56aba080c170 1-42
+packages/console-authoring/src/server.ts
+  h_9d56aba080c170 15-17,32,67,69-72,77-81,84-89,91-93,97-99
+packages/console-authoring/template/orders/[id]/page.tsx
+  h_9d56aba080c170 5-9
+packages/console-runtime/README.md
+  h_9d56aba080c170 1-11
+packages/console-runtime/agent-turn-relay/README.md
+  h_9d56aba080c170 40-41
+packages/console-runtime/local-agent-launcher/README.md
+  h_9d56aba080c170 14,19,34-35
+packages/console-support/Cargo.lock
+  h_9d56aba080c170 695,697,730,732,741-742,755,758-771,775,786,788,793-794,796,799-800,808,810,820,822-868,871-872,874,877-878,888-903,918,943,947-949,951,955,962,971,973,982,984,1004-1016,1031,1033,1041,1043,1063,1065,1079,1081,1099,1101
+packages/console-support/Cargo.toml
+  h_9d56aba080c170 14,19-21
+packages/console/README.md
+  h_9d56aba080c170 15,18-19
+plugins/assistant/web/entry.tsx
+  h_9d56aba080c170 3-4
+plugins/console/.env.example
+  h_9d56aba080c170 49
+plugins/console/Cargo.toml
+  h_9d56aba080c170 16,28,30-31,34-37
+plugins/console/README.md
+  h_9d56aba080c170 4,71,85,87,155
+plugins/console/build.rs
+  h_9d56aba080c170 3-4
+plugins/console/src/lib.rs
+  h_9d56aba080c170 52,123-135,942,958-961,1739-1744
+plugins/console/src/workspace_services.rs
+  h_9d56aba080c170 683-709,718-744,863-911
+plugins/console/tests/fixtures/welcome-workspace-plugin/Cargo.toml
+  h_9d56aba080c170 18-19
+pnpm-lock.yaml
+  h_9d56aba080c170 10-63,187,192-197,205-209,1465-1467,1888-1890,4594-4597,4912-4915
+pnpm-workspace.yaml
+  h_9d56aba080c170 3-4
+tooling/check-console-boundary.mjs
+  h_9d56aba080c170 15
+tooling/check-console-sdk.mjs
+  h_9d56aba080c170 10-15,18
+tooling/check-environment.mjs
+  h_9d56aba080c170 1-26
+tooling/check-human-token-projection.mjs
+  h_9d56aba080c170 13,33
+tooling/check.mjs
+  h_9d56aba080c170 1-27
+tooling/clean-console-web.mjs
+  h_9d56aba080c170 2,4,6-8
+tooling/distribution/build-assistant.mjs
+  h_9d56aba080c170 11-12,14,18,21-26
+tooling/distribution/check-native.mjs
+  h_9d56aba080c170 1-34
+tooling/distribution/development-host.test.mjs
+  h_9d56aba080c170 10,29-38,56-61,76,85,103-109,115
+tooling/distribution/optional-runtimes.test.mjs
+  h_9d56aba080c170 42,47,151,180,186,188
+tooling/distribution/package-agent.mjs
+  h_9d56aba080c170 31-33,35,51
+tooling/distribution/package-assistant.mjs
+  h_9d56aba080c170 11-13
+tooling/distribution/package-console.mjs
+  h_9d56aba080c170 19-21
+tooling/distribution/smoke-agent-native.mjs
+  h_9d56aba080c170 30-31,34,36,38
+tooling/package-development-host.mjs
+  h_9d56aba080c170 68,140,177,184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e2ed879c67c4267c595d7e06a0de3c465a37228",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

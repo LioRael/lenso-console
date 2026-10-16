@@ -1,0 +1,82 @@
+.agents/skills/console-page-interactions/references/runtime-support.md
+  h_9d56aba080c170 9,16,37-38,43,48,50,52-56
+.agents/skills/console-page-interactions/references/table-contexts.md
+  h_9d56aba080c170 3-5,13-51,62-63,119-124
+examples/composed-console/README.md
+  h_9d56aba080c170 48-55
+examples/composed-console/orders-pages.tsx
+  h_9d56aba080c170 4-8,14,117-135,169-183,185-281,293-297,303-308,323-334,423,436-478,480-519,530,537,541-559,561-577,579-591,593-614,616-628
+examples/composed-console/verify-browser.mjs
+  h_9d56aba080c170 27-65,1229-1274,1330-1339,1467-1505,1508,1646-1649,1688,1728,1737-1749
+examples/ts-console/administration-host.test.ts
+  h_9d56aba080c170 234,238,294-378
+examples/ts-console/administration-host.ts
+  h_9d56aba080c170 24-26,60-78,218-220,230,233-246,248-249,251
+examples/ts-console/administration.browser.test.ts
+  h_9d56aba080c170 64-67,100-142,155-358,360-435,440-442,451-458,490-505,539,554,561-566,607-609,611,712
+packages/auth-console/README.md
+  h_9d56aba080c170 25-45
+packages/auth-console/src/administration-contracts.ts
+  h_9d56aba080c170 16-68,178-180,190
+packages/auth-console/src/administration-pages.tsx
+  h_9d56aba080c170 5-10,24,47,259-260,265-266,273-334,369,373,375-399,659-734,738-745,748,751-753,775-820,822-831,833-903,1047-1053,1145-1146,1174-1193,1196-1216,1218-1297,1300,1312-1318,1334-1337,1674-1675,1679-1681,1689-1718,1752-1786,1841-1845,1847-1868,1871-1906,1913-1920,1930-1932,2041-2048
+packages/auth-console/src/administration-server.ts
+  h_9d56aba080c170 4
+packages/auth-console/src/administration-styles.ts
+  h_9d56aba080c170 15-62,66-70,72-79
+packages/auth-console/src/pages.styles.ts
+  h_9d56aba080c170 24-28
+packages/auth-console/src/pages.tsx
+  h_9d56aba080c170 6-10,22,35,264,274-375,377-379,381,383-393,395-447,449-450,452,454-480,851,856-1013
+packages/auth-console/test/administration-backend.test.ts
+  h_9d56aba080c170 20-21,205-307
+packages/console-plugin-manager/src/plugin-manager.tsx
+  h_9d56aba080c170 1-9,233-240,277-467
+packages/console-react/README.md
+  h_9d56aba080c170 307-311,318-470
+packages/console-react/src/console-filter-model.ts
+  h_9d56aba080c170 1-328
+packages/console-react/src/console-interaction-host.tsx
+  h_9d56aba080c170 23-30,39,44,94-99,102-113,122-123,154-164,184-196
+packages/console-react/src/console-layout.styles.ts
+  h_9d56aba080c170 51-55
+packages/console-react/src/console-layout.tsx
+  h_9d56aba080c170 12-13,109,117,136-155,161-164
+packages/console-react/src/console-shell.tsx
+  h_9d56aba080c170 93,317,726
+packages/console-react/src/console-table-context.tsx
+  h_9d56aba080c170 1-365
+packages/console-react/src/console-table-filter-group.tsx
+  h_9d56aba080c170 1-248
+packages/console-react/src/console-table-filters.tsx
+  h_9d56aba080c170 1-1387
+packages/console-react/src/console-table-host.tsx
+  h_9d56aba080c170 1-251
+packages/console-react/src/console-table-model.ts
+  h_9d56aba080c170 1-86
+packages/console-react/src/console-table-search.tsx
+  h_9d56aba080c170 1-304
+packages/console-react/src/index.ts
+  h_9d56aba080c170 6-8
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 4,7-877
+packages/console-react/test/browser/fixture.tsx
+  h_9d56aba080c170 19-26,672-872,874-881
+packages/console-react/test/filter-model.test.ts
+  h_9d56aba080c170 1-254
+packages/console-react/test/table-context.test.ts
+  h_9d56aba080c170 1-96
+plugins/console/shell/src/app/console-admission.tsx
+  h_9d56aba080c170 17,186-206,210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "386e5d34758e9507c1312875c4b99ed6e5cb595e",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

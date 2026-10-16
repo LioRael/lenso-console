@@ -1,0 +1,44 @@
+.changeset/scoped-console-administration.md
+  h_9d56aba080c170 1-12
+bun.lock
+  h_9d56aba080c170 95
+examples/ts-console/administration-host.test.ts
+  h_9d56aba080c170 319-348,512-550
+examples/ts-console/administration.browser.test.ts
+  h_9d56aba080c170 21-36,210-249,310-327
+examples/ts-console/host.browser.test.ts
+  h_9d56aba080c170 258-262,359-371
+packages/auth-console/package.json
+  h_9d56aba080c170 75
+packages/auth-console/src/administration-pages.tsx
+  h_9d56aba080c170 22,139,146,149,156-173,212,502-503,508-510,1496,1498
+packages/auth-console/src/administration-server.ts
+  h_9d56aba080c170 3,480-497,502,511-513
+packages/auth-console/test/administration-backend.test.ts
+  h_9d56aba080c170 7-8,10-13,28-31,523-539,587-664
+packages/console-authoring/compiler/test/transport.test.ts
+  h_9d56aba080c170 32-39,123-138,203-221
+packages/console-authoring/src/transport.ts
+  h_9d56aba080c170 354-380
+packages/console/src/boundary.ts
+  h_9d56aba080c170 12-13,19-25,31,38-39,41,50-58,131-142
+packages/console/src/service.ts
+  h_9d56aba080c170 831
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 399-418,503-507
+plugins/console/shell/src/app/console-admission.tsx
+  h_9d56aba080c170 320-341,343-372
+tooling/distribution/check-archives.mjs
+  h_9d56aba080c170 94,96,99-100,132-133,136-148,178-180,215-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "829c7057d6c00a3e7f959b84c68642827a543f4c",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
