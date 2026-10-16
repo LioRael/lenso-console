@@ -1,0 +1,20 @@
+packages/console-authoring/CHANGELOG.md
+  h_9d56aba080c170 7,9
+packages/console-authoring/src/session-renewal.ts
+  h_9d56aba080c170 35,38,44,75,103-106
+packages/console-authoring/test/session-renewal.test.ts
+  h_9d56aba080c170 10,19-20,39,83,109,115,154,160-163,191-198,203-207,212-214,225-226,230,247-277
+packages/console/test/session-renewal-cookie.test.ts
+  h_9d56aba080c170 11-18,36,92,160-165,200,227-251,254,256,266,302,318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c4b2138827b8528ea88671306ec1ead8c9d0d80f",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

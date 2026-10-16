@@ -1,0 +1,30 @@
+.changeset/console-docs-chrome.md
+  h_9d56aba080c170 1-7
+apps/shell/src/components/runtime/console-header.tsx
+  h_9d56aba080c170 48-69,72-104
+apps/shell/src/components/runtime/console-search.stylex.ts
+  h_9d56aba080c170 7,9-11,13-27,31-34,36-41,50,53-63,65-68,71-77,82-87,90-95,97-98,104,117-120,123,127-128,130,137-138,141,143,149,151-154,156-160,164,166-167
+apps/shell/src/components/runtime/console-search.tsx
+  h_9d56aba080c170 3,6,30,36,120,122-126,168-173,182-184
+apps/shell/src/components/runtime/console-shell.stylex.ts
+  h_9d56aba080c170 17-20,56-57,61-63,65,70-79,83-84,86-91,96,103
+apps/shell/src/components/runtime/context-navigation.browser.test.tsx
+  h_9d56aba080c170 143-152,202,204,211,221,232,234-239,246,257-299,329
+apps/shell/src/features/plugins/plugin-detail.browser.test.tsx
+  h_9d56aba080c170 170-177
+docs/design/components.md
+  h_9d56aba080c170 21,40-42
+docs/design/reviews/console-docs-chrome.md
+  h_9d56aba080c170 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4f80099440b9991363217e564a75a877dc2b9c3c",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

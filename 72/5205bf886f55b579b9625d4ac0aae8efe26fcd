@@ -1,0 +1,14 @@
+.github/workflows/ci.yml
+  h_9d56aba080c170 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "725205bf886f55b579b9625d4ac0aae8efe26fcd",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

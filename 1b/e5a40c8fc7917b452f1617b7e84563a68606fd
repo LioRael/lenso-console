@@ -1,0 +1,20 @@
+.agents/skills/console-page-interactions/references/validation.md
+  h_9d56aba080c170 7-11
+examples/composed-console/README.md
+  h_9d56aba080c170 42-45,55,62-66
+examples/composed-console/preview-styles.browser.mjs
+  h_9d56aba080c170 1-251
+examples/composed-console/vite.config.ts
+  h_9d56aba080c170 20-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1be5a40c8fc7917b452f1617b7e84563a68606fd",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

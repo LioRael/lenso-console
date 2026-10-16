@@ -1,0 +1,22 @@
+.changeset/console-tab-link-decoration.md
+  h_9d56aba080c170 1-7
+packages/console-react/src/console-context-bar.tsx
+  h_9d56aba080c170 329
+packages/console-react/src/console-shell.styles.ts
+  h_9d56aba080c170 238-240
+packages/console-react/src/console-shell.tsx
+  h_9d56aba080c170 560-561,564-565
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 341-349,351-376
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f56e2b04bbf717e3eef7f499944c4081a18fcd6",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
