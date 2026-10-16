@@ -341,6 +341,9 @@ runtimeTest(
           width: theme === "light" ? 1280 : 390,
           height: 844,
         });
+        await page.waitForFunction(
+          () => document.documentElement.scrollWidth <= innerWidth
+        );
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth
