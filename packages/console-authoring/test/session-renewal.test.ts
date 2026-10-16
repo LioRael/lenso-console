@@ -254,12 +254,16 @@ test("absolute cap schedules only the final expiry read", async () => {
       (globalThis as unknown as RenewalFixture).state.expiry =
         1_700_000_000_000 + 86_400_000;
     });
-    await fixture.scroll();
+    await fixture.page.evaluate(() => {
+      document.getElementById("pane")!.dispatchEvent(new Event("scroll"));
+    });
     await fixture.page.clock.runFor(60_000);
     const capped = await fixture.state();
     expect(capped.renew).toBe(0);
     for (let minute = 0; minute < 5; minute += 1) {
-      await fixture.scroll();
+      await fixture.page.evaluate(() => {
+        document.getElementById("pane")!.dispatchEvent(new Event("scroll"));
+      });
       await fixture.page.clock.runFor(60_000);
     }
     expect(await fixture.state()).toMatchObject({
@@ -268,7 +272,9 @@ test("absolute cap schedules only the final expiry read", async () => {
       unavailable: 0,
     });
     await fixture.page.clock.runFor(86_400_000);
-    await fixture.scroll();
+    await fixture.page.evaluate(() => {
+      document.getElementById("pane")!.dispatchEvent(new Event("scroll"));
+    });
     await fixture.page.clock.runFor(1000);
     expect(await fixture.state()).toMatchObject({ renew: 0, unavailable: 1 });
   } finally {
