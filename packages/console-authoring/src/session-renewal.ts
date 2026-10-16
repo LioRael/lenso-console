@@ -140,7 +140,8 @@ export function startSessionRenewal(options: {
   };
   const visibility = () => {
     if (foreground()) {
-      activity();
+      lastActivity = Date.now();
+      void check(true);
     } else {
       stopTimer();
     }

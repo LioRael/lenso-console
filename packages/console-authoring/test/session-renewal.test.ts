@@ -275,3 +275,26 @@ test("absolute cap schedules only the final expiry read", async () => {
     await browser.close();
   }
 }, 30_000);
+
+test("foreground recovery reads revocation before the renewal minimum", async () => {
+  const browser = await isolatedBrowser();
+  try {
+    const fixture = await renewalPage(browser);
+    await fixture.page.clock.runFor(1000);
+    const baseline = await fixture.state();
+    await fixture.page.evaluate(() => {
+      const f = globalThis as unknown as RenewalFixture;
+      f.hide(true);
+      f.state.denied = true;
+      f.hide(false);
+    });
+    await fixture.page.clock.runFor(1000);
+    expect(await fixture.state()).toMatchObject({
+      status: baseline.status + 1,
+      renew: baseline.renew,
+      unavailable: baseline.unavailable + 1,
+    });
+  } finally {
+    await browser.close();
+  }
+}, 30_000);
