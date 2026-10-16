@@ -629,6 +629,32 @@ test("compiled administration pages manage real isolated data and retire one-tim
       exact: true,
     });
     await delivery.waitFor();
+    // Visibility can precede the modal's queued initial-focus frame.
+    // Observe that transition without moving focus or dismissing the secret.
+    try {
+      await page.waitForFunction(
+        (node) => !!node?.contains(document.activeElement),
+        await delivery.elementHandle(),
+        { timeout: 5000 }
+      );
+    } catch (error) {
+      console.error(
+        "PAT delivery focus observation failed",
+        await delivery
+          .evaluate((node) => ({
+            dialogRect: node.getBoundingClientRect().toJSON(),
+            dialogInert: !!node.closest("[inert]"),
+            containsFocus: node.contains(document.activeElement),
+            activeTag: document.activeElement?.tagName,
+            activeRole: document.activeElement?.getAttribute("role"),
+            activeRect: document.activeElement
+              ?.getBoundingClientRect()
+              .toJSON(),
+          }))
+          .catch(() => ({ unavailable: true }))
+      );
+      throw error;
+    }
     expect(
       await delivery.evaluate((node) => node.contains(document.activeElement))
     ).toBe(true);
