@@ -528,6 +528,10 @@ test("compiled administration pages manage real isolated data and retire one-tim
     await roleForm
       .getByLabel("Role name", { exact: true })
       .fill("Fixture permissions");
+    await roleForm
+      .getByRole("combobox", { name: "Role template", exact: true })
+      .click();
+    await page.getByRole("option", { name: /read.?only/i }).click();
     await page
       .getByRole("dialog", { name: "Create role", exact: true })
       .getByRole("button", { name: "Create custom role", exact: true })

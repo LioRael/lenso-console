@@ -455,7 +455,10 @@ function Choice({
         </Select.Trigger>
         <ThemeScope>
           <Select.Portal container={portal ?? undefined}>
-            <Select.Positioner sideOffset={8}>
+            <Select.Positioner
+              sideOffset={8}
+              alignItemWithTrigger={portal === null}
+            >
               <Select.Popup>
                 <Select.List>
                   {options.map((option) => (
