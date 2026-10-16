@@ -1,0 +1,16 @@
+tooling/distribution/check-archives.mjs
+  h_9d56aba080c170 48
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a9ebb5a4f7e1404f2cb8cdf8ca25a10f5f09144",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

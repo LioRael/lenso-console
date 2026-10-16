@@ -1,0 +1,14 @@
+examples/composed-console/dashboard-lifetime.browser.mjs
+  h_9d56aba080c170 21-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c5cd77926b6c8c702cef5d68701a5eb1e5e37ff",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

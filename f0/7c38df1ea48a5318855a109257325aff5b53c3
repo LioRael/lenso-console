@@ -1,0 +1,19 @@
+.agents/skills/console-page-interactions/references/presentation.md
+  s_ef1691bac225fb::t_f8dfc09c4a5964 11-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f07c38df1ea48a5318855a109257325aff5b53c3",
+  "prompts": {},
+  "sessions": {
+    "s_ef1691bac225fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a12fc24c-2053-4fff-a409-a0b42c61161b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
