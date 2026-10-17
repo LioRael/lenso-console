@@ -1,6 +1,8 @@
 import "@lenso/tokens/styles.css";
 import "@lenso/console-react/styles.css";
+import { Button } from "@lenso/ui/button";
 import { Tooltip } from "@lenso/ui/tooltip";
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { ComposedConsole } from "../../../examples/composed-console/composition";
@@ -33,24 +35,34 @@ if (new URLSearchParams(location.search).has("dark")) {
   document.documentElement.dataset.theme = "dark";
   document.documentElement.style.colorScheme = "dark";
 }
-createRoot(document.getElementById("root")!).render(
-  <Tooltip.Provider>
-    <ComposedConsole
-      tasks={client}
-      orders={createSampleOrders()}
-      confirmArchive={async () => false}
-      workforce={createSampleAuth("workforce")}
-      customers={createSampleAuth("customers")}
-      dashboard={createSampleDashboard()}
-      catalog={sampleCatalog}
-      router={{
-        pathname: "/tasks",
-        navigate() {
-          /* Single tested route. */
-        },
-        match: (pattern, pathname) => (pattern === pathname ? {} : null),
-      }}
-      session={{ state: "ready", scopeKey: "isolated-task-test" }}
-    />
-  </Tooltip.Provider>
-);
+function Fixture() {
+  const [signedIn, setSignedIn] = useState(true);
+  return (
+    <Tooltip.Provider>
+      <Button onClick={() => setSignedIn(!signedIn)}>
+        {signedIn ? "Fixture sign out" : "Fixture sign in"}
+      </Button>
+      <ComposedConsole
+        tasks={client}
+        orders={createSampleOrders()}
+        confirmArchive={async () => false}
+        workforce={createSampleAuth("workforce")}
+        customers={createSampleAuth("customers")}
+        dashboard={createSampleDashboard()}
+        catalog={sampleCatalog}
+        router={{
+          pathname: "/tasks",
+          navigate() {
+            /* Single tested route. */
+          },
+          match: (pattern, pathname) => (pattern === pathname ? {} : null),
+        }}
+        session={{
+          state: signedIn ? "ready" : "authentication-required",
+          scopeKey: "isolated-task-test",
+        }}
+      />
+    </Tooltip.Provider>
+  );
+}
+createRoot(document.getElementById("root")!).render(<Fixture />);

@@ -39,6 +39,13 @@ export interface ConsoleTasksOptions {
     job: JobStatus,
     action: "list" | "get" | "retry" | "cancel"
   ) => boolean | Promise<boolean>;
+  /** Opt-in plain-text projection of a persisted successful result, at most 16000 characters.
+   * Return null when no result may be disclosed. Raw queue results stay private.
+   */
+  readonly describeResult?: (
+    trusted: ConsoleTaskContext,
+    job: JobStatus
+  ) => string | null | Promise<string | null>;
   /** Explicit replay-safety policy for this exact registered task and persisted job. */
   readonly safeRetry?: (
     trusted: ConsoleTaskContext,
@@ -240,8 +247,21 @@ export function createConsoleTasksIntegration(options: ConsoleTasksOptions) {
             const { jobId } = jobInput.parse(input);
             await enforce(context, "get");
             const job = await load(jobId, context, "get");
+            const resultText =
+              job.state === "succeeded" && options.describeResult
+                ? z
+                    .string()
+                    .max(16000)
+                    .nullable()
+                    .parse(await options.describeResult(context, job))
+                : null;
+            // Projection can await owner work; recheck ownership and revocation before disclosure.
+            if (!(await permitted(context, job, "get"))) {
+              throw new ConsoleOperationError("NOT_FOUND");
+            }
             await enforce(context, "get");
             return {
+              ...(resultText === null ? {} : { resultText }),
               ...summary(job),
               failure: [
                 "handler-failed",
@@ -319,7 +339,8 @@ export function createConsoleTasksIntegration(options: ConsoleTasksOptions) {
       input: jobInput,
       context: true,
       ...read,
-      description: "Read an authorized job summary without payload or result.",
+      description:
+        "Read an authorized job and optional owner-approved result text.",
     }),
     defineOperation({
       plugin,

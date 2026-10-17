@@ -26,7 +26,11 @@ function TasksContent({
   const [error, setError] = useState("");
   const [scheduleError, setScheduleError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<Job>();
+  const [selected, setSelected] =
+    useState<Awaited<ReturnType<TaskClient["get"]>>>();
+  const [offline, setOffline] = useState(
+    () => typeof navigator !== "undefined" && !navigator.onLine
+  );
   const [detailError, setDetailError] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [action, setAction] = useState<"retry" | "cancel">();
@@ -89,14 +93,16 @@ function TasksContent({
     void load();
     void loadSchedules();
   }, [load, loadSchedules]);
-  async function inspect(job: Job) {
+  async function inspect(job: Job, background = false) {
     detailVersion.current += 1;
     const version = detailVersion.current;
-    setSelected(job);
-    setAction(undefined);
+    if (!background) {
+      setSelected(job);
+      setAction(undefined);
+      setFeedback("");
+    }
     setDetailError(false);
     setDetailLoading(true);
-    setFeedback("");
     try {
       const data = await services.get(job.jobId, signal);
       if (current() && version === detailVersion.current) {
@@ -115,6 +121,7 @@ function TasksContent({
     } catch {
       if (current() && version === detailVersion.current) {
         setDetailError(true);
+        setSelected({ ...job, resultText: undefined });
       }
     } finally {
       if (current() && version === detailVersion.current) {
@@ -122,10 +129,55 @@ function TasksContent({
       }
     }
   }
+  // Poll only during this activation; execution and durable facts stay with the queue.
+  const refresh = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => {
+    refresh.current = () => {
+      if (
+        !current() ||
+        !navigator.onLine ||
+        loading ||
+        detailLoading ||
+        busy ||
+        action
+      ) {
+        return;
+      }
+      void load(cursorRef.current);
+      if (selected) {
+        void inspect(selected, true);
+      }
+    };
+  });
+  useEffect(() => {
+    const reconnect = () => {
+      setOffline(false);
+      refresh.current?.();
+    };
+    const disconnect = () => setOffline(true);
+    const resume = () => {
+      if (document.visibilityState === "visible") {
+        refresh.current?.();
+      }
+    };
+    const timer = window.setInterval(resume, 3000);
+    window.addEventListener("online", reconnect);
+    window.addEventListener("offline", disconnect);
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("offline", disconnect);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, []);
   async function execute() {
     if (
       !selected ||
       !action ||
+      offline ||
       detailLoading ||
       detailError ||
       writeLock.current ||
@@ -205,12 +257,23 @@ function TasksContent({
         value={{ context: { kind: "object", label: "Tasks" } }}
       />
       <p>
-        Authorized jobs from this queue. Times are shown in your local timezone.
+        Authorized jobs from this queue. Status refreshes while this page is
+        open. Reopen Tasks after signing in to recover persisted status and
+        available results.
       </p>
-      {loading && <output>Loading tasks…</output>}
+      {offline && (
+        <output>
+          Network disconnected. Showing last known status; execution may
+          continue on the server. Reconnect to recover current status and
+          results.
+        </output>
+      )}
+      {loading && !page && <output>Loading tasks…</output>}
       {error && (
         <div role="alert">
-          {error} {page && "Showing the last successful page."}{" "}
+          {error}{" "}
+          {page &&
+            "Showing the last successful page. This does not mean execution failed or was cancelled."}{" "}
           <Button
             onClick={() => void load(cursorRef.current)}
             disabled={loading}
@@ -315,6 +378,11 @@ function TasksContent({
               <Modal.Body>
                 <Modal.Description>{selected?.task}</Modal.Description>
                 <p {...stylex.props(styles.identifier)}>{selected?.jobId}</p>
+                {(offline || detailError) && (
+                  <output>
+                    Status is unconfirmed. Execution may continue on the server.
+                  </output>
+                )}
                 <p>
                   Status: {selected?.state}
                   {selected?.cancelRequested ? " · cancellation requested" : ""}
@@ -337,6 +405,20 @@ function TasksContent({
                         ? "Unavailable"
                         : "None reported")}
                 </p>
+                {selected?.state === "succeeded" &&
+                  !detailError &&
+                  !offline && (
+                    <section aria-label="Task result">
+                      <h3>Result</h3>
+                      {selected.resultText === undefined ? (
+                        <p>No result is available from this service.</p>
+                      ) : (
+                        <pre {...stylex.props(styles.result)}>
+                          {selected.resultText}
+                        </pre>
+                      )}
+                    </section>
+                  )}
                 {detailLoading && <output>Loading task details…</output>}
                 {detailError && (
                   <div role="alert">
@@ -377,7 +459,9 @@ function TasksContent({
                       </Toolbar.Button>
                       <Toolbar.Button
                         variant={action === "cancel" ? "danger" : "primary"}
-                        disabled={busy || detailError || detailLoading}
+                        disabled={
+                          offline || busy || detailError || detailLoading
+                        }
                         onClick={() => void execute()}
                       >
                         Confirm {action}
@@ -387,7 +471,9 @@ function TasksContent({
                     <>
                       {services.retry && selected?.state === "failed" && (
                         <Toolbar.Button
-                          disabled={busy || detailLoading || detailError}
+                          disabled={
+                            offline || busy || detailLoading || detailError
+                          }
                           onClick={() => setAction("retry")}
                         >
                           Retry task
@@ -399,7 +485,9 @@ function TasksContent({
                         !selected.cancelRequested && (
                           <Toolbar.Button
                             variant="danger"
-                            disabled={busy || detailLoading || detailError}
+                            disabled={
+                              offline || busy || detailLoading || detailError
+                            }
                             onClick={() => setAction("cancel")}
                           >
                             Cancel task
@@ -472,5 +560,6 @@ const styles = stylex.create({
   pagination: { borderRadius: 999, width: "fit-content", marginTop: 12 },
   modal: { maxWidth: 540, width: "calc(100vw - 32px)" },
   identifier: { overflowWrap: "anywhere" },
+  result: { whiteSpace: "pre-wrap", overflowWrap: "anywhere" },
   actions: { borderRadius: 999, flexWrap: "wrap" },
 });

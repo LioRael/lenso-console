@@ -593,3 +593,130 @@ test("Scheduler uses its authentic scoped companion and mapped Auth actor throug
     db.close();
   }
 });
+
+// Result projection introduces an async disclosure boundary: persisted output must
+// remain private by default and revocation/ownership changes must fence that boundary.
+test("successful results require explicit projection and fresh disclosure authorization", async () => {
+  const db = new Database(":memory:");
+  db.exec(
+    await Bun.file(
+      new URL(
+        "../migrations/d1/0001_tasks.sql",
+        import.meta.resolve("@lenso/tasks/d1")
+      )
+    ).text()
+  );
+  const database = sqliteD1(db);
+  await provisionD1TaskQueue(database, "results");
+  const task = defineTask({
+    name: "report",
+    input: z.object({}),
+    handler: async () => ({ text: "Approved report", private: "secret" }),
+    result: (value) => value,
+  });
+  const queue = createTaskQueue({
+    provider: await createD1TaskProvider({ database, queueName: "results" }),
+    tasks: [task],
+  });
+  const auth = authFixture();
+  const identity: ConsoleIdentity = {
+    actor: await auth.for(audience("console")).required("alice"),
+    readScope: "north",
+  };
+  const security = consoleAuthentication(identity);
+  const authentication = definePlugin({
+    id: "result-auth",
+    setup: () => security.service,
+  });
+  const queuePlugin = definePlugin({ id: "result-queue", setup: () => queue });
+  let permitted = true;
+  let mode: "normal" | "ownership" | "revoke" | "oversize" = "normal";
+  const base = {
+    queue: queuePlugin,
+    authentication,
+    tasks: [task],
+    authorizeJob: () => permitted,
+  };
+  const closed = createConsoleTasksIntegration({
+    ...base,
+    id: "closed-results",
+  });
+  const integration = createConsoleTasksIntegration({
+    ...base,
+    id: "results",
+    async describeResult(_, job) {
+      await Promise.resolve();
+      if (mode === "ownership") {
+        permitted = false;
+      }
+      if (mode === "revoke") {
+        security.revoke();
+      }
+      return mode === "oversize"
+        ? "x".repeat(16001)
+        : z.object({ text: z.string() }).parse(job.result).text;
+    },
+  });
+  const plugins = [
+    authentication,
+    queuePlugin,
+    closed.plugin,
+    integration.plugin,
+  ];
+  const app = await startApp({ plugins });
+  const request = new Request("https://console.test/rpc");
+  const adapter = createManageAdapter({
+    running: app,
+    plugins,
+    operations: [...closed.operations, ...integration.operations],
+    canList: async () => true,
+    binding(operation, input) {
+      return (
+        operation.plugin === closed.plugin ? closed : integration
+      ).binding(operation, input, request, identity, {
+        action: "invoke",
+        targetId: "north-app",
+        tenantId: "north",
+        pluginId: operation.plugin.id,
+        operation: operation.method,
+      });
+    },
+  });
+  try {
+    const jobId = await queue.enqueue(task, {});
+    expect(
+      await adapter.invoke("results", "get", { jobId })
+    ).not.toHaveProperty("resultText");
+    await queue.runBatch({ maxJobs: 1 });
+    expect(
+      await adapter.invoke("closed-results", "get", { jobId })
+    ).not.toHaveProperty("resultText");
+    const result = await adapter.invoke("results", "get", { jobId });
+    expect(result).toMatchObject({
+      state: "succeeded",
+      resultText: "Approved report",
+    });
+    expect(JSON.stringify(result)).not.toContain("secret");
+    expect(
+      JSON.stringify(await adapter.invoke("results", "list", {}))
+    ).not.toContain("Approved report");
+    mode = "ownership";
+    await expect(
+      adapter.invoke("results", "get", { jobId })
+    ).rejects.toBeDefined();
+    permitted = true;
+    mode = "oversize";
+    await expect(
+      adapter.invoke("results", "get", { jobId })
+    ).rejects.toBeDefined();
+    mode = "revoke";
+    await expect(
+      adapter.invoke("results", "get", { jobId })
+    ).rejects.toBeDefined();
+  } finally {
+    await app.stop();
+    await queue.close();
+    await auth.close();
+    db.close();
+  }
+});

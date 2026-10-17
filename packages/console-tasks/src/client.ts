@@ -26,7 +26,10 @@ export interface TaskClient {
     signal: AbortSignal,
     cursor?: string
   ): Promise<{ items: Job[]; nextCursor: string | null }>;
-  get(id: string, signal: AbortSignal): Promise<Job>;
+  get(
+    id: string,
+    signal: AbortSignal
+  ): Promise<Job & { resultText?: string | undefined }>;
   retry?: (id: string, signal: AbortSignal) => Promise<void>;
   cancel?: (
     id: string,
@@ -66,7 +69,10 @@ export function createTaskClient(options: {
     },
     async get(jobId, signal) {
       return jobSchema
-        .extend({ jobId: z.literal(jobId) })
+        .extend({
+          jobId: z.literal(jobId),
+          resultText: z.string().max(16000).optional(),
+        })
         .parse(await call("get", { jobId }, signal));
     },
     ...(options.retry

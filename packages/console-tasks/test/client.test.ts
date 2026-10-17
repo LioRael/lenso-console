@@ -24,6 +24,7 @@ test("adapter validates acknowledgements and strips private fields", async () =>
     failure: "handler-failed",
     input: "secret",
     result: "secret",
+    resultText: "Approved report",
   };
   const client = createTaskClient({
     tasks: "jobs",
@@ -34,6 +35,8 @@ test("adapter validates acknowledgements and strips private fields", async () =>
   expect(
     await client.get(jobId, new AbortController().signal)
   ).not.toHaveProperty("result");
+  const projected = await client.get(jobId, new AbortController().signal);
+  expect(projected.resultText).toBe("Approved report");
   await expect(
     client.retry!(jobId, new AbortController().signal)
   ).rejects.toThrow();
@@ -68,13 +71,19 @@ test("client observes failed, retried and cancelled jobs after SQLite reopen", a
         throw new Error("fixture failure");
       },
     });
+    const report = defineTask({
+      name: "local.report",
+      input: z.object({}),
+      handler: async () => ({ text: "Durable report" }),
+      result: (value) => value,
+    });
     const open = async () =>
       createTaskQueue({
         provider: await createD1TaskProvider({
           database: sqliteD1(db),
           queueName: "local-only",
         }),
-        tasks: [task],
+        tasks: [task, report],
       });
     queue = await open();
     const id = await queue.enqueue(task, {});
@@ -113,6 +122,14 @@ test("client observes failed, retried and cancelled jobs after SQLite reopen", a
     queue = await open();
     const cancelled = await client.get(id, signal);
     expect(cancelled.state).toBe("cancelled");
+    const reportId = await queue.enqueue(report, {});
+    await queue.runBatch({ maxJobs: 1 });
+    db.close();
+    db = new Database(join(directory, "tasks.sqlite"));
+    queue = await open();
+    const stored = await queue.get(reportId);
+    expect(stored?.state).toBe("succeeded");
+    expect(stored?.result).toEqual({ text: "Durable report" });
   } finally {
     db.close();
     await rm(directory, { recursive: true, force: true });

@@ -20,7 +20,7 @@ import { sqliteD1 } from "../../console/test/fixtures/sqlite-d1";
 
 // Test-owned HTTP envelope around the real Manage adapter. Never installed by an app.
 // Authentication is synthetic; ownership, operation binding and queue SQL are real.
-export async function managedQueue(fault: "read" | "acknowledgement") {
+export async function managedQueue(fault: "read" | "acknowledgement" | "long") {
   const directory = await mkdtemp(join(tmpdir(), "console-tasks-browser-"));
   const db = new Database(join(directory, "tasks.sqlite"));
   db.exec(
@@ -33,13 +33,21 @@ export async function managedQueue(fault: "read" | "acknowledgement") {
   );
   const database = sqliteD1(db);
   await provisionD1TaskQueue(database, "isolated-browser");
+  const completion = Promise.withResolvers<undefined>();
+  const started = Promise.withResolvers<undefined>();
   const task = defineTask({
     name: "local.report",
     input: z.object({ privateValue: z.string() }),
     maxAttempts: 1,
-    async handler(): Promise<void> {
-      throw new Error("private handler failure");
+    async handler() {
+      if (fault !== "long") {
+        throw new Error("private handler failure");
+      }
+      started.resolve(undefined);
+      await completion.promise;
+      return { publicText: "Report ready: 42 rows", secret: "private result" };
     },
+    result: (value) => value,
   });
   const queue = createTaskQueue({
     provider: await createD1TaskProvider({
@@ -49,7 +57,12 @@ export async function managedQueue(fault: "read" | "acknowledgement") {
     tasks: [task],
   });
   const owned = await queue.enqueue(task, { privateValue: "never disclose" });
-  await queue.runBatch({ maxJobs: 1 });
+  const execution = queue.runBatch({ maxJobs: 1 });
+  if (fault === "long") {
+    await started.promise;
+  } else {
+    await execution;
+  }
   const denied = await queue.enqueue(task, { privateValue: "another tenant" });
   const auth = createAuth(
     realm(
@@ -107,6 +120,8 @@ export async function managedQueue(fault: "read" | "acknowledgement") {
     tasks: [task],
     authorizeJob: (_, job) => job.jobId === owned,
     safeRetry: () => true,
+    describeResult: (_, job) =>
+      z.object({ publicText: z.string() }).parse(job.result).publicText,
   });
   const plugins = [authentication, queuePlugin, integration.plugin];
   const app = await startApp({ plugins });
@@ -166,6 +181,13 @@ export async function managedQueue(fault: "read" | "acknowledgement") {
   });
   return {
     server,
+    async finish() {
+      completion.resolve(undefined);
+      await execution;
+    },
+    reauthenticate() {
+      revoked = false;
+    },
     writes,
     queue,
     owned,
@@ -174,8 +196,12 @@ export async function managedQueue(fault: "read" | "acknowledgement") {
       revoked = true;
     },
     async close() {
+      completion.resolve(undefined);
+      await execution;
       server.stop(true);
       await app.stop();
+      await queue.close();
+      await auth.close();
       db.close();
       await rm(directory, { recursive: true, force: true });
     },
