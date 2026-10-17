@@ -1,0 +1,21 @@
+examples/ts-console/host.browser.test.ts
+  s_6c81917fe01b8c::t_2b52bc67aeb7c1 234
+packages/auth-console/src/administration-pages.tsx
+  s_6c81917fe01b8c::t_a33da9d03eb8d3 40,42,424-426,442,457,1789,1803,1823,1831,1853,2134,2151,2158-2160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba659c2d2f9a1fda7714bff4be9000841dc479ce",
+  "prompts": {},
+  "sessions": {
+    "s_6c81917fe01b8c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14502-c022-7290-a536-0da2dc406f70",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

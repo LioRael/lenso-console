@@ -1,0 +1,26 @@
+apps/shell/src/features/extensions/authorized-workspaces.browser.test.tsx
+  h_9d56aba080c170 184-187,193-198,207-209,223-232,353-376,388-402
+apps/shell/src/features/extensions/page-contribution-catalog.ts
+  h_9d56aba080c170 22,443,453,557,559-564,571-573,575,615-619
+apps/shell/src/features/extensions/workspace-source-session.browser.test.tsx
+  h_9d56aba080c170 4-7,11,32-114,291-293,297
+apps/shell/src/features/extensions/workspace-source-session.ts
+  h_9d56aba080c170 25-30,170,178,203-205,242,253,269
+apps/shell/src/lib/identity-transition.ts
+  h_9d56aba080c170 32,35,39-56
+plugins/console/src/http_paths.rs
+  h_9d56aba080c170 92-114
+plugins/console/src/lib.rs
+  h_9d56aba080c170 774-777,2419-2427,2436-2437,2455-2459,2478-2485
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8306cb7ce25ba4d998db581d7a1c563c4e17ea5c",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

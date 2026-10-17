@@ -1,0 +1,51 @@
+.github/workflows/console-sdk-npm.yml
+  s_e3dbe949a951a5::t_ca8988d57ea76b 1,11,17-19,23,29,35-36,40,42-47,49-51,54-55,61,66-67,74-75,79,81-87
+bun.lock
+  s_e3dbe949a951a5::t_c92175342a2e92 44,72,116,225,271
+package.json
+  s_e3dbe949a951a5::t_7a11fd590d517f 44
+packages/auth-console/CHANGELOG.md
+  s_e3dbe949a951a5::t_4e81350657191b 1-5
+packages/auth-console/package.json
+  s_e3dbe949a951a5::t_eaf453fa4ac113 3,31-33
+packages/console-authoring/CHANGELOG.md
+  s_e3dbe949a951a5::t_d425ae70bec5e7 3-20
+packages/console-authoring/package.json
+  s_e3dbe949a951a5::t_5554126ad4d803 3
+packages/console-dashboard/package.json
+  s_e3dbe949a951a5::t_2eafc01dadd2e1 6-10,63-65
+packages/console-plugin-manager/CHANGELOG.md
+  s_e3dbe949a951a5::t_385ddbe0046aa5 1-12
+packages/console-plugin-manager/package.json
+  s_e3dbe949a951a5::t_5873518757b1ac 3,6-10,28-30
+packages/console-react/package.json
+  s_e3dbe949a951a5::t_7601533eda6a56 6-10,28-30
+packages/console/CHANGELOG.md
+  s_e3dbe949a951a5::t_fbc42b06dd9eb4 1-18
+packages/console/package.json
+  s_e3dbe949a951a5::t_98f7607fbbe993 3
+plugins/console/shell/CHANGELOG.md
+  s_e3dbe949a951a5::t_e02490e94b3e09 3-33
+plugins/console/shell/package.json
+  s_e3dbe949a951a5::t_a392a82043c7ec 3
+tooling/distribution/console-npm.mjs
+  s_e3dbe949a951a5::t_ddff03299beaa2 1-202
+tooling/distribution/console-npm.test.mjs
+  s_e3dbe949a951a5::t_27b60baac50763 1-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5af55150e60fa487d355ab1b1cbc4b0b6113e688",
+  "prompts": {},
+  "sessions": {
+    "s_e3dbe949a951a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a11a4a-829c-7a91-8ac5-ef4c67bb9d37",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

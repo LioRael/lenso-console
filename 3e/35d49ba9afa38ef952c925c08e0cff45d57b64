@@ -1,0 +1,18 @@
+packages/console-react/src/console-dock.tsx
+  h_9d56aba080c170 267-272,277
+plugins/console/shell/test/browser/console-dock.browser.test.ts
+  h_9d56aba080c170 7-40
+plugins/console/shell/test/browser/dock.fixture.tsx
+  h_9d56aba080c170 28,41-42,89-92,94-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e35d49ba9afa38ef952c925c08e0cff45d57b64",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
