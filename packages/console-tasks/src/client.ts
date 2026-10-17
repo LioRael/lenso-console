@@ -65,7 +65,9 @@ export function createTaskClient(options: {
         );
     },
     async get(jobId, signal) {
-      return jobSchema.parse(await call("get", { jobId }, signal));
+      return jobSchema
+        .extend({ jobId: z.literal(jobId) })
+        .parse(await call("get", { jobId }, signal));
     },
     ...(options.retry
       ? {

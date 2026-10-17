@@ -37,6 +37,9 @@ test("adapter validates acknowledgements and strips private fields", async () =>
   await expect(
     client.retry!(jobId, new AbortController().signal)
   ).rejects.toThrow();
+  await expect(
+    client.get(crypto.randomUUID(), new AbortController().signal)
+  ).rejects.toThrow();
   expect(
     createTaskClient({ tasks: "jobs", invoke: async () => null }).retry
   ).toBeUndefined();
@@ -61,7 +64,7 @@ test("client observes failed, retried and cancelled jobs after SQLite reopen", a
       name: "local.failure",
       input: z.object({}),
       maxAttempts: 1,
-      async handler() {
+      async handler(): Promise<void> {
         throw new Error("fixture failure");
       },
     });

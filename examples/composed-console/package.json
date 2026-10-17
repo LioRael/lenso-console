@@ -9,6 +9,7 @@
     "@lenso/console-react": "workspace:*",
     "@lenso/console-runtime": "workspace:*",
     "@lenso/console-sdk": "workspace:*",
+    "@lenso/console-tasks": "workspace:*",
     "@lenso/tokens": "0.9.1",
     "@lenso/ui": "0.9.1",
     "@stylexjs/stylex": "0.19.1",

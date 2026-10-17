@@ -10,12 +10,21 @@
   "scripts": {
     "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
     "test": "bun test test/client.test.ts",
-    "test:browser": "bun test test/browser.test.ts",
-    "dev": "bun ../../node_modules/vite/bin/vite.js --config test/vite.config.ts"
+    "test:browser": "bun test test/browser.test.ts"
   },
   "dependencies": {
     "@lenso/ui": "0.9.1",
+    "@stylexjs/stylex": "0.19.1",
+    "lucide-react": "^1.28.0",
     "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@lenso/auth": "0.5.4",
+    "@lenso/console": "workspace:*",
+    "@lenso/core": "0.3.1",
+    "@lenso/manage": "0.5.2",
+    "@lenso/tasks": "0.4.0",
+    "@lenso/tokens": "0.9.1"
   },
   "peerDependencies": {
     "@lenso/console-react": "*",

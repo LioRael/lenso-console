@@ -59,6 +59,7 @@
         "@lenso/console-react": "workspace:*",
         "@lenso/console-runtime": "workspace:*",
         "@lenso/console-sdk": "workspace:*",
+        "@lenso/console-tasks": "workspace:*",
         "@lenso/tokens": "0.9.1",
         "@lenso/ui": "0.9.1",
         "@stylexjs/stylex": "0.19.1",
@@ -338,6 +339,28 @@
         "@lenso/runtime-sdk",
       ],
     },
+    "packages/console-tasks": {
+      "name": "@lenso/console-tasks",
+      "version": "0.0.0",
+      "dependencies": {
+        "@lenso/ui": "0.9.1",
+        "@stylexjs/stylex": "0.19.1",
+        "lucide-react": "^1.28.0",
+        "zod": "4.6.5",
+      },
+      "devDependencies": {
+        "@lenso/auth": "0.5.4",
+        "@lenso/console": "workspace:*",
+        "@lenso/core": "0.3.1",
+        "@lenso/manage": "0.5.2",
+        "@lenso/tasks": "0.4.0",
+        "@lenso/tokens": "0.9.1",
+      },
+      "peerDependencies": {
+        "@lenso/console-react": "*",
+        "react": "^19.0.0",
+      },
+    },
     "plugins/console/shell": {
       "name": "@lenso/console-web",
       "version": "1.22.7",
@@ -581,6 +604,8 @@
     "@lenso/console-runtime": ["@lenso/console-runtime@workspace:packages/console-runtime"],
 
     "@lenso/console-sdk": ["@lenso/console-sdk@workspace:packages/console-authoring"],
+
+    "@lenso/console-tasks": ["@lenso/console-tasks@workspace:packages/console-tasks"],
 
     "@lenso/console-web": ["@lenso/console-web@workspace:plugins/console/shell"],
 

@@ -7,6 +7,8 @@ import {
 import { Button } from "@lenso/ui/button";
 import { Modal } from "@lenso/ui/modal";
 import { Toolbar } from "@lenso/ui/toolbar";
+import * as stylex from "@stylexjs/stylex";
+import { ListTodo } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Job, Schedule, TaskClient } from "./client";
@@ -99,6 +101,16 @@ function TasksContent({
       const data = await services.get(job.jobId, signal);
       if (current() && version === detailVersion.current) {
         setSelected(data);
+        setPage((previous) =>
+          previous
+            ? {
+                ...previous,
+                items: previous.items.map((item) =>
+                  item.jobId === data.jobId ? data : item
+                ),
+              }
+            : previous
+        );
       }
     } catch {
       if (current() && version === detailVersion.current) {
@@ -111,7 +123,14 @@ function TasksContent({
     }
   }
   async function execute() {
-    if (!selected || !action || writeLock.current || !current()) {
+    if (
+      !selected ||
+      !action ||
+      detailLoading ||
+      detailError ||
+      writeLock.current ||
+      !current()
+    ) {
       return;
     }
     const target = selected.jobId;
@@ -180,15 +199,7 @@ function TasksContent({
     }
   }
   return (
-    <main
-      aria-label="Tasks"
-      style={{
-        padding: 24,
-        paddingBottom: 120,
-        maxWidth: 1100,
-        margin: "auto",
-      }}
-    >
+    <main aria-label="Tasks" {...stylex.props(styles.page)}>
       <ConsolePageScope
         scopeKey={activation.key}
         value={{ context: { kind: "object", label: "Tasks" } }}
@@ -209,16 +220,12 @@ function TasksContent({
         </div>
       )}
       {page?.items.length === 0 && <p>No tasks on this page.</p>}
-      <div style={{ display: "grid", gap: 12 }}>
+      <div {...stylex.props(styles.list)}>
         {page?.items.map((job) => (
           <section
             key={job.jobId}
             aria-label={job.task}
-            style={{
-              borderBottom: "1px solid var(--separator)",
-              paddingBlock: 12,
-              overflowWrap: "anywhere",
-            }}
+            {...stylex.props(styles.row)}
           >
             <h2>{job.task}</h2>
             <p>
@@ -237,7 +244,7 @@ function TasksContent({
         <Toolbar
           isAttached
           aria-label="Task pagination"
-          style={{ borderRadius: 999, width: "fit-content", marginTop: 12 }}
+          {...stylex.props(styles.pagination)}
         >
           {cursorRef.current && (
             <Toolbar.Button
@@ -297,7 +304,7 @@ function TasksContent({
         <Modal.Portal>
           <Modal.Backdrop />
           <Modal.Viewport>
-            <Modal.Popup style={{ maxWidth: 540, width: "calc(100vw - 32px)" }}>
+            <Modal.Popup {...stylex.props(styles.modal)}>
               <Modal.Header>
                 <Modal.Title>
                   {action
@@ -307,7 +314,7 @@ function TasksContent({
               </Modal.Header>
               <Modal.Body>
                 <Modal.Description>{selected?.task}</Modal.Description>
-                <p style={{ overflowWrap: "anywhere" }}>{selected?.jobId}</p>
+                <p {...stylex.props(styles.identifier)}>{selected?.jobId}</p>
                 <p>
                   Status: {selected?.state}
                   {selected?.cancelRequested ? " · cancellation requested" : ""}
@@ -317,7 +324,7 @@ function TasksContent({
                 </p>
                 <p>
                   Next retry:{" "}
-                  {selected?.state === "pending"
+                  {["pending", "running"].includes(selected?.state ?? "")
                     ? "Not provided by the queue API"
                     : "Not scheduled"}
                 </p>
@@ -356,7 +363,7 @@ function TasksContent({
                 <Toolbar
                   isAttached
                   aria-label="Task actions"
-                  style={{ borderRadius: 999, flexWrap: "wrap" }}
+                  {...stylex.props(styles.actions)}
                 >
                   {action ? (
                     <>
@@ -442,7 +449,28 @@ export function tasksConsole(options: {
     definition: {
       id: "console-tasks",
       pages: { tasks: { title: "Tasks", component: TasksPage } },
-      navigation: [{ id: "tasks", page: "tasks", label: "Tasks" }],
+      navigation: [
+        {
+          id: "tasks",
+          page: "tasks",
+          label: "Tasks",
+          icon: <ListTodo size={20} aria-hidden="true" />,
+        },
+      ],
     },
   };
 }
+
+const styles = stylex.create({
+  page: { padding: 24, paddingBottom: 120, maxWidth: 1100, margin: "auto" },
+  list: { display: "grid", gap: 12 },
+  row: {
+    borderBottom: "1px solid var(--separator)",
+    paddingBlock: 12,
+    overflowWrap: "anywhere",
+  },
+  pagination: { borderRadius: 999, width: "fit-content", marginTop: 12 },
+  modal: { maxWidth: 540, width: "calc(100vw - 32px)" },
+  identifier: { overflowWrap: "anywhere" },
+  actions: { borderRadius: 999, flexWrap: "wrap" },
+});

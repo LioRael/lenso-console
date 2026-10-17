@@ -211,3 +211,18 @@ scope, replay and uncertain-outcome contracts.
 The new adapter and UI packages are candidate source, not published packages.
 Use built candidate archives for external application integration until their owners
 authorize release; do not add sibling framework source overrides.
+
+### Optional task management
+
+Pass `tasks: TaskClient` to `ComposedConsole` to bind `/tasks` to this host. Omit it
+when the application has no admitted Tasks integration. Construct the client with
+`createTaskClient` from `@lenso/console-tasks/client`, using the application's
+existing authorized invocation transport and the exact installed Tasks service ID.
+Retry and cancellation are opt-in UI capabilities; the server still authorizes
+every operation and requires its own replay-safety policy. Do not send queue
+objects, worker credentials or task payloads to this page.
+
+The ordinary preview keeps its sample clients. The Tasks package's browser test
+mounts this same composition with real HTTP → Manage → Console Tasks operations
+against a disposable SQLite queue. Other pages in that test remain sample-only.
+See [task module verification](../../packages/console-tasks/README.md).

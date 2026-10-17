@@ -18,6 +18,8 @@ import {
   type ConsoleRouterAdapter,
   type ConsoleSessionAdapter,
 } from "@lenso/console-react";
+import type { TaskClient } from "@lenso/console-tasks/client";
+import { tasksConsole } from "@lenso/console-tasks/react";
 import { ContactRound, KeyRound, ShoppingBag, UsersRound } from "lucide-react";
 import { useMemo, type ComponentProps } from "react";
 
@@ -95,6 +97,7 @@ export interface ComposedConsoleProps {
   preferences?: ConsolePreferenceStore;
   children?: React.ReactNode;
   additionalPlugins?: ComponentProps<typeof ConsoleShell>["plugins"];
+  tasks?: TaskClient;
   orders: OrdersClient;
   confirmArchive(ids: readonly string[]): Promise<boolean>;
   workforce: AuthConsoleClient;
@@ -200,9 +203,19 @@ export function ComposedConsole(props: ComposedConsoleProps) {
       customers,
       dashboard,
       pluginManager,
+      ...(props.tasks
+        ? [
+            tasksConsole({
+              id: "tasks.primary",
+              route: "/tasks",
+              client: props.tasks,
+            }),
+          ]
+        : []),
       ...(props.additionalPlugins ?? []),
     ];
   }, [
+    props.tasks,
     props.orders,
     props.confirmArchive,
     props.workforce,

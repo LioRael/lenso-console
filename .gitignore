@@ -27,3 +27,6 @@ packages/console-authoring/dev/favicon.svg
 
 # Verified local Runtime dependency artifacts and external test fixture
 /.runtime-deps/
+
+# Local task-page browser evidence
+packages/console-tasks/output/
