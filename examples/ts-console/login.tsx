@@ -34,11 +34,7 @@ export function ApplicationConsoleGate({
       onPassword={(method, input) => void session.login(method, input)}
       onCustom={(method, input) => void session.login(method, input)}
       onRedirect={(method) =>
-        session.redirect(
-          method,
-          window.location.pathname,
-          login?.allowedReturnRoots
-        )
+        session.redirect(method, undefined, login?.allowedReturnRoots)
       }
       onRetry={() => session.retry()}
       onCancel={() => session.cancel()}

@@ -87,7 +87,9 @@ async function transition<T>(
   signal?: AbortSignal
 ) {
   if (typeof navigator === "undefined" || !navigator.locks) {
-    throw new Error("This browser cannot safely switch identities.");
+    throw new Error(
+      "This browser cannot safely switch identities. Open this application over HTTPS in a browser with Web Locks support, then retry."
+    );
   }
   return navigator.locks.request(
     identityTransitionLock,

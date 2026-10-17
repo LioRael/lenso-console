@@ -166,10 +166,28 @@ export function safeConsoleReturnPath(
     return fallback;
   }
   const url = new URL(value, "https://console.invalid");
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    return fallback;
+  }
+  const reserved = [
+    consoleHttpPaths.auth_base_path,
+    consoleHttpPaths.api_base_path,
+    ...(consoleHttpPaths.workspace_sources ?? []).flatMap((source) => [
+      source.auth_base_path,
+      source.api_base_path,
+    ]),
+  ];
   if (
     `${url.pathname}${url.search}${url.hash}` !== value ||
+    reserved.some(
+      (root) => pathname === root || pathname.startsWith(`${root}/`)
+    ) ||
     !allowedRoots.some(
       (root) =>
+        root === "/" ||
         url.pathname === (root.replace(/\/$/u, "") || "/") ||
         (root !== "/" &&
           url.pathname.startsWith(`${root.replace(/\/$/u, "")}/`))

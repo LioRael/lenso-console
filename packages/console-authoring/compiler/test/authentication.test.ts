@@ -84,7 +84,17 @@ test("return paths stay within Console or explicit application-approved roots", 
   ]) {
     expect(safeConsoleReturnPath(path, ["/console"])).toBe("/console");
   }
-  expect(safeConsoleReturnPath("/auth/login")).toBe("/");
+  expect(safeConsoleReturnPath("/authorization/?filter=open#item")).toBe(
+    "/authorization/?filter=open#item"
+  );
+  for (const path of [
+    "/auth/login",
+    "/api/console/v1/session",
+    "/a%75th/login",
+    "/%61pi/console/v1/session",
+  ]) {
+    expect(safeConsoleReturnPath(path)).toBe("/");
+  }
 });
 
 test("admission does not confuse unavailable providers or forbidden access with expiry", () => {

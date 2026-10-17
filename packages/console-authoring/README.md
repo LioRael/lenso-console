@@ -343,6 +343,35 @@ operations):
 `services.ts`; it runs in the browser. It is a development input and is not added
 to production plugin output.
 
+### Application-owned login and recovery
+
+`useConsoleAdmission` from `@lenso/console-sdk/admission` supplies session state,
+login discovery and retry actions to an application-owned login surface:
+
+```tsx
+const session = useConsoleAdmission();
+// Use a redirect method from session.discovery.methods.
+session.redirect(method); // preserves the current pathname, query and fragment
+session.retry(); // repeat authoritative discovery and admission after an outage
+```
+
+The default return boundary is the configured Shell root. A Shell at `/` keeps
+its deep links while excluding the configured Auth/API prefixes (including
+workspace-source Auth/API paths). An explicitly supplied third argument remains
+an application allowlist, e.g. `session.redirect(method, undefined, ["/console"])`.
+External URLs, traversal and ambiguous path encodings are rejected. The provider
+still owns callback validation and session issuance.
+
+Concurrent focus/service-denial checks share one in-flight session read per
+admission; a settled or failed read is never reused as an authorization cache.
+A return visit always reads the owner's session: closing a page does not extend
+idle or absolute deadlines. Cookie writes require Web Locks and the discovered
+CSRF cookie. If the browser cannot retain that security cookie on local HTTP,
+use an HTTPS application origin; the SDK reports the remedy before sending the
+write and never downgrades cookie policy. On HTTPS, reload to refresh discovery
+and its security cookie before retrying. These are browser admission contracts,
+not a claim about a Native or Workers host.
+
 To render local pages against an already compatible Console backend:
 
 ```sh

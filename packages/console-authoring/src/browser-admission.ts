@@ -197,7 +197,7 @@ export function useConsoleAdmission(
       if (!identity.console_access) {
         throw new ConsoleAuthenticationError("forbidden");
       }
-      revalidate = async () => {
+      const validateSession = async () => {
         const current = await request(sessionPath);
         const currentSession = consoleSessionSchema.parse(await current.json());
         lifetime.signal.throwIfAborted();
@@ -213,6 +213,15 @@ export function useConsoleAdmission(
           setAdmissionError(undefined);
         }
       };
+      let revalidation: Promise<void> | undefined;
+      const sharedRevalidate = async () => {
+        try {
+          await validateSession();
+        } finally {
+          revalidation = undefined;
+        }
+      };
+      revalidate = () => (revalidation ??= sharedRevalidate());
       configureSessionReadScope(readScope, revalidate);
       const pages = await request(
         `${consoleHttpPaths.api_base_path}/console/v1/pages`
@@ -450,7 +459,11 @@ export function useConsoleAdmission(
       const url = new URL(method.action, window.location.origin);
       url.searchParams.set(
         "return_to",
-        safeConsoleReturnPath(returnTo, allowedRoots)
+        safeConsoleReturnPath(
+          returnTo ??
+            `${window.location.pathname}${window.location.search}${window.location.hash}`,
+          allowedRoots
+        )
       );
       window.location.assign(url.href);
     },

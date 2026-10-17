@@ -148,14 +148,19 @@ export async function sessionFetch(
       .map((value) => value.trim())
       .find((value) => value.startsWith(prefix));
     const token = cookie?.slice(prefix.length);
-    if (token) {
-      const headers = new Headers(
-        init?.headers ??
-          (mappedInput instanceof Request ? mappedInput.headers : undefined)
+    if (!token) {
+      throw new Error(
+        window.location.protocol === "http:"
+          ? "The browser has no session security cookie. Open this application over HTTPS, then retry."
+          : "The browser has no session security cookie. Reload this application to refresh the session, then retry."
       );
-      headers.set(policy.header_name, token);
-      options = { ...options, headers };
     }
+    const headers = new Headers(
+      init?.headers ??
+        (mappedInput instanceof Request ? mappedInput.headers : undefined)
+    );
+    headers.set(policy.header_name, token);
+    options = { ...options, headers };
   }
   const fetchRequest = () => fetch(mappedInput, options);
   const response =

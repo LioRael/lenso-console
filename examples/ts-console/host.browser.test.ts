@@ -160,6 +160,25 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     ).toBe(0);
     await page.getByLabel("Account", { exact: true }).fill(config.subject);
     await page.getByLabel("Password", { exact: true }).fill("incorrect");
+    // Missing browser security cookies need an actionable recovery path before
+    // password submission; the existing rejected-password case cannot prove it.
+    await context.clearCookies({ name: csrfCookie });
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page
+      .getByRole("alert")
+      .getByText("Open this application over HTTPS", { exact: false })
+      .waitFor();
+    const refreshedMethods = page.waitForResponse(`${origin}/auth/methods`);
+    await page
+      .getByRole("button", { name: "Retry session", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    await refreshedMethods;
+    await page
+      .getByRole("heading", { name: "Sign in to Console", exact: true })
+      .waitFor();
+    await page.getByLabel("Account", { exact: true }).fill(config.subject);
+    await page.getByLabel("Password", { exact: true }).fill("incorrect");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page
       .getByRole("alert")
@@ -428,7 +447,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     });
     await page.route(`${origin}/auth/company?*`, async (route) => {
       expect(new URL(route.request().url()).searchParams.get("return_to")).toBe(
-        "/"
+        "/authorization/"
       );
       await route.fulfill({
         status: 302,
