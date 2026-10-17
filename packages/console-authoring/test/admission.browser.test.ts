@@ -19,7 +19,7 @@ for (const engine of [
     let expiresAt = now + 2 * 3_600_000;
     let sessionReads = 0;
     let passwordWrites = 0;
-    let returnTo: string | null = null;
+    const handoff: { returnTo: string | null } = { returnTo: null };
     let pending: Promise<void> | undefined;
     let release: (() => void) | undefined;
     let observed: (() => void) | undefined;
@@ -71,11 +71,11 @@ for (const engine of [
           );
         }
         if (url.pathname === "/auth/company") {
-          returnTo = url.searchParams.get("return_to");
+          handoff.returnTo = url.searchParams.get("return_to");
           authenticated = true;
           return new Response(null, {
             status: 302,
-            headers: { location: returnTo! },
+            headers: { location: handoff.returnTo! },
           });
         }
         if (url.pathname === "/auth/login") {
@@ -179,7 +179,7 @@ for (const engine of [
         .getByRole("status")
         .filter({ hasText: /^authenticated$/ })
         .waitFor();
-      expect(returnTo).toBe(destination);
+      expect(handoff.returnTo).toBe(destination);
       expect(
         new URL(page.url()).pathname +
           new URL(page.url()).search +
