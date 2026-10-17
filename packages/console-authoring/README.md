@@ -245,6 +245,14 @@ runs domain handlers. Browser errors name their public service/operation; missin
 requirements list public contract/version/source, without credentials or policy
 internals. Author-created parsing exception text is not reflected to the browser.
 
+For Engine input-schema rejection before invocation, the Fetch transport exposes
+`WorkspaceServiceError.inputIssues`: bounded declared field paths, without values
+or validator messages. Its presence (including an empty array) distinguishes this
+case from other `UNPROCESSABLE_CONTENT` errors. Pages may map exact paths to their
+Form field names and let the user correct the draft; unmapped paths need form-level
+feedback. Conflicts, invocation failures and unknown outcomes retain their existing
+inspection/reload handling. This metadata never enables automatic write retries.
+
 Run package type checks and the compiler tests. One clean archive application
 installs the candidate SDK and backend outside the repository, invokes the public
 scaffold/compiler, rejects typed mistakes and server-code leakage, and exercises

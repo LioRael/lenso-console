@@ -7,6 +7,7 @@ import {
 import { RPCLink } from "@orpc/client/fetch";
 
 import type { ConsoleClient, ConsolePageDescriptor } from "./protocol";
+import { consoleInputIssuesSchema } from "./protocol";
 import type { WorkspaceServices } from "./service-types";
 
 export type ConsoleClientOptions = Pick<
@@ -38,13 +39,16 @@ export class WorkspaceServiceError extends Error {
   readonly status: number;
   readonly retryAfterMs?: number;
   readonly intentId?: string;
+  /** Present only for a schema rejection before invocation. Empty means form-level. */
+  readonly inputIssues?: readonly (readonly string[])[];
 
   constructor(
     message: string,
     code: string,
     status: number,
     retryAfterMs?: number,
-    intentId?: string
+    intentId?: string,
+    inputIssues?: readonly (readonly string[])[]
   ) {
     super(message);
     this.name = "WorkspaceServiceError";
@@ -55,6 +59,9 @@ export class WorkspaceServiceError extends Error {
     }
     if (intentId !== undefined) {
       this.intentId = intentId;
+    }
+    if (inputIssues !== undefined) {
+      this.inputIssues = inputIssues;
     }
   }
 }
@@ -381,6 +388,14 @@ function mapWorkspaceError(
   const status = Object.hasOwn(COMMON_ERROR_STATUS_MAP, error.code)
     ? Reflect.get(COMMON_ERROR_STATUS_MAP, error.code)
     : undefined;
+  const inputIssues =
+    error.code === "UNPROCESSABLE_CONTENT" &&
+    error.data &&
+    typeof error.data === "object"
+      ? consoleInputIssuesSchema.safeParse(
+          Reflect.get(error.data, "inputIssues")
+        )
+      : undefined;
   const estimate =
     error.code === "TOO_MANY_REQUESTS" &&
     error.data &&
@@ -398,6 +413,8 @@ function mapWorkspaceError(
     `Workspace service ${service}/${operation}: ${error.code}`,
     error.code,
     typeof status === "number" ? status : 503,
-    retryAfterMs
+    retryAfterMs,
+    undefined,
+    inputIssues?.success ? inputIssues.data : undefined
   );
 }

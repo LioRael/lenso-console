@@ -13,6 +13,14 @@ entry `@lenso/auth-console/administration/react` provides `IdentityPage`,
 shared layout, with the public stylesheet. The original `/server` and `/react`
 adapters below retain their contracts.
 
+Access keeps non-sensitive role creation and permission drafts in page-local state
+when their Modal or Drawer closes. Reopening the same role restores edits; changing
+the role, access revision or page lifetime retires the permission draft. Discard
+changes restores the current role snapshot. No draft is written to browser storage,
+and credentials never participate in this state. Pre-invocation field validation
+errors preserve the draft for correction; uncertain writes still require inspection
+and explicit reload before another attempt.
+
 Construct storage and the ordinary service during owned plugin setup. Supply
 the real directory, trusted caller-provenance/dispatch/disclosure checks, strict
 Audit and supported session administration. The activity predicate

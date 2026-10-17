@@ -9,6 +9,7 @@ import {
   type ConsoleFilterGroup,
   type ConsoleFilterNode,
 } from "@lenso/console-react";
+import { consoleInputIssuesSchema } from "@lenso/console-sdk/protocol";
 // Records invokes its cell formatters, never mounts them as React component types.
 /* eslint-disable react/no-unstable-nested-components */
 import {
@@ -491,7 +492,14 @@ function useWrites(
     title: string;
     detail: string;
     run: () => Promise<unknown>;
+    invalid?: (paths: readonly (readonly string[])[]) => void;
   } | null>(null);
+  const confirmationRef = useRef(confirmation);
+  const [validationFailed, setValidationFailed] = useState(false);
+  function closeConfirmation() {
+    confirmationRef.current = null;
+    setConfirmation(null);
+  }
   const lock = useRef(false);
   const lifetime = useRef({ value: 0 });
   const opener = useRef<HTMLElement | null>(null);
@@ -502,6 +510,7 @@ function useWrites(
     generation.value += 1;
     return () => {
       generation.value += 1;
+      confirmationRef.current = null;
     };
   }, []);
   async function reload() {
@@ -537,13 +546,14 @@ function useWrites(
     }
   }
   async function execute() {
-    if (lock.current || blocked || !confirmation) {
+    if (lock.current || blocked || !confirmationRef.current) {
       return;
     }
     lock.current = true;
     setPending(true);
     const generation = lifetime.current.value;
-    const target = confirmation;
+    const target = confirmationRef.current;
+    setValidationFailed(false);
     try {
       await target.run();
       if (lifetime.current.value !== generation) {
@@ -555,6 +565,22 @@ function useWrites(
       );
     } catch (error) {
       if (lifetime.current.value === generation) {
+        const issues =
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "UNPROCESSABLE_CONTENT" &&
+          "inputIssues" in error
+            ? consoleInputIssuesSchema.safeParse(error.inputIssues)
+            : undefined;
+        if (issues?.success) {
+          target.invalid?.(issues.data);
+          setValidationFailed(true);
+          setFeedback(
+            "Check the form fields and try again. No change was applied."
+          );
+          return;
+        }
         setBlocked(true);
         setFeedback(errorText(error));
         try {
@@ -567,7 +593,7 @@ function useWrites(
       }
     } finally {
       if (lifetime.current.value === generation) {
-        setConfirmation(null);
+        closeConfirmation();
         lock.current = false;
         setPending(false);
       }
@@ -576,14 +602,23 @@ function useWrites(
   return {
     pending,
     confirming: confirmation !== null,
-    disabled: pending || blocked,
-    confirm(title: string, detail: string, run: () => Promise<unknown>) {
-      if (!lock.current && !blocked) {
+    disabled: pending || blocked || confirmation !== null,
+    confirm(
+      title: string,
+      detail: string,
+      run: () => Promise<unknown>,
+      invalid?: (paths: readonly (readonly string[])[]) => void
+    ) {
+      if (!lock.current && !blocked && !confirmationRef.current) {
         opener.current =
           document.activeElement instanceof HTMLElement
             ? document.activeElement
             : null;
-        setConfirmation({ title, detail, run });
+        const next = { title, detail, run, ...(invalid ? { invalid } : {}) };
+        confirmationRef.current = next;
+        setValidationFailed(false);
+        setFeedback("");
+        setConfirmation(next);
       }
     },
     controls: (
@@ -601,7 +636,7 @@ function useWrites(
           <p
             ref={feedbackNode}
             tabIndex={-1}
-            role={blocked ? "alert" : "status"}
+            role={blocked || validationFailed ? "alert" : "status"}
           >
             {feedback}
           </p>
@@ -623,7 +658,7 @@ function useWrites(
             if (lock.current) {
               details.cancel();
             } else if (!open) {
-              setConfirmation(null);
+              closeConfirmation();
             }
           }}
         >
@@ -651,7 +686,7 @@ function useWrites(
                     ref={cancel}
                     variant="secondary"
                     disabled={pending}
-                    onClick={() => setConfirmation(null)}
+                    onClick={closeConfirmation}
                   >
                     Cancel
                   </Button>
@@ -1736,27 +1771,18 @@ function Access({
                   onClose={() => setCreatingRole(false)}
                 />
                 {selectedRole && (
-                  <AdministrationSurface
-                    presentation="drawer"
+                  <RoleEditor
+                    key={`${read.data.revision}:${selectedRole.id}`}
+                    client={client}
+                    info={info}
+                    role={selectedRole}
+                    revision={read.data.revision}
+                    writes={writes}
                     open={roleEditor.open}
-                    busy={writes.pending || writes.confirming}
-                    title={selectedRole.label}
-                    description={selectedRole.id}
                     initialFocus={roleEntry}
                     finalFocus={roleReturnFocus}
                     onClose={closeRole}
-                    closeLabel="Close role"
-                  >
-                    {roleEditor.open && writes.controls}
-                    <RoleEditor
-                      key={`${read.data.revision}:${selectedRole.id}`}
-                      client={client}
-                      info={info}
-                      role={selectedRole}
-                      revision={read.data.revision}
-                      writes={writes}
-                    />
-                  </AdministrationSurface>
+                  />
                 )}
               </ConsoleTableContext>
             )}
@@ -2132,42 +2158,7 @@ type RoleCreationProps = AdministrationPageProps & {
   finalFocus(): HTMLElement | false;
   onClose(): void;
 };
-function RoleCreator(props: RoleCreationProps) {
-  const nameInput = useRef<HTMLInputElement>(null);
-  const [portal, setPortal] = useState<HTMLElement | null>(null);
-  return (
-    <Modal.Root
-      open={props.open}
-      scroll="inside"
-      onOpenChange={(open, details) => {
-        if (props.writes.pending || props.writes.confirming) {
-          details.cancel();
-        } else if (!open) {
-          props.onClose();
-        }
-      }}
-    >
-      <Modal.Portal>
-        <Modal.Backdrop variant="opaque" />
-        <Modal.Viewport xstyle={s.overlayViewport}>
-          <Modal.Popup
-            ref={setPortal}
-            size="lg"
-            placement="center"
-            initialFocus={nameInput}
-            finalFocus={props.finalFocus}
-            xstyle={s.roleCreationDialog}
-          >
-            <AdministrationPortalContext.Provider value={portal}>
-              <RoleCreationForm {...props} nameInput={nameInput} />
-            </AdministrationPortalContext.Provider>
-          </Modal.Popup>
-        </Modal.Viewport>
-      </Modal.Portal>
-    </Modal.Root>
-  );
-}
-function RoleCreationForm({
+function RoleCreator({
   client,
   info,
   revision,
@@ -2175,8 +2166,11 @@ function RoleCreationForm({
   writes,
   open,
   onClose,
-  nameInput,
-}: RoleCreationProps & { nameInput: RefObject<HTMLInputElement | null> }) {
+  finalFocus,
+}: RoleCreationProps) {
+  const nameInput = useRef<HTMLInputElement>(null);
+  const [portal, setPortal] = useState<HTMLElement | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const formId = useId();
   const templates = roles.filter((role) => role.preset);
   const initialTemplate = templates.find(
@@ -2202,156 +2196,231 @@ function RoleCreationForm({
   useEffect(() => {
     if (created.current && open && !writes.disabled && !writes.confirming) {
       onClose();
+      created.current = false;
+      setId("");
+      setLabel("");
+      setTemplate(initialTemplate?.id ?? "");
+      setPermissions(
+        (initialTemplate?.permissions ?? readOnlyAdministrationActions).filter(
+          (action) => info.allowed.includes(action)
+        )
+      );
+      setErrors({});
     }
-  }, [open, writes.disabled, writes.confirming, onClose]);
+  }, [
+    open,
+    writes.disabled,
+    writes.confirming,
+    onClose,
+    initialTemplate,
+    info.allowed,
+  ]);
   return (
-    <>
-      <Modal.Header xstyle={s.membershipHeader}>
-        <div {...stylex.props(s.membershipHeading)}>
-          <Modal.Title>Create role</Modal.Title>
-          <Modal.Description>
-            Define a permission set. Creating a role does not assign members.
-          </Modal.Description>
-        </div>
-        <ConsoleIconButton
-          label="Close role creation"
-          variant="secondary"
-          disabled={writes.pending || writes.confirming}
-          onClick={onClose}
-        >
-          <X size={18} aria-hidden="true" />
-        </ConsoleIconButton>
-      </Modal.Header>
-      <Modal.Body xstyle={s.membershipOverlayBody}>
-        {open && writes.controls}
-        <Form
-          id={formId}
-          aria-label="Create custom role"
-          errors={
-            duplicate ? { id: "A role with this ID already exists." } : {}
-          }
-          xstyle={s.roleForm}
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (
-              writes.disabled ||
-              writes.confirming ||
-              created.current ||
-              duplicate ||
-              !id.trim() ||
-              !label.trim()
-            ) {
-              return;
-            }
-            const input = {
-              id: id.trim(),
-              label: label.trim(),
-              permissions: [...permissions],
-              expectedRevision: revision,
-            };
-            writes.confirm(
-              "Create custom role?",
-              `Create ${input.label} (${input.id}) in ${info.consoleId}.`,
-              async () => {
-                await client.invoke("rolesSave", input);
-                created.current = true;
-              }
-            );
-          }}
-        >
-          <div {...stylex.props(s.roleIdentityFields)}>
-            <TextField name="label">
-              <Label htmlFor={`${formId}-name`}>Role name</Label>
-              <Input
-                id={`${formId}-name`}
-                ref={nameInput}
-                required
-                value={label}
-                onChange={(event) => setLabel(event.target.value)}
-                disabled={writes.disabled}
-                maxLength={512}
-                xstyle={s.control}
-              />
-              <FieldError />
-            </TextField>
-            <TextField name="id">
-              <Label htmlFor={`${formId}-id`}>Role ID</Label>
-              <Input
-                id={`${formId}-id`}
-                required
-                value={id}
-                onChange={(event) => setId(event.target.value)}
-                disabled={writes.disabled}
-                maxLength={512}
-                xstyle={s.control}
-              />
-              <Description>Unique within this Console.</Description>
-              <FieldError />
-            </TextField>
-          </div>
-          <div {...stylex.props(s.membershipForm)}>
-            <Choice
-              label="Role template"
-              value={template}
-              placeholder="Custom permissions"
-              options={templates.map((role) => ({
-                value: role.id,
-                label: role.label,
-              }))}
-              disabled={writes.disabled}
-              change={(templateId) => {
-                setTemplate(templateId);
-                setPermissions(
-                  templates
-                    .find((role) => role.id === templateId)
-                    ?.permissions.filter((action) =>
-                      info.allowed.includes(action)
-                    ) ?? []
-                );
-              }}
-            />
-            <p {...stylex.props(s.accessSecondary)}>
-              A template copies permissions into this draft. You can change them
-              below.
-            </p>
-          </div>
-          <RolePermissionChoices
-            allowed={info.allowed}
-            selected={permissions}
-            disabled={writes.disabled}
-            change={(next) => {
-              setPermissions(next);
-              setTemplate("");
-            }}
-          />
-        </Form>
-      </Modal.Body>
-      <Modal.Footer xstyle={s.roleCreationFooter}>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={writes.pending || writes.confirming}
-          onClick={onClose}
-        >
-          Cancel creation
-        </Button>
-        <Button
-          type="submit"
-          form={formId}
-          variant="primary"
-          disabled={
-            writes.disabled ||
-            writes.confirming ||
-            created.current ||
-            duplicate ||
-            !id.trim() ||
-            !label.trim()
-          }
-        >
-          Create custom role
-        </Button>
-      </Modal.Footer>
-    </>
+    <Modal.Root
+      open={open}
+      scroll="inside"
+      onOpenChange={(next, details) => {
+        if (writes.pending || writes.confirming) {
+          details.cancel();
+        } else if (!next) {
+          onClose();
+        }
+      }}
+    >
+      <Modal.Portal>
+        <Modal.Backdrop variant="opaque" />
+        <Modal.Viewport xstyle={s.overlayViewport}>
+          <Modal.Popup
+            ref={setPortal}
+            size="lg"
+            placement="center"
+            initialFocus={nameInput}
+            finalFocus={finalFocus}
+            xstyle={s.roleCreationDialog}
+          >
+            <AdministrationPortalContext.Provider value={portal}>
+              <Modal.Header xstyle={s.membershipHeader}>
+                <div {...stylex.props(s.membershipHeading)}>
+                  <Modal.Title>Create role</Modal.Title>
+                  <Modal.Description>
+                    Define a permission set. Creating a role does not assign
+                    members.
+                  </Modal.Description>
+                </div>
+                <ConsoleIconButton
+                  label="Close role creation"
+                  variant="secondary"
+                  disabled={writes.pending || writes.confirming}
+                  onClick={onClose}
+                >
+                  <X size={18} aria-hidden="true" />
+                </ConsoleIconButton>
+              </Modal.Header>
+              <Modal.Body xstyle={s.membershipOverlayBody}>
+                {open && writes.controls}
+                <Form
+                  id={formId}
+                  aria-label="Create custom role"
+                  errors={
+                    duplicate
+                      ? { ...errors, id: "A role with this ID already exists." }
+                      : errors
+                  }
+                  xstyle={s.roleForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (
+                      writes.disabled ||
+                      writes.confirming ||
+                      created.current ||
+                      duplicate ||
+                      !id.trim() ||
+                      !label.trim()
+                    ) {
+                      return;
+                    }
+                    setErrors({});
+                    const input = {
+                      id: id.trim(),
+                      label: label.trim(),
+                      permissions: [...permissions],
+                      expectedRevision: revision,
+                    };
+                    writes.confirm(
+                      "Create custom role?",
+                      `Create ${input.label} (${input.id}) in ${info.consoleId}.`,
+                      async () => {
+                        await client.invoke("rolesSave", input);
+                        created.current = true;
+                      },
+                      (paths) =>
+                        setErrors(
+                          Object.fromEntries(
+                            paths
+                              .filter(
+                                (path) =>
+                                  path.length === 1 &&
+                                  ["id", "label", "permissions"].includes(
+                                    path[0]!
+                                  )
+                              )
+                              .map(([field]) => [field!, "Check this value."])
+                          )
+                        )
+                    );
+                  }}
+                >
+                  <div {...stylex.props(s.roleIdentityFields)}>
+                    <TextField name="label">
+                      <Label htmlFor={`${formId}-name`}>Role name</Label>
+                      <Input
+                        id={`${formId}-name`}
+                        ref={nameInput}
+                        required
+                        value={label}
+                        onChange={(event) => {
+                          setLabel(event.target.value);
+                          setErrors((current) => ({ ...current, label: "" }));
+                        }}
+                        disabled={writes.disabled}
+                        maxLength={512}
+                        xstyle={s.control}
+                      />
+                      <FieldError />
+                    </TextField>
+                    <TextField name="id">
+                      <Label htmlFor={`${formId}-id`}>Role ID</Label>
+                      <Input
+                        id={`${formId}-id`}
+                        required
+                        value={id}
+                        onChange={(event) => {
+                          setId(event.target.value);
+                          setErrors((current) => ({ ...current, id: "" }));
+                        }}
+                        disabled={writes.disabled}
+                        maxLength={512}
+                        xstyle={s.control}
+                      />
+                      <Description>Unique within this Console.</Description>
+                      <FieldError />
+                    </TextField>
+                  </div>
+                  <div {...stylex.props(s.membershipForm)}>
+                    <Choice
+                      label="Role template"
+                      value={template}
+                      placeholder="Custom permissions"
+                      options={templates.map((role) => ({
+                        value: role.id,
+                        label: role.label,
+                      }))}
+                      disabled={writes.disabled}
+                      change={(templateId) => {
+                        setTemplate(templateId);
+                        setErrors((current) => ({
+                          ...current,
+                          permissions: "",
+                        }));
+                        setPermissions(
+                          templates
+                            .find((role) => role.id === templateId)
+                            ?.permissions.filter((action) =>
+                              info.allowed.includes(action)
+                            ) ?? []
+                        );
+                      }}
+                    />
+                    <p {...stylex.props(s.accessSecondary)}>
+                      A template copies permissions into this draft. You can
+                      change them below.
+                    </p>
+                  </div>
+                  {errors.permissions && (
+                    <p role="alert">Permissions: {errors.permissions}</p>
+                  )}
+                  <RolePermissionChoices
+                    allowed={info.allowed}
+                    selected={permissions}
+                    disabled={writes.disabled}
+                    change={(next) => {
+                      setPermissions(next);
+                      setTemplate("");
+                      setErrors((current) => ({ ...current, permissions: "" }));
+                    }}
+                  />
+                </Form>
+              </Modal.Body>
+              <Modal.Footer xstyle={s.roleCreationFooter}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={writes.pending || writes.confirming}
+                  onClick={onClose}
+                >
+                  Cancel creation
+                </Button>
+                <Button
+                  type="submit"
+                  form={formId}
+                  variant="primary"
+                  disabled={
+                    writes.disabled ||
+                    writes.confirming ||
+                    created.current ||
+                    duplicate ||
+                    !id.trim() ||
+                    !label.trim()
+                  }
+                >
+                  Create custom role
+                </Button>
+              </Modal.Footer>
+            </AdministrationPortalContext.Provider>
+          </Modal.Popup>
+        </Modal.Viewport>
+      </Modal.Portal>
+    </Modal.Root>
   );
 }
 
@@ -2361,7 +2430,15 @@ function RoleEditor({
   role,
   revision,
   writes,
+  open,
+  initialFocus,
+  finalFocus,
+  onClose,
 }: AdministrationPageProps & {
+  open: boolean;
+  initialFocus: RefObject<HTMLHeadingElement | null>;
+  finalFocus(): HTMLElement | false;
+  onClose(): void;
   info: AdministrationInfo;
   role: ConsoleRole;
   revision: string;
@@ -2370,65 +2447,92 @@ function RoleEditor({
   const [permissions, setPermissions] = useState<
     readonly AdministrationAction[]
   >(role.permissions);
+  const dirty =
+    permissions.length !== role.permissions.length ||
+    permissions.some((permission) => !role.permissions.includes(permission));
   const editable =
     info.allowed.includes("roles.write") &&
     info.allowed.includes("members.promote") &&
     !role.preset &&
     role.permissions.every((action) => info.allowed.includes(action));
   return (
-    <section aria-label={`Role ${role.label}`} {...stylex.props(s.roleForm)}>
-      <p {...stylex.props(s.accessSecondary)}>
-        {role.preset
-          ? "Preset role. Permissions are read-only."
-          : "Permission changes affect every member assigned to this role."}
-      </p>
-      {editable ? (
-        <>
-          <RolePermissionChoices
-            allowed={info.allowed}
-            selected={permissions}
-            change={setPermissions}
-            disabled={writes.disabled}
-          />
-          <Button
-            variant="primary"
-            disabled={writes.disabled}
-            onClick={() =>
-              writes.confirm(
-                "Save role permissions?",
-                `Update role ${role.label} (${role.id}). This affects every member assigned to this role.`,
-                () =>
-                  client.invoke("rolesSave", {
-                    id: role.id,
-                    label: role.label,
-                    permissions,
-                    expectedRevision: revision,
-                  })
-              )
-            }
-          >
-            Save permissions
-          </Button>
-        </>
-      ) : role.permissions.length ? (
-        <div {...stylex.props(s.rolePermissionGroups)}>
-          {groupPermissions(role.permissions).map((group) => (
-            <section key={group.id}>
-              <h3 {...stylex.props(s.permissionGroupLabel)}>{group.label}</h3>
-              <PermissionList actions={group.actions} />
-            </section>
-          ))}
-        </div>
-      ) : (
-        <PermissionList actions={[]} />
-      )}
-      {!role.preset && !editable && (
+    <AdministrationSurface
+      presentation="drawer"
+      open={open}
+      busy={writes.pending || writes.confirming}
+      title={role.label}
+      description={role.id}
+      initialFocus={initialFocus}
+      finalFocus={finalFocus}
+      onClose={onClose}
+      closeLabel="Close role"
+    >
+      {open && writes.controls}
+      <section aria-label={`Role ${role.label}`} {...stylex.props(s.roleForm)}>
         <p {...stylex.props(s.accessSecondary)}>
-          Editing requires roles.write, members.promote and authority for every
-          permission in this role.
+          {role.preset
+            ? "Preset role. Permissions are read-only."
+            : "Permission changes affect every member assigned to this role."}
         </p>
-      )}
-    </section>
+        {editable ? (
+          <>
+            <RolePermissionChoices
+              allowed={info.allowed}
+              selected={permissions}
+              change={setPermissions}
+              disabled={writes.disabled}
+            />
+            {dirty && <output>Unsaved permission changes.</output>}
+            <div {...stylex.props(s.row)}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={writes.disabled || !dirty}
+                onClick={() => setPermissions(role.permissions)}
+              >
+                Discard changes
+              </Button>
+              <Button
+                variant="primary"
+                disabled={writes.disabled || !dirty}
+                onClick={() =>
+                  writes.confirm(
+                    "Save role permissions?",
+                    `Update role ${role.label} (${role.id}). This affects every member assigned to this role.`,
+                    () =>
+                      client.invoke("rolesSave", {
+                        id: role.id,
+                        label: role.label,
+                        permissions,
+                        expectedRevision: revision,
+                      })
+                  )
+                }
+              >
+                Save permissions
+              </Button>
+            </div>
+          </>
+        ) : role.permissions.length ? (
+          <div {...stylex.props(s.rolePermissionGroups)}>
+            {groupPermissions(role.permissions).map((group) => (
+              <section key={group.id}>
+                <h3 {...stylex.props(s.permissionGroupLabel)}>{group.label}</h3>
+                <PermissionList actions={group.actions} />
+              </section>
+            ))}
+          </div>
+        ) : (
+          <PermissionList actions={[]} />
+        )}
+        {!role.preset && !editable && (
+          <p {...stylex.props(s.accessSecondary)}>
+            Editing requires roles.write, members.promote and authority for
+            every permission in this role.
+          </p>
+        )}
+      </section>
+    </AdministrationSurface>
   );
 }
 

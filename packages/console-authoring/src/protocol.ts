@@ -25,6 +25,12 @@ export type {
   WorkspaceNavigationCheck,
 } from "./http-paths";
 
+/** Declared schema paths only; never rejected values or validator messages. */
+export const consoleInputIssuesSchema = z
+  .array(z.array(z.string().min(1).max(128)).min(1).max(8))
+  .max(32)
+  .readonly();
+
 export const consoleOperationDescriptorSchema = z.strictObject({
   key: z.string(),
   targetId: z.string(),

@@ -36,6 +36,9 @@ const mount = {
         "outcomeUnknown",
         "malformedIntent",
         "otherDiagnostic",
+        "inputError",
+        "invalidPaths",
+        "misplacedPaths",
       ],
     },
   ],
@@ -109,6 +112,26 @@ describe("Console SDK Fetch transport", () => {
           invoke: implementation.workspace.invoke.handler(
             ({ input, context }) => {
               headers.push(context.headers);
+              if (
+                ["inputError", "invalidPaths", "misplacedPaths"].includes(
+                  input.operation
+                )
+              ) {
+                throw new ORPCError(
+                  input.operation === "misplacedPaths"
+                    ? "CONFLICT"
+                    : "UNPROCESSABLE_CONTENT",
+                  {
+                    data: {
+                      inputIssues:
+                        input.operation === "invalidPaths"
+                          ? [["x".repeat(129)]]
+                          : [["label"]],
+                      message: "private rejected value",
+                    },
+                  }
+                );
+              }
               if (input.operation === "safeError") {
                 throw new ORPCError("WORKSPACE_SERVICE_ERROR", {
                   message: "Public conflict",
@@ -218,7 +241,21 @@ describe("Console SDK Fetch transport", () => {
       expect(failure.intentId).toBeUndefined();
       expect(String(failure)).not.toContain("private-provider-message");
     }
-    expect(bodies).toHaveLength(7);
+    await expect(
+      services.invoke("notes", "inputError", {})
+    ).rejects.toMatchObject({
+      code: "UNPROCESSABLE_CONTENT",
+      status: 422,
+      inputIssues: [["label"]],
+    });
+    for (const operation of ["invalidPaths", "misplacedPaths"]) {
+      const failure = await services
+        .invoke("notes", operation, {})
+        .catch((error) => error);
+      expect(failure.inputIssues).toBeUndefined();
+      expect(String(failure)).not.toContain("private rejected value");
+    }
+    expect(bodies).toHaveLength(10);
   });
 
   // The old 501 stub never decoded frames or exercised an iterator's lifetime.

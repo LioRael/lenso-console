@@ -426,6 +426,16 @@ test("SDK errors keep trusted domain status and safe retry units, never arbitrar
         status: 409,
       },
       {
+        error: new EngineError({
+          code: "invalid-input",
+          phase: "invoke",
+          message: "private-database-password",
+          details: { paths: [["label"]] },
+        }),
+        code: "UNPROCESSABLE_CONTENT",
+        status: 422,
+      },
+      {
         error: new WorkspaceServiceError("denied"),
         code: "FORBIDDEN",
         status: 403,
@@ -500,6 +510,7 @@ test("SDK errors keep trusted domain status and safe retry units, never arbitrar
       expect(response.headers.get("cache-control")).toBe("no-store");
       const text = await response.text();
       expect(text).not.toContain("private-database-password");
+      expect(text).not.toContain("inputIssues");
       if (fixture.code === "OUTCOME_UNKNOWN") {
         expect(text).toContain("a441ecfa-b499-4aa4-88f8-d5c1fe106ecc");
       } else {
@@ -857,8 +868,28 @@ test("validation precedes binding and service failures retain safe status withou
         method: "read",
         input: { label: "" },
       })
-    ).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT" });
+    ).rejects.toMatchObject({
+      code: "UNPROCESSABLE_CONTENT",
+      data: { inputIssues: [["label"]] },
+    });
     expect(statuses.at(-1)).toBe(422);
+    expect(bindings).toBe(0);
+    const unknownField = await rpc
+      .invoke({
+        targetId: "north",
+        pluginId: "counter",
+        method: "read",
+        input: {
+          label: "valid",
+          "private-user-controlled-key": "private rejected value",
+        },
+      })
+      .catch((error) => error);
+    expect(unknownField).toMatchObject({
+      code: "UNPROCESSABLE_CONTENT",
+      data: { inputIssues: [] },
+    });
+    expect(JSON.stringify(unknownField)).not.toContain("private-");
     expect(bindings).toBe(0);
     await expect(
       rpc.invoke({

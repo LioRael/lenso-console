@@ -1,4 +1,5 @@
 import { AuthError } from "@lenso/auth";
+import { consoleInputIssuesSchema } from "@lenso/console-sdk/protocol";
 import { WorkspaceServiceError } from "@lenso/console-sdk/server";
 import { EngineError } from "@lenso/engine/diagnostics";
 import { boundedJson } from "@lenso/engine/operations";
@@ -17,11 +18,13 @@ class BoundaryError extends Error {
   readonly status: number;
   readonly retryAfterMs?: number;
   readonly intentId?: string;
+  readonly inputIssues?: readonly (readonly string[])[];
   constructor(
     code: string,
     status: number,
     retryAfterMs?: number,
-    intentId?: string
+    intentId?: string,
+    inputIssues?: readonly (readonly string[])[]
   ) {
     super("Console request failed");
     this.name = "BoundaryError";
@@ -29,6 +32,7 @@ class BoundaryError extends Error {
     this.status = status;
     this.retryAfterMs = retryAfterMs;
     this.intentId = intentId;
+    this.inputIssues = inputIssues;
   }
 }
 
@@ -36,9 +40,16 @@ export function failure(
   code: string,
   status: number,
   retryAfterMs?: number,
-  intentId?: string
+  intentId?: string,
+  inputIssues?: readonly (readonly string[])[]
 ): BoundaryError {
-  const error = new BoundaryError(code, status, retryAfterMs, intentId);
+  const error = new BoundaryError(
+    code,
+    status,
+    retryAfterMs,
+    intentId,
+    inputIssues
+  );
   boundaryErrors.add(error);
   return error;
 }
@@ -47,6 +58,11 @@ export function rpcFailure(
   error: BoundaryError,
   headers: Headers
 ): ORPCError<string, unknown> {
+  if (error.inputIssues !== undefined) {
+    return new ORPCError(error.code, {
+      data: { inputIssues: error.inputIssues },
+    });
+  }
   if (
     error.code === "OUTCOME_UNKNOWN" &&
     error.intentId &&
@@ -128,7 +144,7 @@ export function safeError(error: unknown): BoundaryError {
     }
   }
   if (error instanceof EngineError) {
-    const { code, details } = error.diagnostic;
+    const { code, phase, details } = error.diagnostic;
     const intentId =
       details !== null && typeof details === "object"
         ? Reflect.get(details, "intentId")
@@ -141,7 +157,23 @@ export function safeError(error: unknown): BoundaryError {
       return failure("OUTCOME_UNKNOWN", 503, undefined, intentId);
     }
     if (["invalid-input", "invalid-task", "invalid-options"].includes(code)) {
-      return failure("UNPROCESSABLE_CONTENT", 422);
+      // Only Engine's pre-invocation schema rejection proves no write ran.
+      // Other 422s can originate inside an operation and remain uncertain.
+      const paths =
+        code === "invalid-input" && phase === "input"
+          ? consoleInputIssuesSchema.safeParse(
+              details && typeof details === "object"
+                ? Reflect.get(details, "paths")
+                : []
+            )
+          : undefined;
+      return failure(
+        "UNPROCESSABLE_CONTENT",
+        422,
+        undefined,
+        undefined,
+        paths?.success ? paths.data : undefined
+      );
     }
     if (["unknown-operation", "unknown-plugin", "not-found"].includes(code)) {
       return failure("NOT_FOUND", 404);

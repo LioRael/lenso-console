@@ -528,6 +528,38 @@ test("compiled administration pages manage real isolated data and retire one-tim
     await roleForm
       .getByLabel("Role name", { exact: true })
       .fill("Fixture permissions");
+    // Closing an overlay unmounts its fields. The page must retain the draft.
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("dialog", { name: "Create role", exact: true })
+      .waitFor({ state: "hidden" });
+    await page
+      .getByRole("button", { name: "Create role", exact: true })
+      .click();
+    expect(
+      await roleForm.getByLabel("Role ID", { exact: true }).inputValue()
+    ).toBe("fixture-role");
+    expect(
+      await roleForm.getByLabel("Role name", { exact: true }).inputValue()
+    ).toBe("Fixture permissions");
+    // Send an invalid field through the actual adapter to exercise Engine -> RPC -> Form.
+    // No fake error response, credential or external service is involved.
+    let roleWrites = 0;
+    let rejectRole = true;
+    const holdRole = Promise.withResolvers<undefined>();
+    await page.route("**/rpc/workspace/invoke", async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.json?.operation !== "rolesSave") {
+        return route.continue();
+      }
+      roleWrites += 1;
+      await holdRole.promise;
+      if (rejectRole) {
+        body.json.input.label = "";
+        return route.continue({ postData: JSON.stringify(body) });
+      }
+      return route.continue();
+    });
     await roleForm
       .getByRole("combobox", { name: "Role template", exact: true })
       .click();
@@ -536,13 +568,69 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .getByRole("dialog", { name: "Create role", exact: true })
       .getByRole("button", { name: "Create custom role", exact: true })
       .click();
-    await page
+    const confirmRole = page
       .getByRole("alertdialog")
-      .getByRole("button", { name: "Confirm", exact: true })
-      .click();
+      .getByRole("button", { name: "Confirm", exact: true });
+    // Two native activations in one task catch guards that rely only on a React render.
+    await confirmRole.evaluate((node: HTMLButtonElement) => {
+      node.click();
+      node.click();
+    });
+    await page.waitForFunction(
+      () => !!document.querySelector('[role="alertdialog"][aria-busy="true"]')
+    );
+    expect(await confirmRole.isDisabled()).toBe(true);
+    await page.keyboard.press("Escape");
+    expect(await page.getByRole("alertdialog").isVisible()).toBe(true);
+    holdRole.resolve(undefined);
+    await roleForm.getByText("Check this value.", { exact: true }).waitFor();
+    expect(roleWrites).toBe(1);
+    expect(
+      await roleForm
+        .getByLabel("Role name", { exact: true })
+        .getAttribute("aria-invalid")
+    ).toBe("true");
+    expect(
+      await roleForm.getByLabel("Role ID", { exact: true }).inputValue()
+    ).toBe("fixture-role");
+    expect(
+      await page
+        .getByRole("button", {
+          name: "Reload administration data",
+          exact: true,
+        })
+        .count()
+    ).toBe(0);
+    const described = await roleForm
+      .getByLabel("Role name", { exact: true })
+      .getAttribute("aria-describedby");
+    expect(described).toBeTruthy();
+    expect(
+      await page.locator(`[id="${described!.split(" ").at(-1)}"]`).textContent()
+    ).toContain("Check this value.");
+    if (process.env.LENSO_ADMIN_SCREENSHOTS) {
+      await mkdir(process.env.LENSO_ADMIN_SCREENSHOTS, { recursive: true });
+      await page.screenshot({
+        path: path.join(
+          process.env.LENSO_ADMIN_SCREENSHOTS,
+          "role-validation.png"
+        ),
+      });
+    }
+    rejectRole = false;
+    await roleForm
+      .getByLabel("Role name", { exact: true })
+      .fill("Fixture permissions corrected");
+    await roleForm
+      .getByLabel("Role name", { exact: true })
+      .fill("Fixture permissions");
+    await roleForm.getByLabel("Role name", { exact: true }).press("Enter");
+    await confirmRole.click();
     await page
       .getByRole("button", { name: "Retry session", exact: true })
       .click();
+    expect(roleWrites).toBe(2);
+    await page.unroute("**/rpc/workspace/invoke");
     const roleEditor = page.getByRole("region", {
       name: "Role Fixture permissions",
       exact: true,
@@ -553,6 +641,76 @@ test("compiled administration pages manage real isolated data and retire one-tim
         exact: true,
       })
       .click();
+    await roleEditor
+      .getByRole("checkbox", { name: "users.read", exact: true })
+      .uncheck();
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("dialog", { name: "Fixture permissions", exact: true })
+      .waitFor({ state: "hidden" });
+    await page
+      .getByRole("button", {
+        name: "Inspect role Fixture permissions",
+        exact: true,
+      })
+      .click();
+    expect(
+      await roleEditor
+        .getByRole("checkbox", { name: "users.read", exact: true })
+        .isChecked()
+    ).toBe(false);
+    for (const [width, theme] of [
+      [390, "dark"],
+      [1280, "light"],
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme: theme });
+      const save = roleEditor.getByRole("button", {
+        name: "Save permissions",
+        exact: true,
+      });
+      await save.scrollIntoViewIfNeeded();
+      await save.click({ trial: true });
+      await inBounds(page);
+      expect(
+        await save.evaluate((node) => {
+          const box = node.getBoundingClientRect();
+          return (
+            box.left >= 0 &&
+            box.right <= innerWidth &&
+            box.top >= 0 &&
+            box.bottom <= innerHeight &&
+            node.contains(
+              document.elementFromPoint(
+                box.x + box.width / 2,
+                box.y + box.height / 2
+              )
+            )
+          );
+        })
+      ).toBe(true);
+      if (process.env.LENSO_ADMIN_SCREENSHOTS) {
+        await page.screenshot({
+          path: path.join(
+            process.env.LENSO_ADMIN_SCREENSHOTS,
+            `role-draft-${width}.png`
+          ),
+        });
+      }
+    }
+    await roleEditor
+      .getByRole("button", { name: "Discard changes", exact: true })
+      .click();
+    expect(
+      await roleEditor
+        .getByRole("checkbox", { name: "users.read", exact: true })
+        .isChecked()
+    ).toBe(true);
+    expect(
+      await roleEditor
+        .getByRole("button", { name: "Save permissions", exact: true })
+        .isDisabled()
+    ).toBe(true);
     await roleEditor
       .getByRole("checkbox", { name: "users.read", exact: true })
       .uncheck();
