@@ -1,0 +1,32 @@
+examples/composed-console/preview.tsx
+  h_9d56aba080c170 179-198
+examples/composed-console/verify-browser.mjs
+  h_9d56aba080c170 1054-1072
+packages/console-react/README.md
+  h_9d56aba080c170 56-60
+packages/console-react/src/console-dock-shape.tsx
+  h_9d56aba080c170 35,45,51-53,66-73,137-139,154,159,164-166,174-176
+packages/console-react/src/console-dock.styles.ts
+  h_9d56aba080c170 101-105
+packages/console-react/src/console-dock.tsx
+  h_9d56aba080c170 610,767
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 1592-1658,2120-2194
+packages/console-react/test/browser/fixture.tsx
+  h_9d56aba080c170 41,360-365,614-619
+plugins/console/shell/test/browser/console-dock.browser.test.ts
+  h_9d56aba080c170 87-125
+plugins/console/shell/test/browser/dock.fixture.tsx
+  h_9d56aba080c170 31-33,126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0bcdecc868ae1f967aefcccc92914a69d6bb0c42",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

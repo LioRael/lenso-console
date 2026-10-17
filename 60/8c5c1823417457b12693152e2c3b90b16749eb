@@ -1,0 +1,28 @@
+.github/workflows/console-sdk-npm.yml
+  h_9d56aba080c170 21
+bun.lock
+  h_9d56aba080c170 141
+packages/console-authoring/compiler/test/admission-bootstrap.test.ts
+  h_9d56aba080c170 2,8-23,29-43,47-60
+packages/console-authoring/package.json
+  h_9d56aba080c170 3
+packages/console-authoring/src/admission-bootstrap.ts
+  h_9d56aba080c170 2-5
+packages/console-authoring/src/browser-admission.ts
+  h_9d56aba080c170 3,161-163,169-171
+tooling/distribution/console-npm.mjs
+  h_9d56aba080c170 21
+tooling/distribution/console-npm.test.mjs
+  h_9d56aba080c170 54-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "608c5c1823417457b12693152e2c3b90b16749eb",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

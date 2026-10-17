@@ -1,0 +1,18 @@
+.github/workflows/console-sdk-npm.yml
+  h_9d56aba080c170 23
+tooling/distribution/console-npm.mjs
+  h_9d56aba080c170 12
+tooling/distribution/console-npm.test.mjs
+  h_9d56aba080c170 112-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d93f1a28aa34fe4d375269d93d05a9624e9bc374",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

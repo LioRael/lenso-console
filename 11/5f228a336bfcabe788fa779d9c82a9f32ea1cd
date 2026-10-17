@@ -1,0 +1,14 @@
+.github/workflows/release-rust-roles.yml
+  h_9d56aba080c170 61-66,71,114-115,117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "115f228a336bfcabe788fa779d9c82a9f32ea1cd",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

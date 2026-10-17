@@ -1,0 +1,68 @@
+bun.lock
+  h_9d56aba080c170 69,111,155,234,267,290,339
+packages/auth-console/CHANGELOG.md
+  h_9d56aba080c170 3-12
+packages/auth-console/build.ts
+  h_9d56aba080c170 53
+packages/auth-console/package.json
+  h_9d56aba080c170 3,40-43,80-81
+packages/auth-console/src/administration-error.ts
+  h_9d56aba080c170 1-23
+packages/auth-console/src/administration-pages.tsx
+  h_9d56aba080c170 43,1568-1572,1645
+packages/auth-console/src/administration-portable.ts
+  h_9d56aba080c170 1-1214
+packages/auth-console/src/administration-server.ts
+  h_9d56aba080c170 1,3-22,26-38
+packages/auth-console/src/administration-store.ts
+  h_9d56aba080c170 3,21,23,168-169,177-179,332-333,342-344,353-377
+packages/auth-console/src/token-credential-dialog.tsx
+  h_9d56aba080c170 1-103
+packages/auth-console/test/administration-backend.test.ts
+  h_9d56aba080c170 804-859
+packages/console-authoring/CHANGELOG.md
+  h_9d56aba080c170 3-10
+packages/console-authoring/package.json
+  h_9d56aba080c170 3,166
+packages/console-authoring/src/authentication.ts
+  h_9d56aba080c170 12-14,115
+packages/console-authoring/src/browser-admission.ts
+  h_9d56aba080c170 1,26,34-38,99-102,106-108,299-323,325-327,371-422,503-536
+packages/console-authoring/src/identity-transition.ts
+  h_9d56aba080c170 38-66
+packages/console-authoring/src/session-renewal.ts
+  h_9d56aba080c170 1-165
+packages/console-authoring/test/session-renewal.test.ts
+  h_9d56aba080c170 1-28
+packages/console-dashboard/CHANGELOG.md
+  h_9d56aba080c170 3-9
+packages/console-dashboard/package.json
+  h_9d56aba080c170 3
+packages/console-plugin-manager/CHANGELOG.md
+  h_9d56aba080c170 3-11
+packages/console-plugin-manager/package.json
+  h_9d56aba080c170 3
+packages/console-react/CHANGELOG.md
+  h_9d56aba080c170 3-8
+packages/console-react/package.json
+  h_9d56aba080c170 3
+packages/console/CHANGELOG.md
+  h_9d56aba080c170 3-9
+packages/console/package.json
+  h_9d56aba080c170 3
+plugins/console/shell/CHANGELOG.md
+  h_9d56aba080c170 3-11
+plugins/console/shell/package.json
+  h_9d56aba080c170 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3a562002b158ac1c5a8bc24986f5d9f4168cba52",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
