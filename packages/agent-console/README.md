@@ -79,9 +79,53 @@ evidence that a model provider has been configured or tested.
 
 Drafts and the current session ID live only in the retained Dock owner, within
 the same trusted Shell session. Closing, changing routes and returning from host
-settings preserve them. Reload, removal and session retirement discard them.
-There is no localStorage, IndexedDB or global sensitive-form cache. Do not enter
+settings preserve them. By default reload, removal and session retirement discard
+them. There is no global sensitive-form cache. Do not enter
 passwords or API keys into chat; this plugin offers no credential fields.
+
+### Opt-in refresh recovery
+
+The host can preserve **only a non-secret session ID** across browser refresh:
+
+```ts
+import { createAgentSessionResume } from "@lenso/agent-console/session-resume";
+
+const resume = createAgentSessionResume({
+  key: "application-agent", // Stable, explicit installation identity.
+  storage: window.sessionStorage,
+  scope: verifiedHostScope, // { getSnapshot, subscribe }, backed by host admission.
+});
+// Pass resume alongside client/connection to agentConsole({ id, ... }).
+// Dispose on host teardown; notify the scope source of logout before teardown.
+```
+
+`verifiedHostScope.getSnapshot()` returns `{ session: ConsoleSessionAdapter,
+projectId: string }`, or undefined. Use the same verified session passed to
+`ConsoleShell`. Its `scopeKey` must change with authenticated subject, application,
+target, project or authorization revision. The project ID must come from trusted
+host admission, not a URL, chat message or local storage. Missing scope, an empty
+project, a default `local` scope, or a non-ready session fails closed. Initial
+authentication loading may retain the hint but permits no read until verified.
+
+The adapter observes the host independently of whether the Dock has been opened.
+Logout and known scope changes clear its one record. A fresh host compares its
+verified scope fingerprint before using any saved ID. The bounded record contains
+only a SHA-256 scope fingerprint and session ID; no identity labels, draft,
+transcript, model request, token or Key is stored. This is a per-tab recovery hint,
+not a session collection or authorization decision. The server still authorizes
+every read and write. A forged ID cannot grant access.
+
+Opening the Agent after refresh reads the saved session from its real service,
+restores the conversation and follows an already-running run without submitting
+another one. A missing session, denied access or lost connection blocks Send and
+shows its actual state. Read retries are explicit. Starting a new conversation is
+also explicit and preserves the current draft. Restoration never submits a draft,
+replays a request key, confirms an action or calls a model automatically. Storage
+failure can leave a conversation in memory only, with visible feedback.
+
+Unsent text remains in memory and survives a failed restore in that page. It is
+intentionally **not** recovered after a browser reload. Do not store sensitive
+drafts to compensate. Identity/project retirement discards the previous UI owner.
 
 ## Agent contract
 

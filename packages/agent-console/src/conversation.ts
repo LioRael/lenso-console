@@ -8,8 +8,10 @@ import {
   type AgentSnapshot,
   type AgentAction,
 } from "./client";
+import type { AgentSessionResume } from "./session-resume";
 
 export interface AgentConsoleServices {
+  resume?: AgentSessionResume;
   client?: AgentConsoleClient;
   /** A projection supplied by the trusted application, never chat text or credentials. */
   connection?: {
@@ -63,6 +65,10 @@ export function useAgentConversation({
   dock,
 }: ConsoleDockViewProps<AgentConsoleServices>) {
   const { client } = services;
+  const resumeScope = services.resume?.getScope();
+  const [restore, setRestore] = useState(services.resume ? "loading" : "ready");
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const savedResume = useRef<string | undefined>(undefined);
   const [draft, setDraft] = useState("");
   const [sessionId, setSessionId] = useState<string>();
   const sessionRef = useRef<string | undefined>(undefined);
@@ -80,11 +86,19 @@ export function useAgentConversation({
   const writeLock = useRef(false);
   const readVersion = useRef(0);
   const current = useCallback(
-    () => !signal.aborted && activation.isCurrent(),
-    [signal, activation]
+    () =>
+      !signal.aborted &&
+      activation.isCurrent() &&
+      (!services.resume ||
+        (!!resumeScope && services.resume.getScope() === resumeScope)),
+    [signal, activation, services.resume, resumeScope]
   );
   const visible = dock.state !== "inactive";
   const runId = run?.id;
+  const presentation = useRef({ dock, visible });
+  useEffect(() => {
+    presentation.current = { dock, visible };
+  }, [dock, visible]);
   const refresh = useCallback(
     async (selectedSession: string, requestSignal = signal) => {
       if (!client) {
@@ -111,6 +125,89 @@ export function useAgentConversation({
     },
     [client, current, signal]
   );
+
+  useEffect(() => {
+    const { resume } = services;
+    if (!resume) {
+      return;
+    }
+    if (!resumeScope || !client) {
+      setRestore("untrusted");
+      return;
+    }
+    const controller = new AbortController();
+    const lifetime = AbortSignal.any([signal, controller.signal]);
+    const live = () => current() && !lifetime.aborted;
+    setRestore("loading");
+    void (async () => {
+      try {
+        const selected =
+          savedResume.current ?? (await resume.read(resumeScope, lifetime));
+        if (!live()) {
+          return;
+        }
+        if (!selected) {
+          setRestore("ready");
+          return;
+        }
+        savedResume.current = selected;
+        sessionRef.current = selected;
+        if (presentation.current.visible) {
+          presentation.current.dock.expand();
+        }
+        await refresh(selected, lifetime);
+        if (!live()) {
+          return;
+        }
+        try {
+          await resume.save(resumeScope, selected, lifetime);
+        } catch {
+          if (live()) {
+            setFeedback(
+              "Session recovery could not be saved. This conversation remains in memory only."
+            );
+          }
+        }
+        if (!live()) {
+          return;
+        }
+        setSessionId(selected);
+        setRestore("ready");
+      } catch (error) {
+        if (!live()) {
+          return;
+        }
+        if (presentation.current.visible) {
+          presentation.current.dock.expand();
+        }
+        if (
+          error instanceof AgentConsoleError &&
+          [401, 403, 404, 410].includes(error.status ?? 0)
+        ) {
+          try {
+            resume.clear(resumeScope);
+          } catch {
+            // Future recovery still reauthorizes.
+          }
+          setRestore(
+            error.status === 404 || error.status === 410 ? "missing" : "denied"
+          );
+        } else {
+          setRestore("offline");
+        }
+      }
+    })();
+    return () => controller.abort();
+    // Visibility does not restart restoration or send a model request.
+  }, [
+    services.resume,
+    resumeScope,
+    client,
+    signal,
+    current,
+    refresh,
+    restoreAttempt,
+  ]);
 
   useEffect(() => {
     if (!client || !visible || !sessionId || !runId) {
@@ -228,6 +325,7 @@ export function useAgentConversation({
   async function send(retry = false) {
     if (
       !client ||
+      restore !== "ready" ||
       agentConnectionState(services) !== "ready" ||
       !current() ||
       !visible ||
@@ -260,6 +358,20 @@ export function useAgentConversation({
         selectedSession = created.id;
         sessionRef.current = created.id;
         setSessionId(created.id);
+        if (services.resume && resumeScope) {
+          try {
+            await services.resume.save(resumeScope, created.id, signal);
+          } catch {
+            if (current()) {
+              setFeedback(
+                "Session recovery could not be saved. This conversation remains in memory only."
+              );
+            }
+          }
+          if (!current() || services.resume.getScope() !== resumeScope) {
+            return;
+          }
+        }
       }
       dispatched = true;
       const accepted = await client.startRun(
@@ -344,6 +456,7 @@ export function useAgentConversation({
   async function decide(action: AgentAction, confirm: boolean) {
     if (
       !client ||
+      restore !== "ready" ||
       agentConnectionState(services) !== "ready" ||
       !current() ||
       !visible ||
@@ -398,6 +511,25 @@ export function useAgentConversation({
     setWatchAttempt((value) => value + 1);
   };
   return {
+    restore,
+    retryRestore: () => setRestoreAttempt((value) => value + 1),
+    newConversation: () => {
+      if (!current() || !services.resume || !resumeScope) {
+        return;
+      }
+      try {
+        services.resume.clear(resumeScope);
+      } catch {
+        return;
+      }
+      savedResume.current = undefined;
+      sessionRef.current = undefined;
+      setSessionId(undefined);
+      setSnapshot(undefined);
+      setRun(undefined);
+      setRestore("ready");
+      setErrorMessage("");
+    },
     draft,
     setDraft,
     snapshot,

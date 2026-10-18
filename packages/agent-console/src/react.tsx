@@ -4,6 +4,7 @@ import {
   ConsoleIconButton,
   defineConsolePlugin,
   type ConsoleDockViewProps,
+  useConsoleActivation,
 } from "@lenso/console-react";
 import { Button } from "@lenso/ui/button";
 import { Disclosure } from "@lenso/ui/disclosure";
@@ -283,7 +284,19 @@ function ToolReview({
   );
 }
 
+const noSubscribe = () => () => undefined;
+const memoryScope = () => "memory";
 function AgentDock(props: ConsoleDockViewProps<AgentConsoleServices>) {
+  const { resume } = props.services;
+  const scope = useSyncExternalStore(
+    resume?.subscribe ?? noSubscribe,
+    resume?.getScope ?? memoryScope,
+    resume?.getScope ?? memoryScope
+  );
+  return <AgentDockSession key={scope ?? "untrusted"} {...props} />;
+}
+function AgentDockSession(props: ConsoleDockViewProps<AgentConsoleServices>) {
+  const lease = useConsoleActivation(props.activation, props.signal);
   const { dock } = props;
   const source = props.services.connectionSource;
   const subscribe = useCallback(
@@ -305,7 +318,7 @@ function AgentDock(props: ConsoleDockViewProps<AgentConsoleServices>) {
   } else {
     delete services.connection;
   }
-  const conversation = useAgentConversation({ ...props, services });
+  const conversation = useAgentConversation({ ...props, ...lease, services });
   const input = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const connectionState = agentConnectionState(services);
@@ -404,6 +417,7 @@ function AgentDock(props: ConsoleDockViewProps<AgentConsoleServices>) {
                     variant="primary"
                     disabled={
                       !connected ||
+                      conversation.restore !== "ready" ||
                       conversation.posting ||
                       !!conversation.pending ||
                       !conversation.draft.trim()
@@ -557,7 +571,11 @@ function AgentDock(props: ConsoleDockViewProps<AgentConsoleServices>) {
               <ToolReview
                 key={action.id}
                 action={action}
-                busy={!connected || !!conversation.actionBusy}
+                busy={
+                  !connected ||
+                  conversation.restore !== "ready" ||
+                  !!conversation.actionBusy
+                }
                 running={running}
                 decide={conversation.decide}
               />
@@ -575,6 +593,48 @@ function AgentDock(props: ConsoleDockViewProps<AgentConsoleServices>) {
               <p role="alert" {...stylex.props(styles.error)}>
                 {conversation.error}
               </p>
+            )}
+            {conversation.restore !== "ready" && (
+              <div>
+                <p role="alert" {...stylex.props(styles.muted)}>
+                  {
+                    (
+                      {
+                        loading: "Restoring the saved conversation…",
+                        missing:
+                          "The saved conversation was not found in this scope. Your draft has been kept.",
+                        denied:
+                          "The saved conversation is not authorized. Review access; your draft has been kept.",
+                        offline:
+                          "The saved conversation could not be reached. Your draft has been kept; no message was submitted.",
+                        untrusted:
+                          "Session recovery requires a verified sign-in and project scope.",
+                      } as Record<string, string>
+                    )[conversation.restore]
+                  }
+                </p>
+                {(conversation.restore === "offline" ||
+                  conversation.restore === "denied") && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => conversation.retryRestore()}
+                  >
+                    Retry conversation read
+                  </Button>
+                )}
+                {(conversation.restore === "missing" ||
+                  conversation.restore === "denied" ||
+                  conversation.restore === "offline") && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => conversation.newConversation()}
+                  >
+                    Start a new conversation
+                  </Button>
+                )}
+              </div>
             )}
             {conversation.feedback && (
               <output {...stylex.props(styles.muted)}>
