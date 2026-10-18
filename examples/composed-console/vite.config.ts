@@ -4,12 +4,13 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 import { consoleStylex } from "../../plugins/console/shell/config/console-stylex.ts";
+import { agentReplayPlugin } from "./agent-replay.ts";
 
 const source = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
   root: source("./"),
-  plugins: [react(), consoleStylex()],
+  plugins: [react(), consoleStylex(), agentReplayPlugin()],
   resolve: {
     conditions: ["lenso-source"],
     alias: [

@@ -916,6 +916,7 @@ export function ConsoleDockContent({
       <section {...stylex.props(styles.bar)} aria-label={label}>
         <ConsoleIconButton
           label="Back to navigation"
+          variant="ghost"
           onClick={() => dock.requestExit("back-button")}
         >
           <ArrowLeft size={16} aria-hidden="true" />
@@ -923,6 +924,7 @@ export function ConsoleDockContent({
         <div {...stylex.props(styles.composer)}>{bar}</div>
         <ConsoleIconButton
           label={`${presentation?.expanded ? "Collapse" : "Expand"} ${label}`}
+          variant="ghost"
           aria-expanded={!!presentation?.expanded}
           disabled={!tray}
           onClick={() => {

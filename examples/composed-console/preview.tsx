@@ -15,6 +15,7 @@ import * as stylex from "@stylexjs/stylex";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
+import { previewAgentServices } from "./agent-preview";
 import { ComposedConsole } from "./composition";
 import { bindReviewPages, ReviewLogin, ReviewNotice } from "./review-pages";
 import {
@@ -152,6 +153,10 @@ function navigate(href: string) {
   window.history.pushState(null, "", href);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
+const agent = previewAgentServices(
+  new URLSearchParams(window.location.search).get("agent") === "replay",
+  () => navigate("/agent-connections")
+);
 const reviewPlugins = [
   bindReviewPages({
     administration: createReviewAdministration(),
@@ -282,6 +287,7 @@ function Preview() {
           preferences={preferences}
           confirmArchive={confirmSampleArchive}
           additionalPlugins={reviewPlugins}
+          agent={agent}
         >
           <ReviewNotice />
         </ComposedConsole>

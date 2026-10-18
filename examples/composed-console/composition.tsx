@@ -1,4 +1,8 @@
 import {
+  agentConsole,
+  type AgentConsoleServices,
+} from "@lenso/agent-console/react";
+import {
   authConsole,
   authWidgets,
   type AuthConsoleClient,
@@ -98,6 +102,7 @@ export interface ComposedConsoleProps {
   children?: React.ReactNode;
   additionalPlugins?: ComponentProps<typeof ConsoleShell>["plugins"];
   tasks?: TaskClient;
+  agent?: AgentConsoleServices;
   orders: OrdersClient;
   confirmArchive(ids: readonly string[]): Promise<boolean>;
   workforce: AuthConsoleClient;
@@ -213,6 +218,9 @@ export function ComposedConsole(props: ComposedConsoleProps) {
           ]
         : []),
       ...(props.additionalPlugins ?? []),
+      ...(props.agent
+        ? [agentConsole({ id: "agent.primary", ...props.agent })]
+        : []),
     ];
   }, [
     props.tasks,
@@ -224,12 +232,23 @@ export function ComposedConsole(props: ComposedConsoleProps) {
     props.catalog,
     props.session.scopeKey,
     props.additionalPlugins,
+    props.agent,
   ]);
+  const dock = useMemo(
+    () =>
+      props.agent
+        ? {
+            leading: [{ bindingId: "agent.primary", viewId: "agent" }],
+          }
+        : undefined,
+    [props.agent]
+  );
   return (
     <ConsoleShell
       plugins={plugins}
       router={props.router}
       session={props.session}
+      {...(dock ? { dock } : {})}
       {...(props.preferences ? { preferences: props.preferences } : {})}
       navigationDefaults={{ mode: "dock", position: "bottom" }}
     >

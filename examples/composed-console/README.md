@@ -18,6 +18,15 @@ Shell and `examples/ts-console` backend unchanged. Open
 sample-data review host, not a complete backend assembly. Do not expose it to a
 network or enter real credentials.
 
+The leftmost Agent icon uses the existing Shell Dock extension. It opens a
+composer and expands into a conversation after submission. By default it reports
+that no Agent is connected. `/orders?agent=replay` enables a visibly labelled,
+synthetic HTTP/SSE protocol replay; it never invokes a model or business tool.
+The Agent connections page manages application tokens, not model provider
+registration. Production hosts must explicitly supply an authorized Agent
+transport and readiness projection through the optional `agent` composition prop;
+see [Agent Console](../../packages/agent-console/README.md).
+
 ### Page coverage
 
 The directory links to every route below, including representative detail IDs.

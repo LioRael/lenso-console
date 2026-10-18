@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@lenso/agent-console": "workspace:*",
     "@lenso/auth-console": "workspace:*",
     "@lenso/console-dashboard": "workspace:*",
     "@lenso/console-plugin-manager": "workspace:*",
