@@ -312,6 +312,11 @@ function AgentDock(props: ConsoleDockViewProps<AgentConsoleServices>) {
   const connected = connectionState === "ready";
   const running = conversation.run?.status === "running";
   const messages = (conversation.snapshot?.messages ?? []).flatMap((item) => {
+    // Agent persists approval outcomes as machine-authored user-role messages.
+    // Their status belongs to ToolReview, not to a fabricated user chat bubble.
+    if (item.source?.kind === "action-outcome") {
+      return [];
+    }
     const message = agentMessageText(item.value);
     return message?.text ? [{ id: item.id, ...message }] : [];
   });

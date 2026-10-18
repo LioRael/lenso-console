@@ -300,6 +300,11 @@ test("unknown submissions retain idempotency, completed actions need no live SSE
     await page.getByText("Approval processed.", { exact: false }).waitFor();
     expect(replay.snapshot?.actions[0]?.status).toBe("completed");
     expect(replay.snapshot?.runs).toHaveLength(2);
+    expect(
+      await page
+        .getByRole("log", { name: "Conversation messages" })
+        .textContent()
+    ).not.toContain("action-outcome");
     await screenshot(page, "tool-review");
     replay.setScenario("resnapshot");
     await composer(page).fill("Recover live updates");

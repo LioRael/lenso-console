@@ -256,6 +256,36 @@ test("completed runs can retain pending actions; confirming refreshes independen
   const saved = await client.readSession(session.id, signal);
   expect(confirmed.status).toBe("completed");
   expect(saved.actions[0]?.status).toBe("completed");
+  expect(saved.messages.at(-1)).toMatchObject({
+    id: `action-outcome:${action.id}`,
+    source: {
+      kind: "action-outcome",
+      actionId: action.id,
+      callId: action.callId,
+    },
+  });
+  const mismatched = createAgentConsoleClient({
+    basePath: "/agent",
+    profile: "profile",
+    fetch: async () =>
+      Response.json({
+        ...saved,
+        messages: saved.messages.map((message) =>
+          message.source
+            ? {
+                ...message,
+                source: { ...message.source, actionId: "another-action" },
+              }
+            : message
+        ),
+      }),
+  });
+  await expect(mismatched.readSession(session.id, signal)).rejects.toThrow(
+    "Invalid action outcome message identity"
+  );
+  await expect(
+    client.readSession(`action-outcome:${action.id}`, signal)
+  ).rejects.toThrow();
   expect(fixture.snapshot?.runs).toHaveLength(1);
   expect(run.id).toBe("replay-run-1");
 });

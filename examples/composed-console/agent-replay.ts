@@ -311,6 +311,25 @@ export function createAgentReplay() {
       } else {
         return json({ error: "not-found" }, 404);
       }
+      session.messages.push({
+        id: `action-outcome:${action.id}`,
+        sessionId: action.sessionId,
+        runId: action.runId,
+        createdAt: Date.now(),
+        source: {
+          kind: "action-outcome",
+          actionId: action.id,
+          callId: action.callId,
+        },
+        value: {
+          role: "user",
+          content: JSON.stringify({
+            source: "action-outcome",
+            actionId: action.id,
+            status: action.status,
+          }),
+        },
+      });
       return json(action);
     }
     return json({ error: "not-found" }, 404);

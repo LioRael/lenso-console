@@ -60,19 +60,33 @@ export const actionSchema = z.object({
     }),
   }),
 });
+// Outcome records use a derived ID; they are never interpolated into routes.
+const messageSchema = z
+  .object({
+    id: id.or(
+      z
+        .string()
+        .max(271)
+        .regex(/^action-outcome:[A-Za-z0-9_-]+$/u)
+    ),
+    sessionId: id,
+    runId: id,
+    createdAt: z.number(),
+    value: z.unknown(),
+    source: z
+      .object({ kind: z.literal("action-outcome"), actionId: id, callId: id })
+      .optional(),
+  })
+  .refine(
+    (message) =>
+      message.source
+        ? message.id === `action-outcome:${message.source.actionId}`
+        : !message.id.startsWith("action-outcome:"),
+    "Invalid action outcome message identity"
+  );
 export const snapshotSchema = z.object({
   session: sessionSchema,
-  messages: z
-    .array(
-      z.object({
-        id,
-        sessionId: id,
-        runId: id,
-        createdAt: z.number(),
-        value: z.unknown(),
-      })
-    )
-    .max(2000),
+  messages: z.array(messageSchema).max(2000),
   runs: z.array(runSchema).max(2000),
   actions: z.array(actionSchema).max(1000),
   calls: z.array(z.unknown()).max(2000),
