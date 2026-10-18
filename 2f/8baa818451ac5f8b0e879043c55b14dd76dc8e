@@ -1,0 +1,52 @@
+bun.lock
+  h_9d56aba080c170 11,57,74-88,601-602
+examples/composed-console/README.md
+  h_9d56aba080c170 21-29
+examples/composed-console/agent-preview.ts
+  h_9d56aba080c170 1-30
+examples/composed-console/agent-replay.ts
+  h_9d56aba080c170 1-413
+examples/composed-console/composition.tsx
+  h_9d56aba080c170 1-4,105,221-223,235,237-245,251
+examples/composed-console/package.json
+  h_9d56aba080c170 6
+examples/composed-console/preview.tsx
+  h_9d56aba080c170 18,156-159,290
+examples/composed-console/vite.config.ts
+  h_9d56aba080c170 7,13
+package.json
+  h_9d56aba080c170 14-15,49-50,52,69
+packages/agent-console/README.md
+  h_9d56aba080c170 1-138
+packages/agent-console/package.json
+  h_9d56aba080c170 1-26
+packages/agent-console/src/client.ts
+  h_9d56aba080c170 1-456
+packages/agent-console/src/conversation.ts
+  h_9d56aba080c170 1-417
+packages/agent-console/src/react.tsx
+  h_9d56aba080c170 1-628
+packages/agent-console/test/browser.test.ts
+  h_9d56aba080c170 1-434
+packages/agent-console/test/client.test.ts
+  h_9d56aba080c170 1-292
+packages/agent-console/test/fixture.tsx
+  h_9d56aba080c170 1-194
+packages/agent-console/test/index.html
+  h_9d56aba080c170 1-12
+packages/agent-console/tsconfig.json
+  h_9d56aba080c170 1-15
+packages/console-react/src/console-dock-view.tsx
+  h_9d56aba080c170 919,927
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f8baa818451ac5f8b0e879043c55b14dd76dc8e",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
