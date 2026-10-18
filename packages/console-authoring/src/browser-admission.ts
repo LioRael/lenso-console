@@ -67,6 +67,7 @@ export function useConsoleAdmission(
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<Error>();
   const operation = useRef<AbortController | undefined>(undefined);
+  const pendingLogout = useRef<AbortController | undefined>(undefined);
   const lease = useRef<AbortController | undefined>(undefined);
   const activationEpoch = useRef(0);
   const epoch = activationEpoch.current;
@@ -75,9 +76,12 @@ export function useConsoleAdmission(
     const lifetime = new AbortController();
     lease.current = lifetime;
     let admitted = false;
+    const loggingOut = () =>
+      pendingLogout.current !== undefined &&
+      !pendingLogout.current.signal.aborted;
     const retire = (
       reason: "expired" | "forbidden" = "expired",
-      preserveAction = false
+      preserveAction = loggingOut()
     ) => {
       activationEpoch.current += 1;
       lifetime.abort();
@@ -96,14 +100,32 @@ export function useConsoleAdmission(
     };
     const expired = () => retire();
     window.addEventListener("lenso-session-expired", expired);
+    const pageHide = () => retire();
+    const pageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        retire();
+        if (!loggingOut()) {
+          setAttempt((value) => value + 1);
+        }
+      }
+    };
+    window.addEventListener("pagehide", pageHide);
+    window.addEventListener("pageshow", pageShow);
     const stopStorage = onConsoleSessionChange(() => {
       retire();
-      setAttempt((value) => value + 1);
+      if (!loggingOut()) {
+        setAttempt((value) => value + 1);
+      }
     });
     const stopTransitions = subscribeIdentityTransitions((phase, remote) => {
       if (phase === "begin") {
-        retire("expired", !remote && operation.current !== undefined);
-      } else if (remote) {
+        // A queued logout must survive a renewal that already owns the lock.
+        // Keep its admission retired until that explicit logout finishes.
+        retire(
+          "expired",
+          loggingOut() || (!remote && operation.current !== undefined)
+        );
+      } else if (remote && !loggingOut()) {
         // Renewal/login/logout all re-enter through a fresh authoritative admission.
         setAttempt((value) => value + 1);
       }
@@ -275,6 +297,8 @@ export function useConsoleAdmission(
       configureSessionCsrf(undefined);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("lenso-session-expired", expired);
+      window.removeEventListener("pagehide", pageHide);
+      window.removeEventListener("pageshow", pageShow);
       stopStorage();
       stopTransitions();
     };
@@ -298,6 +322,7 @@ export function useConsoleAdmission(
     setActionError(undefined);
     const subject = session?.subject;
     if (logout) {
+      pendingLogout.current = controller;
       lease.current.abort();
       retireSessionReads();
       setAdmission(undefined);
@@ -331,6 +356,9 @@ export function useConsoleAdmission(
         );
       }
       controller.signal.throwIfAborted();
+      if (logout) {
+        pendingLogout.current = undefined;
+      }
       if (kind !== "renew") {
         broadcastConsoleSessionChange();
       }
@@ -371,6 +399,9 @@ export function useConsoleAdmission(
         );
       }
     } finally {
+      if (pendingLogout.current === controller) {
+        pendingLogout.current = undefined;
+      }
       if (operation.current === controller) {
         operation.current = undefined;
         setBusy(false);

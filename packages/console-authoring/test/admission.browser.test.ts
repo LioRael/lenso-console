@@ -273,3 +273,332 @@ for (const engine of [
     }
   }, 30_000);
 }
+
+// Ordinary logout tests do not queue a logout behind the renewal's exclusive
+// status check, before that renewal broadcasts its identity transition.
+test("a queued logout survives another tab's automatic renewal", async () => {
+  const scratch = await mkdtemp(join(tmpdir(), "console-logout-race-"));
+  let authenticated = true;
+  let renewals = 0;
+  let logouts = 0;
+  let statusReads = 0;
+  let script = "";
+  const heldStatus = Promise.withResolvers<undefined>();
+  const statusStarted = Promise.withResolvers<undefined>();
+  const heldLogout = Promise.withResolvers<undefined>();
+  const logoutStarted = Promise.withResolvers<undefined>();
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request) {
+      const { pathname } = new URL(request.url);
+      const headers = {
+        "cache-control": "no-store",
+        "x-lenso-read-scope": "a".repeat(64),
+      };
+      if (pathname === "/app.js") {
+        return new Response(script, {
+          headers: { "content-type": "text/javascript" },
+        });
+      }
+      if (pathname === "/auth/methods") {
+        return Response.json({
+          methods: [],
+          session: {
+            logout: "/auth/logout",
+            ...(request.headers.get("referer")?.includes("tab=renew")
+              ? { status: "/auth/status", renew: "/auth/renew" }
+              : {}),
+          },
+        });
+      }
+      if (pathname === "/auth/status") {
+        statusReads += 1;
+        if (statusReads === 2) {
+          statusStarted.resolve(undefined);
+          await heldStatus.promise;
+        }
+        if (!authenticated) {
+          return new Response(null, { status: 401, headers });
+        }
+        const now = Date.now();
+        return Response.json({
+          subjectId: "synthetic",
+          serverNow: now,
+          expiresAt: now + 3_600_000,
+          absoluteExpiresAt: now + 7_200_000,
+          renewAfterAt: now + (renewals ? 600_000 : -1),
+        });
+      }
+      if (pathname === "/auth/renew") {
+        renewals += 1;
+        return new Response(null, { status: 204 });
+      }
+      if (pathname === "/auth/logout") {
+        logouts += 1;
+        authenticated = false;
+        logoutStarted.resolve(undefined);
+        await heldLogout.promise;
+        return new Response(null, { status: 204 });
+      }
+      if (pathname === "/api/console/v1/session") {
+        return retirementSession(authenticated);
+      }
+      if (pathname === "/api/console/v1/pages") {
+        return Response.json(
+          { schema: "console.page-catalog/1", mounts: [] },
+          { headers }
+        );
+      }
+      return new Response(
+        '<!doctype html><title>Logout race fixture</title><div id="root"></div><script src="/app.js"></script>',
+        { headers: { "content-type": "text/html" } }
+      );
+    },
+  });
+  const browser = await chromium.launch({ headless: true });
+  try {
+    script = await buildRetirementFixture(scratch);
+    const context = await browser.newContext();
+    const first = await context.newPage();
+    const second = await context.newPage();
+    const errors: string[] = [];
+    for (const page of [first, second]) {
+      page.on("pageerror", (error) => errors.push(error.message));
+    }
+    await first.goto(new URL("/private?tab=logout", server.url).href);
+    await first.getByText("Private synthetic page", { exact: true }).waitFor();
+    await second.goto(new URL("/private?tab=renew", server.url).href);
+    await statusStarted.promise;
+    await first.getByRole("button", { name: "Logout", exact: true }).click();
+    await first.waitForFunction(async () => {
+      const locks = await navigator.locks.query();
+      return locks.pending?.some(
+        (lock) => lock.name === "lenso.identity-transition"
+      );
+    });
+    heldStatus.resolve(undefined);
+    // A cancelled queued operation never dispatches logout. Bound the wait so
+    // the regression fails on that concrete omission, not a browser timeout.
+    const dispatched = await Promise.race([
+      logoutStarted.promise.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500)),
+    ]);
+    expect(dispatched).toBe(true);
+    expect(renewals).toBe(1);
+    expect(await first.getByRole("status").textContent()).toBe("loading");
+    expect(await first.getByText("Private synthetic page").count()).toBe(0);
+    heldLogout.resolve(undefined);
+    await first
+      .getByRole("status")
+      .filter({ hasText: /^unauthenticated$/ })
+      .waitFor();
+    await second
+      .getByRole("status")
+      .filter({ hasText: /^expired$/ })
+      .waitFor();
+    expect(logouts).toBe(1);
+    expect(await first.getByText("Private synthetic page").count()).toBe(0);
+    expect(await second.getByText("Private synthetic page").count()).toBe(0);
+    expect(errors).toEqual([]);
+  } finally {
+    heldStatus.resolve(undefined);
+    heldLogout.resolve(undefined);
+    await browser.close();
+    await server.stop(true);
+    await rm(scratch, { recursive: true, force: true });
+  }
+}, 10_000);
+
+// A normal history reload cannot catch a cached document briefly disclosing its
+// former admission before queued storage/focus invalidation is processed.
+test("back-forward cache restores a retired page before checking its session again", async () => {
+  const scratch = await mkdtemp(join(tmpdir(), "console-history-retirement-"));
+  let authenticated = true;
+  let sessionReads = 0;
+  let script = "";
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch(request) {
+      const { pathname } = new URL(request.url);
+      if (pathname === "/app.js") {
+        return new Response(script, {
+          headers: { "content-type": "text/javascript" },
+        });
+      }
+      if (pathname === "/auth/methods") {
+        return Response.json({
+          methods: [],
+          session: { logout: "/auth/logout" },
+        });
+      }
+      if (pathname === "/auth/logout") {
+        authenticated = false;
+        return new Response(null, { status: 204 });
+      }
+      if (pathname === "/api/console/v1/session") {
+        sessionReads += 1;
+        return retirementSession(authenticated);
+      }
+      if (pathname === "/api/console/v1/pages") {
+        return Response.json({ schema: "console.page-catalog/1", mounts: [] });
+      }
+      return new Response(
+        pathname === "/away"
+          ? "<!doctype html><title>Away fixture</title><h1>Away</h1>"
+          : '<!doctype html><title>Logout race fixture</title><div id="root"></div><script src="/app.js"></script>',
+        { headers: { "content-type": "text/html" } }
+      );
+    },
+  });
+  // Playwright normally disables BFCache. Use its pinned full Chromium in
+  // headless mode and retain normal browser caching behavior for this proof.
+  const browser = await chromium.launch({
+    headless: true,
+    channel: "chromium",
+    ignoreDefaultArgs: ["--disable-back-forward-cache"],
+  });
+  try {
+    script = await buildRetirementFixture(scratch);
+    const context = await browser.newContext();
+    await context.addInitScript(() => {
+      // Storage remains the supported fallback when BroadcastChannel is absent.
+      Object.defineProperty(globalThis, "BroadcastChannel", {
+        value: undefined,
+      });
+      const fixture = globalThis as unknown as {
+        restoredText: string[];
+      };
+      fixture.restoredText = [];
+      window.addEventListener("pageshow", (event) => {
+        if (event.persisted) {
+          fixture.restoredText.push(document.body.textContent ?? "");
+        }
+      });
+    });
+    const first = await context.newPage();
+    const second = await context.newPage();
+    const errors: string[] = [];
+    for (const page of [first, second]) {
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.goto(new URL("/private", server.url).href);
+      await page.getByText("Private synthetic page", { exact: true }).waitFor();
+    }
+    await second.goto(new URL("/away", server.url).href);
+    await first.getByRole("button", { name: "Logout", exact: true }).click();
+    await first
+      .getByRole("status")
+      .filter({ hasText: /^unauthenticated$/ })
+      .waitFor();
+    let before = sessionReads;
+    let rechecked = second.waitForResponse(
+      (response) =>
+        response.url().endsWith("/console/v1/session") &&
+        response.status() === 401
+    );
+    await second.evaluate(() => history.back());
+    await rechecked;
+    await second
+      .getByRole("status")
+      .filter({ hasText: /^expired$/ })
+      .waitFor();
+    expect(sessionReads).toBeGreaterThan(before);
+    expect(await second.getByText("Private synthetic page").count()).toBe(0);
+    const restored = await second.evaluate(
+      () => (globalThis as unknown as { restoredText: string[] }).restoredText
+    );
+    expect(restored).toHaveLength(1);
+    expect(restored[0]).not.toContain("Private synthetic page");
+    await second.evaluate(() => history.forward());
+    await second.getByRole("heading", { name: "Away", exact: true }).waitFor();
+    before = sessionReads;
+    rechecked = second.waitForResponse(
+      (response) =>
+        response.url().endsWith("/console/v1/session") &&
+        response.status() === 401
+    );
+    await second.evaluate(() => history.back());
+    await rechecked;
+    await second
+      .getByRole("status")
+      .filter({ hasText: /^expired$/ })
+      .waitFor();
+    await second.waitForFunction(
+      () =>
+        (globalThis as unknown as { restoredText: string[] }).restoredText
+          .length === 2
+    );
+    // Even an already retired cached document rechecks the owner on each return.
+    expect(sessionReads).toBeGreaterThan(before);
+    expect(await second.getByText("Private synthetic page").count()).toBe(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await browser.close();
+    await server.stop(true);
+    await rm(scratch, { recursive: true, force: true });
+  }
+}, 15_000);
+
+function retirementSession(authenticated: boolean) {
+  return Response.json(
+    authenticated
+      ? {
+          mode: "required",
+          authenticated: true,
+          subject: "synthetic",
+          console_access: true,
+          administrator: false,
+          workspace_ids: [],
+          assistant_enabled: false,
+          human_management_enabled: false,
+          management_enabled: false,
+          management_protocol: "lenso-console-rpc/2",
+          capabilities: {
+            locale: "unavailable",
+            pluginConfiguration: "read-only",
+            pluginConfigurationWrite: {
+              available: false,
+              reason: "fixture",
+            },
+            agent: { available: false, reason: "fixture" },
+          },
+        }
+      : { code: "unauthenticated" },
+    {
+      status: authenticated ? 200 : 401,
+      headers: {
+        "cache-control": "no-store",
+        "x-lenso-read-scope": "a".repeat(64),
+      },
+    }
+  );
+}
+
+async function buildRetirementFixture(scratch: string) {
+  const entry = join(scratch, "app.tsx");
+  await writeFile(
+    entry,
+    `import React from ${JSON.stringify(new URL(import.meta.resolve("react")).pathname)};
+      import {createRoot} from ${JSON.stringify(new URL(import.meta.resolve("react-dom/client")).pathname)};
+      import {useConsoleAdmission} from ${JSON.stringify(new URL("../src/browser-admission.ts", import.meta.url).pathname)};
+      function App() {
+        const session = useConsoleAdmission();
+        return <><h1>Logout race fixture</h1><p role="status">{session.state}</p>
+          {session.admission && <p>Private synthetic page</p>}
+          <button disabled={session.busy || !session.discovery} onClick={() => session.logout()}>Logout</button>
+        </>;
+      }
+      createRoot(document.getElementById('root')).render(<App/>);`
+  );
+  const bundle = await Bun.build({
+    entrypoints: [entry],
+    target: "browser",
+    format: "iife",
+    jsx: { runtime: "classic" },
+  });
+  if (!bundle.success) {
+    throw new AggregateError(bundle.logs, "Logout fixture build failed");
+  }
+  return bundle.outputs[0]!.text();
+}
