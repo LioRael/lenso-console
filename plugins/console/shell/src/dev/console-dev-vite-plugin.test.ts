@@ -138,6 +138,52 @@ describe("Console development middleware", () => {
     expect(forwardedHeaders.cookie).toBe("__Host-lenso-session=prior");
     expect(forwardedHeaders["x-csrf-token"]).toBe("csrf");
   });
+
+  test.each([302, 303])(
+    "preserves an Auth %i redirect and its cookies without following it on the server",
+    async (status) => {
+      let followed = 0;
+      const provider = createServer((_req, res) => {
+        followed += 1;
+        res.end("provider destination");
+      });
+      const providerOrigin = await listen(provider);
+      const location =
+        status === 302
+          ? `${providerOrigin}/authorize?state=synthetic`
+          : "/authorization?filter=open#item";
+      const cookie =
+        "__Host-lenso-session=synthetic; Path=/; Secure; HttpOnly; SameSite=Strict";
+      const upstream = createServer((req, res) => {
+        if (req.url !== "/auth/login") {
+          followed += 1;
+          res.end("callback destination");
+          return;
+        }
+        res.writeHead(status, {
+          location,
+          "set-cookie": cookie,
+          "cache-control": "no-store",
+        });
+        res.end();
+      });
+      const server = await startConsoleDevServer({
+        hostUrl: await listen(upstream),
+      });
+      const response = await fetch(`${server.origin}/auth/login`, {
+        method: "POST",
+        headers: { origin: server.origin },
+        body: "{}",
+        redirect: "manual",
+      });
+      expect(response.status).toBe(status);
+      expect(response.headers.get("location")).toBe(location);
+      expect(response.headers.getSetCookie()).toEqual([cookie]);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(followed).toBe(0);
+    }
+  );
+
   test("preserves the subject precondition when another login replaces the browser cookie", async () => {
     let dispatchedWrites = 0;
     const forwarded: IncomingMessage["headers"][] = [];

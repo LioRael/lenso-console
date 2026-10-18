@@ -379,6 +379,7 @@ async function proxyToHost({
   res.once("close", abortIfIncomplete);
   const init: RequestInit = {
     headers: proxyHeaders(req, agentControlToken, requestTarget.pathname),
+    redirect: "manual",
     signal: controller.signal,
   };
   if (req.method) {
