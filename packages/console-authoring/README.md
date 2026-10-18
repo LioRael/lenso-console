@@ -474,3 +474,18 @@ from `@lenso/console-sdk/admission`. This entry validates the same session and
 page catalog schemas as the management protocol, without initializing the
 management RPC contract, workspace transport, query cache, or router. Existing
 `@lenso/console-sdk/browser` imports remain supported for mounted pages.
+
+### Explicit local HTTP cookie transport
+
+An Auth host may explicitly select `cookieTransport: "loopback-http"`. Its discovery
+then declares `csrf.cookie_transport: "loopback-http"` and a `lenso-local-` cookie
+name. The SDK accepts this only on HTTP `localhost`, `127.0.0.1` or `[::1]`, from
+the exact same-origin configured methods URL, with no query, fragment or URL
+credentials. It never infers an HTTP downgrade. Secure `__Host-` policies retain
+their default behavior, and unsafe requests still require the CSRF cookie/header.
+
+Custom login pages must pass the trusted discovery `Response.url` to both
+`parseConsoleAuthDiscovery(value, response.url)` and
+`configureSessionCsrf(discovery, response.url)`. The admitted Shell supplies it
+automatically. This requires a matching Auth implementation of the explicit
+transport; this Console change grants no server cookie or initialization authority.

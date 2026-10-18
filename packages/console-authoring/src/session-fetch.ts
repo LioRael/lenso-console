@@ -1,12 +1,17 @@
 import { broadcastConsoleSessionChange } from "./browser-session-events";
 import {
   consoleApiPath,
+  consoleHttpPaths,
   isConsoleApiPath,
   mapConsoleApiRequest,
 } from "./http-paths";
 import { withIdentityRead } from "./identity-transition";
 
-export type CsrfPolicy = { cookie_name: string; header_name: string };
+export type CsrfPolicy = {
+  cookie_name: string;
+  header_name: string;
+  cookie_transport?: "loopback-http";
+};
 export type SessionFetchScope = {
   apiBasePath: string;
   csrf: CsrfPolicy;
@@ -44,11 +49,14 @@ async function revalidateScope(scope?: SessionFetchScope) {
   }
 }
 
-export function configureSessionCsrf(value: unknown) {
-  csrfPolicy = parseSessionCsrf(value);
+export function configureSessionCsrf(value: unknown, discoveryURL?: string) {
+  csrfPolicy = parseSessionCsrf(value, discoveryURL);
 }
 
-export function parseSessionCsrf(value: unknown): CsrfPolicy | undefined {
+export function parseSessionCsrf(
+  value: unknown,
+  discoveryURL?: string
+): CsrfPolicy | undefined {
   if (!value || typeof value !== "object" || !("csrf" in value)) {
     return;
   }
@@ -63,15 +71,47 @@ export function parseSessionCsrf(value: unknown): CsrfPolicy | undefined {
   ) {
     return;
   }
-  if (
-    !/^__Host-[A-Za-z0-9_-]+$/u.test(policy.cookie_name) ||
-    policy.header_name !== "x-csrf-token"
-  ) {
+  const transport =
+    "cookie_transport" in policy ? policy.cookie_transport : undefined;
+  if (transport !== undefined && transport !== "loopback-http") {
+    return;
+  }
+  if (transport === "loopback-http") {
+    // Only the host's exact same-origin method-discovery response may opt in.
+    // No UA sniffing, forwarded headers or automatic HTTP downgrade.
+    if (typeof window === "undefined" || !discoveryURL) {
+      return;
+    }
+    const origin = new URL(window.location.origin);
+    let discovery: URL;
+    try {
+      discovery = new URL(discoveryURL);
+    } catch {
+      return;
+    }
+    if (
+      origin.protocol !== "http:" ||
+      !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname) ||
+      discovery.origin !== origin.origin ||
+      discovery.pathname !== `${consoleHttpPaths.auth_base_path}/methods` ||
+      discovery.search ||
+      discovery.hash ||
+      discovery.username ||
+      discovery.password ||
+      !/^lenso-local-[A-Za-z0-9_-]+$/u.test(policy.cookie_name)
+    ) {
+      return;
+    }
+  } else if (!/^__Host-[A-Za-z0-9_-]+$/u.test(policy.cookie_name)) {
+    return;
+  }
+  if (policy.header_name !== "x-csrf-token") {
     return;
   }
   return {
     cookie_name: policy.cookie_name,
     header_name: policy.header_name,
+    ...(transport === "loopback-http" ? { cookie_transport: transport } : {}),
   };
 }
 
@@ -150,7 +190,8 @@ export async function sessionFetch(
     const token = cookie?.slice(prefix.length);
     if (!token) {
       throw new Error(
-        window.location.protocol === "http:"
+        window.location.protocol === "http:" &&
+          policy.cookie_transport !== "loopback-http"
           ? "The browser has no session security cookie. Open this application over HTTPS, then retry."
           : "The browser has no session security cookie. Reload this application to refresh the session, then retry."
       );

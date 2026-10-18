@@ -5,6 +5,11 @@ import { join } from "node:path";
 
 import { chromium, webkit } from "playwright";
 
+const loopback = process.env.LENSO_ADMISSION_LOOPBACK === "1";
+const cookieName = loopback
+  ? "lenso-local-synthetic-csrf"
+  : "__Host-synthetic-csrf";
+
 // Helper tests cannot prove hook recovery, WebKit's actual local HTTP cookie
 // behavior, location.assign, or overlapping focus requests in a mounted app.
 for (const engine of [
@@ -19,6 +24,7 @@ for (const engine of [
     let expiresAt = now + 2 * 3_600_000;
     let sessionReads = 0;
     let passwordWrites = 0;
+    let submittedCsrf: string | null = null;
     const handoff: { returnTo: string | null } = { returnTo: null };
     let pending: Promise<void> | undefined;
     let release: (() => void) | undefined;
@@ -54,7 +60,10 @@ for (const engine of [
               ...(csrf
                 ? {
                     csrf: {
-                      cookie_name: "__Host-synthetic-csrf",
+                      cookie_name: cookieName,
+                      ...(loopback
+                        ? { cookie_transport: "loopback-http" }
+                        : {}),
                       header_name: "x-csrf-token",
                     },
                   }
@@ -63,8 +72,7 @@ for (const engine of [
             {
               headers: csrf
                 ? {
-                    "set-cookie":
-                      "__Host-synthetic-csrf=synthetic; Secure; Path=/; SameSite=Strict",
+                    "set-cookie": `${cookieName}=synthetic; ${loopback ? "" : "Secure; "}Path=/; SameSite=Strict`,
                   }
                 : {},
             }
@@ -80,6 +88,7 @@ for (const engine of [
         }
         if (url.pathname === "/auth/login") {
           passwordWrites += 1;
+          submittedCsrf = request.headers.get("x-csrf-token");
           return new Response(null, { status: 403 });
         }
         if (url.pathname === "/api/console/v1/session") {
@@ -250,20 +259,35 @@ for (const engine of [
         .getByRole("status")
         .filter({ hasText: "unauthenticated" })
         .waitFor();
-      const supported = await page.evaluate(() => ({
-        cookie: document.cookie.includes("__Host-synthetic-csrf="),
-        locks: !!navigator.locks,
-      }));
+      const supported = await page.evaluate(
+        (name) => ({
+          cookie: document.cookie.includes(`${name}=`),
+          locks: !!navigator.locks,
+        }),
+        cookieName
+      );
       console.info(
         `${engine.name()} local HTTP: Secure CSRF cookie=${supported.cookie}, Web Locks=${supported.locks}`
       );
       // Chromium accepts Secure localhost cookies; explicitly losing this
       // fixture-owned cookie exercises the same recovery path there as well.
-      await context.clearCookies({ name: "__Host-synthetic-csrf" });
+      if (loopback) {
+        expect(supported.cookie).toBe(true);
+        await page
+          .getByRole("button", { name: "Password", exact: true })
+          .click();
+        await page.getByRole("alert").waitFor();
+        expect(passwordWrites).toBe(1);
+        expect(submittedCsrf).toBe("synthetic");
+      }
+      const writesBeforeMissingCookie = passwordWrites;
+      await context.clearCookies({ name: cookieName });
       await page.getByRole("button", { name: "Password", exact: true }).click();
       await page.getByRole("alert").waitFor();
-      expect(await page.getByRole("alert").textContent()).toContain("HTTPS");
-      expect(passwordWrites).toBe(0);
+      expect(await page.getByRole("alert").textContent()).toContain(
+        loopback ? "Reload" : "HTTPS"
+      );
+      expect(passwordWrites).toBe(writesBeforeMissingCookie);
       expect(errors).toEqual([]);
     } finally {
       release?.();

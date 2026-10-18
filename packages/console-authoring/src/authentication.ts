@@ -10,6 +10,9 @@ export {
 
 export type ConsoleLoginMethod = LoginMethod;
 export type ConsoleAuthDiscovery = AuthDiscovery & {
+  csrf?: NonNullable<AuthDiscovery["csrf"]> & {
+    cookie_transport?: "loopback-http";
+  };
   session?: { logout?: string; renew?: string; status?: string };
 };
 
@@ -70,7 +73,8 @@ export function consoleAuthAction(path: string): string {
 }
 
 export function parseConsoleAuthDiscovery(
-  value: unknown
+  value: unknown,
+  discoveryURL?: string
 ): ConsoleAuthDiscovery {
   if (
     !value ||
@@ -122,7 +126,7 @@ export function parseConsoleAuthDiscovery(
       }
     }
   }
-  const csrf = parseSessionCsrf(value);
+  const csrf = parseSessionCsrf(value, discoveryURL);
   if ("csrf" in value && value.csrf !== undefined && !csrf) {
     throw new TypeError("Invalid authentication CSRF metadata.");
   }
@@ -134,6 +138,9 @@ export function parseConsoleAuthDiscovery(
           csrf: {
             cookie_name: csrf.cookie_name,
             header_name: "x-csrf-token" as const,
+            ...(csrf.cookie_transport
+              ? { cookie_transport: csrf.cookie_transport }
+              : {}),
           },
         }
       : {}),

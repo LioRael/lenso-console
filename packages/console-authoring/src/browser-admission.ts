@@ -197,8 +197,11 @@ export function useConsoleAdmission(
       }
       const metadata = await methodsResult.value.json();
       lifetime.signal.throwIfAborted();
-      const available = parseConsoleAuthDiscovery(metadata);
-      configureSessionCsrf(available);
+      const available = parseConsoleAuthDiscovery(
+        metadata,
+        methodsResult.value.url
+      );
+      configureSessionCsrf(available, methodsResult.value.url);
       setDiscovery(available);
       if (sessionResult.status === "rejected") {
         throw sessionResult.reason;

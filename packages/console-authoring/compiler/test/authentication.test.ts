@@ -146,3 +146,134 @@ test("an HTTP response resolving after cancellation cannot invalidate a newer se
     }
   }
 });
+
+const setOrigin = (origin: string) =>
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { location: { origin }, dispatchEvent: () => {} },
+  });
+
+test("local cookie discovery requires explicit transport and a trusted loopback methods response", async () => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const originalDocument = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "document"
+  );
+  const originalFetch = globalThis.fetch;
+  const metadata = {
+    methods: [],
+    csrf: {
+      cookie_name: "lenso-local-csrf",
+      header_name: "x-csrf-token",
+      cookie_transport: "loopback-http",
+    },
+  };
+  const { configureSessionCsrf, parseSessionCsrf } =
+    await import("../../src/session-fetch");
+  try {
+    for (const origin of [
+      "http://localhost:3188",
+      "http://127.0.0.1:3188",
+      "http://[::1]:3188",
+    ]) {
+      setOrigin(origin);
+      expect(
+        parseSessionCsrf(metadata, `${origin}/auth/methods`)?.cookie_transport
+      ).toBe("loopback-http");
+    }
+    setOrigin("http://localhost:3188");
+    expect(parseSessionCsrf(metadata)).toBeUndefined();
+    for (const source of [
+      "http://evil.test/auth/methods",
+      "http://localhost:3189/auth/methods",
+      "http://localhost:3188/not-methods",
+      "http://localhost:3188/auth/methods?redirect=x",
+      "http://localhost:3188/auth/methods#fragment",
+      "http://user:pass@localhost:3188/auth/methods",
+    ]) {
+      expect(parseSessionCsrf(metadata, source)).toBeUndefined();
+    }
+    expect(() =>
+      parseConsoleAuthDiscovery(
+        {
+          ...metadata,
+          csrf: {
+            cookie_name: "lenso-local-csrf",
+            header_name: "x-csrf-token",
+          },
+        },
+        "http://localhost:3188/auth/methods"
+      )
+    ).toThrow();
+    for (const origin of [
+      "https://localhost:3188",
+      "http://localhost.evil.test:3188",
+      "http://app.localhost:3188",
+      "http://127.0.0.2:3188",
+      "https://console.test",
+    ]) {
+      setOrigin(origin);
+      expect(
+        parseSessionCsrf(metadata, `${origin}/auth/methods`)
+      ).toBeUndefined();
+    }
+    setOrigin("https://console.test");
+    expect(
+      parseSessionCsrf({
+        csrf: {
+          cookie_name: "__Host-console-csrf",
+          header_name: "x-csrf-token",
+        },
+      })
+    ).toEqual({
+      cookie_name: "__Host-console-csrf",
+      header_name: "x-csrf-token",
+    });
+    setOrigin("http://localhost:3188");
+    const admitted = parseConsoleAuthDiscovery(
+      metadata,
+      "http://localhost:3188/auth/methods"
+    );
+    expect(admitted.csrf).toEqual(metadata.csrf);
+    configureSessionCsrf(admitted, "http://localhost:3188/auth/methods");
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: { cookie: "lenso-local-csrf=local-test-csrf" },
+    });
+    let token: string | null = null;
+    globalThis.fetch = (async (_input, init) => {
+      token = new Headers(init?.headers).get("x-csrf-token");
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+    await sessionFetch("/auth/login", {
+      method: "POST",
+      credentials: "same-origin",
+    });
+    expect(token).toBe("local-test-csrf");
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: { cookie: "" },
+    });
+    token = null;
+    await expect(
+      sessionFetch("/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+      })
+    ).rejects.toThrow(/Reload/);
+    expect(token).toBeNull();
+  } finally {
+    configureSessionCsrf(undefined);
+    globalThis.fetch = originalFetch;
+    if (originalWindow) {
+      Object.defineProperty(globalThis, "window", originalWindow);
+    } else {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+    if (originalDocument) {
+      Object.defineProperty(globalThis, "document", originalDocument);
+    } else {
+      Reflect.deleteProperty(globalThis, "document");
+    }
+  }
+});
