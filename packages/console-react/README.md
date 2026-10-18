@@ -90,6 +90,70 @@ SDK host. External hosts supply already-admitted `{id,label,href,...}` entries,
 permission. Directory-authored SDK applications register through
 `defineWorkspace.settings`; they do not need local React bindings.
 
+### First-time initialization
+
+`ConsoleInitialization` presents the opt-in Core initialization status and one
+recoverable setup flow. It installs no HTTP routes, Auth fallback, account store,
+secret provider or deployment controller. Register a Plugin-owned second-level
+page through the Settings contract above; an incomplete application instead needs
+an independently admitted minimal bootstrap host, before business Auth starts.
+
+```tsx
+import { ConsoleInitialization } from "@lenso/console-react";
+
+function SetupPage({ services, signal }) {
+  const setup = services.initialization; // supplied by this trusted application host
+  return <ConsoleInitialization
+    scopeKey={setup.scopeKey} signal={signal} target={setup.target}
+    client={setup.client} requestId={setup.requestId}
+    draft={setup.nonSecretDraft} onDraftChange={setup.updateNonSecretDraft}
+    form={OwnerSetupForm} repair={setup.repairInstructions}
+  />;
+}
+```
+
+The application's stable `OwnerSetupForm` uses existing Lenso `Form`, `TextField`,
+`Input`, `FieldError`, etc. Its `ConsoleInitializationFormProps<Input,Draft>`
+receives a controlled **non-secret** `draft`, `onDraftChange`, and `onSubmit(input)`.
+Keep password/key state inside that form; it unmounts on close, submission and
+retirement. The host retains only explicitly selected non-secret fields and a
+stable request ID, scoped by the trusted instance/owner. No browser storage,
+URL, global form cache or polling is installed. The request ID is idempotency
+metadata, never authorization. See the concrete native-sample form and Settings
+binding in `test/browser/initialization.fixture.tsx`.
+
+The injected `ConsoleInitializationClient<Input>` has `status({signal})`,
+`apply({requestId,input},{signal})`, and `activate({signal})`. This is a transport
+adapter, not Core's authorization contract. The server must independently verify
+current, short-lived, target-bound bootstrap evidence for **each action**, then
+call the existing `initialization.status(evidence)`, `apply(request,evidence)` or
+`activate(evidence)`. Never expose native `initializationBinding` to a browser or
+accept a JSON actor, UI lease, first visitor or ordinary pre-initialization Auth
+as that evidence. Abort does not roll back a dispatched write.
+
+The flow renders `uninitialized`, `blocked`, `awaiting_activation` and `ready` from
+the fixed version-1 DTO. Callback extras and raw error/diagnostic messages are
+discarded. Unavailable status is never treated as a new instance. A synchronous
+lock blocks repeated submissions; failed/unknown mutations require a fresh status
+before retrying. A committed revision offers activation without re-entering
+credentials. Ready closes first-owner input and means qualification for startup,
+not a running server, validated upstream provider key or billing operation.
+
+Native and Workers are host labels, not inferred capabilities. Workers blockers
+point to supplied existing deployment-owner instructions. Uploading a secret is
+not considered activation; only the host's current status qualifies the selected
+revision. This UI cannot stage platform credentials or repair missing D1 adapters.
+
+**Current integration gaps:** Core candidate
+`8934209473a75bd886f259d9dec37231a48c9aed` and native CLI candidate
+`2eed5d6c6d818e12fee8333c525baeaa4455cd33` are unpublished. Registry Core 0.3.1
+does not provide setup. They supply no production browser bootstrap route,
+remote authorization issuer, input-form descriptor, or Workers claim/deployment
+adapter. Those remain application-owner work. Core's invalid-input error does not
+carry a field-error DTO, so this flow keeps it at form level; it does not invent
+field mappings. A host with no client/form receives an honest connection/owner
+guide with no submit action. This package adds no Core source override.
+
 ### Login presentation
 
 `ConsoleLogin` is the default, replaceable login/status surface. It needs no

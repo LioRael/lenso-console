@@ -201,7 +201,7 @@ export default function Page(props:PageProps) {
 
     fs.writeFileSync(
       path.join(temp, "check.ts"),
-      `import {ConsoleInteractionHost} from "@lenso/console-react";
+      `import {ConsoleInteractionHost,ConsoleInitialization,parseConsoleInitializationStatus} from "@lenso/console-react";
 import {createConsolePlugin,consoleConfiguration} from "@lenso/console";
 import {createConsoleAuthentication} from "@lenso/console/auth";
 import {createConsoleAuditIntegration} from "@lenso/console/audit";
@@ -210,7 +210,7 @@ import {createConsoleAuthorizationPolicy} from "@lenso/console/authorization";
 import {createConsoleTasksIntegration} from "@lenso/console/tasks";
 import {createConsoleSchedulerIntegration} from "@lenso/console/scheduler";
 import {createConsoleLimitsBinding} from "@lenso/console/limits";
-void [ConsoleInteractionHost,createConsolePlugin,consoleConfiguration,createConsoleAuthentication,
+void [ConsoleInteractionHost,ConsoleInitialization,parseConsoleInitializationStatus,createConsolePlugin,consoleConfiguration,createConsoleAuthentication,
   createConsoleAuditIntegration,createConsoleApiKeyManage,createConsoleApiKeyCredentials,
   createConsoleAuthorizationPolicy,createConsoleTasksIntegration,
   createConsoleSchedulerIntegration,createConsoleLimitsBinding];`
