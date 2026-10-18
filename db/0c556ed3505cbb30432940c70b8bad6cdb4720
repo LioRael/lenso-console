@@ -1,0 +1,24 @@
+packages/console-authoring/README.md
+  h_9d56aba080c170 477-491
+packages/console-authoring/compiler/test/authentication.test.ts
+  h_9d56aba080c170 149-279
+packages/console-authoring/src/authentication.ts
+  h_9d56aba080c170 13-15,76-77,129,141-143
+packages/console-authoring/src/browser-admission.ts
+  h_9d56aba080c170 200-204
+packages/console-authoring/src/session-fetch.ts
+  h_9d56aba080c170 4,10-14,52-53,56-59,74-108,114,193-194
+packages/console-authoring/test/admission.browser.test.ts
+  h_9d56aba080c170 8-12,27,63-66,75,91,262-268,274-284,287-290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db0c556ed3505cbb30432940c70b8bad6cdb4720",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
