@@ -1,0 +1,16 @@
+plugins/console/shell/src/dev/console-dev-vite-plugin.test.ts
+  h_9d56aba080c170 141-186
+plugins/console/shell/src/dev/console-dev-vite-plugin.ts
+  h_9d56aba080c170 382
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ab366737a482923b89379b31877b1074e3b72ca",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
