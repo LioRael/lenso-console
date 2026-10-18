@@ -20,3 +20,8 @@ export * from "./console-shell";
 export * from "./console-login";
 export * from "./console-model";
 export * from "./console-interaction-host";
+
+export {
+  ConsoleSettingsDirectory,
+  type ConsoleSettingsLink,
+} from "./console-settings";

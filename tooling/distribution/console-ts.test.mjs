@@ -123,7 +123,7 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
     fs.writeFileSync(
       path.join(entry, "workspace.ts"),
       `import {defineWorkspace} from "@lenso/console-sdk";
-export default defineWorkspace({id:"notes",title:"Notes",path:"/notes/",services:["orders"]});`
+export default defineWorkspace({id:"notes",title:"Notes",path:"/notes/",services:["orders"],settings:[{id:"options",page:[],label:"Author options",group:{id:"providers",label:"Providers"}}]});`
     );
     fs.writeFileSync(
       path.join(entry, "services.ts"),
@@ -151,6 +151,8 @@ import {ConsolePageScope} from "@lenso/console-react";
 export default function Page(props:PageProps) {
   const client=bindServices(props.services);
   void client.orders.read({id:"42"}).then(order=>order.title.toUpperCase());
+  const openSettings=()=>props.navigation.openSettings();
+  void openSettings;
   return <ConsolePageScope scopeKey={props.activation!.key} value={{context:{kind:"hidden"},commands:[]}}><h1>Authored notes</h1></ConsolePageScope>;
 }`;
     fs.writeFileSync(path.join(entry, "page.tsx"), page);
@@ -259,6 +261,7 @@ try {
   assert.equal(pages.status,200);
   const admitted=await pages.json();
   assert.equal(admitted.mounts.length,1);
+  assert.deepEqual(admitted.mounts[0].settings,[{id:"options",page:[],label:"Author options",group:{id:"providers",label:"Providers"}}]);
   const workspace=createConsoleWorkspaceServices({origin:"https://console.test",headers,
     mount:admitted.mounts[0],fetch});
   assert.deepEqual(await workspace.invoke("orders","read",{id:"42"}),{id:"42",title:"你好 🌍",executions:1});

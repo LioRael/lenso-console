@@ -170,6 +170,18 @@ export function pageBindings(workspaces, pages) {
         `Workspace ${workspace.id} homepage is not a static page`
       );
     }
+    for (const setting of workspace.settings ?? []) {
+      if (
+        !selected.some(
+          (page) =>
+            JSON.stringify(page.segments) === JSON.stringify(setting.page)
+        )
+      ) {
+        throw new Error(
+          `Settings entry ${workspace.id}/${setting.id} must target an existing static page`
+        );
+      }
+    }
     const notFoundSource = path.join(workspace.directory, "not-found.tsx");
     const notFound = fs.existsSync(notFoundSource)
       ? addImport(notFoundSource, "PageProps")

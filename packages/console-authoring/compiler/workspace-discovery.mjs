@@ -3,9 +3,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { canonicalWorkspacePath } from "../src/paths.ts";
+import { consoleWorkspaceSettingsSchema } from "../src/settings.ts";
 
 const sdk = fileURLToPath(new URL("../src/workspace.ts", import.meta.url));
-const known = new Set(["id", "title", "path", "index", "access", "services"]);
+const known = new Set([
+  "id",
+  "title",
+  "path",
+  "index",
+  "access",
+  "services",
+  "settings",
+]);
 
 async function declaration(directory) {
   const source = path.join(directory, "workspace.ts");
@@ -23,7 +32,7 @@ async function declaration(directory) {
             path: "workspace",
             namespace: "lenso-workspace-declaration",
           }));
-          // This pure helper has no imports. Loading its packaged source directly
+          // This pure helper has no runtime imports. Loading its packaged source directly
           // also avoids Bun's file-namespace rejection of long dependency paths.
           build.onLoad(
             { filter: /^workspace$/, namespace: "lenso-workspace-declaration" },
@@ -161,6 +170,15 @@ export async function discoverWorkspaces(root, pluginId, options = {}) {
     ) {
       throw new Error("Invalid workspace service aliases");
     }
+    const settings =
+      value.settings === undefined
+        ? undefined
+        : consoleWorkspaceSettingsSchema.safeParse(value.settings);
+    if (settings && !settings.success) {
+      throw new Error(
+        `Invalid settings for workspace ${id}: ${settings.error.message}`
+      );
+    }
     workspaces.push({
       directory,
       id,
@@ -168,6 +186,7 @@ export async function discoverWorkspaces(root, pluginId, options = {}) {
       access,
       index,
       services: value.services,
+      settings: settings?.data,
       path: canonicalWorkspacePath(
         value.path ?? `/${id}`,
         access === "administrator"

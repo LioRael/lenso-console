@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { consoleWorkspaceSettingsSchema } from "./settings";
+
 export const consolePageDescriptorSchema = z.strictObject({
   apiMajor: z.literal(1),
   protocol: z.literal("lenso-console-rpc/2"),
@@ -33,6 +35,7 @@ export const consolePageDescriptorSchema = z.strictObject({
       .readonly(),
   }),
   access: z.enum(["member", "administrator"]).optional(),
+  settings: consoleWorkspaceSettingsSchema.optional(),
   index: z.array(z.string()).readonly().optional(),
   routes: z.array(z.array(z.string()).readonly()).readonly().optional(),
   credentials: z

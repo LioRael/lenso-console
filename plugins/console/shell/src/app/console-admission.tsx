@@ -5,16 +5,18 @@ import {
   ConsoleBrowserMount,
   consoleMountHref,
   consoleMountKey,
+  consoleSettingsLinks,
   findConsoleMount,
   useConsoleAdmission,
   type BrowserAdmission,
   type BrowserMount,
 } from "@lenso/console-sdk/browser";
+import { consoleShellPath } from "@lenso/console-sdk/http-paths";
 import * as consoleLocale from "@lenso/console-sdk/react/locale";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import { Blocks, Cable, KeyRound, Users } from "lucide-react";
+import { Blocks, Cable, KeyRound, Users, Settings } from "lucide-react";
 import * as React from "react";
 
 import { ConsoleLayout } from "../components/console/console-layout";
@@ -106,6 +108,7 @@ export function ConsoleAdmissionProvider({
 
 /** Static Shell routes remain unchanged; only admitted owner-built pages fill other paths. */
 export function ConsoleAdmittedPage() {
+  const navigate = useNavigate();
   const value = React.useContext(AdmissionContext);
   const location = useLocation();
   const [pendingHandoff, setPendingHandoff] =
@@ -132,6 +135,22 @@ export function ConsoleAdmittedPage() {
   }
   if (!value.admission) {
     return <RoutePending />;
+  }
+  if (location.pathname.replace(/\/$/u, "") === consoleShellPath("/settings")) {
+    return (
+      <AdmittedActionHost
+        {...(admission?.signal ? { signal: admission.signal } : {})}
+      >
+        <consoleReact.ConsoleSettingsDirectory
+          entries={consoleSettingsLinks(value.admission.mounts)}
+          isCurrent={() => !value.admission?.signal?.aborted}
+          navigate={(href) => {
+            value.admission?.signal?.throwIfAborted();
+            void navigate({ to: href });
+          }}
+        />
+      </AdmittedActionHost>
+    );
   }
   if (!mount) {
     return <RouteNotFound />;
@@ -174,12 +193,28 @@ export function ConsoleAdmittedPage() {
   );
 }
 
+/** Shared admitted navigation for host pages without an owner mount. */
+export function ConsoleAdmittedNavigation({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const admission = React.useContext(AdmissionContext)?.admission;
+  return (
+    <AdmittedActionHost
+      {...(admission?.signal ? { signal: admission.signal } : {})}
+    >
+      {children}
+    </AdmittedActionHost>
+  );
+}
+
 function AdmittedActionHost({
   children,
   signal,
 }: {
   children: React.ReactNode;
-  signal: AbortSignal;
+  signal?: AbortSignal;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -204,14 +239,40 @@ function AdmittedActionHost({
           <Blocks size={18} aria-hidden="true" />
         ),
     }));
+  const settingsHref = consoleShellPath("/settings");
+  destinations.push({
+    id: "console.settings",
+    label: "Settings",
+    href: settingsHref,
+    icon: <Settings size={18} aria-hidden="true" />,
+  });
+  const setting = consoleSettingsLinks(admission?.mounts ?? []).find(
+    (entry) =>
+      entry.href.replace(/\/$/u, "") === location.pathname.replace(/\/$/u, "")
+  );
   return (
     <consoleReact.ConsoleInteractionHost
-      signal={signal}
+      {...(signal ? { signal } : {})}
       destinations={destinations}
+      {...(setting
+        ? {
+            context: {
+              kind: "object" as const,
+              label: setting.label,
+              return: {
+                label: "Settings",
+                onInvoke() {
+                  signal?.throwIfAborted();
+                  void navigate({ to: settingsHref });
+                },
+              },
+            },
+          }
+        : {})}
       router={{
         pathname: location.pathname,
         navigate: (href) => {
-          signal.throwIfAborted();
+          signal?.throwIfAborted();
           void navigate({ to: href });
         },
       }}
@@ -364,6 +425,11 @@ function OwnerPage({
             signal.throwIfAborted();
             onClearHandoff();
             void navigate({ to: consoleMountHref(mount, segments) });
+          },
+          openSettings: () => {
+            signal.throwIfAborted();
+            onClearHandoff();
+            void navigate({ to: consoleShellPath("/settings") });
           },
           openWorkspace: ({
             workspaceId,

@@ -395,6 +395,9 @@ export function createWorkspaceInstallation(options: {
           styles: descriptor.styles.map((style) => `${assetBase}${style}`),
           navigation: workspace.navigation,
           access: workspace.access,
+          ...(workspace.settings === undefined
+            ? {}
+            : { settings: workspace.settings }),
           index: workspace.index,
           routes: workspace.routes,
           requirements: installation.requirements

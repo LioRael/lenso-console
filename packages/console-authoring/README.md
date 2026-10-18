@@ -216,6 +216,49 @@ implementation import can be shared, but mutable instance state cannot.
 The runtime catalog changes on App activation. This does not add a live
 workspace-metadata HMR protocol or native development Host.
 
+## Plugin settings pages
+
+The admitted Shell owns `/settings`, a grouped directory of links. Plugins own
+their existing second-level pages, services, validation and configuration scope.
+Register a static page in `workspace.ts`:
+
+```ts
+import { defineWorkspace } from "@lenso/console-sdk";
+export default defineWorkspace({
+  id: "author", path: "/author/", access: "member", services: ["connections"],
+  settings: [{
+    id: "chatgpt-provider", page: ["chatgpt-settings"],
+    label: "ChatGPT Provider", description: "Applies across your works",
+    group: { id: "providers", label: "Providers" },
+  }],
+});
+```
+
+`page` is an existing static path relative to this workspace (`[]` selects its
+root); missing targets and duplicate IDs fail compilation. IDs are local to the
+workspace and qualified by the admitted mount, including multiple installations.
+Only admitted workspaces contribute entries. Existing member/administrator and
+service authorization still apply to deep links and requests.
+
+Second-level pages keep `PageProps.services`, `signal` and `activation`, and may
+use any Plugin-owned layout or workflow. `navigation.openSettings()` returns to
+the host directory, honoring its Shell base path. The Shell supplies a Settings
+return context for a registered target; an explicit `ConsolePageScope` context
+takes precedence. Backend and example previews support the same registration.
+
+Configuration-change notification stays with the owning component's existing
+callback and read invalidation: for example, `ChatGPTConnections({api,onChanged})`
+can refresh its existing owner service after a successful change. This directory
+adds no event bus, generic CRUD, persistent form cache or configuration authority.
+An author-wide connection remains author-wide. Register an Agent Provider only
+if that Plugin actually supplies a supported configuration page. Optional
+`status` is static, non-secret display metadata; omit it for live connection state.
+Never put passwords, keys or raw configuration in descriptors.
+
+This API requires a matching candidate SDK and Shell; older published hosts do
+not gain it merely by registering metadata. It does not revive retired native
+configuration APIs or make startup `definePluginConfig` values writable.
+
 ## Ownership and repository map
 
 | Category | Owner / location | Author responsibility |

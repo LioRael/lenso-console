@@ -277,7 +277,7 @@ test("directory and explicit workspaces share one implementation with independen
       );
       fs.writeFileSync(
         path.join(entry, workspace, "workspace.ts"),
-        `import {defineWorkspace} from "@lenso/console-sdk"; export default defineWorkspace({id:"${workspace}",title:"${workspace}",path:"/${workspace === "user" ? "console" : "admin"}/",access:"${workspace === "user" ? "member" : "administrator"}"});`
+        `import {defineWorkspace} from "@lenso/console-sdk"; export default defineWorkspace({id:"${workspace}",title:"${workspace}",path:"/${workspace === "user" ? "console" : "admin"}/",access:"${workspace === "user" ? "member" : "administrator"}",settings:[{id:"provider",page:["details"],label:"Provider",group:{id:"providers",label:"Providers"}}]});`
       );
     }
     const request = {
@@ -324,6 +324,24 @@ test("directory and explicit workspaces share one implementation with independen
       "user",
     ]);
     const directory = compile();
+    expect(directory.workspaces.map((item) => item.settings)).toEqual([
+      [
+        {
+          id: "provider",
+          page: ["details"],
+          label: "Provider",
+          group: { id: "providers", label: "Providers" },
+        },
+      ],
+      [
+        {
+          id: "provider",
+          page: ["details"],
+          label: "Provider",
+          group: { id: "providers", label: "Providers" },
+        },
+      ],
+    ]);
     expect(
       directory.workspaces.map((item) => [item.id, item.path, item.access])
     ).toEqual([
@@ -386,6 +404,26 @@ test("directory and explicit workspaces share one implementation with independen
     expect(moved.workspaces.find((item) => item.id === "user").path).toBe(
       "/members/"
     );
+    const source = path.join(entry, "user/workspace.ts");
+    for (const settings of [
+      [{ id: "missing", page: ["missing"], label: "Missing" }],
+      [
+        { id: "same", page: [], label: "One" },
+        { id: "same", page: ["details"], label: "Two" },
+      ],
+      [{ id: "dynamic", page: ["[id]"], label: "Dynamic" }],
+    ]) {
+      fs.writeFileSync(
+        source,
+        `export default {id:"user",path:"/members/",settings:${JSON.stringify(settings)}};`
+      );
+      const rejected = Bun.spawnSync(["bun", compiler], {
+        env,
+        stdin: Buffer.from(JSON.stringify(request)),
+      });
+      expect(rejected.exitCode).not.toBe(0);
+      expect(rejected.stderr.toString()).toMatch(/settings|Settings/);
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

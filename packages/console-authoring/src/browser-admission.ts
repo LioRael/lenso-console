@@ -524,7 +524,9 @@ export function useConsoleAdmission(
 }
 
 /** The browser uses unqualified paths even when the backend catalogs separate subjects. */
-export function assertConsoleMountPaths(mounts: readonly BrowserMount[]) {
+export function assertConsoleMountPaths(
+  mounts: readonly Pick<BrowserMount, "id" | "basePath">[]
+) {
   for (let index = 0; index < mounts.length; index += 1) {
     const mount = mounts[index]!;
     const base = mount.basePath.replace(/\/$/u, "");

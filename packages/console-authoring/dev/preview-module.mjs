@@ -7,6 +7,9 @@ export function previewModule({ workspaces, pages, backend, examples }) {
     title: workspace.title,
     basePath: workspace.path,
     access: workspace.access,
+    ...(workspace.settings === undefined
+      ? {}
+      : { settings: workspace.settings }),
     index: workspace.index,
     routes: pages
       .filter((page) => page.workspace === workspace)

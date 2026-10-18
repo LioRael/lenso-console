@@ -33,10 +33,12 @@ import type {
   ConsolePreferenceStore,
   ConsoleRouterAdapter,
   ConsoleSessionAdapter,
+  ConsoleSettingsOptions,
 } from "./composition";
 import {
   ConsoleActionHost,
   type ConsolePageContribution,
+  type ConsoleTaskContext,
 } from "./console-action-scope";
 import { useConsoleActivation } from "./console-activation";
 import { ConsoleCommand, useConsoleCommandFocus } from "./console-command";
@@ -59,6 +61,7 @@ import {
   defaultConsolePreferences,
   orderedConsolePins,
   visibleConsoleNavigation,
+  visibleConsoleSettings,
   visibleConsoleDockViews,
   type ConsoleNavigationItem,
   type ConsoleRoute,
@@ -70,6 +73,11 @@ import {
   ConsolePresetCollection,
 } from "./console-navigation-editor";
 import { useConsolePreferences } from "./console-preferences";
+import {
+  ConsoleSettingsContext,
+  consoleSettingsBindingId,
+  createConsoleSettingsBinding,
+} from "./console-settings";
 import { shellStyles as styles } from "./console-shell.styles";
 
 export type ConsoleShellStatus =
@@ -87,6 +95,8 @@ export interface ConsoleShellProps {
   basePath?: string;
   navigationDefaults?: Partial<ConsolePreferences>;
   dock?: { leading: readonly ConsoleDockViewReference[] };
+  /** Explicit installation; Plugins retain configuration UI and service ownership. */
+  settings?: ConsoleSettingsOptions;
   preferences?: ConsolePreferenceStore;
   tabsPosition?: ConsolePreferences["position"] | "content";
   topEdge?: ConsoleLayoutProps["topEdge"];
@@ -311,6 +321,7 @@ export function ConsoleShell({
   basePath = "/",
   navigationDefaults,
   dock,
+  settings,
   preferences: store,
   tabsPosition,
   topEdge,
@@ -319,14 +330,28 @@ export function ConsoleShell({
   renderStatus,
   children,
 }: ConsoleShellProps) {
+  const settingsEnabled = settings !== undefined;
+  const settingsPath = settings?.path ?? "/settings";
+  const settingsLabel = settings?.label ?? "Settings";
+  const settingsBinding = useMemo(
+    () =>
+      settingsEnabled
+        ? createConsoleSettingsBinding(settingsPath, settingsLabel)
+        : undefined,
+    [settingsEnabled, settingsPath, settingsLabel]
+  );
+  const installed = useMemo(
+    () => (settingsBinding ? [...plugins, settingsBinding] : plugins),
+    [plugins, settingsBinding]
+  );
   const narrowSidebar = useSyncExternalStore(
     subscribeNarrowSidebar,
     narrowSidebarSnapshot,
     () => false
   );
   const model = useMemo(
-    () => createConsoleModel(plugins, basePath, dock?.leading),
-    [plugins, basePath, dock?.leading]
+    () => createConsoleModel(installed, basePath, dock?.leading),
+    [installed, basePath, dock?.leading]
   );
   const defaults = useMemo(
     () => defaultConsolePreferences(model.navigation, navigationDefaults),
@@ -372,16 +397,16 @@ export function ConsoleShell({
       });
     }
   }, [customizing, presentation]);
-  const changeView = (settings: boolean, presentationOnly = false) => {
-    if (settings && (!preference.loaded || preference.busy)) {
+  const changeView = (editing: boolean, presentationOnly = false) => {
+    if (editing && (!preference.loaded || preference.busy)) {
       return;
     }
     viewChanged.current = true;
-    if (settings) {
+    if (editing) {
       editingPresentation.current = presentationOnly;
     }
-    setEditDraft(settings ? value : null);
-    setCustomizing(settings);
+    setEditDraft(editing ? value : null);
+    setCustomizing(editing);
     setPresentation(presentationOnly);
     setEditAnnouncement("");
   };
@@ -428,6 +453,19 @@ export function ConsoleShell({
     returnFocus.current = null;
   }, [scopeKey, session?.state]);
   const navigation = visibleConsoleNavigation(model.navigation, session);
+  const settingsItems = visibleConsoleSettings(model.settings, session);
+  const settingsRoute = settingsBinding
+    ? model.routes.find(
+        (route) =>
+          route.binding.id === consoleSettingsBindingId &&
+          route.pageId === "index"
+      )
+    : undefined;
+  const settingsAllowed =
+    !!settingsRoute &&
+    (!session || session.state === "ready") &&
+    (!session?.canAccess ||
+      session.canAccess(consoleSettingsBindingId, "index"));
   const pins = orderedConsolePins(navigation, value);
   const presetDocument = consoleDockPresets(value);
   const selectPreset = (id: string) => {
@@ -517,6 +555,50 @@ export function ConsoleShell({
             session.canAccess(match.route.binding.id, tab.page)
         )
       : [];
+  const activeSetting =
+    settingsAllowed && match
+      ? settingsItems.find(
+          (entry) =>
+            entry.route.binding === match.route.binding &&
+            (entry.route.pageId === match.route.pageId ||
+              !!group?.tabs.some((tab) => tab.page === entry.route.pageId))
+        )
+      : undefined;
+  const settingsReturn =
+    activeSetting && settingsRoute
+      ? {
+          label: settingsLabel,
+          onInvoke: () =>
+            router.navigate(consoleRouteHref(settingsRoute.pattern)),
+        }
+      : undefined;
+  const settingsContext: ConsoleTaskContext | undefined =
+    settingsReturn && match
+      ? visibleTabs.length > 1 && group
+        ? {
+            kind: "tabs",
+            label: group.label,
+            activeId: activeTab,
+            tabs: visibleTabs.map((tab) => ({
+              id: tab.page,
+              label: tab.label,
+              href: consoleRouteHref(
+                model.routes.find(
+                  (route) =>
+                    route.binding === match.route.binding &&
+                    route.pageId === tab.page
+                )!.pattern,
+                match.params!
+              ),
+            })),
+            return: settingsReturn,
+          }
+        : {
+            kind: "object",
+            label: activeSetting!.label,
+            return: settingsReturn,
+          }
+      : undefined;
   const pageNavigation =
     visibleTabs.length > 1 && group && match ? (
       <Tabs.Root
@@ -701,7 +783,9 @@ export function ConsoleShell({
             onFocusDock={() => undefined}
           />
           <ConsoleContextBar
-            {...(page?.context ? { context: page.context } : {})}
+            {...(page?.context || settingsContext
+              ? { context: page?.context ?? settingsContext }
+              : {})}
             fallback={inlineTabs ? null : pageNavigation}
             router={router}
             sidebar={value.mode === "sidebar"}
@@ -774,7 +858,7 @@ export function ConsoleShell({
                 styles.clearBottomTabs
             )}
           >
-            {inlineTabs && !page?.context && pageNavigation}
+            {inlineTabs && !page?.context && !settingsContext && pageNavigation}
             {status ? (
               <Status status={status} render={renderStatus} />
             ) : (
@@ -1103,7 +1187,11 @@ export function ConsoleShell({
         }
       }}
     >
-      {layout}
+      <ConsoleSettingsContext.Provider
+        value={{ items: settingsItems, label: settingsLabel, router }}
+      >
+        {layout}
+      </ConsoleSettingsContext.Provider>
     </Popover.Root>
   );
 }

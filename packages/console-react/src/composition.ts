@@ -77,6 +77,23 @@ export interface ConsolePluginDefinition<Services = unknown> {
   pageGroups?: Readonly<Record<string, ConsolePageGroup>>;
   navigation?: readonly ConsoleNavigationDefinition[];
   dockViews?: readonly ConsoleDockViewDefinition<Services>[];
+  /** Non-secret navigation metadata; the Plugin owns the target page and flow. */
+  settings?: readonly ConsoleSettingsDefinition[];
+}
+
+export interface ConsoleSettingsDefinition {
+  id: string;
+  page: string;
+  label: string;
+  description?: string;
+  group?: { id: string; label: string };
+  /** Safe display text only; never credentials or raw configuration. */
+  status?: string;
+}
+
+export interface ConsoleSettingsOptions {
+  path?: string;
+  label?: string;
 }
 
 export interface ConsoleBinding<Services = unknown> {

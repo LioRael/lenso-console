@@ -30,6 +30,14 @@ export interface ConsoleNavigationItem {
   route: ConsoleRoute;
   pages: readonly string[];
 }
+export interface ConsoleSettingsItem {
+  id: string;
+  label: string;
+  description?: string;
+  status?: string;
+  group: { id: string; label: string };
+  route: ConsoleRoute;
+}
 export function consoleReferenceKey(reference: ConsoleNavigationReference) {
   return JSON.stringify([reference.bindingId, reference.navigationId]);
 }
@@ -89,6 +97,7 @@ export function createConsoleModel(
 ) {
   const routes: ConsoleRoute[] = [];
   const navigation: ConsoleNavigationItem[] = [];
+  const settings: ConsoleSettingsItem[] = [];
   const views: ConsoleDockViewItem[] = [];
   const bindingIds = new Set<string>();
   for (const binding of bindings) {
@@ -177,6 +186,31 @@ export function createConsoleModel(
       }
     }
     const navigationIds = new Set<string>();
+    const settingIds = new Set<string>();
+    for (const entry of binding.definition.settings ?? []) {
+      if (!entry.id.trim() || settingIds.has(entry.id) || !entry.label.trim()) {
+        throw new Error(
+          `Duplicate or invalid Console setting: ${binding.id}/${entry.id}`
+        );
+      }
+      settingIds.add(entry.id);
+      const route = routeFor(entry.page);
+      consoleRouteHref(route.pattern);
+      const group = entry.group ?? { id: "plugins", label: "Plugins" };
+      if (!group.id.trim() || !group.label.trim()) {
+        throw new Error("Invalid Console settings group");
+      }
+      const previous = settings.find((item) => item.group.id === group.id);
+      if (previous && previous.group.label !== group.label) {
+        throw new Error(`Conflicting Console settings group: ${group.id}`);
+      }
+      settings.push({
+        ...entry,
+        id: JSON.stringify([binding.id, entry.id]),
+        group,
+        route,
+      });
+    }
     for (const item of binding.definition.navigation ?? []) {
       if (!item.id || navigationIds.has(item.id)) {
         throw new Error(
@@ -224,7 +258,21 @@ export function createConsoleModel(
     }
     return item;
   });
-  return { routes, navigation, dockViews };
+  return { routes, navigation, dockViews, settings };
+}
+
+export function visibleConsoleSettings(
+  items: readonly ConsoleSettingsItem[],
+  session?: ConsoleSessionAdapter
+) {
+  if (session && session.state !== "ready") {
+    return [];
+  }
+  return items.filter(
+    (item) =>
+      !session?.canAccess ||
+      session.canAccess(item.route.binding.id, item.route.pageId)
+  );
 }
 
 export interface ConsoleDockViewItem {

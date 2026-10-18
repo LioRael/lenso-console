@@ -55,6 +55,48 @@ export function consoleMountHref(
   return `${mount.basePath.replace(/\/$/u, "")}/${segments.map(encodeURIComponent).join("/")}`;
 }
 
+export interface ConsoleSettingsDestination {
+  id: string;
+  label: string;
+  href: string;
+  description?: string;
+  group?: { id: string; label: string };
+  status?: string;
+}
+
+/** Consume only the current admitted catalog, never a persisted feature registry. */
+export function consoleSettingsLinks(
+  mounts: readonly Pick<
+    BrowserMount,
+    "id" | "basePath" | "settings" | "routes"
+  >[]
+): ConsoleSettingsDestination[] {
+  assertConsoleMountPaths(mounts);
+  return mounts.flatMap((mount) =>
+    (mount.settings ?? []).map((entry) => {
+      if (
+        !mount.routes?.some(
+          (route) => JSON.stringify(route) === JSON.stringify(entry.page)
+        )
+      ) {
+        throw new Error(
+          `Settings entry ${mount.id}/${entry.id} has no static route`
+        );
+      }
+      return {
+        id: JSON.stringify([mount.id, entry.id]),
+        label: entry.label,
+        href: consoleMountHref(mount, entry.page),
+        ...(entry.description === undefined
+          ? {}
+          : { description: entry.description }),
+        ...(entry.group === undefined ? {} : { group: entry.group }),
+        ...(entry.status === undefined ? {} : { status: entry.status }),
+      };
+    })
+  );
+}
+
 /** Each admitted mount owns one cache and request lifetime, including late-result rejection. */
 export function ConsoleBrowserMount({
   admission,

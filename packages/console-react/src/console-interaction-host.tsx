@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import type { ConsoleRouterAdapter } from "./composition";
+import type { ConsoleTaskContext } from "./console-action-scope";
 import { ConsoleActionHost } from "./console-action-scope";
 import { ConsoleCommand, useConsoleCommandFocus } from "./console-command";
 import { ConsoleContextBar } from "./console-context-bar";
@@ -37,11 +38,14 @@ export function ConsoleInteractionHost({
   router,
   signal,
   destinations = noDestinations,
+  context,
 }: {
   children: ReactNode;
   router: Pick<ConsoleRouterAdapter, "pathname" | "navigate">;
   signal?: AbortSignal;
   destinations?: readonly ConsoleInteractionDestination[];
+  /** Host fallback; a Plugin page's explicit context takes precedence. */
+  context?: ConsoleTaskContext;
 }) {
   const [open, setOpen] = useState(false);
   const [mount, setMount] = useState<HTMLDivElement | null>(null);
@@ -198,7 +202,7 @@ export function ConsoleInteractionHost({
                 onFocusDock={() => undefined}
               />
               <ConsoleContextBar
-                context={page?.context}
+                context={page?.context ?? context}
                 fallback={null}
                 router={router}
                 sidebar={false}

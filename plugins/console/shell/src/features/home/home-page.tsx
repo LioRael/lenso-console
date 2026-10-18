@@ -1,5 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 
+import { ConsoleAdmittedNavigation } from "../../app/console-admission";
+
 const styles = stylex.create({
   layout: {
     width: "100%",
@@ -10,5 +12,9 @@ const styles = stylex.create({
 });
 
 export function HomePage() {
-  return <main {...stylex.props(styles.layout)} aria-label="Home" />;
+  return (
+    <ConsoleAdmittedNavigation>
+      <main {...stylex.props(styles.layout)} aria-label="Home" />
+    </ConsoleAdmittedNavigation>
+  );
 }

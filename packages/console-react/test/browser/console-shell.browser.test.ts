@@ -20,6 +20,42 @@ afterAll(async () => {
   await server?.close();
 });
 
+test("local Settings reuse bound pages, group tabs and target permissions", async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ reducedMotion: "reduce" });
+  try {
+    await page.goto(
+      `${server.resolvedUrls!.local[0]}test/browser/index.html?settings`
+    );
+    await page.evaluate(() =>
+      window.shellFixture.navigate("/console/settings")
+    );
+    const directory = page.getByRole("region", {
+      name: "Settings",
+      exact: true,
+    });
+    const entry = directory.getByRole("link", { name: "History options" });
+    await entry.focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "History page" }).waitFor();
+    const context = page.getByLabel("Task context", { exact: true });
+    await context
+      .getByRole("button", { name: "Settings", exact: true })
+      .click();
+    await directory.waitFor();
+    await page.evaluate(() => window.shellFixture.allow(false));
+    await directory.getByText("No settings are available.").waitFor();
+    expect(await entry.count()).toBe(0);
+    await page.evaluate(() => window.shellFixture.navigate("/console/history"));
+    await page.getByText("You do not have access to this page.").waitFor();
+    expect(
+      await page.getByRole("heading", { name: "History page" }).count()
+    ).toBe(0);
+  } finally {
+    await browser.close();
+  }
+}, 30_000);
+
 async function nativeCancelDisplay(page: Page, label: string) {
   // getComputedStyle(input, pseudo) returns the host input's display in
   // Chromium. Inspect the actual user-agent shadow control instead.

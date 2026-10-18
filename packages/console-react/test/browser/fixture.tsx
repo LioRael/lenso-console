@@ -52,6 +52,7 @@ const dockViewCount = manyDockViews
   ? Number(new URLSearchParams(location.search).get("dock-count") ?? 8)
   : 1;
 const clearanceFixture = new URLSearchParams(location.search).has("clearance");
+const settingsFixture = new URLSearchParams(location.search).has("settings");
 let composerMounts = 0;
 let resolveExit: ((allow: boolean) => void) | undefined;
 let guardExit = false;
@@ -615,7 +616,24 @@ function Fixture() {
   });
   const plugins = React.useMemo(
     () => [
-      { ...binding, definition: { ...definition } },
+      {
+        ...binding,
+        definition: {
+          ...definition,
+          ...(settingsFixture
+            ? {
+                settings: [
+                  {
+                    id: "history",
+                    page: "history",
+                    label: "History options",
+                    group: { id: "general", label: "General" },
+                  },
+                ],
+              }
+            : {}),
+        },
+      },
       ...(dockFixture ? [dockBinding] : []),
     ],
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- The test explicitly replaces definition identity without changing its route or stable IDs.
@@ -623,6 +641,7 @@ function Fixture() {
   );
   return (
     <ConsoleShell
+      {...(settingsFixture ? { settings: {} } : {})}
       plugins={plugins}
       dock={
         dockFixture
@@ -640,7 +659,7 @@ function Fixture() {
       session={{
         state: "ready",
         scopeKey,
-        canAccess: () => allow,
+        canAccess: (owner) => owner === "console.settings" || allow,
         canAccessDockView: () => allowDock,
       }}
       router={{

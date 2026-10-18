@@ -55,6 +55,41 @@ may select another edge or `"content"`; `topEdge` forwards the existing layout
 effect options. Fixed corner rows compose multiple `Corner` children without
 overlapping independent contributions or losing their React context.
 
+### Plugin settings directory
+
+An application can explicitly install a navigation-only Settings page:
+
+```tsx
+const provider = defineConsolePlugin({
+  id: "author-provider",
+  pages: { connections: { component: ConnectionsPage } },
+  settings: [{
+    id: "connections", page: "connections", label: "Connections",
+    description: "Configure your author account",
+    group: { id: "providers", label: "Providers" },
+  }],
+});
+const plugins = [bindConsole(provider, {
+  id: "author-provider", services: ownerServices,
+  routes: { connections: "/author/connections" },
+})];
+<ConsoleShell plugins={plugins} router={hostRouter} settings={{ path: "/settings" }} />;
+```
+
+Entries target existing static bound pages. Duplicate local IDs and missing or
+dynamic targets fail assembly. The host's existing `canAccess(bindingId,pageId)`
+filters entries and routes; admit `console.settings` / `index` to expose the
+directory itself. A registered page receives a Settings return context unless
+the Plugin supplies its own. Plugins retain the second-level UI, service scope,
+write validation and existing change callbacks. No values or drafts are stored
+by this directory. `status` is optional safe static display text, never secrets.
+
+`ConsoleSettingsDirectory` is also the public presentation used by the compiled
+SDK host. External hosts supply already-admitted `{id,label,href,...}` entries,
+`navigate`, and an `isCurrent` lease check. Directory visibility grants no service
+permission. Directory-authored SDK applications register through
+`defineWorkspace.settings`; they do not need local React bindings.
+
 ### Login presentation
 
 `ConsoleLogin` is the default, replaceable login/status surface. It needs no

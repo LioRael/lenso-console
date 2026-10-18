@@ -9,6 +9,7 @@ import {
   orderedConsolePins,
   visibleConsoleDockViews,
   visibleConsoleNavigation,
+  visibleConsoleSettings,
 } from "../src/console-model";
 
 const definition = defineConsolePlugin({
@@ -42,6 +43,63 @@ const binding = bindConsole(definition, {
   id: "first",
   services: {},
   routes: { list: "/records", history: "/history", detail: "/records/:id" },
+});
+
+// Navigation alone cannot prove that Settings uses the target page's permission
+// or retains distinct installations of the same Plugin.
+test("settings resolve static pages per installation and redact inaccessible entries", () => {
+  const withSettings = {
+    ...definition,
+    settings: [
+      {
+        id: "provider",
+        page: "history",
+        label: "Provider",
+        group: { id: "providers", label: "Providers" },
+      },
+    ],
+  };
+  const first = { ...binding, definition: withSettings };
+  const second = bindConsole(withSettings, {
+    id: "second",
+    services: {},
+    routes: {
+      list: "/two",
+      history: "/two/history",
+      detail: "/two/records/:id",
+    },
+  });
+  const model = createConsoleModel([first, second], "/console");
+  expect(new Set(model.settings.map((item) => item.id)).size).toBe(2);
+  const visible = visibleConsoleSettings(model.settings, {
+    state: "ready",
+    scopeKey: "member",
+    canAccess: (owner, page) => owner === "second" && page === "history",
+  });
+  expect(visible.map((item) => consoleRouteHref(item.route.pattern))).toEqual([
+    "/console/two/history",
+  ]);
+  expect(
+    visibleConsoleSettings(model.settings, {
+      state: "loading",
+      scopeKey: "pending",
+    })
+  ).toEqual([]);
+  expect(createConsoleModel([binding]).settings).toEqual([]);
+  for (const settings of [
+    [
+      { id: "same", page: "history", label: "One" },
+      { id: "same", page: "list", label: "Two" },
+    ],
+    [{ id: "missing", page: "missing", label: "Missing" }],
+    [{ id: "dynamic", page: "detail", label: "Dynamic" }],
+  ]) {
+    expect(() =>
+      createConsoleModel([
+        { ...binding, definition: { ...definition, settings } },
+      ])
+    ).toThrow();
+  }
 });
 
 // Existing Dock-only fixtures do not exercise binding assembly or route registration.

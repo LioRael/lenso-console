@@ -187,6 +187,9 @@ const descriptor = {
     path: workspace.path,
     index: workspace.index,
     access: workspace.access,
+    ...(workspace.settings === undefined
+      ? {}
+      : { settings: workspace.settings }),
     routes: pages
       .filter((page) => page.workspace === workspace)
       .map((page) => page.segments),

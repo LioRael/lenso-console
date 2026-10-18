@@ -107,6 +107,7 @@ export const compiledWorkspaceSchema = z.strictObject({
       path: z.string().optional(),
       index: z.array(z.string()).optional(),
       access: z.enum(["member", "administrator"]),
+      settings: consolePageDescriptorSchema.shape.settings,
       routes: z.array(z.array(z.string())),
       navigation: consolePageDescriptorSchema.shape.navigation,
     })

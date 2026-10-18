@@ -17,6 +17,7 @@ export type {
 } from "./read";
 
 export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
+export type { ConsoleWorkspaceSetting } from "./settings";
 export {
   deriveReadRefreshState,
   resolveReadRefreshPolicy,
@@ -31,7 +32,7 @@ export type Subject = ConsolePageDescriptor["subject"];
 /** Page view projection also supports local preview and older Host props. */
 export type PageMount = Pick<
   ConsolePageDescriptor,
-  "id" | "pageId" | "title" | "subject" | "revision" | "basePath"
+  "id" | "pageId" | "title" | "subject" | "revision" | "basePath" | "settings"
 > & {
   /** Content identity of the executable page, independent of its mount. */
   implementationId?: ConsolePageDescriptor["implementationId"];
@@ -63,6 +64,8 @@ export interface PageProps {
   navigation: {
     go(segments: readonly string[]): void;
     href(segments: readonly string[]): string;
+    /** Global host-owned directory; never a workspace-relative path. */
+    openSettings(): void;
     openWorkspace(request: {
       workspaceId: string;
       subject: Subject;

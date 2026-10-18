@@ -2,6 +2,7 @@ import {
   ConsoleInteractionHost,
   ConsoleLayout,
   useConsoleActivation,
+  ConsoleSettingsDirectory,
 } from "@lenso/console-react";
 
 import "@lenso/console-react/styles.css";
@@ -22,6 +23,7 @@ import {
   ConsoleBrowserMount,
   consoleMountHref,
   consoleMountKey,
+  consoleSettingsLinks,
   findConsoleMount,
   useConsoleAdmission,
   type BrowserMount,
@@ -34,6 +36,7 @@ import { useConsoleAppearance } from "./shell/app/console-appearance";
 export type PreviewMount = PageProps["mount"] & {
   basePath: string;
   requirements: NonNullable<PageProps["mount"]["requirements"]>;
+  routes?: readonly (readonly string[])[];
   navigation: {
     label: string;
     items: readonly { label: string; path: readonly string[] }[];
@@ -61,6 +64,7 @@ function BackendPreview() {
   const { admission, error, retry } = useConsoleAdmission(selectMounts);
   const location = useLocation();
   const mount = findConsoleMount(admission, location.pathname);
+  const navigate = useNavigate();
   return (
     <main>
       <h1>Plugin page preview</h1>
@@ -75,7 +79,16 @@ function BackendPreview() {
       ) : admission ? (
         <>
           <Destinations mounts={admission.mounts} />
-          {mount ? (
+          {location.pathname === "/settings" ? (
+            <ConsoleSettingsDirectory
+              entries={consoleSettingsLinks(admission.mounts)}
+              isCurrent={() => !admission.signal?.aborted}
+              navigate={(href) => {
+                admission.signal?.throwIfAborted();
+                void navigate({ to: href });
+              }}
+            />
+          ) : mount ? (
             <ConsoleBrowserMount
               admission={admission}
               key={consoleMountKey(admission, mount)}
@@ -107,6 +120,9 @@ function BackendPreview() {
 function Destinations({ mounts }: { mounts: readonly PreviewMount[] }) {
   return (
     <nav aria-label="Preview pages">
+      <a {...stylex.props(styles.destination)} href="/settings">
+        Settings
+      </a>
       {mounts.map((mount) => (
         <a
           {...stylex.props(styles.destination)}
@@ -144,6 +160,25 @@ function PreviewContent({
     <ConsoleLayout>
       <ConsoleInteractionHost
         signal={signal}
+        {...(mount.settings?.find(
+          (entry) =>
+            consoleMountHref(mount, entry.page).replace(/\/$/u, "") ===
+            location.pathname.replace(/\/$/u, "")
+        )
+          ? {
+              context: {
+                kind: "object" as const,
+                label: "Settings",
+                return: {
+                  label: "Settings",
+                  onInvoke: () => {
+                    signal.throwIfAborted();
+                    void navigate({ to: "/settings" });
+                  },
+                },
+              },
+            }
+          : {})}
         router={{
           pathname: location.pathname,
           navigate: (href) => {
@@ -175,6 +210,11 @@ function PreviewContent({
               signal.throwIfAborted();
               setHandoff(undefined);
               void navigate({ to: consoleMountHref(mount, segments) });
+            },
+            openSettings: () => {
+              signal.throwIfAborted();
+              setHandoff(undefined);
+              void navigate({ to: "/settings" });
             },
             openWorkspace: ({
               workspaceId,
@@ -208,6 +248,7 @@ function PreviewContent({
 
 function LocalPreview() {
   const location = useLocation();
+  const navigate = useNavigate();
   const mount = previewMounts.find(
     (candidate) =>
       location.pathname === candidate.basePath.replace(/\/$/u, "") ||
@@ -218,7 +259,12 @@ function LocalPreview() {
       <h1>Plugin page preview</h1>
       <p>Example data only. No backend is running.</p>
       <Destinations mounts={previewMounts} />
-      {mount ? (
+      {location.pathname === "/settings" ? (
+        <ConsoleSettingsDirectory
+          entries={consoleSettingsLinks(previewMounts)}
+          navigate={(href) => void navigate({ to: href })}
+        />
+      ) : mount ? (
         <LocalMount key={`${mount.id}:${mount.revision}`} mount={mount} />
       ) : (
         <p>Select a preview page.</p>
