@@ -1,5 +1,15 @@
 # @lenso/console-sdk
 
+## 1.4.0
+
+### Minor Changes
+
+- Add optional WorkspaceServices.inspect, the WorkspaceOperationContext React reader, operation context protocol schemas/types, and bounded workspace.inspect transport support. Inspection requires a compatible host; missing adapters and older hosts remain explicitly unavailable.
+
+### Patch Changes
+
+- Replace the default page counter with an accessible order-reference form using existing UI components and real workspace navigation.
+
 ## 1.3.0
 
 Add plugin-owned workspace Settings declarations and global openSettings navigation. Preserve explicitly admitted loopback CSRF transport and initialization browser admission.

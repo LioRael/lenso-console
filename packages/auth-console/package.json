@@ -1,6 +1,6 @@
 {
   "name": "@lenso/auth-console",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Optional capability-driven Auth Console adapter",
   "license": "MIT",
   "repository": {

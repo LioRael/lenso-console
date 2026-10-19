@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-sdk",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Console page authoring: SDK, service client generation, compiler and scaffold",
   "license": "MIT",
   "repository": {

@@ -89,7 +89,7 @@
     },
     "packages/auth-console": {
       "name": "@lenso/auth-console",
-      "version": "2.1.0",
+      "version": "2.1.1",
       "dependencies": {
         "@lenso/api-keys": "0.1.6",
         "@lenso/audit": "0.3.3",
@@ -175,7 +175,7 @@
     },
     "packages/console-authoring": {
       "name": "@lenso/console-sdk",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "bin": {
         "lenso-console-author": "./author.mjs",
       },

@@ -1,5 +1,12 @@
 # @lenso/auth-console
 
+## 2.1.1
+
+### Patch Changes
+
+- Organize identity directory and detail, preserve search/filter/cursor return context, and scope session-revoke refresh while rechecking permissions.
+- Include the previously landed 437d309 administration draft recovery and pre-invocation field-error mapping fixes.
+
 ## 2.1.0
 
 ### Minor Changes
