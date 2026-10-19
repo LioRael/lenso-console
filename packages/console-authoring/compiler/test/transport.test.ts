@@ -104,6 +104,34 @@ describe("Console SDK Fetch transport", () => {
           targets: [{ id: "世界", label: "世界 🌍" }],
         })),
         workspace: {
+          inspect: implementation.workspace.inspect.handler(
+            ({ input, context }) => {
+              headers.push(context.headers);
+              return {
+                schema: "console.page-operation-context/1" as const,
+                provenance: "admitted-declaration" as const,
+                availability: "unverified" as const,
+                page: {
+                  targetId: "north",
+                  mountId: input.mountId,
+                  revision: mount.revision,
+                  implementationId: mount.implementationId,
+                  ownerInstance: mount.owner.instance,
+                },
+                service: input.service,
+                operations: [],
+                nextOffset: null,
+                runtime: {
+                  availability: "unavailable" as const,
+                  reason: "runtime-binding-not-configured" as const,
+                },
+                recentFailures: {
+                  availability: "unavailable" as const,
+                  reason: "collector-not-configured" as const,
+                },
+              };
+            }
+          ),
           subscribe: implementation.workspace.subscribe.handler(
             async function* fixtureStream() {
               yield "世界";
@@ -210,6 +238,21 @@ describe("Console SDK Fetch transport", () => {
     );
     expect(headers[0]?.get("x-lenso-expected-subject")).toBe("actor-a");
     expect(headers[0]?.get("x-custom")).toBe("custom");
+    const readsBeforeInspection = bodies.length;
+    const inspected = await services.inspect!("notes", {
+      operation: "echo",
+      limit: 1,
+    });
+    expect(bodies.length - readsBeforeInspection).toBe(1);
+    expect(inspected.page.mountId).toBe(mount.id);
+    expect(inspected.availability).toBe("unverified");
+    expect(headers.at(-1)?.get("x-lenso-page-owner")).toBe(
+      mount.owner.instance
+    );
+    expect(headers.at(-1)?.get("x-lenso-page-implementation")).toBe(
+      mount.implementationId
+    );
+    expect(headers.at(-1)?.get("x-lenso-expected-subject")).toBe("actor-a");
     const safeError = await services
       .invoke("notes", "safeError", {})
       .catch((error) => error);
@@ -255,7 +298,7 @@ describe("Console SDK Fetch transport", () => {
       expect(failure.inputIssues).toBeUndefined();
       expect(String(failure)).not.toContain("private rejected value");
     }
-    expect(bodies).toHaveLength(10);
+    expect(bodies).toHaveLength(11);
   });
 
   // The old 501 stub never decoded frames or exercised an iterator's lifetime.

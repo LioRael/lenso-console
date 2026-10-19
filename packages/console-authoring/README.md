@@ -489,3 +489,10 @@ Custom login pages must pass the trusted discovery `Response.url` to both
 `configureSessionCsrf(discovery, response.url)`. The admitted Shell supplies it
 automatically. This requires a matching Auth implementation of the explicit
 transport; this Console change grants no server cookie or initialization authority.
+
+### Read operation context
+
+Compiled pages can opt into `PageProps.services.inspect` and the
+`WorkspaceOperationContext` reader from `@lenso/console-sdk/react`. See
+[page operation context](../../docs/page-operation-context.md) for the bounded
+query, authorization boundary and explicit Runtime/collector limitations.

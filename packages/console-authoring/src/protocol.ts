@@ -31,6 +31,64 @@ export const consoleInputIssuesSchema = z
   .max(32)
   .readonly();
 
+/** Static declarations only. They are not live readiness or invocation evidence. */
+export const consoleOperationMetadataSchema = z.strictObject({
+  source: z
+    .strictObject({
+      file: z.string().max(1024),
+      export: z.string().max(128).optional(),
+      line: z.number().int().positive().optional(),
+      column: z.number().int().positive().optional(),
+    })
+    .nullable(),
+  retry: z.enum(["safe", "unsafe", "unknown"]),
+  cancellation: z.enum(["cooperative", "none", "request-only", "unknown"]),
+  destructive: z.boolean().nullable(),
+  outputDescription: z.string().max(4096).nullable(),
+  outputContract: z.strictObject({ availability: z.literal("unavailable") }),
+  errorContract: z.strictObject({ availability: z.literal("unavailable") }),
+});
+export type ConsoleOperationMetadata = z.infer<
+  typeof consoleOperationMetadataSchema
+>;
+
+export const consolePageOperationContextSchema = z.strictObject({
+  schema: z.literal("console.page-operation-context/1"),
+  provenance: z.literal("admitted-declaration"),
+  availability: z.literal("unverified"),
+  page: z.strictObject({
+    targetId: z.string(),
+    mountId: z.string(),
+    revision: z.string(),
+    implementationId: z.string(),
+    ownerInstance: z.string(),
+  }),
+  service: z.string(),
+  operations: z
+    .array(
+      z.strictObject({
+        name: z.string(),
+        pluginId: z.string(),
+        method: z.string(),
+        effect: z.enum(["read", "write", "unknown"]),
+        metadata: consoleOperationMetadataSchema,
+      })
+    )
+    .max(32),
+  nextOffset: z.number().int().nonnegative().nullable(),
+  runtime: z.strictObject({
+    availability: z.literal("unavailable"),
+    reason: z.literal("runtime-binding-not-configured"),
+  }),
+  recentFailures: z.strictObject({
+    availability: z.literal("unavailable"),
+    reason: z.literal("collector-not-configured"),
+  }),
+});
+export type ConsolePageOperationContext = z.infer<
+  typeof consolePageOperationContextSchema
+>;
+
 export const consoleOperationDescriptorSchema = z.strictObject({
   key: z.string(),
   targetId: z.string(),
@@ -44,6 +102,7 @@ export const consoleOperationDescriptorSchema = z.strictObject({
   approval: z.boolean(),
   available: z.boolean(),
   unavailableReason: z.string().optional(),
+  metadata: consoleOperationMetadataSchema.optional(),
 });
 
 export type ConsoleOperationDescriptor = z.infer<
@@ -166,6 +225,18 @@ export const consoleContract = {
     })
   ),
   workspace: {
+    /** Query one admitted service, never all mounts or the caller's raw URL. */
+    inspect: oc
+      .input(
+        z.strictObject({
+          mountId: z.string().min(1).max(128),
+          service: z.string().min(1).max(128),
+          operation: z.string().min(1).max(128).optional(),
+          offset: z.number().int().min(0).max(10000).default(0),
+          limit: z.number().int().min(1).max(32).default(16),
+        })
+      )
+      .output(consolePageOperationContextSchema),
     invoke: oc
       .errors({
         WORKSPACE_SERVICE_ERROR: {

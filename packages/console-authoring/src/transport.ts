@@ -200,6 +200,19 @@ export function createConsoleWorkspaceServices(
     return combined;
   };
   return {
+    async inspect(service, query, callOptions) {
+      const signals = [options.signal, callOptions?.signal].filter(
+        (value): value is AbortSignal => !!value
+      );
+      const signal = signals.length ? AbortSignal.any(signals) : undefined;
+      signal?.throwIfAborted();
+      const result = await client.workspace.inspect(
+        { mountId: mount.id, service, ...query },
+        { signal }
+      );
+      signal?.throwIfAborted();
+      return result;
+    },
     async invoke<Request, Response>(
       service: string,
       operation: string,

@@ -216,6 +216,10 @@ function counter(
     method: "read",
     input: schema,
     description: "Read this counter.",
+    source: { file: "src/counter.ts", export: "read", line: 12 },
+    retry: "safe",
+    cancellation: "cooperative",
+    outputDescription: "Counter state.",
     effect: "read",
     context: true,
   });
@@ -721,6 +725,14 @@ test("same-type instances and selected lists dispatch exact services with curren
     const read = catalog.operations.find(
       (entry) => entry.targetId === "right" && entry.method === "read"
     )!;
+    expect(read.metadata).toMatchObject({
+      source: { file: "src/counter.ts", export: "read", line: 12 },
+      retry: "safe",
+      cancellation: "cooperative",
+      outputDescription: "Counter state.",
+      outputContract: { availability: "unavailable" },
+      errorContract: { availability: "unavailable" },
+    });
     expect(
       catalog.operations.some((entry) => entry.method === "unselected")
     ).toBe(false);
@@ -1295,6 +1307,28 @@ test("discovery redacts metadata while opaque catalog keys retain exact dispatch
 
 test("mounted aliases isolate same-name services and snapshot exact owner methods", async () => {
   const auth = authentication();
+  let revokeOnInspection = false;
+  const inspectionAuth = definePlugin({
+    id: "inspection-auth",
+    requires: [auth.plugin],
+    setup(context) {
+      const service = context.get(auth.plugin);
+      return {
+        ...service,
+        async can(identity: ConsoleIdentity, selector: ConsoleResource) {
+          const allowed = await service.can(identity, selector);
+          if (
+            revokeOnInspection &&
+            selector.action === "list" &&
+            selector.operation
+          ) {
+            auth.state.enabled = false;
+          }
+          return allowed;
+        },
+      };
+    },
+  });
   const owner = definePlugin({
     id: "owner",
     setup: () => ({
@@ -1340,7 +1374,7 @@ test("mounted aliases isolate same-name services and snapshot exact owner method
   };
   const boundMethods: string[] = [];
   const consolePlugin = createConsolePlugin({
-    authentication: auth.plugin,
+    authentication: inspectionAuth,
     management: true,
     targets: [
       {
@@ -1358,7 +1392,7 @@ test("mounted aliases isolate same-name services and snapshot exact owner method
     },
   });
   const app = await startApp(
-    defineApp({ plugins: [auth.plugin, owner, consolePlugin] })
+    defineApp({ plugins: [auth.plugin, inspectionAuth, owner, consolePlugin] })
   );
   try {
     ordersAliases.read = "inventory.read";
@@ -1381,6 +1415,57 @@ test("mounted aliases isolate same-name services and snapshot exact owner method
       "x-lenso-page-revision": "1",
       "x-lenso-page-implementation": page.descriptor.implementationId,
     });
+    const context = await rpc.workspace.inspect({
+      mountId: "services",
+      service: "orders",
+    });
+    expect(context.page).toMatchObject({
+      mountId: "services",
+      revision: "1",
+      ownerInstance: owner.id,
+    });
+    expect(context.availability).toBe("unverified");
+    expect(
+      context.operations.map((entry) => [entry.name, entry.method])
+    ).toEqual([["read", "orders.read"]]);
+    expect(context.runtime).toEqual({
+      availability: "unavailable",
+      reason: "runtime-binding-not-configured",
+    });
+    expect(context.recentFailures).toEqual({
+      availability: "unavailable",
+      reason: "collector-not-configured",
+    });
+    expect(boundMethods).toEqual([]);
+    await expect(
+      rpc.workspace.inspect({ mountId: "services", service: "__proto__" })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(
+      rpc.workspace.inspect({
+        mountId: "services",
+        service: "orders",
+        limit: 33,
+      })
+    ).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT" });
+    await expect(
+      client(service).workspace.inspect({
+        mountId: "services",
+        service: "orders",
+      })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    auth.state.hiddenMethod = "orders.read";
+    const hiddenContext = await rpc.workspace.inspect({
+      mountId: "services",
+      service: "orders",
+    });
+    expect(hiddenContext.operations).toEqual([]);
+    auth.state.hiddenMethod = undefined;
+    revokeOnInspection = true;
+    await expect(
+      rpc.workspace.inspect({ mountId: "services", service: "orders" })
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    revokeOnInspection = false;
+    auth.state.enabled = true;
     for (const id of ["orders", "inventory"]) {
       expect(
         await rpc.workspace.invoke({

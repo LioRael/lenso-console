@@ -1,7 +1,16 @@
-import type { ConsolePageDescriptor } from "./protocol";
+import type {
+  ConsolePageDescriptor,
+  ConsolePageOperationContext,
+} from "./protocol";
 
 /** A browser-local alias admitted by the owning service and transport. */
 export interface WorkspaceServices {
+  /** Optional on older hosts. Reads declarations, not live readiness or call payloads. */
+  inspect?(
+    service: string,
+    query?: { operation?: string; offset?: number; limit?: number },
+    options?: { signal?: AbortSignal }
+  ): Promise<ConsolePageOperationContext>;
   invoke<Request = unknown, Response = unknown>(
     service: string,
     operation: string,

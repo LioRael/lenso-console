@@ -2,6 +2,7 @@ import {
   consoleAppsCatalogSchema,
   consoleContract,
   consolePageCatalogSchema,
+  consolePageOperationContextSchema,
   consolePluginDescriptorSchema,
   consoleSessionSchema,
   consoleTargetDescriptorSchema,
@@ -36,6 +37,7 @@ import {
   safeError,
 } from "./boundary";
 import { createLocaleRoutes } from "./locale";
+import { projectOperationMetadata } from "./operation-metadata";
 import { subscription } from "./subscription";
 import type {
   ConsoleAuthentication,
@@ -424,6 +426,7 @@ export function createConsoleService(
                 pluginId: entry.pluginId,
                 method: entry.method,
                 description: entry.description,
+                metadata: projectOperationMetadata(entry),
                 effect: entry.effect,
                 schemaAvailability:
                   entry.schemaAvailability === "available"
@@ -619,6 +622,123 @@ export function createConsoleService(
       }
     ),
     workspace: {
+      inspect: implementation.workspace.inspect.handler(
+        async ({ input, context: { request, identity } }) => {
+          const { target, mount } = workspace(input.mountId, request);
+          const expected = expectedConsoleSubject(request);
+          if (expected !== null && expected !== identity.actor.subjectId) {
+            throw failure("PRECONDITION_FAILED", 412);
+          }
+          const checkCurrent = async () => {
+            checkAbort(request);
+            lifecycle.signal.throwIfAborted();
+            workspace(input.mountId, request);
+            const current = await auth.authenticate(request);
+            if (
+              current.actor.subjectId !== identity.actor.subjectId ||
+              current.actor.realmId !== identity.actor.realmId ||
+              current.actor.audience !== identity.actor.audience ||
+              current.actor.kind !== identity.actor.kind ||
+              current.readScope !== identity.readScope
+            ) {
+              throw failure("PRECONDITION_FAILED", 412);
+            }
+            await auth.enforce(
+              current,
+              resource(
+                target,
+                mount.descriptor.access === "administrator" ? "admin" : "list",
+                undefined,
+                mount
+              )
+            );
+            return current;
+          };
+          const current = await checkCurrent();
+          const requirement = mount.descriptor.requirements.find(
+            (entry) => entry.service_id === input.service
+          );
+          const service = Object.hasOwn(mount.services, input.service)
+            ? mount.services[input.service]
+            : undefined;
+          if (!requirement || !service) {
+            throw failure("NOT_FOUND", 404);
+          }
+          const names = requirement.operations.filter(
+            (name) => input.operation === undefined || name === input.operation
+          );
+          const selected = names.slice(
+            input.offset,
+            input.offset + input.limit
+          );
+          const operations = [];
+          const visible = [];
+          for (const name of selected) {
+            const operation = [
+              ...service.operations,
+              ...(service.streams ?? []).map((stream) => stream.operation),
+            ].find(
+              (candidate) =>
+                candidate.method === mountedOperationMethod(service, name)
+            );
+            if (
+              !operation ||
+              !(await auth.can(
+                current,
+                resource(target, "list", operation, mount)
+              ))
+            ) {
+              continue;
+            }
+            visible.push(operation);
+            operations.push({
+              name,
+              pluginId: operation.plugin.id,
+              method: operation.method,
+              effect: operation.effect ?? "unknown",
+              metadata: projectOperationMetadata(operation),
+            });
+          }
+          const latest = await checkCurrent();
+          for (const operation of visible) {
+            await auth.enforce(
+              latest,
+              resource(target, "list", operation, mount)
+            );
+          }
+          return consolePageOperationContextSchema.parse(
+            redact(
+              {
+                schema: "console.page-operation-context/1",
+                provenance: "admitted-declaration",
+                availability: "unverified",
+                page: {
+                  targetId: target.id,
+                  mountId: mount.descriptor.id,
+                  revision: mount.descriptor.revision,
+                  implementationId: mount.descriptor.implementationId,
+                  ownerInstance: mount.descriptor.owner.instance,
+                },
+                service: input.service,
+                operations,
+                nextOffset:
+                  input.offset + input.limit < names.length
+                    ? input.offset + input.limit
+                    : null,
+                runtime: {
+                  availability: "unavailable",
+                  reason: "runtime-binding-not-configured",
+                },
+                recentFailures: {
+                  availability: "unavailable",
+                  reason: "collector-not-configured",
+                },
+              },
+              environmentSecrets()
+            )
+          );
+        }
+      ),
       subscribe: implementation.workspace.subscribe.handler(
         async ({
           input,
