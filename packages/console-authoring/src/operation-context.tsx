@@ -71,6 +71,7 @@ function OperationContextPanel({
     pending.current = controller;
     const combined = AbortSignal.any([signal, controller.signal]);
     setBusy(true);
+    setContext(undefined);
     setError(false);
     try {
       const result = await services.inspect(

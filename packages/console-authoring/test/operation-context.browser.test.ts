@@ -91,7 +91,8 @@ test("operation inspection is on demand, keyboard accessible, bounded and retire
       import {WorkspaceOperationContext} from ${JSON.stringify(new URL("../src/operation-context.tsx", import.meta.url).pathname)};
       const lifetime = new AbortController();
       window.retire = () => lifetime.abort();
-      const workspace = {mount:{id:"orders", revision:"1"},signal:lifetime.signal,services:{inspect:async () => (await fetch('/inspect')).json()}};
+      window.completed = 0;
+      const workspace = {mount:{id:"orders", revision:"1"},signal:lifetime.signal,services:{inspect:async () => { try { return await (await fetch('/inspect')).json(); } finally { window.completed += 1; } }}};
       createRoot(document.getElementById('root')).render(<React.StrictMode><WorkspaceScope value={workspace}><WorkspaceOperationContext service="orders" operation="read" /></WorkspaceScope></React.StrictMode>);
     `
     );
@@ -149,6 +150,9 @@ test("operation inspection is on demand, keyboard accessible, bounded and retire
       (window as unknown as { retire(): void }).retire()
     );
     release?.();
+    await page.waitForFunction(
+      () => (window as unknown as { completed: number }).completed === 2
+    );
     await page.getByText("src/orders.ts:12").waitFor({ state: "detached" });
     expect(await page.getByRole("article").count()).toBe(0);
     expect(errors).toEqual([]);
