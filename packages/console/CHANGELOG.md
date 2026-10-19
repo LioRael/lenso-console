@@ -1,5 +1,9 @@
 # @lenso/console
 
+## 2.2.0
+
+Project admitted plugin Settings through the TypeScript Console host and compatible SDK protocol. Retain existing authorization, instance and revision boundaries.
+
 ## 2.1.10
 
 ### Patch Changes

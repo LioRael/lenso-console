@@ -1,5 +1,9 @@
 # @lenso/console-sdk
 
+## 1.3.0
+
+Add plugin-owned workspace Settings declarations and global openSettings navigation. Preserve explicitly admitted loopback CSRF transport and initialization browser admission.
+
 ## 1.2.3
 
 ### Patch Changes

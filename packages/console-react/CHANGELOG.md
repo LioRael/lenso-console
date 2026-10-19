@@ -1,5 +1,9 @@
 # @lenso/console-react
 
+## 0.3.5
+
+Add plugin-owned Settings registration, the host Settings directory and controlled first-run initialization UI. Preserve in-session form recovery without caching credentials.
+
 ## 0.3.4
 
 ### Patch Changes
