@@ -236,7 +236,9 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .click();
     await page.getByRole("option", { name: "Disabled", exact: true }).click();
     await doneFilters();
-    await page.getByText("No identities found.", { exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "No identities match", exact: true })
+      .waitFor();
     await editCondition("Status");
     await page
       .getByRole("combobox", { name: "Value for Status", exact: true })
@@ -407,7 +409,9 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .fill("Fixture");
     await page.keyboard.press("Enter");
     await doneFilters();
-    await page.getByText("No identities found.", { exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "No identities match", exact: true })
+      .waitFor();
     await editCondition("Name");
     await page
       .getByRole("combobox", { name: "Rule for Name", exact: true })
@@ -436,7 +440,9 @@ test("compiled administration pages manage real isolated data and retire one-tim
     await page
       .getByRole("searchbox", { name: "Search identities" })
       .fill("no-matching-fixture");
-    await page.getByText("No identities found.", { exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "No identities match", exact: true })
+      .waitFor();
     await page
       .getByRole("button", { name: "Clear search identities", exact: true })
       .click();
