@@ -3,7 +3,7 @@ import type {
   ConsoleOperationInspectionRequest,
 } from "@lenso/console";
 import { consoleOperationInspectionSchema } from "@lenso/console-sdk/protocol";
-import type { ConsoleSecurityInvocation } from "@lenso/console/authorization";
+import type { ConsoleSecurityInvocation } from "@lenso/console/invocation";
 import { definePlugin, type Plugin } from "@lenso/core/plugin";
 
 import {

@@ -129,3 +129,18 @@ A contextual top-right Refresh icon uses the public Console corner/tooltip APIs.
 The greeting uses Lenso Form/TextField with explicit loading, error and response
 states. Compact columns, wrapping identifiers and content-end clearance preserve
 narrow-screen access. No additional Dock, assets or decorative motion.
+
+## Operation context bridge
+
+`createConsoleRuntimeOperationInspector` reuses this inspection service with exact
+host-declared page/operation -> Runtime target/version bindings. See
+[page operation context](../../docs/page-operation-context.md) for the authenticated
+TS recent-record provider and Agent ToolSource registration. It never infers past
+generation from current registrations. Optional adapters can import the existing
+`enforceConsoleSecurityInvocation` helper from `@lenso/console/invocation` without
+loading the optional authorization plugin; the old authorization export remains.
+
+`readScope: true` explicitly opts status/catalogue into the host's existing finite
+Auth request scope and scope-aware administrator session projection. Grants and
+identity are replayed before disclosure; absent interfaces retain legacy checks.
+The greeting trial is unchanged. This is not a cross-request identity cache.

@@ -3,7 +3,7 @@ import { ConsoleRequestError } from "@lenso/console/auth";
 import {
   enforceConsoleSecurityInvocation,
   type ConsoleSecurityInvocation,
-} from "@lenso/console/authorization";
+} from "@lenso/console/invocation";
 import { definePlugin, type Plugin } from "@lenso/core/plugin";
 import { defineOperation } from "@lenso/engine/operations";
 import { defineManage } from "@lenso/manage";

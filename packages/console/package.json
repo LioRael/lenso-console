@@ -60,6 +60,11 @@
       "lenso-source": "./src/integrations/dev-context.ts",
       "types": "./dist/integrations/dev-context.d.ts",
       "default": "./dist/integrations/dev-context.js"
+    },
+    "./invocation": {
+      "lenso-source": "./src/integrations/invocation.ts",
+      "types": "./dist/integrations/invocation.d.ts",
+      "default": "./dist/integrations/invocation.js"
     }
   },
   "publishConfig": {

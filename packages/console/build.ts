@@ -6,6 +6,7 @@ const result = await Bun.build({
     "src/index.ts",
     "src/auth.ts",
     "src/integrations/audit.ts",
+    "src/integrations/invocation.ts",
     "src/integrations/dev-context.ts",
     "src/integrations/authorization.ts",
     "src/integrations/api-keys.ts",

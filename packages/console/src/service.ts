@@ -12,6 +12,7 @@ import {
 import { environmentSecrets, redact } from "@lenso/engine/diagnostics";
 import {
   boundedJson,
+  describeOperation,
   executeOperation,
   operationError,
   validateOperationInput,
@@ -700,7 +701,9 @@ export function createConsoleService(
               pluginId: operation.plugin.id,
               method: operation.method,
               effect: operation.effect ?? "unknown",
-              metadata: projectOperationMetadata(operation),
+              metadata: projectOperationMetadata(
+                describeOperation(operation, "")
+              ),
               ...(inspector
                 ? {
                     inspection: consoleOperationInspectionSchema.parse(
