@@ -83,10 +83,13 @@ async function fixture(
   options: {
     manifestPath?: string;
     greetingTrial?: ConsoleRuntimeGreetingTrial;
+    readScope?: boolean;
   } = {}
 ) {
   const state = {
     active: true,
+    verifications: 0,
+    duringVerification: undefined as (() => void) | undefined,
     allowed: true,
     administrator: true,
     targetId: "operator-app",
@@ -109,25 +112,61 @@ async function fixture(
     realm(
       "operators",
       defineSource({
-        verify: async (token: string | null) =>
-          token === "fixture" && state.active
-            ? { status: "verified", subjectId: "operator", kind: "user" }
-            : { status: "rejected" },
+        ...(options.readScope ? { capabilities: { authoritative: true } } : {}),
+        verify: async (token: string | null) => {
+          state.verifications += 1;
+          state.duringVerification?.();
+          return token === "fixture" && state.active
+            ? {
+                status: "verified",
+                subjectId: "operator",
+                kind: "user",
+                ...(options.readScope
+                  ? {
+                      session: {
+                        authoritative: true,
+                        expiresAt: Date.now() + 60000,
+                      },
+                    }
+                  : {}),
+              }
+            : { status: "rejected" };
+        },
       })
     )
   );
+  const access = auth
+    .for(audience("console"))
+    .memberships(async (_actor, resource: ConsoleResource) =>
+      resource.tenantId === "local" ? {} : null
+    );
   const authentication = createConsoleAuthentication({
-    access: auth
-      .for(audience("console"))
-      .memberships(async (_actor, resource: ConsoleResource) =>
-        resource.tenantId === "local" ? {} : null
-      ),
+    access,
     policy: () => state.allowed,
     requestPolicy: { origin, credentialMode: "bearer" },
     evidence: (request) =>
       request.headers.get("authorization")?.slice(7) ?? null,
     permissionRevision: () => "fixture",
     session: () => ({ administrator: state.administrator, workspace_ids: [] }),
+    ...(options.readScope
+      ? {
+          sessionRead: async (_actor, { signal, scope }) => {
+            await access.enforceRead!(
+              scope.authenticationScope as Parameters<
+                NonNullable<typeof access.enforceRead>
+              >[0],
+              Object.freeze({
+                action: "session" as const,
+                targetId: "operator-app",
+                tenantId: "local",
+              }),
+              () => state.administrator,
+              { signal }
+            );
+            return { administrator: state.administrator, workspace_ids: [] };
+          },
+        }
+      : {}),
   });
   const authenticationPlugin = definePlugin({
     id: "authentication",
@@ -584,5 +623,64 @@ test("snapshot projection strips payloads and rejects unbounded service, call, c
     },
   ]) {
     expect(() => projectRuntimeSnapshot(value)).toThrow();
+  }
+});
+
+test("Runtime read authentication baseline is measured independently of operation dispatch", async () => {
+  const f = await fixture();
+  try {
+    const before = f.state.verifications;
+    const started = performance.now();
+    await f.invoke("status");
+    const count = f.state.verifications - before;
+    expect(count).toBe(8);
+    console.info(
+      JSON.stringify({
+        measurement: "runtime-status-legacy",
+        verifications: count,
+        elapsedMs: performance.now() - started,
+        scope: "isolated local Auth source; not network latency",
+      })
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+test("opt-in Runtime request scope reduces verification and replays grants and administrator policy before disclosure", async () => {
+  const f = await fixture({ readScope: true });
+  try {
+    const before = f.state.verifications;
+    const started = performance.now();
+    await f.invoke("status");
+    const count = f.state.verifications - before;
+    expect(count).toBe(2);
+    console.info(
+      JSON.stringify({
+        measurement: "runtime-status-request-scope",
+        verifications: count,
+        elapsedMs: performance.now() - started,
+        scope: "isolated local authoritative Auth source; not network latency",
+      })
+    );
+    f.state.afterRead = () => {
+      f.state.allowed = false;
+    };
+    await expect(f.invoke("status")).rejects.toThrow();
+    f.state.allowed = true;
+    f.state.afterRead = () => {
+      f.state.duringVerification = () => {
+        f.state.administrator = false;
+      };
+    };
+    await expect(f.invoke("status")).rejects.toThrow();
+    f.state.duringVerification = undefined;
+    f.state.administrator = true;
+    f.state.afterRead = () => {
+      f.state.active = false;
+    };
+    await expect(f.invoke("status")).rejects.toThrow();
+  } finally {
+    await f.close();
   }
 });

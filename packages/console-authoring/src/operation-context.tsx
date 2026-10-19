@@ -2,7 +2,11 @@ import { Button } from "@lenso/ui/button";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { useWorkspace } from "./navigation";
-import type { ConsolePageOperationContext } from "./protocol";
+import type {
+  ConsolePageOperationContext,
+  ConsoleOperationInspection,
+  ConsoleOperationMetadata,
+} from "./protocol";
 import type { WorkspaceServices } from "./service-types";
 
 /** Opt-in inline inspection. UI and agents consume the same services.inspect result. */
@@ -28,6 +32,86 @@ export function WorkspaceOperationContext({
       services={workspace.services}
       signal={workspace.signal}
     />
+  );
+}
+
+function SourceReference({
+  source,
+}: {
+  source: ConsoleOperationMetadata["source"];
+}) {
+  return (
+    <>
+      {source
+        ? `${source.file}${source.line ? `:${source.line}` : ""}`
+        : "Unavailable"}
+    </>
+  );
+}
+
+function InspectionFacts({
+  inspection,
+}: {
+  inspection: ConsoleOperationInspection | undefined;
+}) {
+  const runtime = inspection?.runtime;
+  const recent = inspection?.recentFailures;
+  const execution = inspection?.execution;
+  return (
+    <dl>
+      {execution && (
+        <>
+          <dt>TS development instance / generation</dt>
+          <dd>
+            {execution.instanceId} · {execution.generation}
+          </dd>
+          <dt>Watched input digest (not a release SHA)</dt>
+          <dd>{execution.codeRevision.digest}</dd>
+          <dt>TS output declaration</dt>
+          <dd>{execution.outputSchemaAvailability}</dd>
+          <dt>TS declared error codes</dt>
+          <dd>
+            {execution.errors.map((error) => error.code).join(", ") ||
+              "None declared"}
+          </dd>
+        </>
+      )}
+      <dt>Runtime instance / generation</dt>
+      <dd>
+        {runtime?.availability === "measured"
+          ? runtime.instances.length
+            ? runtime.instances.map((instance) => (
+                <p key={instance.id}>
+                  {instance.id} · {instance.generation} · {instance.state}
+                </p>
+              ))
+            : "Measured: no matching instances"
+          : `Unavailable: ${runtime?.reason ?? "runtime-binding-not-configured"}`}
+      </dd>
+      {runtime?.availability === "measured" && (
+        <>
+          <dt>Runtime contract</dt>
+          <dd>Static build manifest · unverified</dd>
+        </>
+      )}
+      <dt>Recent failures</dt>
+      <dd>
+        {recent?.availability === "available" ? (
+          <>
+            <p>
+              {recent.instanceId} · {recent.generation} · transient collector
+            </p>
+            {recent.references.map((reference) => (
+              <p key={reference.id}>
+                {reference.id} · {reference.code} · {reference.effectState}
+              </p>
+            ))}
+          </>
+        ) : (
+          `Unavailable: ${recent?.reason ?? "collector-not-configured"}`
+        )}
+      </dd>
+    </dl>
   );
 }
 
@@ -126,16 +210,13 @@ function OperationContextPanel({
               </dd>
               <dt>Owner instance</dt>
               <dd>{context.page.ownerInstance}</dd>
-              <dt>Runtime instance / generation</dt>
-              <dd>Unavailable: no Runtime binding configured.</dd>
-              <dt>Recent failures</dt>
-              <dd>Unavailable: no collector configured.</dd>
             </dl>
             {context.operations.map((entry) => (
               <article key={entry.name} aria-label={entry.name}>
                 <h3>
                   {context.service}.{entry.name}
                 </h3>
+                <InspectionFacts inspection={entry.inspection} />
                 <dl>
                   <dt>Owner method</dt>
                   <dd>
@@ -147,20 +228,27 @@ function OperationContextPanel({
                   <dd>{entry.metadata.retry}</dd>
                   <dt>Cancellation</dt>
                   <dd>{entry.metadata.cancellation}</dd>
-                  <dt>Source</dt>
+                  <dt>
+                    {entry.inspection?.execution?.operationSource
+                      ? "TS source"
+                      : "Console source"}
+                  </dt>
                   <dd>
-                    {entry.metadata.source
-                      ? `${entry.metadata.source.file}${entry.metadata.source.line ? `:${entry.metadata.source.line}` : ""}`
-                      : "Unavailable"}
+                    <SourceReference
+                      source={
+                        entry.inspection?.execution?.operationSource ??
+                        entry.metadata.source
+                      }
+                    />
                   </dd>
-                  <dt>Output</dt>
+                  <dt>Console output declaration</dt>
                   <dd>
                     {entry.metadata.outputDescription ??
                       "No description declared"}{" "}
-                    · schema unavailable
+                    · {entry.metadata.outputContract.availability}
                   </dd>
-                  <dt>Error schema</dt>
-                  <dd>Unavailable</dd>
+                  <dt>Console error declaration</dt>
+                  <dd>{entry.metadata.errorContract.availability}</dd>
                 </dl>
               </article>
             ))}

@@ -3,6 +3,7 @@ import {
   consoleContract,
   consolePageCatalogSchema,
   consolePageOperationContextSchema,
+  consoleOperationInspectionSchema,
   consolePluginDescriptorSchema,
   consoleSessionSchema,
   consoleTargetDescriptorSchema,
@@ -129,6 +130,9 @@ export function createConsoleService(
     options.localeResource
   );
 
+  const inspector = options.operationInspection
+    ? runtime.get(options.operationInspection)
+    : undefined;
   const catalogRevision = crypto.randomUUID();
   const writable = (
     operation: Operation,
@@ -697,6 +701,23 @@ export function createConsoleService(
               method: operation.method,
               effect: operation.effect ?? "unknown",
               metadata: projectOperationMetadata(operation),
+              ...(inspector
+                ? {
+                    inspection: consoleOperationInspectionSchema.parse(
+                      await inspector.read({
+                        targetId: target.id,
+                        mountId: mount.descriptor.id,
+                        revision: mount.descriptor.revision,
+                        service: input.service,
+                        name,
+                        operation,
+                        request,
+                        identity: current,
+                        resource: resource(target, "list", operation, mount),
+                      })
+                    ),
+                  }
+                : {}),
             });
           }
           const latest = await checkCurrent();
@@ -706,7 +727,7 @@ export function createConsoleService(
               resource(target, "list", operation, mount)
             );
           }
-          return consolePageOperationContextSchema.parse(
+          const result = consolePageOperationContextSchema.parse(
             redact(
               {
                 schema: "console.page-operation-context/1",
@@ -725,18 +746,24 @@ export function createConsoleService(
                   input.offset + input.limit < names.length
                     ? input.offset + input.limit
                     : null,
-                runtime: {
-                  availability: "unavailable",
-                  reason: "runtime-binding-not-configured",
-                },
-                recentFailures: {
-                  availability: "unavailable",
-                  reason: "collector-not-configured",
-                },
+                runtime: inspector
+                  ? { availability: "operation-scoped" }
+                  : {
+                      availability: "unavailable",
+                      reason: "runtime-binding-not-configured",
+                    },
+                recentFailures: inspector
+                  ? { availability: "operation-scoped" }
+                  : {
+                      availability: "unavailable",
+                      reason: "collector-not-configured",
+                    },
               },
               environmentSecrets()
             )
           );
+          boundedJson(result, 262144);
+          return result;
         }
       ),
       subscribe: implementation.workspace.subscribe.handler(

@@ -1,5 +1,8 @@
 import type { Actor, ReadOnlyScope } from "@lenso/auth";
-import type { ConsolePageAuthoringDescriptor } from "@lenso/console-sdk/protocol";
+import type {
+  ConsolePageAuthoringDescriptor,
+  ConsoleOperationInspection,
+} from "@lenso/console-sdk/protocol";
 import type {
   ConfigBinding,
   Plugin,
@@ -138,7 +141,26 @@ export interface ConsoleTarget {
   readonly running?: RunningApp;
 }
 
+export interface ConsoleOperationInspectionRequest {
+  readonly targetId: string;
+  readonly mountId: string;
+  readonly revision: string;
+  readonly service: string;
+  readonly name: string;
+  readonly operation: Operation;
+  readonly identity: ConsoleIdentity;
+  readonly request: Request;
+  readonly resource: ConsoleResource;
+}
+export interface ConsoleOperationInspector {
+  read(
+    query: ConsoleOperationInspectionRequest
+  ): Promise<ConsoleOperationInspection>;
+}
+
 export interface ConsoleOptions {
+  /** Explicit read-only owner bridge; absence never implies empty history or readiness. */
+  readonly operationInspection?: Plugin<ConsoleOperationInspector>;
   readonly id?: string;
   readonly config?: ConfigBinding<typeof consoleConfiguration.schema>;
   readonly authentication: Plugin<ConsoleAuthentication>;

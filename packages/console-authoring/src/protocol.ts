@@ -45,11 +45,133 @@ export const consoleOperationMetadataSchema = z.strictObject({
   cancellation: z.enum(["cooperative", "none", "request-only", "unknown"]),
   destructive: z.boolean().nullable(),
   outputDescription: z.string().max(4096).nullable(),
-  outputContract: z.strictObject({ availability: z.literal("unavailable") }),
-  errorContract: z.strictObject({ availability: z.literal("unavailable") }),
+  outputContract: z.discriminatedUnion("availability", [
+    z.strictObject({ availability: z.literal("unavailable") }),
+    z.strictObject({
+      availability: z.enum(["not-declared", "runtime-validation-only"]),
+    }),
+    z.strictObject({
+      availability: z.literal("available"),
+      schema: z.record(z.string(), z.unknown()),
+    }),
+  ]),
+  errorContract: z.discriminatedUnion("availability", [
+    z.strictObject({ availability: z.literal("unavailable") }),
+    z.strictObject({
+      availability: z.literal("declared"),
+      errors: z
+        .array(
+          z.strictObject({
+            code: z.string().min(1).max(128),
+            message: z.string().max(1024),
+          })
+        )
+        .max(32),
+    }),
+  ]),
 });
 export type ConsoleOperationMetadata = z.infer<
   typeof consoleOperationMetadataSchema
+>;
+
+const contextIdentifier = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9_.:@/-]+$/);
+const devExecutionSchema = z.strictObject({
+  source: z.literal("ts-dev-supervisor"),
+  instanceId: contextIdentifier,
+  generation: contextIdentifier,
+  codeRevision: z.strictObject({
+    kind: z.literal("watched-inputs-sha256"),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+    verifiedLoadedBytes: z.literal(false),
+  }),
+  operationSource: consoleOperationMetadataSchema.shape.source,
+  outputSchemaAvailability: z.enum([
+    "not-declared",
+    "available",
+    "runtime-validation-only",
+  ]),
+  outputSchema: z.record(z.string(), z.unknown()).nullable(),
+  errors: z
+    .array(
+      z.strictObject({ code: contextIdentifier, message: z.string().max(1024) })
+    )
+    .max(32),
+});
+export const consoleOperationInspectionSchema = z.strictObject({
+  execution: devExecutionSchema.optional(),
+  runtime: z.discriminatedUnion("availability", [
+    z.strictObject({
+      availability: z.literal("unavailable"),
+      reason: z.enum([
+        "runtime-binding-not-configured",
+        "binding-mismatch",
+        "contract-mismatch",
+      ]),
+    }),
+    z.strictObject({
+      availability: z.literal("measured"),
+      source: z.literal("runtime-status"),
+      namespace: contextIdentifier,
+      service: contextIdentifier,
+      method: contextIdentifier,
+      contractVersion: contextIdentifier,
+      instances: z
+        .array(
+          z.strictObject({
+            id: contextIdentifier,
+            generation: contextIdentifier,
+            state: z.enum([
+              "connected",
+              "registered",
+              "ready",
+              "draining",
+              "drained",
+            ]),
+          })
+        )
+        .max(16),
+      declaration: z.strictObject({
+        availability: z.literal("unverified"),
+        source: z.literal("static-build-manifest"),
+        outputSchema: z.record(z.string(), z.unknown()).nullable(),
+        errorSchema: z.record(z.string(), z.unknown()).nullable(),
+      }),
+    }),
+  ]),
+  recentFailures: z.discriminatedUnion("availability", [
+    z.strictObject({
+      availability: z.literal("unavailable"),
+      reason: z.enum(["collector-not-configured", "generation-not-correlated"]),
+    }),
+    z.strictObject({
+      availability: z.literal("available"),
+      source: z.literal("dev-collector"),
+      durable: z.literal(false),
+      instanceId: contextIdentifier,
+      generation: contextIdentifier,
+      references: z
+        .array(
+          z.strictObject({
+            id: contextIdentifier,
+            pluginId: contextIdentifier,
+            method: contextIdentifier,
+            code: contextIdentifier,
+            phase: contextIdentifier,
+            effectState: z.enum(["not-started", "unknown", "completed"]),
+            startedAt: z.number().nonnegative(),
+            durationMs: z.number().nonnegative(),
+          })
+        )
+        .max(16),
+    }),
+  ]),
+});
+export type ConsoleOperationInspection = z.infer<
+  typeof consoleOperationInspectionSchema
 >;
 
 export const consolePageOperationContextSchema = z.strictObject({
@@ -72,18 +194,25 @@ export const consolePageOperationContextSchema = z.strictObject({
         method: z.string(),
         effect: z.enum(["read", "write", "unknown"]),
         metadata: consoleOperationMetadataSchema,
+        inspection: consoleOperationInspectionSchema.optional(),
       })
     )
     .max(32),
   nextOffset: z.number().int().nonnegative().nullable(),
-  runtime: z.strictObject({
-    availability: z.literal("unavailable"),
-    reason: z.literal("runtime-binding-not-configured"),
-  }),
-  recentFailures: z.strictObject({
-    availability: z.literal("unavailable"),
-    reason: z.literal("collector-not-configured"),
-  }),
+  runtime: z.union([
+    z.strictObject({ availability: z.literal("operation-scoped") }),
+    z.strictObject({
+      availability: z.literal("unavailable"),
+      reason: z.literal("runtime-binding-not-configured"),
+    }),
+  ]),
+  recentFailures: z.union([
+    z.strictObject({ availability: z.literal("operation-scoped") }),
+    z.strictObject({
+      availability: z.literal("unavailable"),
+      reason: z.literal("collector-not-configured"),
+    }),
+  ]),
 });
 export type ConsolePageOperationContext = z.infer<
   typeof consolePageOperationContextSchema

@@ -92,6 +92,8 @@ export function createConsoleRuntimeInspection<Clients>(options: {
   tenantId: string;
   /** Trusted, bounded build artifact loaded once when this plugin starts. */
   manifestPath?: string;
+  /** Opt-in only with the host's existing scope-aware administrator session projection. */
+  readScope?: boolean;
   /** Omitted by default. No browser-supplied target or method is accepted. */
   greetingTrial?: ConsoleRuntimeGreetingTrial;
 }) {
@@ -179,29 +181,95 @@ export function createConsoleRuntimeInspection<Clients>(options: {
         await auth.enforce(current, evidence.resource);
         evidence.request.signal.throwIfAborted();
       }
+      async function read<T>(
+        evidence: ConsoleSecurityInvocation,
+        operation: "status" | "catalogue",
+        query: () => Promise<T>
+      ): Promise<T> {
+        if (
+          !(
+            options.readScope &&
+            auth.beginRead &&
+            auth.enforceRead &&
+            auth.sessionRead &&
+            auth.finishRead &&
+            auth.closeRead
+          )
+        ) {
+          await enforce(evidence, operation);
+          const result = await query();
+          await enforce(evidence, operation);
+          return result;
+        }
+        if (
+          evidence.resource.action !== "invoke" ||
+          evidence.resource.pluginId !== options.id ||
+          evidence.resource.operation !== operation ||
+          evidence.resource.targetId !== options.targetId ||
+          evidence.resource.tenantId !== options.tenantId
+        ) {
+          throw new ConsoleRequestError("forbidden");
+        }
+        const current = await auth.authenticate(evidence.request);
+        if (
+          current.actor.subjectId !== evidence.identity.actor.subjectId ||
+          current.actor.realmId !== evidence.identity.actor.realmId ||
+          current.actor.audience !== evidence.identity.actor.audience ||
+          current.actor.kind !== "user" ||
+          current.readScope !== evidence.identity.readScope
+        ) {
+          throw new ConsoleRequestError("forbidden");
+        }
+        const scope = await auth.beginRead(current, evidence.request);
+        try {
+          const check = async () => {
+            evidence.request.signal.throwIfAborted();
+            await auth.enforceRead!(current, evidence.resource, scope);
+            const session = await auth.sessionRead!(current, scope);
+            if (!session.administrator) {
+              throw new ConsoleRequestError("forbidden");
+            }
+          };
+          await check();
+          const result = await query();
+          await check();
+          const finished = await auth.finishRead(scope);
+          if (
+            finished.readScope !== current.readScope ||
+            finished.actor.subjectId !== current.actor.subjectId ||
+            finished.actor.realmId !== current.actor.realmId ||
+            finished.actor.audience !== current.actor.audience ||
+            finished.actor.kind !== current.actor.kind
+          ) {
+            throw new ConsoleRequestError("session_changed");
+          }
+          evidence.request.signal.throwIfAborted();
+          return result;
+        } finally {
+          auth.closeRead(scope);
+        }
+      }
       return {
         async status(
           _input: Record<string, never>,
           trusted: { evidence: ConsoleSecurityInvocation }
         ) {
-          await enforce(trusted.evidence, "status");
-          const snapshot = projectRuntimeSnapshot(
-            await runtime.host.status({
-              signal: trusted.evidence.request.signal,
-              timeoutMs: runtimeInspectionLimits.greetingTimeoutMs,
-            })
+          return read(trusted.evidence, "status", async () =>
+            projectRuntimeSnapshot(
+              await runtime.host.status({
+                signal: trusted.evidence.request.signal,
+                timeoutMs: runtimeInspectionLimits.greetingTimeoutMs,
+              })
+            )
           );
-          await enforce(trusted.evidence, "status");
-          return snapshot;
         },
         async catalogue(
           _input: Record<string, never>,
           trusted: { evidence: ConsoleSecurityInvocation }
         ) {
-          await enforce(trusted.evidence, "catalogue");
-          const result = structuredClone(catalogue);
-          await enforce(trusted.evidence, "catalogue");
-          return result;
+          return read(trusted.evidence, "catalogue", async () =>
+            structuredClone(catalogue)
+          );
         },
         async greet(
           input: RuntimeGreetingInput,
@@ -290,3 +358,8 @@ export function createConsoleRuntimeInspection<Clients>(options: {
   ];
   return { plugin, operations, manage: defineManage({ plugin, operations }) };
 }
+
+export {
+  createConsoleRuntimeOperationInspector,
+  type ConsoleRuntimeOperationBinding,
+} from "./operation-context";

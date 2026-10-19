@@ -67,3 +67,50 @@ test("metadata excludes exception-like extras and environment secrets", () => {
     }
   }
 });
+
+test("additive output and error contracts remain declarations and strip schema payload annotations", () => {
+  const metadata = projectOperationMetadata({
+    outputSchemaAvailability: "available",
+    outputSchema: {
+      type: "object",
+      properties: { total: { type: "number", default: 123, examples: [456] } },
+    },
+    errors: [{ code: "orders_unavailable", message: "Orders unavailable" }],
+  });
+  expect(metadata.outputContract).toEqual({
+    availability: "available",
+    schema: { type: "object", properties: { total: { type: "number" } } },
+  });
+  expect(metadata.errorContract).toEqual({
+    availability: "declared",
+    errors: [{ code: "orders_unavailable", message: "Orders unavailable" }],
+  });
+});
+
+test("selection snapshots output/error contracts and rejects a substituted output validator", async () => {
+  const { snapshotOperation, isSelectedOperation } =
+    await import("../src/operation-selection");
+  const errors = [
+    { code: "orders_unavailable", message: "Orders unavailable" },
+  ];
+  const declaration = {
+    ...operation,
+    output: z.object({ total: z.number() }),
+    errors,
+  };
+  const snapshot = snapshotOperation(declaration) as typeof declaration;
+  errors[0]!.message = "Changed after admission";
+  expect(snapshot.errors[0]!.message).toBe("Orders unavailable");
+  const equivalent = {
+    ...snapshot,
+    errors: [{ code: "orders_unavailable", message: "Orders unavailable" }],
+  };
+  expect(isSelectedOperation([snapshot], equivalent)).toBe(true);
+  const substituted = { ...equivalent, output: z.string() };
+  expect(isSelectedOperation([snapshot], substituted)).toBe(false);
+  const changedError = {
+    ...equivalent,
+    errors: [{ code: "orders_unavailable", message: "Different contract" }],
+  };
+  expect(isSelectedOperation([snapshot], changedError)).toBe(false);
+});

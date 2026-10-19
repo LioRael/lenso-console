@@ -12,6 +12,8 @@ export type {
   ConsoleLocaleStore,
   ConsoleMount,
   ConsoleOptions,
+  ConsoleOperationInspector,
+  ConsoleOperationInspectionRequest,
   ConsolePageDescriptor,
   ConsoleResource,
   ConsoleRuntime,

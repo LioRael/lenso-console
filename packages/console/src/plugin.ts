@@ -12,6 +12,7 @@ export function createConsolePlugin(
     requires: [
       ...new Set([
         options.authentication,
+        ...(options.operationInspection ? [options.operationInspection] : []),
         ...(options.locale ? [options.locale] : []),
         ...options.targets
           .filter((target) => !target.running)

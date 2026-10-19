@@ -83,6 +83,7 @@
       },
       "peerDependencies": {
         "@lenso/console-react": "*",
+        "@lenso/console-sdk": "*",
         "react": "^19.0.0",
       },
     },

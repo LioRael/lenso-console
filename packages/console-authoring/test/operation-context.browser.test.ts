@@ -136,7 +136,7 @@ test("operation inspection is on demand, keyboard accessible, bounded and retire
       await page.getByText("Static declarations · unverified").count()
     ).toBe(1);
     expect(
-      await page.getByText("Unavailable: no collector configured.").count()
+      await page.getByText("Unavailable: collector-not-configured").count()
     ).toBe(1);
     expect(
       await page.evaluate(

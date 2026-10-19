@@ -3,7 +3,11 @@ import {
   type ConsoleOperationMetadata,
 } from "@lenso/console-sdk/protocol";
 import { environmentSecrets, redact } from "@lenso/engine/diagnostics";
-import type { describeOperation } from "@lenso/engine/operations";
+import {
+  boundedJson,
+  safeInputSchema,
+  type describeOperation,
+} from "@lenso/engine/operations";
 
 /** Source references are inert repository-relative locations, never file access URLs. */
 export function projectOperationMetadata(
@@ -12,7 +16,14 @@ export function projectOperationMetadata(
       ReturnType<typeof describeOperation>,
       "source" | "retry" | "cancellation" | "destructive" | "outputDescription"
     >
-  >
+  > & {
+    outputSchemaAvailability?:
+      | "not-declared"
+      | "available"
+      | "runtime-validation-only";
+    outputSchema?: Record<string, unknown> | null;
+    errors?: readonly { code: string; message: string }[];
+  }
 ): ConsoleOperationMetadata {
   const { source } = entry;
   const file = source?.file;
@@ -23,7 +34,7 @@ export function projectOperationMetadata(
     !file.startsWith("/") &&
     !file.split("/").some((part) => part === ".." || part === "") &&
     !environmentSecrets().some((secret) => file.includes(secret));
-  return consoleOperationMetadataSchema.parse(
+  const metadata = consoleOperationMetadataSchema.parse(
     redact(
       {
         source: safeSource
@@ -49,11 +60,29 @@ export function projectOperationMetadata(
         cancellation: entry.cancellation ?? "unknown",
         destructive: entry.destructive ?? null,
         outputDescription: entry.outputDescription?.slice(0, 4096) ?? null,
-        // Engine 0.6's public Operation has no output/error schema. Never infer from a call.
-        outputContract: { availability: "unavailable" },
-        errorContract: { availability: "unavailable" },
+        // Additive TS descriptors are optional on older published Manage versions.
+        outputContract:
+          entry.outputSchemaAvailability === "available" && entry.outputSchema
+            ? {
+                availability: "available",
+                schema: safeInputSchema(entry.outputSchema),
+              }
+            : {
+                availability:
+                  entry.outputSchemaAvailability ===
+                    "runtime-validation-only" ||
+                  entry.outputSchemaAvailability === "not-declared"
+                    ? entry.outputSchemaAvailability
+                    : "unavailable",
+              },
+        errorContract:
+          entry.errors === undefined
+            ? { availability: "unavailable" }
+            : { availability: "declared", errors: entry.errors },
       },
       environmentSecrets()
     )
   );
+  boundedJson(metadata, 262144);
+  return metadata;
 }

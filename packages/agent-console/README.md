@@ -180,3 +180,32 @@ action review, narrow dark layout, reduced motion and page-content clearance.
 These are not live-provider or real-tool evidence. To verify a production
 installation, the application owner must additionally run its actual Agent
 adapter with its authenticated host and explicitly selected provider/model.
+
+## Scoped page inspection tools
+
+`@lenso/agent-console/context-tools` supplies a read-only structural adapter for
+lenso-agent's existing `ToolSource` and `AgentProfile.context` contract (verified
+at `b1e7a3712872ab07d441130900d6abe8548a9d0e`). It does not install an Agent executor,
+connection, provider or production permission.
+
+```ts
+const consoleTools = createConsoleOperationContextTools({
+  // Derive this page and its transport from verified Agent identity/project admission.
+  // Never resolve mount, root, socket or credentials from the model's JSON.
+  resolve: trustedCurrentPage,
+});
+const profile = registerConsoleOperationContext(existingProfile, consoleTools);
+// Add consoleTools as a named registration in the host's existing
+// combineToolSources([...existingRegistrations, consoleTools]).
+// Pass that source and profile to the existing authenticated Agent installation.
+```
+
+The registration retains old tool aliases/instructions/context and adds only
+`console_page_operation_context`. Profile context contains bounded page/service
+references; detailed facts are read on demand through the same `services.inspect`
+as the page UI. Prepare and invoke resolve current trusted admission independently.
+A hashed page/project/revision precondition rejects retired contexts before reading;
+the result is checked against current admission again after the read. Query JSON
+cannot select a principal, target, mount or filesystem path. Arbitrary errors are
+replaced with fixed text. No request body, result payload or exception is added to
+the model context. This tool does not invoke business operations.
