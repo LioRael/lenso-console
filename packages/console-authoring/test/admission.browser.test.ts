@@ -24,7 +24,7 @@ for (const engine of [
     let expiresAt = now + 2 * 3_600_000;
     let sessionReads = 0;
     let passwordWrites = 0;
-    let submittedCsrf: string | null = null;
+    const submittedCsrf: { value: string | null } = { value: null };
     const handoff: { returnTo: string | null } = { returnTo: null };
     let pending: Promise<void> | undefined;
     let release: (() => void) | undefined;
@@ -88,7 +88,7 @@ for (const engine of [
         }
         if (url.pathname === "/auth/login") {
           passwordWrites += 1;
-          submittedCsrf = request.headers.get("x-csrf-token");
+          submittedCsrf.value = request.headers.get("x-csrf-token");
           return new Response(null, { status: 403 });
         }
         if (url.pathname === "/api/console/v1/session") {
@@ -278,7 +278,7 @@ for (const engine of [
           .click();
         await page.getByRole("alert").waitFor();
         expect(passwordWrites).toBe(1);
-        expect(submittedCsrf).toBe("synthetic");
+        expect(submittedCsrf.value).toBe("synthetic");
       }
       const writesBeforeMissingCookie = passwordWrites;
       await context.clearCookies({ name: cookieName });
