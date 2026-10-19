@@ -60,7 +60,13 @@ export function createConsoleOperationContextTools<C, Identity>(options: {
 }) {
   async function page(context: C, identity: Identity, signal: AbortSignal) {
     signal.throwIfAborted();
-    const resolved = await options.resolve(context, identity, signal);
+    let resolved: ConsoleAgentPage | undefined;
+    try {
+      resolved = await options.resolve(context, identity, signal);
+    } catch {
+      signal.throwIfAborted();
+      reject("forbidden-operation");
+    }
     signal.throwIfAborted();
     if (
       !resolved?.scopeKey ||
