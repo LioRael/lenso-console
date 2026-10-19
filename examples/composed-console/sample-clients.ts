@@ -181,5 +181,9 @@ export const sampleCatalog: ConsoleClient = {
     return { schemaVersion: 1, revision: "sample-1", operations: [] };
   },
   invoke: unsupported,
-  workspace: { invoke: unsupported, subscribe: unsupported },
+  workspace: {
+    inspect: unsupported,
+    invoke: unsupported,
+    subscribe: unsupported,
+  },
 };
