@@ -137,6 +137,11 @@ test("identity source capabilities and permissions gate child reads", () => {
   expect(
     render(info(["users.read", "users.disable", "sessions.list"]), "identity")
   ).toEqual(["administration.info", "administration.usersRead"]);
+  expect(render(info(["users.read", "permissions.read"]), "identity")).toEqual([
+    "administration.info",
+    "administration.usersRead",
+    "administration.permissionsRead",
+  ]);
   expect(
     render(
       info(

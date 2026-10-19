@@ -22,6 +22,7 @@ import { Accordion } from "@lenso/ui/accordion";
 import { AlertDialog } from "@lenso/ui/alert-dialog";
 import { Button } from "@lenso/ui/button";
 import { Checkbox } from "@lenso/ui/checkbox";
+import { Chip } from "@lenso/ui/chip";
 import { Description } from "@lenso/ui/description";
 import { Drawer } from "@lenso/ui/drawer";
 import { FieldError } from "@lenso/ui/field-error";
@@ -35,8 +36,9 @@ import { SearchField } from "@lenso/ui/search-field";
 import { Select } from "@lenso/ui/select";
 import { Table } from "@lenso/ui/table";
 import { TextField } from "@lenso/ui/textfield";
+import { Toolbar } from "@lenso/ui/toolbar";
 import * as stylex from "@stylexjs/stylex";
-import { Info, Plus, X } from "lucide-react";
+import { Copy, Info, Plus, X } from "lucide-react";
 import {
   createContext,
   Fragment,
@@ -493,6 +495,7 @@ function useWrites(
     detail: string;
     run: () => Promise<unknown>;
     invalid?: (paths: readonly (readonly string[])[]) => void;
+    invalidates?: readonly { key: string; params?: unknown }[];
   } | null>(null);
   const confirmationRef = useRef(confirmation);
   const [validationFailed, setValidationFailed] = useState(false);
@@ -553,6 +556,8 @@ function useWrites(
     setPending(true);
     const generation = lifetime.current.value;
     const target = confirmationRef.current;
+    const readsToInvalidate =
+      target.invalidates ?? Object.values(readKeys).map((key) => ({ key }));
     setValidationFailed(false);
     try {
       await target.run();
@@ -561,7 +566,7 @@ function useWrites(
       }
       setFeedback("Change completed.");
       await Promise.all(
-        Object.values(readKeys).map((key) => cache.invalidate({ key }))
+        readsToInvalidate.map((selector) => cache.invalidate(selector))
       );
     } catch (error) {
       if (lifetime.current.value === generation) {
@@ -585,7 +590,7 @@ function useWrites(
         setFeedback(errorText(error));
         try {
           await Promise.all(
-            Object.values(readKeys).map((key) => cache.invalidate({ key }))
+            readsToInvalidate.map((selector) => cache.invalidate(selector))
           );
         } catch {
           // Keep the original write uncertainty; invalidation cannot confirm its outcome.
@@ -607,14 +612,21 @@ function useWrites(
       title: string,
       detail: string,
       run: () => Promise<unknown>,
-      invalid?: (paths: readonly (readonly string[])[]) => void
+      invalid?: (paths: readonly (readonly string[])[]) => void,
+      selectedReads?: readonly { key: string; params?: unknown }[]
     ) {
       if (!lock.current && !blocked && !confirmationRef.current) {
         opener.current =
           document.activeElement instanceof HTMLElement
             ? document.activeElement
             : null;
-        const next = { title, detail, run, ...(invalid ? { invalid } : {}) };
+        const next = {
+          title,
+          detail,
+          run,
+          ...(invalid ? { invalid } : {}),
+          ...(selectedReads ? { invalidates: selectedReads } : {}),
+        };
         confirmationRef.current = next;
         setValidationFailed(false);
         setFeedback("");
@@ -806,18 +818,236 @@ function identityFilterTree(node: ConsoleFilterNode): DirectoryFilter {
   throw new Error("Unsupported directory filter");
 }
 
+function withDirectory(href: string, state: string | null) {
+  if (!state || state.length > 12000) {
+    return href;
+  }
+  const [path, hash] = href.split("#");
+  const [pathname, query] = path!.split("?");
+  const params = new URLSearchParams(query);
+  params.set("directory", state);
+  return `${pathname}?${params}${hash ? `#${hash}` : ""}`;
+}
+
+// URL state restores presentation only; the service still authorizes every read.
+function directoryLocation(search: string) {
+  const empty = {
+    search: "",
+    cursor: undefined as string | undefined,
+    conditions: [] as readonly ConsoleFilterCondition[],
+    filter: {
+      id: "identities",
+      operator: "and",
+      children: [],
+    } as ConsoleFilterGroup,
+  };
+  try {
+    const encoded = new URLSearchParams(search).get("directory");
+    if (!encoded || encoded.length > 12000) {
+      return empty;
+    }
+    const value = JSON.parse(encoded);
+    const node = (input: unknown, depth = 0): ConsoleFilterNode => {
+      if (!input || typeof input !== "object" || depth > 4) {
+        throw new Error("Invalid filter");
+      }
+      const item = input as Record<string, unknown>;
+      if (typeof item.id !== "string" || item.id.length > 128) {
+        throw new Error("Invalid filter");
+      }
+      if (Array.isArray(item.children)) {
+        if (
+          item.children.length > 16 ||
+          (item.operator !== "and" && item.operator !== "or")
+        ) {
+          throw new Error("Invalid group");
+        }
+        return {
+          id: item.id,
+          operator: item.operator,
+          children: item.children.map((child) => node(child, depth + 1)),
+        };
+      }
+      if (typeof item.value !== "string" || item.value.length > 512) {
+        throw new Error("Invalid value");
+      }
+      const condition = {
+        id: item.id,
+        field: item.field,
+        operator: item.operator,
+        value: item.value,
+      } as ConsoleFilterCondition;
+      identityFilterTree(condition);
+      return condition;
+    };
+    if (
+      typeof value.search !== "string" ||
+      value.search.length > 512 ||
+      !Array.isArray(value.conditions) ||
+      value.conditions.length > 16
+    ) {
+      return empty;
+    }
+    const filter = node(value.filter);
+    if (!("children" in filter)) {
+      return empty;
+    }
+    const conditions = value.conditions.map((item: unknown) => node(item));
+    if (conditions.some((item: ConsoleFilterNode) => "children" in item)) {
+      return empty;
+    }
+    return {
+      search: value.search,
+      cursor:
+        typeof value.cursor === "string" && value.cursor.length <= 2048
+          ? value.cursor
+          : undefined,
+      filter,
+      conditions: conditions as ConsoleFilterCondition[],
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function IdentityStatus({ status }: { status: DirectoryUser["status"] }) {
+  return (
+    <Chip variant="secondary" xstyle={s.identityStatus}>
+      <Chip.Label>
+        {status === "active"
+          ? "Active"
+          : status === "disabled"
+            ? "Disabled"
+            : "External"}
+      </Chip.Label>
+    </Chip>
+  );
+}
+
+function CopyIdentifier({
+  label,
+  value,
+  showLabel = true,
+}: {
+  label: string;
+  value: string;
+  showLabel?: boolean;
+}) {
+  const workspace = useWorkspace();
+  const [feedback, setFeedback] = useState("");
+  return (
+    <div {...stylex.props(s.identityIdentifier)}>
+      {showLabel && <span {...stylex.props(s.accessSecondary)}>{label}</span>}
+      <Toolbar.Root
+        aria-label={`${label} identifier`}
+        xstyle={s.identityIdentifierGroup}
+      >
+        <Toolbar.Group {...stylex.props(s.identityIdentifierGroup)}>
+          <code title={value} {...stylex.props(s.identityCode)}>
+            {value}
+          </code>
+          <Toolbar.Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Copy ${label.toLowerCase()}`}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(value);
+                if (
+                  !workspace.signal.aborted &&
+                  (!workspace.activation || workspace.activation.isCurrent())
+                ) {
+                  setFeedback("Copied");
+                }
+              } catch {
+                if (
+                  !workspace.signal.aborted &&
+                  (!workspace.activation || workspace.activation.isCurrent())
+                ) {
+                  setFeedback("Copy unavailable. Select the ID to copy it.");
+                }
+              }
+            }}
+          >
+            <Copy size={14} aria-hidden="true" />
+          </Toolbar.Button>
+        </Toolbar.Group>
+      </Toolbar.Root>
+      <output {...stylex.props(s.accessSecondary)}>{feedback}</output>
+    </div>
+  );
+}
+
+function IdentityMembership({
+  client,
+  user,
+  info,
+  writes,
+}: AdministrationPageProps & {
+  user: DirectoryUser;
+  info: AdministrationInfo;
+  writes: Writes;
+}) {
+  const access = useRead(client, "accessRead", {});
+  const memberships =
+    access.data?.members.filter(
+      (member) =>
+        member.subjectId === user.subjectId && member.realmId === user.realmId
+    ) ?? [];
+  return (
+    <ReadState read={access}>
+      {memberships.length ? (
+        <ul {...stylex.props(s.identityMemberships)}>
+          {memberships.map((member) => (
+            <li key={member.roleId} {...stylex.props(s.identityMembership)}>
+              <div>
+                <p {...stylex.props(s.accessLabel)}>
+                  {access.data?.roles.find((role) => role.id === member.roleId)
+                    ?.label ?? "Role unavailable"}
+                </p>
+                <p {...stylex.props(s.accessSecondary)}>{member.roleId}</p>
+              </div>
+              <Chip variant="secondary" xstyle={s.identityStatus}>
+                <Chip.Label>
+                  {member.status === "active"
+                    ? "Active membership"
+                    : "Revoked membership"}
+                </Chip.Label>
+              </Chip>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p {...stylex.props(s.description)}>
+          No Console membership for this identity in the current tenant.
+        </p>
+      )}
+      {info.supported.userDisable && info.allowed.includes("users.disable") && (
+        <DisableIdentity
+          client={client}
+          user={user}
+          writes={writes}
+          access={access}
+        />
+      )}
+    </ReadState>
+  );
+}
+
 function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
   const workspace = useWorkspace();
-  const [search, setSearch] = useState("");
+  const initial = directoryLocation(workspace.location.search);
+  const [search, setSearch] = useState(initial.search);
   const [conditions, setConditions] = useState<
     readonly ConsoleFilterCondition[]
-  >([]);
-  const [filter, setFilter] = useState<ConsoleFilterGroup>({
-    id: "identities",
-    operator: "and",
-    children: [],
-  });
-  const [cursor, setCursor] = useState<string>();
+  >(initial.conditions);
+  const [filter, setFilter] = useState<ConsoleFilterGroup>(initial.filter);
+  const [cursor, setCursor] = useState<string | undefined>(initial.cursor);
+  const directoryQuery = JSON.stringify({ search, conditions, filter, cursor });
+  const identityHref = props.identityHref
+    ? (subject: string) =>
+        withDirectory(props.identityHref!(subject), directoryQuery)
+    : undefined;
   const [selected, setSelected] = useState<string>();
   const fields = identityFilterFields(props.info);
   const read = useRead(props.client, "usersList", {
@@ -831,16 +1061,15 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
   const writes = useWrites(read.refetch, () => setCursor(undefined));
   if (selected) {
     return (
-      <>
-        <Button variant="secondary" onClick={() => setSelected(undefined)}>
-          Back to identities
-        </Button>
-        <IdentityDetail {...props} subjectId={selected} />
-      </>
+      <IdentityDetail
+        {...props}
+        subjectId={selected}
+        onBack={() => setSelected(undefined)}
+      />
     );
   }
   return (
-    <div {...stylex.props(s.section)}>
+    <div {...stylex.props(s.section, s.identityContent)}>
       {writes.controls}
       <ConsolePageScope
         scopeKey={workspace.activation?.key ?? workspace.mount.id}
@@ -911,66 +1140,118 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
         <ReadState read={read}>
           {read.data && (
             <>
-              <Records
-                label="Identities"
-                items={read.data.items}
-                rowKey={(user) => `${user.realmId}:${user.subjectId}`}
-                columns={[
-                  {
-                    id: "name",
-                    label: "Identity",
-                    render: (user) =>
-                      props.info.allowed.includes("users.read") ? (
-                        props.identityHref ? (
-                          <a
-                            href={props.identityHref(user.subjectId)}
-                            onClick={(event) => {
-                              if (
-                                props.onNavigate &&
-                                event.button === 0 &&
-                                !event.metaKey &&
-                                !event.ctrlKey &&
-                                !event.shiftKey &&
-                                !event.altKey
-                              ) {
-                                event.preventDefault();
-                                props.onNavigate(
-                                  props.identityHref!(user.subjectId)
-                                );
-                              }
-                            }}
-                          >
-                            {user.label}
-                          </a>
+              {read.data.items.length === 0 ? (
+                <div {...stylex.props(s.identityEmpty)}>
+                  <h2 {...stylex.props(s.subheading)}>
+                    {search.trim() ||
+                    conditions.length ||
+                    filter.children.length
+                      ? "No identities match"
+                      : "No identities yet"}
+                  </h2>
+                  <p {...stylex.props(s.description)}>
+                    {search.trim() ||
+                    conditions.length ||
+                    filter.children.length
+                      ? "Try another name or remove a filter. Your directory is unchanged."
+                      : "This identity source has not returned any people."}
+                  </p>
+                  {(search.trim() ||
+                    conditions.length > 0 ||
+                    filter.children.length > 0) && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setSearch("");
+                        setConditions([]);
+                        setFilter({
+                          id: "identities",
+                          operator: "and",
+                          children: [],
+                        });
+                        setCursor(undefined);
+                      }}
+                    >
+                      Clear search and filters
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Records
+                  label="Identities"
+                  items={read.data.items}
+                  rowKey={(user) => `${user.realmId}:${user.subjectId}`}
+                  columns={[
+                    {
+                      id: "name",
+                      label: "Identity",
+                      width: "2fr",
+                      minWidth: 180,
+                      render: (user) =>
+                        props.info.allowed.includes("users.read") ? (
+                          identityHref ? (
+                            <a
+                              href={identityHref(user.subjectId)}
+                              onClick={(event) => {
+                                if (
+                                  props.onNavigate &&
+                                  event.button === 0 &&
+                                  !event.metaKey &&
+                                  !event.ctrlKey &&
+                                  !event.shiftKey &&
+                                  !event.altKey
+                                ) {
+                                  event.preventDefault();
+                                  props.onNavigate(
+                                    identityHref(user.subjectId)
+                                  );
+                                }
+                              }}
+                            >
+                              {user.label}
+                            </a>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              onClick={() => setSelected(user.subjectId)}
+                            >
+                              {user.label}
+                            </Button>
+                          )
                         ) : (
-                          <Button
-                            variant="ghost"
-                            onClick={() => setSelected(user.subjectId)}
-                          >
-                            {user.label}
-                          </Button>
-                        )
-                      ) : (
-                        user.label
+                          user.label
+                        ),
+                    },
+                    {
+                      id: "status",
+                      label: "Status",
+                      width: 90,
+                      minWidth: 80,
+                      render: (user) => <IdentityStatus status={user.status} />,
+                    },
+                    {
+                      id: "subject",
+                      label: "Subject",
+                      width: "2fr",
+                      minWidth: 180,
+                      render: (user) => (
+                        <CopyIdentifier
+                          label="Subject"
+                          value={user.subjectId}
+                          showLabel={false}
+                        />
                       ),
-                  },
-                  {
-                    id: "subject",
-                    label: "Subject",
-                    render: (user) => user.subjectId,
-                  },
-                  {
-                    id: "source",
-                    label: "Source",
-                    render: (user) => user.source,
-                  },
-                  {
-                    id: "status",
-                    label: "Status",
-                    render: (user) => user.status,
-                  },
-                ]}
-              />
+                    },
+                    {
+                      id: "source",
+                      label: "Source",
+                      width: "2fr",
+                      minWidth: 180,
+                      render: (user) => user.source,
+                    },
+                  ]}
+                />
+              )}
             </>
           )}
         </ReadState>
@@ -979,7 +1260,11 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
   );
 }
 function IdentityDetail(
-  props: IdentityPageProps & { subjectId: string; info: AdministrationInfo }
+  props: IdentityPageProps & {
+    subjectId: string;
+    info: AdministrationInfo;
+    onBack?: () => void;
+  }
 ) {
   const workspace = useWorkspace();
   const read = useRead(props.client, "usersRead", {
@@ -987,7 +1272,7 @@ function IdentityDetail(
   });
   const writes = useWrites(read.refetch);
   return (
-    <div {...stylex.props(s.section)}>
+    <div {...stylex.props(s.section, s.identityContent)}>
       {writes.controls}
       <ConsolePageScope
         scopeKey={`${workspace.activation?.key ?? workspace.mount.id}:${props.subjectId}`}
@@ -995,12 +1280,21 @@ function IdentityDetail(
           context: {
             kind: "object",
             label: "Identity",
-            id: props.subjectId,
-            ...(props.returnHref && props.onNavigate
+            ...(props.onBack || (props.returnHref && props.onNavigate)
               ? {
                   return: {
                     label: "Back to identities",
-                    onInvoke: () => props.onNavigate!(props.returnHref!),
+                    onInvoke:
+                      props.onBack ??
+                      (() =>
+                        props.onNavigate!(
+                          withDirectory(
+                            props.returnHref!,
+                            new URLSearchParams(workspace.location.search).get(
+                              "directory"
+                            )
+                          )
+                        )),
                   },
                 }
               : {}),
@@ -1010,30 +1304,48 @@ function IdentityDetail(
       <ReadState read={read}>
         {read.data ? (
           <>
-            <h2>{read.data.label}</h2>
-            <Facts
-              entries={[
-                ["Subject", read.data.subjectId],
-                ["Realm", read.data.realmId],
-                ["Source", read.data.source],
-                ["Status", read.data.status],
-              ]}
-            />
-            {props.info.supported.userDisable &&
-              props.info.allowed.includes("users.disable") &&
-              (props.info.allowed.includes("members.list") &&
+            <header {...stylex.props(s.identityHeader)}>
+              <div>
+                <h1 {...stylex.props(s.heading)}>{read.data.label}</h1>
+                <p {...stylex.props(s.secondaryText)}>{read.data.source}</p>
+              </div>
+              <IdentityStatus status={read.data.status} />
+            </header>
+            <div {...stylex.props(s.identityIdentifiers)}>
+              <CopyIdentifier label="Subject" value={read.data.subjectId} />
+              <CopyIdentifier label="Realm" value={read.data.realmId} />
+            </div>
+            <section
+              aria-label="Console access"
+              {...stylex.props(s.identitySection)}
+            >
+              <h2 {...stylex.props(s.subheading)}>Console access</h2>
+              {props.info.allowed.includes("members.list") &&
               props.info.allowed.includes("roles.list") ? (
-                <DisableIdentity
+                <IdentityMembership
                   client={props.client}
                   user={read.data}
+                  info={props.info}
                   writes={writes}
                 />
               ) : (
-                <p>
-                  Disabling identities requires permission to read both Console
-                  members and roles to obtain the current safety revision.
+                <p {...stylex.props(s.description)}>
+                  You do not have permission to read Console membership and
+                  roles.
                 </p>
-              ))}
+              )}
+              {props.info.allowed.includes("permissions.read") ? (
+                <Permissions
+                  client={props.client}
+                  subjectId={props.subjectId}
+                  compact
+                />
+              ) : (
+                <p {...stylex.props(s.description)}>
+                  You do not have permission to read effective permissions.
+                </p>
+              )}
+            </section>
             {props.info.supported.sessions ? (
               <Allowed info={props.info} action="sessions.list">
                 <IdentitySessions {...props} writes={writes} />
@@ -1043,6 +1355,17 @@ function IdentityDetail(
                 This identity source does not support session administration.
               </p>
             )}
+            <section
+              aria-label="Personal credentials"
+              {...stylex.props(s.identitySection)}
+            >
+              <h2 {...stylex.props(s.subheading)}>Personal credentials</h2>
+              <p {...stylex.props(s.description)}>
+                Personal tokens and connected OAuth applications are available
+                in the signed-in account’s self-service pages. This directory
+                cannot inspect another person’s credentials.
+              </p>
+            </section>
           </>
         ) : (
           <p>Identity not found.</p>
@@ -1055,8 +1378,12 @@ function DisableIdentity({
   client,
   user,
   writes,
-}: AdministrationPageProps & { user: DirectoryUser; writes: Writes }) {
-  const access = useRead(client, "accessRead", {});
+  access,
+}: AdministrationPageProps & {
+  user: DirectoryUser;
+  writes: Writes;
+  access: ReturnType<typeof useRead<"accessRead">>;
+}) {
   return (
     <div>
       {access.error && (
@@ -1105,14 +1432,18 @@ function IdentitySessions({
   writes: Writes;
 }) {
   const [cursor, setCursor] = useState<string>();
-  const read = useRead(client, "sessionsList", {
+  const input = {
     subjectId,
     ...(cursor ? { cursor } : {}),
     limit: 25,
-  });
+  };
+  const read = useRead(client, "sessionsList", input);
   return (
-    <section aria-label="Identity sessions" {...stylex.props(s.section)}>
-      <h3>Sessions</h3>
+    <section
+      aria-label="Identity sessions"
+      {...stylex.props(s.identitySection)}
+    >
+      <h2 {...stylex.props(s.subheading)}>Sessions</h2>
       <ReadState read={read}>
         {read.data && (
           <>
@@ -1128,20 +1459,28 @@ function IdentitySessions({
               items={read.data.items}
               rowKey={(item) => item.id}
               columns={[
-                { id: "id", label: "Session", render: (item) => item.id },
                 {
-                  id: "created",
-                  label: "Created",
-                  render: (item) => date(item.createdAt),
-                },
-                {
-                  id: "expires",
-                  label: "Expires",
-                  render: (item) => date(item.expiresAt),
+                  id: "id",
+                  label: "Session",
+                  minWidth: 160,
+                  width: "1fr",
+                  render: (item) => (
+                    <div>
+                      <p {...stylex.props(s.accessLabel)}>
+                        {date(item.createdAt)}
+                      </p>
+                      <p {...stylex.props(s.accessSecondary)}>
+                        Expires {date(item.expiresAt)}
+                      </p>
+                      <CopyIdentifier label="Session ID" value={item.id} />
+                    </div>
+                  ),
                 },
                 {
                   id: "state",
                   label: "State",
+                  minWidth: 80,
+                  width: 80,
                   render: (item) =>
                     item.revokedAt
                       ? "Revoked"
@@ -1152,6 +1491,8 @@ function IdentitySessions({
                 {
                   id: "action",
                   label: "Action",
+                  minWidth: 100,
+                  width: 100,
                   render: (item) =>
                     info.supported.sessionRevoke &&
                     info.allowed.includes("sessions.revoke") ? (
@@ -1169,7 +1510,12 @@ function IdentitySessions({
                                 id: item.id,
                                 subjectId,
                                 expectedRevision: item.revision,
-                              })
+                              }),
+                            undefined,
+                            [
+                              { key: readKeys.info },
+                              { key: readKeys.sessionsList, params: input },
+                            ]
                           )
                         }
                       >
@@ -1983,10 +2329,14 @@ function DirectoryPicker({
 function Permissions({
   client,
   subjectId,
-}: AdministrationPageProps & { subjectId: string }) {
+  compact = false,
+}: AdministrationPageProps & { subjectId: string; compact?: boolean }) {
   const read = useRead(client, "permissionsRead", { subjectId });
   return (
-    <section aria-label="Effective permissions" {...stylex.props(s.section)}>
+    <section
+      aria-label="Effective permissions"
+      {...stylex.props(s.section, compact && s.identityPermissions)}
+    >
       <h3 {...stylex.props(s.accessLabel)}>Effective permissions</h3>
       <ReadState read={read}>
         {read.data && (
