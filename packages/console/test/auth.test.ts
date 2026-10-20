@@ -672,6 +672,25 @@ test("explicit read scope binds the original request and refreshes permission re
       status: 403,
     });
     service.closeRead!(rejected);
+    allowed = true;
+    const beforePhase = verifies;
+    const phaseRequest = request({ authorization: "Bearer fixture" });
+    const phaseIdentity = await service.authenticateAndEnforce!(
+      phaseRequest,
+      resource
+    );
+    expect(verifies - beforePhase).toBe(1);
+    allowed = false;
+    await expect(
+      service.enforce(phaseIdentity, resource)
+    ).rejects.toMatchObject({ status: 403 });
+    expect(verifies - beforePhase).toBe(2);
+    await expect(
+      service.authenticateAndEnforce!(
+        request({ authorization: "Bearer fixture" }),
+        resource
+      )
+    ).rejects.toMatchObject({ status: 403 });
   } finally {
     await auth.close();
   }

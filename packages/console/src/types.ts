@@ -45,6 +45,11 @@ export interface ConsoleAuthentication {
   /** Credential presence only, never verification; invalid credentials must not become public reads. */
   hasCredentials?(request: Request): boolean;
   authenticate(request: Request): Promise<ConsoleIdentity>;
+  /** One fresh entry/phase: verify credentials and enforce this exact resource together. */
+  authenticateAndEnforce?(
+    request: Request,
+    resource: ConsoleResource
+  ): Promise<ConsoleIdentity>;
   enforce(identity: ConsoleIdentity, resource: ConsoleResource): Promise<void>;
   can(identity: ConsoleIdentity, resource: ConsoleResource): Promise<boolean>;
   /** Fresh dispatch phase checks both visibility and invocation authority. */

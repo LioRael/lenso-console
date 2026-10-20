@@ -252,6 +252,28 @@ export function createConsoleAuthentication<
       signal: request.signal,
     });
   }
+  async function authenticateRequest(
+    request: Request,
+    resource?: ConsoleResource
+  ) {
+    return guarded(request, async () => {
+      binding.admit(request);
+      const evidence = await binding.evidence(request);
+      const actor = resource
+        ? await options.access.authorized(
+            evidence,
+            Object.freeze({ ...resource }),
+            options.policy,
+            { signal: request.signal }
+          )
+        : await options.access.required(evidence, { signal: request.signal });
+      const expected = expectedConsoleSubject(request);
+      if (expected !== null && expected !== actor.subjectId) {
+        throw new ConsoleRequestError("session_changed");
+      }
+      return makeIdentity(actor, request);
+    });
+  }
   const service: ConsoleAuthentication & { admit(request: Request): void } = {
     httpPaths: Object.freeze({
       discovery: binding.methodsPath,
@@ -268,18 +290,10 @@ export function createConsoleAuthentication<
       return binding.hasCredentials(request);
     },
     async authenticate(request) {
-      return guarded(request, async () => {
-        binding.admit(request);
-        const actor = await options.access.required(
-          await binding.evidence(request),
-          { signal: request.signal }
-        );
-        const expected = expectedConsoleSubject(request);
-        if (expected !== null && expected !== actor.subjectId) {
-          throw new ConsoleRequestError("session_changed");
-        }
-        return makeIdentity(actor, request);
-      });
+      return authenticateRequest(request);
+    },
+    async authenticateAndEnforce(request, resource) {
+      return authenticateRequest(request, resource);
     },
     async enforce(identity, resource) {
       try {

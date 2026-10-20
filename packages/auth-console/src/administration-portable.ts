@@ -424,12 +424,54 @@ export function createConsoleAdministrationService(
   ) {
     return authorizeMany([action], context);
   }
+  // A finite read owns its facts. Every dispatch/disclosure phase starts fresh;
+  // concurrent operations, credentials and requests never share this map entry.
+  const readPhases = new WeakMap<
+    AdministrationContext,
+    {
+      original: AdministrationContext;
+      facts?: ReturnType<typeof loadCallerFacts>;
+    }
+  >();
+  const originalCaller = (context: AdministrationContext) =>
+    readPhases.get(context)?.original ?? context;
+  async function assertCaller(
+    context: AdministrationContext,
+    phase?: "dispatch" | "disclosure"
+  ) {
+    const read = readPhases.get(context);
+    if (
+      read &&
+      (read.original.principal.realmId !== context.principal.realmId ||
+        read.original.principal.subjectId !== context.principal.subjectId ||
+        read.original.principal.kind !== context.principal.kind ||
+        read.original.entry !== context.entry ||
+        read.original.signal !== context.signal)
+    ) {
+      throw new AdministrationError("DENIED");
+    }
+    if (phase && read) {
+      delete read.facts;
+    }
+    await options.assertManagementCaller(originalCaller(context), phase);
+    context.signal?.throwIfAborted();
+  }
   async function callerFacts(context: AdministrationContext) {
-    await options.assertManagementCaller(context);
+    const read = readPhases.get(context);
+    if (!read) {
+      return loadCallerFacts(context);
+    }
+    await assertCaller(context);
+    return (read.facts ??= loadCallerFacts(context));
+  }
+  async function loadCallerFacts(context: AdministrationContext) {
+    await assertCaller(context);
     const signal = context.signal ?? new AbortController().signal;
     signal.throwIfAborted();
-    const user = await directory.read(context.principal.subjectId, signal);
-    const snapshot = await store.roleStore.read({ signal, now: Date.now() });
+    const [user, snapshot] = await Promise.all([
+      directory.read(context.principal.subjectId, signal),
+      store.roleStore.read({ signal, now: Date.now() }),
+    ]);
     if (
       context.principal.realmId !== options.realmId ||
       user?.status !== "active" ||
@@ -541,14 +583,14 @@ export function createConsoleAdministrationService(
         summary: { agent: context.entry === "agent" },
         ...(context.entry === "agent" ? { correlationId: "console.mcp" } : {}),
       },
-      context
+      originalCaller(context)
     );
     if (prepared.status !== "ready") {
       throw new AdministrationError("OUTCOME_UNKNOWN", intentId);
     }
     let value: T;
     try {
-      await options.assertManagementCaller(context, "dispatch");
+      await assertCaller(context, "dispatch");
       value = await write();
     } catch (error) {
       let failureCode: AdministrationError["code"] | undefined;
@@ -809,7 +851,7 @@ export function createConsoleAdministrationService(
           result: "intent",
           limit: 1,
         },
-        context
+        originalCaller(context)
       );
       return {
         consoleId: options.consoleId,
@@ -919,7 +961,11 @@ export function createConsoleAdministrationService(
       }
       await targetUser(input.subjectId);
       return projectPage(
-        await options.sessions.list(input.subjectId, input, context),
+        await options.sessions.list(
+          input.subjectId,
+          input,
+          originalCaller(context)
+        ),
         (item) => {
           const session = sessionSchema.parse(item);
           if (session.subjectId !== input.subjectId) {
@@ -1081,7 +1127,7 @@ export function createConsoleAdministrationService(
           limit: input.limit ?? 100,
           ...(cursor ? { cursor } : {}),
         },
-        context
+        originalCaller(context)
       );
       return {
         items: result.events.map((event) => ({
@@ -1106,39 +1152,78 @@ export function createConsoleAdministrationService(
       const method = name as AdministrationMethod;
       return [
         method,
-        async (raw: unknown, context: AdministrationContext) => {
-          const input = inputSchemas[method].parse(raw);
-          await authorizeMany(administrationRequirements[method], context);
-          const result = await audited(
-            methodActions[method],
-            "subjectId" in input ? String(input.subjectId) : options.consoleId,
-            context,
-            async () => {
-              await authorizeMany(administrationRequirements[method], context);
-              const value = await (
-                handlers[method] as (
-                  input: unknown,
-                  context: AdministrationContext
-                ) => Promise<unknown>
-              )(input, context);
-              return value;
-            }
-          );
-          const { value } = result;
-          try {
-            await authorizeMany(administrationRequirements[method], context);
-            await options.assertManagementCaller(context, "disclosure");
-          } catch (error) {
-            if (writeMethods.has(method)) {
-              throw new AdministrationError("OUTCOME_UNKNOWN", result.intentId);
-            }
-            throw error;
+        async (raw: unknown, caller: AdministrationContext) => {
+          const context = writeMethods.has(method)
+            ? caller
+            : Object.freeze({
+                ...caller,
+                principal: Object.freeze({ ...caller.principal }),
+                ...(caller.credentialScopes
+                  ? {
+                      credentialScopes: Object.freeze([
+                        ...caller.credentialScopes,
+                      ]),
+                    }
+                  : {}),
+              });
+          if (context !== caller) {
+            readPhases.set(context, { original: caller });
           }
-          return outputSchemas[method].parse(
-            value && typeof value === "object" && "intentId" in value
-              ? { ...value, intentId: result.intentId }
-              : value
-          );
+          try {
+            const input = inputSchemas[method].parse(raw);
+            await authorizeMany(administrationRequirements[method], context);
+            const result = await audited(
+              methodActions[method],
+              "subjectId" in input
+                ? String(input.subjectId)
+                : options.consoleId,
+              context,
+              async () => {
+                await authorizeMany(
+                  administrationRequirements[method],
+                  context
+                );
+                const value = await (
+                  handlers[method] as (
+                    input: unknown,
+                    context: AdministrationContext
+                  ) => Promise<unknown>
+                )(input, context);
+                return value;
+              }
+            );
+            const { value } = result;
+            try {
+              if (readPhases.has(context)) {
+                await assertCaller(context, "disclosure");
+                await authorizeMany(
+                  administrationRequirements[method],
+                  context
+                );
+              } else {
+                await authorizeMany(
+                  administrationRequirements[method],
+                  context
+                );
+                await assertCaller(context, "disclosure");
+              }
+            } catch (error) {
+              if (writeMethods.has(method)) {
+                throw new AdministrationError(
+                  "OUTCOME_UNKNOWN",
+                  result.intentId
+                );
+              }
+              throw error;
+            }
+            return outputSchemas[method].parse(
+              value && typeof value === "object" && "intentId" in value
+                ? { ...value, intentId: result.intentId }
+                : value
+            );
+          } finally {
+            readPhases.delete(context);
+          }
         },
       ];
     })
@@ -1245,7 +1330,7 @@ export function createConsoleAdministrationService(
       ) {
         throw new AdministrationError("DENIED");
       }
-      await options.assertManagementCaller(context, "disclosure");
+      await assertCaller(context, "disclosure");
     } catch {
       throw new AdministrationError("OUTCOME_UNKNOWN", intentId);
     }

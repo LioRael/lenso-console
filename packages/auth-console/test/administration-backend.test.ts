@@ -204,6 +204,68 @@ function fixture() {
 
 // Old adapters may ignore unknown fields. A status predicate must be explicit,
 // and a claimed filtering adapter must never return a contradictory page.
+test("finite reads load current role facts once per phase, preserve host provenance and isolate concurrent callers", async () => {
+  const f = fixture();
+  const context = f.context();
+  let roleReads = 0;
+  const phases: string[] = [];
+  const { read } = f.store.roleStore;
+  f.store.roleStore.read = async (verification) => {
+    roleReads += 1;
+    return read(verification);
+  };
+  const service = createConsoleAdministrationService({
+    ...f.options,
+    assertManagementCaller(caller, phase) {
+      f.options.assertManagementCaller(caller);
+      expect(caller).toBe(context);
+      if (phase) {
+        phases.push(phase);
+      }
+    },
+  });
+  try {
+    const firstStarted = performance.now();
+    const info = await service.info({}, context);
+    const first = {
+      sqliteRoleSnapshotSelects: roleReads,
+      elapsedMs: performance.now() - firstStarted,
+    };
+    expect(info.allowed.length).toBeGreaterThan(1);
+    expect(phases).toEqual(["dispatch", "disclosure"]);
+    roleReads = 0;
+    const warmStarted = performance.now();
+    await service.info({}, context);
+    const warm = {
+      sqliteRoleSnapshotSelects: roleReads,
+      elapsedMs: performance.now() - warmStarted,
+    };
+    console.info(
+      JSON.stringify({
+        scenario: "administration.info",
+        first,
+        warm,
+        timingScope:
+          "first/warm method after disposable SQLite setup; not a cold database or remote network",
+      })
+    );
+    expect(first.sqliteRoleSnapshotSelects).toBe(3);
+    expect(warm.sqliteRoleSnapshotSelects).toBe(3);
+    roleReads = 0;
+    await Promise.all([service.info({}, context), service.info({}, context)]);
+    expect(roleReads).toBe(6);
+    const reader = f.context("reader");
+    await expect(f.service.usersList({}, reader)).rejects.toMatchObject({
+      code: "DENIED",
+    });
+    await expect(f.service.info({}, { ...context })).rejects.toThrow(
+      "untrusted context"
+    );
+  } finally {
+    await service.apiKeys.close();
+  }
+});
+
 test("directory status filtering is opt-in and fails closed on contradictory results", async () => {
   const f = fixture();
   const owner = f.context();
