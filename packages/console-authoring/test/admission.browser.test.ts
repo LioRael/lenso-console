@@ -91,6 +91,10 @@ for (const engine of [
           submittedCsrf.value = request.headers.get("x-csrf-token");
           return new Response(null, { status: 403 });
         }
+        // This fixture models a server predating the combined admission endpoint.
+        if (url.pathname === "/api/console/v1/admission") {
+          return new Response(null, { status: 404 });
+        }
         if (url.pathname === "/api/console/v1/session") {
           sessionReads += 1;
           observed?.();
@@ -365,6 +369,10 @@ test("a queued logout survives another tab's automatic renewal", async () => {
         await heldLogout.promise;
         return new Response(null, { status: 204 });
       }
+      // This fixture models a server predating the combined admission endpoint.
+      if (pathname === "/api/console/v1/admission") {
+        return new Response(null, { status: 404 });
+      }
       if (pathname === "/api/console/v1/session") {
         return retirementSession(authenticated);
       }
@@ -460,6 +468,10 @@ test("back-forward cache restores a retired page before checking its session aga
       if (pathname === "/auth/logout") {
         authenticated = false;
         return new Response(null, { status: 204 });
+      }
+      // This fixture models a server predating the combined admission endpoint.
+      if (pathname === "/api/console/v1/admission") {
+        return new Response(null, { status: 404 });
       }
       if (pathname === "/api/console/v1/session") {
         sessionReads += 1;
