@@ -50,7 +50,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     page.on("pageerror", (error) => errors.push(error.message));
     const denied = page.waitForResponse(
       (response) =>
-        response.url().endsWith("/console/v1/session") &&
+        response.url().endsWith("/console/v1/admission") &&
         response.status() === 401
     );
     await page.goto(`${origin}/authorization/`);
