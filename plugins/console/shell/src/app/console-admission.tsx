@@ -3,6 +3,7 @@ import type { PageProps } from "@lenso/console-sdk";
 import type { ConsoleLoginMethod } from "@lenso/console-sdk/authentication";
 import {
   ConsoleBrowserMount,
+  ConsoleBrowserRuntimeProvider,
   consoleMountHref,
   consoleMountKey,
   consoleSettingsLinks,
@@ -75,12 +76,16 @@ export function ConsoleAdmissionProvider({
   return (
     <AdmissionContext.Provider value={value}>
       {value.state === "authenticated" && value.admission ? (
-        <ConsoleLayout
-          key={`${value.admission.subject}:${value.admission.readScope}`}
-        >
-          {value.actionError && <p role="alert">{value.actionError.message}</p>}
-          {children}
-        </ConsoleLayout>
+        <ConsoleBrowserRuntimeProvider admission={value.admission}>
+          <ConsoleLayout
+            key={`${value.admission.subject}:${value.admission.readScope}`}
+          >
+            {value.actionError && (
+              <p role="alert">{value.actionError.message}</p>
+            )}
+            {children}
+          </ConsoleLayout>
+        </ConsoleBrowserRuntimeProvider>
       ) : (
         <consoleReact.ConsoleLogin
           {...login}

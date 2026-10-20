@@ -415,6 +415,24 @@ still owns callback validation and session issuance.
 
 Concurrent focus/service-denial checks share one in-flight session read per
 admission; a settled or failed read is never reused as an authorization cache.
+
+The SDK reads the combined `/api/console/v1/admission` protocol when available.
+`useConsoleAdmission(undefined, { catalog: true })` requests the same fresh
+operation catalog in `admission.catalog`, so an application entry can consume it
+instead of issuing another RPC `catalog` request. Compiled page hosts that do
+not need this catalog do not request or enumerate it. A 404
+selects the older session/pages flow; permission errors and outages do not.
+
+For externally routed hosts, put `ConsoleBrowserRuntimeProvider` from
+`@lenso/console-sdk/browser` above route-keyed pages and pass its exact
+`admission` to each `ConsoleBrowserMount`. The provider retains one read runtime
+for each exact mount while page activations still retire their own actions and
+requests. Retain the mount object from its admitted catalog; a replacement
+descriptor retires that mount's old runtime. Admission retirement or provider
+unmount aborts every owned runtime and clears its query cache. Credentials and
+authority are never persisted. The ordinary read freshness policy still applies;
+server-side authorization and revocation checks remain mandatory for every call.
+
 A return visit always reads the owner's session: closing a page does not extend
 idle or absolute deadlines. Cookie writes require Web Locks and the discovered
 CSRF cookie. If the browser cannot retain that security cookie on local HTTP,

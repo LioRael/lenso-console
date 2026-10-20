@@ -618,6 +618,13 @@ Tabs use the guarded host router and preserve modified anchor clicks. The page
 must contribute only tabs/actions it is allowed to show; presentation is not
 server authorization.
 
+When neither page context nor group tabs are available, an admitted local route
+shows its declared page title as a passive context. This keeps the same visual
+container during route loading without retaining the previous page's actions or
+private content. Explicit `kind: "hidden"`, denied routes and retired sessions
+still remove the context. Page activation and operation leases remain separate
+from that visual container.
+
 Object context shows a label, optional identifier, and optional real status.
 Tabs and objects may provide an explicit labelled `return` action. No history
 Back or inferred parent route is supplied. The Shell owns centering in the main

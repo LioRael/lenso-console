@@ -659,6 +659,19 @@ export function ConsoleShell({
         </Tabs.ListContainer>
       </Tabs.Root>
     ) : null;
+  // Route activations retire actions immediately. A passive current-page label
+  // keeps the geometry owner alive while the next page awaits its authorized data.
+  const routeContext =
+    routeAllowed && !inlineTabs && !pageNavigation
+      ? {
+          kind: "object" as const,
+          label:
+            match.route.binding.definition.pages[match.route.pageId]?.title ??
+            navigation.find((item) => item.route.id === match.route.id)
+              ?.label ??
+            match.route.binding.id,
+        }
+      : undefined;
   const renderForeground = (
     selection: ConsoleDockSelection | null,
     page: ConsolePageContribution | null
@@ -783,8 +796,8 @@ export function ConsoleShell({
             onFocusDock={() => undefined}
           />
           <ConsoleContextBar
-            {...(page?.context || settingsContext
-              ? { context: page?.context ?? settingsContext }
+            {...(page?.context || settingsContext || routeContext
+              ? { context: page?.context ?? settingsContext ?? routeContext }
               : {})}
             fallback={inlineTabs ? null : pageNavigation}
             router={router}

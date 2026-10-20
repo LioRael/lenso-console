@@ -120,6 +120,22 @@ No authority from this metadata scope may be used by a later invocation.
 adapter, exact session policies through its strict scope, and the same host
 disclosure boundary. It does not select request consistency or extend scope age.
 
+`GET /api/console/v1/admission` returns `console.admission/1`: the existing
+`session`, `pages` and (when management is enabled and Console access is allowed)
+`catalog` (requested with `?catalog=1`) projections together. With both `sessionRead` and `catalogRead` enabled,
+they share one request scope and one host `onReadScope` handoff. The host must
+still finish, compare the returned revision and close before sending any bytes.
+Separate endpoints remain available. The browser SDK uses the combined entry;
+only a 404 selects the older session/pages protocol. Authentication failures,
+outages and cancellation never trigger a second admission attempt.
+
+Hosts that currently call `authenticate(request)` immediately followed by
+`enforce(identity, resource)` at the same boundary can use
+`authenticateAndEnforce(request, resource)` instead. It uses Auth's existing
+`authorized` entry to verify once and check that exact resource. A later dispatch,
+commit or disclosure phase still needs its own fresh check. It neither memoizes
+authorization across calls nor removes the service's final authority fence.
+
 Pass `config: { contract: consoleConfiguration, sources }` with Core's normal
 sources. Core resolves it before setup. Safe configuration discovery reports captured
 startup metadata only, not values, opaque revisions, live updates or writability.

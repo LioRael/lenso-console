@@ -1,3 +1,10 @@
+import type { PageProps } from "@lenso/console-sdk";
+import {
+  ConsoleBrowserMount,
+  ConsoleBrowserRuntimeProvider,
+  type BrowserAdmission,
+  type BrowserMount,
+} from "@lenso/console-sdk/browser";
 import { Modal } from "@lenso/ui/modal";
 import { Popover } from "@lenso/ui/popover";
 import React, {
@@ -47,6 +54,9 @@ const dockControllers: ConsoleDockViewProps["dock"][] = [];
 const dockSignals: AbortSignal[] = [];
 const DockContext = createContext("missing");
 const dockFixture = new URLSearchParams(location.search).has("dock");
+const contextGapFixture = new URLSearchParams(location.search).has(
+  "context-gap"
+);
 const manyDockViews = new URLSearchParams(location.search).has("many-dock");
 const dockViewCount = manyDockViews
   ? Number(new URLSearchParams(location.search).get("dock-count") ?? 8)
@@ -101,7 +111,7 @@ function Records({ activation, signal, navigation }: ConsoleLocalPageProps) {
   const [returnAvailable, setReturnAvailable] = useState(true);
   const [context, setContext] = useState<
     "fallback" | "hidden" | "object" | "tabs"
-  >("fallback");
+  >(contextGapFixture ? "object" : "fallback");
   useLayoutEffect(() => {
     mounts += 1;
     activations.push(activation);
@@ -382,6 +392,42 @@ const dockBinding = bindConsole(dockDefinition, {
   services: {},
   routes: {},
 });
+function DelayedDetail({
+  activation,
+  signal,
+  navigation,
+}: ConsoleLocalPageProps) {
+  const [ready, setReady] = useState(false);
+  useLayoutEffect(() => {
+    const admit = () => {
+      if (activation.isCurrent() && !signal.aborted) {setReady(true);}
+    };
+    window.addEventListener("detail-context-ready", admit);
+    return () => window.removeEventListener("detail-context-ready", admit);
+  }, [activation, signal]);
+  return (
+    <>
+      <h1>Detail page</h1>
+      {!ready && <output>Waiting for current permissions</output>}
+      {ready && (
+        <ConsolePageScope
+          scopeKey={activation.key}
+          value={{
+            context: {
+              kind: "object",
+              label: "Current detail",
+              id: "42",
+              return: {
+                label: "Return to records",
+                onInvoke: () => navigation.go("records"),
+              },
+            },
+          }}
+        />
+      )}
+    </>
+  );
+}
 const definition = defineConsolePlugin({
   id: "records",
   pages: {
@@ -620,6 +666,23 @@ function Fixture() {
         ...binding,
         definition: {
           ...definition,
+          ...(contextGapFixture
+            ? {
+                pageGroups: undefined,
+                pages: {
+                  ...definition.pages,
+                  detail: { title: "Detail", component: DelayedDetail },
+                },
+                navigation: [
+                  {
+                    id: "records",
+                    label: "Records",
+                    page: "records",
+                    defaultPlacement: "primary" as const,
+                  },
+                ],
+              }
+            : {}),
           ...(settingsFixture
             ? {
                 settings: [
@@ -889,8 +952,104 @@ function TableFixture() {
     </ConsoleLayout>
   );
 }
+const runtimeMount: BrowserMount = {
+  apiMajor: 1,
+  protocol: "lenso-console-rpc/2",
+  id: "runtime",
+  title: "Runtime",
+  targetId: "local",
+  subject: { kind: "console" },
+  owner: { instance: "runtime", source: "application", trusted: true },
+  revision: "1",
+  implementationId: "a".repeat(64),
+  basePath: "/runtime",
+  module: "/unused.mjs",
+  styles: [],
+  navigation: { label: "Runtime", items: [] },
+  requirements: [],
+};
+type RuntimeProps = Pick<
+  PageProps,
+  "services" | "reads" | "signal" | "credentials"
+>;
+let runtimeReads = 0;
+const runtimeInstances: RuntimeProps[] = [];
+function RuntimeRead({
+  runtime,
+  subject,
+}: {
+  runtime: RuntimeProps;
+  subject: string;
+}) {
+  useLayoutEffect(() => {
+    runtimeInstances.push(runtime);
+  }, [runtime]);
+  const result = runtime.reads!.useRead({
+    key: "fixture.private",
+    params: {},
+    read: async () => {
+      runtimeReads += 1;
+      return { subject };
+    },
+  });
+  return (
+    <output aria-label="Runtime subject">
+      {result.data?.subject ?? "Loading"}
+    </output>
+  );
+}
+function RuntimeFixture() {
+  const controller = useRef(new AbortController());
+  const [page, setPage] = useState("list");
+  const [mount, setMount] = useState(runtimeMount);
+  const [admission, setAdmission] = useState<BrowserAdmission | undefined>({
+    subject: "first",
+    readScope: "a".repeat(64),
+    mounts: [runtimeMount],
+    signal: controller.current.signal,
+  });
+  Object.assign(window, {
+    runtimeFixture: {
+      navigate: setPage,
+      replaceMount: () => setMount({ ...runtimeMount, revision: "2" }),
+      logout: () => {
+        controller.current.abort();
+        setAdmission(undefined);
+      },
+      login: () => {
+        controller.current = new AbortController();
+        setAdmission({
+          subject: "second",
+          readScope: "b".repeat(64),
+          mounts: [mount],
+          signal: controller.current.signal,
+        });
+      },
+      snapshot: () => ({
+        reads: runtimeReads,
+        sameRuntime: runtimeInstances.every(
+          (item) => item === runtimeInstances[0]
+        ),
+        aborted: runtimeInstances.map((item) => item.signal.aborted),
+      }),
+    },
+  });
+  return admission ? (
+    <ConsoleBrowserRuntimeProvider admission={admission}>
+      <ConsoleBrowserMount key={page} admission={admission} mount={mount}>
+        {(runtime) => (
+          <RuntimeRead runtime={runtime} subject={admission.subject} />
+        )}
+      </ConsoleBrowserMount>
+    </ConsoleBrowserRuntimeProvider>
+  ) : (
+    <output>Signed out</output>
+  );
+}
 createRoot(document.getElementById("root")!).render(
-  new URLSearchParams(location.search).has("tables") ? (
+  new URLSearchParams(location.search).has("runtime") ? (
+    <RuntimeFixture />
+  ) : new URLSearchParams(location.search).has("tables") ? (
     <TableFixture />
   ) : (
     <>
@@ -901,6 +1060,13 @@ createRoot(document.getElementById("root")!).render(
 );
 declare global {
   interface Window {
+    runtimeFixture: {
+      navigate(page: string): void;
+      replaceMount(): void;
+      logout(): void;
+      login(): void;
+      snapshot(): { reads: number; sameRuntime: boolean; aborted: boolean[] };
+    };
     pageLeaseProbe: {
       abort(): void;
       change(value: string): void;

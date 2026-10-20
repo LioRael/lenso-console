@@ -1,5 +1,13 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   assertConsoleMountPaths,
@@ -97,7 +105,108 @@ export function consoleSettingsLinks(
   );
 }
 
-/** Each admitted mount owns one cache and request lifetime, including late-result rejection. */
+type BrowserRuntime = {
+  query: ConsoleQueryClient;
+  props: Pick<PageProps, "services" | "reads" | "signal" | "credentials">;
+  retire(): void;
+};
+function createBrowserRuntime(
+  admission: BrowserAdmission,
+  mount: BrowserMount
+): BrowserRuntime {
+  const lifetime = new AbortController();
+  const query = new ConsoleQueryClient();
+  const retire = () => {
+    admission.signal?.removeEventListener("abort", retire);
+    lifetime.abort();
+    query.clear();
+  };
+  admission.signal?.addEventListener("abort", retire, { once: true });
+  if (admission.signal?.aborted) {
+    retire();
+  }
+  query.admitReadScope(admission.readScope);
+  const services = createSessionWorkspaceServices({
+    mount,
+    signal: lifetime.signal,
+    expectedSubject: admission.subject,
+    url: `/${consoleHttpPaths.api_base_path.slice(1)}/console/v2/rpc`,
+  });
+  const reads = createWorkspaceReads(query, {
+    scopeKey: consoleMountKey(admission, mount),
+    signal: lifetime.signal,
+    policy: { focus: "never", staleTimeMs: 10_000 },
+  });
+  const credentials = mount.credentials
+    ? createConsoleWorkspaceCredentials({
+        paths: mount.credentials,
+        signal: lifetime.signal,
+        expectedSubject: admission.subject,
+        fetch: (input, init) => sessionFetch(input, init),
+      })
+    : undefined;
+  return {
+    query,
+    retire,
+    props: {
+      services,
+      reads,
+      signal: lifetime.signal,
+      ...(credentials ? { credentials } : {}),
+    },
+  };
+}
+const BrowserRuntimeContext = createContext<
+  | {
+      admission: BrowserAdmission;
+      runtimes: Map<BrowserMount, BrowserRuntime>;
+      live: boolean;
+    }
+  | undefined
+>(undefined);
+
+/** Place above route-keyed pages. Owns data runtimes, never page action leases.
+ * Each exact admitted mount retains its bounded query cache until admission retires.
+ * Subject/permission changes must supply a new admission and retire the old signal.
+ */
+export function ConsoleBrowserRuntimeProvider({
+  admission,
+  children,
+}: {
+  admission: BrowserAdmission;
+  children: ReactNode;
+}) {
+  const owner = useMemo(
+    () => ({
+      admission,
+      runtimes: new Map<BrowserMount, BrowserRuntime>(),
+      live: false,
+    }),
+    [admission]
+  );
+  useInsertionEffect(() => {
+    const retire = () => {
+      owner.live = false;
+      for (const runtime of owner.runtimes.values()) {
+        runtime.retire();
+      }
+      owner.runtimes.clear();
+    };
+    owner.live = !admission.signal?.aborted;
+    admission.signal?.addEventListener("abort", retire, { once: true });
+    return () => {
+      admission.signal?.removeEventListener("abort", retire);
+      retire();
+    };
+  }, [owner, admission]);
+  return (
+    <BrowserRuntimeContext.Provider value={owner}>
+      {children}
+    </BrowserRuntimeContext.Provider>
+  );
+}
+
+/** Standalone mounts own cleanup. Under the provider, only admission owns cleanup. */
 export function ConsoleBrowserMount({
   admission,
   mount,
@@ -105,60 +214,43 @@ export function ConsoleBrowserMount({
 }: {
   admission: BrowserAdmission;
   mount: BrowserMount;
-  children: (
-    runtime: Pick<PageProps, "services" | "reads" | "signal" | "credentials">
-  ) => ReactNode;
+  children: (runtime: BrowserRuntime["props"]) => ReactNode;
 }) {
-  const [runtime, setRuntime] = useState<{
-    query: ConsoleQueryClient;
-    props: Pick<PageProps, "services" | "reads" | "signal" | "credentials">;
+  const provider = useContext(BrowserRuntimeContext);
+  const owner = provider?.admission === admission ? provider : undefined;
+  const [local, setLocal] = useState<{
+    admission: BrowserAdmission;
+    mount: BrowserMount;
+    runtime: BrowserRuntime;
   }>();
   useEffect(() => {
-    if (admission.signal?.aborted) {
+    if (admission.signal?.aborted || (owner && !owner.live)) {
       return;
     }
-    const lifetime = new AbortController();
-    const query = new ConsoleQueryClient();
-    const retire = () => {
-      lifetime.abort();
-      query.clear();
-    };
-    admission.signal?.addEventListener("abort", retire, { once: true });
-    query.admitReadScope(admission.readScope);
-    const services = createSessionWorkspaceServices({
-      mount,
-      signal: lifetime.signal,
-      expectedSubject: admission.subject,
-      url: `/${consoleHttpPaths.api_base_path.slice(1)}/console/v2/rpc`,
-    });
-    const reads = createWorkspaceReads(query, {
-      scopeKey: consoleMountKey(admission, mount),
-      signal: lifetime.signal,
-      policy: { focus: "never", staleTimeMs: 10_000 },
-    });
-    const credentials = mount.credentials
-      ? createConsoleWorkspaceCredentials({
-          paths: mount.credentials,
-          signal: lifetime.signal,
-          expectedSubject: admission.subject,
-          fetch: (input, init) => sessionFetch(input, init),
-        })
-      : undefined;
-    setRuntime({
-      query,
-      props: {
-        services,
-        reads,
-        signal: lifetime.signal,
-        ...(credentials ? { credentials } : {}),
-      },
-    });
+    if (owner && !owner.runtimes.has(mount)) {
+      for (const [previous, runtime] of owner.runtimes) {
+        if (previous.id === mount.id && previous.targetId === mount.targetId) {
+          runtime.retire();
+          owner.runtimes.delete(previous);
+        }
+      }
+    }
+    const runtime =
+      owner?.runtimes.get(mount) ?? createBrowserRuntime(admission, mount);
+    owner?.runtimes.set(mount, runtime);
+    setLocal({ admission, mount, runtime });
     return () => {
-      admission.signal?.removeEventListener("abort", retire);
-      retire();
+      if (!owner) {
+        runtime.retire();
+      }
     };
-  }, [admission, mount]);
-  if (!runtime || runtime.props.signal.aborted) {
+  }, [admission, mount, owner]);
+  const runtime =
+    owner?.runtimes.get(mount) ??
+    (local?.admission === admission && local.mount === mount
+      ? local.runtime
+      : undefined);
+  if (!runtime || runtime.props.signal.aborted || admission.signal?.aborted) {
     return <output aria-busy="true">Loading page…</output>;
   }
   return (

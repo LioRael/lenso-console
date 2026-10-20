@@ -4,6 +4,14 @@ import { fileURLToPath } from "node:url";
 import { chromium, type Locator, type Page } from "playwright";
 import { createServer, type ViteDevServer } from "vite";
 
+declare global {
+  interface Window {
+    retainedContextSurface?: Element;
+    contextSampling?: boolean;
+    contextFrames?: { present: boolean; same: boolean; width: number }[];
+  }
+}
+
 // This fixture has browser-owned state only. Share compilation within this file,
 // while every scenario still creates a fresh browser and context.
 let server: ViteDevServer;
@@ -19,6 +27,175 @@ beforeAll(async () => {
 afterAll(async () => {
   await server?.close();
 });
+
+test("keeps one passive context surface while a new route waits for permissions", async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+    reducedMotion: "no-preference",
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await page.goto(
+      `${server.resolvedUrls!.local[0]}test/browser/index.html?context-gap`
+    );
+    const context = page.getByLabel("Task context", { exact: true });
+    await context.getByText("Current record", { exact: true }).waitFor();
+    await page.evaluate(() => {
+      const surface = document.querySelector('[aria-label="Task context"]')!;
+      Object.assign(window, { retainedContextSurface: surface });
+      window.contextSampling = true;
+      window.contextFrames = [];
+      const sample = () => {
+        const current = document.querySelector('[aria-label="Task context"]');
+        window.contextFrames!.push({
+          present: !!current,
+          same: current === surface,
+          width: current?.getBoundingClientRect().width ?? 0,
+        });
+        if (window.contextSampling) {
+          requestAnimationFrame(sample);
+        }
+      };
+      requestAnimationFrame(sample);
+    });
+    await page.evaluate(() =>
+      window.shellFixture.navigate("/console/records/42")
+    );
+    await page.getByText("Waiting for current permissions").waitFor();
+    expect(await context.count()).toBe(1);
+    expect(
+      await page.evaluate(
+        () =>
+          document.querySelector('[aria-label="Task context"]') ===
+          window.retainedContextSurface
+      )
+    ).toBe(true);
+    expect(await context.getByRole("button").count()).toBe(0);
+    expect(
+      await page.evaluate(() => window.shellFixture.snapshot().current[0])
+    ).toBe(false);
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("detail-context-ready"))
+    );
+    await context.getByText("Current detail", { exact: true }).waitFor();
+    expect(
+      await page.evaluate(
+        () =>
+          document.querySelector('[aria-label="Task context"]') ===
+          window.retainedContextSurface
+      )
+    ).toBe(true);
+    await page.waitForFunction(
+      () =>
+        document.querySelector<HTMLElement>("[data-context-body-surface]")
+          ?.dataset.travelling === "false"
+    );
+    const frames = await page.evaluate(() => {
+      window.contextSampling = false;
+      return window.contextFrames!;
+    });
+    expect(frames.length).toBeGreaterThan(0);
+    expect(
+      frames.every((frame) => frame.present && frame.same && frame.width > 0)
+    ).toBe(true);
+    console.info(
+      JSON.stringify({
+        scenario: "route context continuity",
+        sampledFrames: frames.length,
+        missingFrames: frames.filter((frame) => !frame.present).length,
+        distinctWidths: new Set(frames.map((frame) => Math.round(frame.width)))
+          .size,
+      })
+    );
+    if (process.env.LENSO_CONTEXT_EVIDENCE) {
+      await page.screenshot({ path: process.env.LENSO_CONTEXT_EVIDENCE });
+    }
+    const box = (await context.boundingBox())!;
+    expect(box.width).toBeGreaterThan(0);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    await context.getByRole("button", { name: "Return to records" }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "Records page" }).waitFor();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.evaluate(() => {
+      window.shellFixture.navigate("/console/records/42");
+      window.shellFixture.navigate("/console/records");
+      window.dispatchEvent(new Event("detail-context-ready"));
+    });
+    expect(
+      await page.getByRole("heading", { name: "Detail page" }).count()
+    ).toBe(0);
+    await page.evaluate(() => window.shellFixture.allow(false));
+    await page.getByText("You do not have access to this page.").waitFor();
+    expect(await context.count()).toBe(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await browser.close();
+  }
+}, 30_000);
+
+test("admission-owned runtime survives page remounts and retires on mount revision and logout", async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await page.goto(
+      `${server.resolvedUrls!.local[0]}test/browser/index.html?runtime`
+    );
+    await page
+      .getByLabel("Runtime subject")
+      .getByText("first", { exact: true })
+      .waitFor();
+    expect(
+      await page.evaluate(() => window.runtimeFixture.snapshot().reads)
+    ).toBe(1);
+    await page.evaluate(() => window.runtimeFixture.navigate("detail"));
+    await page
+      .getByLabel("Runtime subject")
+      .getByText("first", { exact: true })
+      .waitFor();
+    expect(
+      await page.evaluate(() => window.runtimeFixture.snapshot())
+    ).toMatchObject({ reads: 1, sameRuntime: true });
+    await page.evaluate(() => window.runtimeFixture.navigate("list"));
+    await page
+      .getByLabel("Runtime subject")
+      .getByText("first", { exact: true })
+      .waitFor();
+    expect(
+      await page.evaluate(() => window.runtimeFixture.snapshot().reads)
+    ).toBe(1);
+    await page.evaluate(() => window.runtimeFixture.replaceMount());
+    await page.waitForFunction(
+      () => window.runtimeFixture.snapshot().reads === 2
+    );
+    expect(
+      await page.evaluate(() => window.runtimeFixture.snapshot().aborted[0])
+    ).toBe(true);
+    await page.evaluate(() => window.runtimeFixture.logout());
+    await page.getByText("Signed out", { exact: true }).waitFor();
+    expect(
+      await page.evaluate(() =>
+        window.runtimeFixture.snapshot().aborted.every(Boolean)
+      )
+    ).toBe(true);
+    await page.evaluate(() => window.runtimeFixture.login());
+    await page
+      .getByLabel("Runtime subject")
+      .getByText("second", { exact: true })
+      .waitFor();
+    expect(
+      await page.evaluate(() => window.runtimeFixture.snapshot().reads)
+    ).toBe(3);
+    expect(await page.getByText("first", { exact: true }).count()).toBe(0);
+    expect(errors).toEqual([]);
+  } finally {
+    await browser.close();
+  }
+}, 30_000);
 
 test("local Settings reuse bound pages, group tabs and target permissions", async () => {
   const browser = await chromium.launch();
