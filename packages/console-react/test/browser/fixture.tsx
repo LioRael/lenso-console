@@ -400,7 +400,9 @@ function DelayedDetail({
   const [ready, setReady] = useState(false);
   useLayoutEffect(() => {
     const admit = () => {
-      if (activation.isCurrent() && !signal.aborted) {setReady(true);}
+      if (activation.isCurrent() && !signal.aborted) {
+        setReady(true);
+      }
     };
     window.addEventListener("detail-context-ready", admit);
     return () => window.removeEventListener("detail-context-ready", admit);
