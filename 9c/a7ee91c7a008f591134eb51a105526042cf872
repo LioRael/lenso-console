@@ -1,0 +1,16 @@
+packages/console-authoring/src/browser-admission.ts
+  h_9d56aba080c170 70,79-81,84,103-113,116-118,122-128,300-301,325,359-361,402-404
+packages/console-authoring/test/admission.browser.test.ts
+  h_9d56aba080c170 276-604
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ca7ee91c7a008f591134eb51a105526042cf872",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

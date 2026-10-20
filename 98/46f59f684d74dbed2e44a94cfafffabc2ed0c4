@@ -1,0 +1,66 @@
+CONTRIBUTING.md
+  h_9d56aba080c170 42-50,72-73
+bun.lock
+  h_9d56aba080c170 29,40,60,65,100-101,196
+examples/composed-console/README.md
+  h_9d56aba080c170 15-19,21-79,90-92,95-97,112-120,128-141
+examples/composed-console/composition.tsx
+  h_9d56aba080c170 16,22,24,40-57,97,197-204,213
+examples/composed-console/lazy-page.tsx
+  h_9d56aba080c170 1-51
+examples/composed-console/package.json
+  h_9d56aba080c170 10,15
+examples/composed-console/preview.tsx
+  h_9d56aba080c170 19-24,151-162,267,270-272,275-288
+examples/composed-console/review-administration.tsx
+  h_9d56aba080c170 1-56
+examples/composed-console/review-directory.tsx
+  h_9d56aba080c170 1-246
+examples/composed-console/review-inspection.tsx
+  h_9d56aba080c170 1-16
+examples/composed-console/review-oauth.tsx
+  h_9d56aba080c170 1-56
+examples/composed-console/review-pages.tsx
+  h_9d56aba080c170 1-247
+examples/composed-console/review-samples.ts
+  h_9d56aba080c170 1-617
+examples/composed-console/review-workspace.tsx
+  h_9d56aba080c170 1-175
+examples/composed-console/vite.config.ts
+  h_9d56aba080c170 29-38,52-78
+examples/ts-console/administration.browser.test.ts
+  h_9d56aba080c170 457,492,506-508,511-513,519,523,531-532,546-551,565-570,577-579,629-631,732-734
+examples/ts-console/console/authorization/page.styles.ts
+  h_9d56aba080c170 1-54
+examples/ts-console/console/authorization/page.tsx
+  h_9d56aba080c170 2-6,9-13,15-17,28-80,85-214
+examples/ts-console/runtime.browser.test.ts
+  h_9d56aba080c170 206,265-267,288-290,476-478
+package.json
+  h_9d56aba080c170 85,96
+packages/auth-console/src/administration-pages.tsx
+  h_9d56aba080c170 6,20,24-27,29-30,32,36,38,45,47,55,60-61,69-70,286-287,304-307,428,434,447,474-475,569,608-612,1147-1150,1156,1170,1179-1241,1244-1256,1261-1268,1272-1276,1281-1285,1287-1589,1591-1750,1752,1760-1888,1905-1908,1936-1938,1952,1956-1988,1995-2012,2019-2020,2027-2028,2032-2038,2046,2068-2114,2117,2119-2120,2122-2124,2126-2133,2135-2151,2154,2158,2160-2175,2178-2190,2192-2241,2243-2300,2302-2413,2419-2422,2425,2432,2442-2451,2469,2475-2481,2489-2496,2506,2514-2523,2526-2630,2632-2644,2665,2685,2706,2708-2730,2732-2734,2738-2833,2835,2841-2844,2850-2862,2864-2869,2871-2959,2963-3016,3025-3027,3029
+packages/auth-console/src/administration-styles.ts
+  h_9d56aba080c170 15-117,218-247
+packages/auth-console/src/oauth-react.tsx
+  h_9d56aba080c170 1-6,8,10-11,13-14,156,160-166,178-180,222,239-244,247,249-380,382,385,389-531,535-541
+packages/console-runtime/console/capability-directory.tsx
+  h_9d56aba080c170 1,8-10,13,31-35,37-52,54-89,134,177-178,211-260
+packages/console-runtime/console/page.styles.ts
+  h_9d56aba080c170 7-8,15-18,22-23,42,81-117
+packages/console-runtime/console/page.tsx
+  h_9d56aba080c170 15-16,18,111-148
+packages/console-runtime/console/runtime-diagnostics.tsx
+  h_9d56aba080c170 14,16,63,65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9846f59f684d74dbed2e44a94cfafffabc2ed0c4",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

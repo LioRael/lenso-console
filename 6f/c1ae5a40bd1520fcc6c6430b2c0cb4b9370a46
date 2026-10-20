@@ -1,0 +1,44 @@
+.gitignore
+  h_9d56aba080c170 30-32
+bun.lock
+  h_9d56aba080c170 62,342-363,608-609
+examples/composed-console/README.md
+  h_9d56aba080c170 214-228
+examples/composed-console/composition.tsx
+  h_9d56aba080c170 21-22,100,206-214,218
+examples/composed-console/package.json
+  h_9d56aba080c170 12
+package.json
+  h_9d56aba080c170 10,48-49,51
+packages/console-tasks/README.md
+  h_9d56aba080c170 3-61
+packages/console-tasks/package.json
+  h_9d56aba080c170 13,17-18,21-28
+packages/console-tasks/src/client.ts
+  h_9d56aba080c170 68-70
+packages/console-tasks/src/react.tsx
+  h_9d56aba080c170 10-11,104-113,126-133,202,223,228,247,307,317,327,366,452-459,463-476
+packages/console-tasks/test/browser.test.ts
+  h_9d56aba080c170 7-20,22-84,86-105
+packages/console-tasks/test/client.test.ts
+  h_9d56aba080c170 40-42,67
+packages/console-tasks/test/fixture.tsx
+  h_9d56aba080c170 6-13,15-27,29,31-33,38-45,47,49,51,53
+packages/console-tasks/test/managed-queue.ts
+  h_9d56aba080c170 1-183
+packages/console-tasks/test/vite.config.ts
+  h_9d56aba080c170 3-4,7-14,16
+packages/console-tasks/tsconfig.json
+  h_9d56aba080c170 11-12,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6fc1ae5a40bd1520fcc6c6430b2c0cb4b9370a46",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

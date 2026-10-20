@@ -1,0 +1,22 @@
+bun.lock
+  h_9d56aba080c170 13,83,96-97,113,192,561
+package.json
+  h_9d56aba080c170 68
+packages/auth-console/package.json
+  h_9d56aba080c170 67
+packages/console/CHANGELOG.md
+  h_9d56aba080c170 7-8
+packages/console/package.json
+  h_9d56aba080c170 70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a629e2a676a81471d1f594892d82adf6a36b1190",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

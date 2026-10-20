@@ -1,0 +1,48 @@
+.changeset/quiet-admission-boundary.md
+  h_9d56aba080c170 1-5
+.changeset/quiet-login-styles.md
+  h_9d56aba080c170 1-7
+packages/console-authoring/README.md
+  h_9d56aba080c170 391-396
+packages/console-authoring/build.ts
+  h_9d56aba080c170 19
+packages/console-authoring/compiler/test/boundary.test.ts
+  h_9d56aba080c170 90-108
+packages/console-authoring/package.json
+  h_9d56aba080c170 117-122
+packages/console-authoring/src/admission-protocol.ts
+  h_9d56aba080c170 1-108
+packages/console-authoring/src/authentication.ts
+  h_9d56aba080c170 4
+packages/console-authoring/src/browser-admission.ts
+  h_9d56aba080c170 1-407
+packages/console-authoring/src/browser-session-fetch.ts
+  h_9d56aba080c170 1-2
+packages/console-authoring/src/browser.tsx
+  h_9d56aba080c170 2,5-8,13,15-20
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 9-20
+packages/console-authoring/src/session-fetch.ts
+  h_9d56aba080c170 1-203
+packages/console-authoring/src/session-workspace-services.ts
+  h_9d56aba080c170 1-35
+packages/console-react/README.md
+  h_9d56aba080c170 8-16
+packages/console-react/build.ts
+  h_9d56aba080c170 7-8,14,17-21,30-31,33-47
+packages/console-react/package.json
+  h_9d56aba080c170 26-33
+packages/console-react/src/styles.css
+  h_9d56aba080c170 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f23b059ba31608da07997a4cb0118f09e39bd21d",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+packages/console-react/README.md
+  h_9d56aba080c170 93-156
+packages/console-react/src/console-initialization-model.ts
+  h_9d56aba080c170 1-103
+packages/console-react/src/console-initialization.tsx
+  h_9d56aba080c170 1-471
+packages/console-react/src/index.ts
+  h_9d56aba080c170 23-24
+packages/console-react/test/browser/initialization.browser.test.ts
+  h_9d56aba080c170 1-341
+packages/console-react/test/browser/initialization.fixture.tsx
+  h_9d56aba080c170 1-224
+packages/console-react/test/browser/initialization.html
+  h_9d56aba080c170 1-12
+packages/console-react/test/console-initialization.test.ts
+  h_9d56aba080c170 1-36
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 204,213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1081642290addfa7f42c861c26bd7d2d7c03a5ba",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

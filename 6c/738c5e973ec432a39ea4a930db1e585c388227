@@ -1,0 +1,14 @@
+examples/ts-console/administration.browser.test.ts
+  h_9d56aba080c170 632-657
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c738c5e973ec432a39ea4a930db1e585c388227",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

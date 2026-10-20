@@ -1,0 +1,38 @@
+docs/page-operation-context.md
+  h_9d56aba080c170 1-78
+packages/console-authoring/README.md
+  h_9d56aba080c170 492-498
+packages/console-authoring/compiler/test/transport.test.ts
+  h_9d56aba080c170 107-134,241-255,301
+packages/console-authoring/src/operation-context.tsx
+  h_9d56aba080c170 1-177
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 34-91,105,228-239
+packages/console-authoring/src/react.ts
+  h_9d56aba080c170 4
+packages/console-authoring/src/service-types.ts
+  h_9d56aba080c170 1-4,8-13
+packages/console-authoring/src/transport.ts
+  h_9d56aba080c170 203-215
+packages/console-authoring/test/operation-context.browser.test.ts
+  h_9d56aba080c170 1-161
+packages/console/src/operation-metadata.ts
+  h_9d56aba080c170 1-59
+packages/console/src/service.ts
+  h_9d56aba080c170 5,40,429,625-741
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 219-222,728-735,1310-1331,1377,1395,1418-1468
+packages/console/test/operation-metadata.test.ts
+  h_9d56aba080c170 1-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb40d12d48a1a7149e844496f96ef3b01fd876de",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

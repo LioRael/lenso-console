@@ -1,0 +1,23 @@
+.changeset/optional-console-runtimes.md
+  s_50e3beadc1d491::t_0c12e418fafa1f 10-11
+docs/architecture/optional-assistant-boundary.md
+  s_50e3beadc1d491::t_2dc1d371d8a5c5 258-303
+plugins/agent-ai-adapter/README.md
+  s_50e3beadc1d491::t_b84e683c73f95a 193-206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28e522c54df0c0745cf4e243260962e08d3a3329",
+  "prompts": {},
+  "sessions": {
+    "s_50e3beadc1d491": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f9cb-a005-76d3-8f46-f5efcfd3deb1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
