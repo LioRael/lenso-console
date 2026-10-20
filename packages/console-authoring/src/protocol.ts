@@ -6,7 +6,11 @@ import {
 } from "@orpc/contract";
 import { z } from "zod";
 
-import { consolePageDescriptorSchema } from "./admission-protocol";
+import {
+  consolePageDescriptorSchema,
+  consoleSessionSchema,
+  consolePageCatalogSchema,
+} from "./admission-protocol";
 
 export {
   consolePageDescriptorSchema,
@@ -238,6 +242,23 @@ export type ConsoleOperationDescriptor = z.infer<
   typeof consoleOperationDescriptorSchema
 >;
 
+export const consoleOperationCatalogSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  revision: z.string(),
+  operations: z.array(consoleOperationDescriptorSchema),
+});
+export type ConsoleOperationCatalog = z.infer<
+  typeof consoleOperationCatalogSchema
+>;
+/** One finite entry read; current authority is still checked before disclosure. */
+export const consoleAdmissionSchema = z.strictObject({
+  schema: z.literal("console.admission/1"),
+  session: consoleSessionSchema,
+  pages: consolePageCatalogSchema,
+  catalog: consoleOperationCatalogSchema.optional(),
+});
+export type ConsoleAdmission = z.infer<typeof consoleAdmissionSchema>;
+
 export type ConsolePluginDescriptor = z.infer<
   typeof consolePluginDescriptorSchema
 >;
@@ -317,13 +338,9 @@ export const consoleAppsCatalogSchema = z.strictObject({
 export type ConsoleAppsCatalog = z.infer<typeof consoleAppsCatalogSchema>;
 
 export const consoleContract = {
-  catalog: oc.input(z.strictObject({ targetId: z.string().optional() })).output(
-    z.strictObject({
-      schemaVersion: z.literal(1),
-      revision: z.string(),
-      operations: z.array(consoleOperationDescriptorSchema),
-    })
-  ),
+  catalog: oc
+    .input(z.strictObject({ targetId: z.string().optional() }))
+    .output(consoleOperationCatalogSchema),
   invoke: oc
     .input(
       z.union([

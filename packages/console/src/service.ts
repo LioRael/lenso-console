@@ -1,5 +1,6 @@
 import {
   consoleAppsCatalogSchema,
+  consoleAdmissionSchema,
   consoleContract,
   consolePageCatalogSchema,
   consolePageOperationContextSchema,
@@ -336,6 +337,286 @@ export function createConsoleService(
     }
     return entry;
   }
+  const scopedCatalog = !!(
+    options.catalogRead &&
+    options.onReadScope &&
+    auth.beginRead &&
+    auth.enforceRead &&
+    auth.finishRead &&
+    auth.closeRead
+  );
+  const deniedMetadataScopes = new WeakMap<ConsoleReadScope, boolean>();
+
+  async function canReadMetadata(
+    identity: ConsoleIdentity,
+    selector: ConsoleResource,
+    scope?: ConsoleReadScope
+  ) {
+    if (!scope) {
+      return auth.can(identity, selector);
+    }
+    try {
+      await auth.enforceRead!(identity, selector, scope);
+    } catch (error) {
+      // Manage may project the error at its own boundary. Keep only the exact
+      // originating policy denial eligible for legacy metadata filtering.
+      deniedMetadataScopes.set(
+        scope,
+        error instanceof ConsoleRequestError && error.code === "forbidden"
+      );
+      throw error;
+    }
+    return true;
+  }
+
+  async function metadataRead<T>(
+    request: Request,
+    identity: ConsoleIdentity,
+    enabled: boolean,
+    collect: (scope?: ConsoleReadScope) => Promise<T>
+  ): Promise<T> {
+    if (!enabled) {
+      return collect();
+    }
+    if (
+      !options.onReadScope ||
+      !auth.beginRead ||
+      !auth.enforceRead ||
+      !auth.finishRead ||
+      !auth.closeRead
+    ) {
+      throw failure("SERVICE_UNAVAILABLE", 503);
+    }
+    const scope = await auth.beginRead(identity, request);
+    try {
+      if (
+        "consistency" in scope.authenticationScope &&
+        scope.authenticationScope.consistency !== "before-disclosure"
+      ) {
+        throw failure("SERVICE_UNAVAILABLE", 503);
+      }
+      const result = await collect(scope);
+      const registered: unknown = options.onReadScope(request, scope);
+      if (
+        registered &&
+        typeof (registered as { then?: unknown }).then === "function"
+      ) {
+        // oxlint-disable-next-line promise/prefer-await-to-then, no-empty-function
+        void Promise.resolve(registered).catch(() => {});
+        throw failure("SERVICE_UNAVAILABLE", 503);
+      }
+      // The existing host disclosure boundary freshly verifies identity and replays
+      // every successful policy. No authority is reused by another HTTP request.
+      return result;
+    } catch (error) {
+      auth.closeRead(scope);
+      if (deniedMetadataScopes.get(scope)) {
+        // Filtering a denied item retires the scope; retry via ordinary fresh checks.
+        return collect();
+      }
+      throw error;
+    }
+  }
+  async function collectCatalog(
+    request: Request,
+    identity: ConsoleIdentity,
+    targetId?: string,
+    scope?: ConsoleReadScope
+  ) {
+    const can = (selector: ConsoleResource) =>
+      canReadMetadata(identity, selector, scope);
+    const catalogFor = (target: ConsoleTarget, writeAvailability = false) =>
+      createManageAdapter({
+        selection: selections.get(target)!,
+        // Scoped policies share one request identity; no D1 fan-out is needed.
+        catalogConcurrency: scope ? 1 : options.catalogConcurrency,
+        canList: (operation) =>
+          (!writeAvailability || writable(operation, target)) &&
+          can(resource(target, "list", operation)),
+        binding: (operation, validatedInput) =>
+          bindInvocation(target, request, identity, operation, validatedInput),
+      }).catalog();
+    const operations: ConsoleOperationDescriptor[] = [];
+    for (const target of targetId ? [findTarget(targetId)] : targets) {
+      if (!(await can(resource(target, "list")))) {
+        continue;
+      }
+      const entries = await catalogFor(target);
+      // Manage keys and redacted names are opaque. Project write availability
+      // through the same selection instead of reconstructing its operations.
+      const availableKeys = new Set<string>();
+      if (
+        options.canWrite &&
+        entries.some((entry) => entry.effect !== "read")
+      ) {
+        const availableEntries = await catalogFor(target, true);
+        for (const entry of availableEntries) {
+          availableKeys.add(entry.key);
+        }
+      }
+      for (const entry of entries) {
+        const available =
+          entry.effect === "read" || availableKeys.has(entry.key);
+        operations.push({
+          key: `${catalogRevision}:${target.id}:${entry.key}`,
+          targetId: target.id,
+          pluginId: entry.pluginId,
+          method: entry.method,
+          description: entry.description,
+          metadata: projectOperationMetadata(entry),
+          effect: entry.effect,
+          schemaAvailability:
+            entry.schemaAvailability === "available"
+              ? "available"
+              : "runtime-validation-only",
+          ...(entry.inputSchema ? { inputSchema: entry.inputSchema } : {}),
+          confirmation: entry.confirmation === "required",
+          approval: entry.approval === "required",
+          available,
+          ...(available
+            ? {}
+            : {
+                unavailableReason: "Write guarantees are not configured.",
+              }),
+        });
+      }
+    }
+    return {
+      schemaVersion: 1 as const,
+      revision: catalogRevision,
+      operations,
+    };
+  }
+  async function collectPages(
+    identity: ConsoleIdentity,
+    global: boolean,
+    scope?: ConsoleReadScope
+  ) {
+    const can = (selector: ConsoleResource) =>
+      canReadMetadata(identity, selector, scope);
+    const visible = [];
+    for (const { target, mount } of mounts.values()) {
+      if ((mount.placement === "global") !== global) {
+        continue;
+      }
+      if (
+        await can(
+          resource(
+            target,
+            mount.descriptor.access === "administrator" ? "admin" : "list",
+            undefined,
+            mount
+          )
+        )
+      ) {
+        const requirements = [];
+        for (const requirement of mount.descriptor.requirements) {
+          const service = mount.services[requirement.service_id];
+          const methods: string[] = [];
+          const streamingMethods: string[] = [];
+          const declaredStreams = service?.streams ?? [];
+          for (const name of requirement.operations) {
+            const operation =
+              service &&
+              [
+                ...service.operations,
+                ...declaredStreams.map((stream) => stream.operation),
+              ].find(
+                (candidate) =>
+                  candidate.method === mountedOperationMethod(service, name)
+              );
+            if (
+              operation &&
+              writable(operation, target, mount) &&
+              (await can(resource(target, "invoke", operation, mount))) &&
+              (await can(resource(target, "list", operation, mount)))
+            ) {
+              methods.push(name);
+              if (
+                declaredStreams.some((stream) => stream.operation === operation)
+              ) {
+                streamingMethods.push(name);
+              }
+            }
+          }
+          requirements.push({
+            ...requirement,
+            operations: methods,
+            streaming_operations: streamingMethods,
+            available:
+              requirement.available &&
+              options.management === true &&
+              methods.length > 0 &&
+              (!requirement.required ||
+                requirement.operations.every((method) =>
+                  methods.includes(method)
+                )),
+          });
+        }
+        const credentials: { issuePath?: string; rotatePath?: string } = {};
+        if (mount.credentials) {
+          for (const operation of ["issue", "rotate"] as const) {
+            if (await can(mount.credentials.resources[operation])) {
+              credentials[`${operation}Path`] =
+                mount.credentials[`${operation}Path`];
+            }
+          }
+        }
+        visible.push({
+          ...mount.descriptor,
+          credentials: Object.keys(credentials).length
+            ? credentials
+            : undefined,
+          requirements,
+        });
+      }
+    }
+    return consolePageCatalogSchema.parse({
+      schema: "console.page-catalog/1",
+      mounts: visible,
+    });
+  }
+  async function collectSession(
+    identity: ConsoleIdentity,
+    scope?: ConsoleReadScope
+  ) {
+    if (scope && !auth.sessionRead) {
+      throw failure("SERVICE_UNAVAILABLE", 503);
+    }
+    const session = scope
+      ? await auth.sessionRead!(identity, scope)
+      : await auth.session(identity);
+    const access = await Promise.all(
+      targets.map(async (target) =>
+        canReadMetadata(identity, resource(target, "session"), scope)
+      )
+    );
+    return consoleSessionSchema.parse({
+      mode: "required",
+      authenticated: true,
+      subject: identity.actor.subjectId,
+      ...session,
+      console_access: access.some(Boolean),
+      assistant_enabled: false,
+      human_management_enabled: false,
+      management_enabled: options.management === true,
+      management_protocol: "lenso-console-rpc/2",
+      capabilities: {
+        locale: options.locale ? "available" : "unavailable",
+        pluginConfiguration: "read-only",
+        pluginConfigurationWrite: {
+          available: false,
+          reason:
+            "Startup configuration is read-only here. Change the application-owned source and restart.",
+        },
+        agent: {
+          available: false,
+          reason:
+            "No Agent transport is installed in this TypeScript application.",
+        },
+      },
+    });
+  }
   const implementation = implement(consoleContract).$context<{
     request: Request;
     identity: ConsoleIdentity;
@@ -363,148 +644,10 @@ export function createConsoleService(
       }
     ),
     catalog: implementation.catalog.handler(
-      async ({ input, context: { request, identity } }) => {
-        let denied = false;
-        const collect = async (scope?: ConsoleReadScope) => {
-          const can = async (selector: ConsoleResource) => {
-            if (!scope) {
-              return auth.can(identity, selector);
-            }
-            try {
-              await auth.enforceRead!(identity, selector, scope);
-              return true;
-            } catch (error) {
-              // Only a policy denial can fall back to a filtered legacy catalog.
-              // Expiry, revocation, cancellation and outages must fail this request.
-              denied =
-                error instanceof ConsoleRequestError &&
-                error.code === "forbidden";
-              throw error;
-            }
-          };
-          const catalogFor = (
-            target: ConsoleTarget,
-            writeAvailability = false
-          ) =>
-            createManageAdapter({
-              selection: selections.get(target)!,
-              // Scoped policies share one request identity; no D1 fan-out is needed.
-              catalogConcurrency: scope ? 1 : options.catalogConcurrency,
-              canList: (operation) =>
-                (!writeAvailability || writable(operation, target)) &&
-                can(resource(target, "list", operation)),
-              binding: (operation, validatedInput) =>
-                bindInvocation(
-                  target,
-                  request,
-                  identity,
-                  operation,
-                  validatedInput
-                ),
-            }).catalog();
-          const operations: ConsoleOperationDescriptor[] = [];
-          for (const target of input.targetId
-            ? [findTarget(input.targetId)]
-            : targets) {
-            if (!(await can(resource(target, "list")))) {
-              continue;
-            }
-            const entries = await catalogFor(target);
-            // Manage keys and redacted names are opaque. Project write availability
-            // through the same selection instead of reconstructing its operations.
-            const availableKeys = new Set<string>();
-            if (
-              options.canWrite &&
-              entries.some((entry) => entry.effect !== "read")
-            ) {
-              const availableEntries = await catalogFor(target, true);
-              for (const entry of availableEntries) {
-                availableKeys.add(entry.key);
-              }
-            }
-            for (const entry of entries) {
-              const available =
-                entry.effect === "read" || availableKeys.has(entry.key);
-              operations.push({
-                key: `${catalogRevision}:${target.id}:${entry.key}`,
-                targetId: target.id,
-                pluginId: entry.pluginId,
-                method: entry.method,
-                description: entry.description,
-                metadata: projectOperationMetadata(entry),
-                effect: entry.effect,
-                schemaAvailability:
-                  entry.schemaAvailability === "available"
-                    ? "available"
-                    : "runtime-validation-only",
-                ...(entry.inputSchema
-                  ? { inputSchema: entry.inputSchema }
-                  : {}),
-                confirmation: entry.confirmation === "required",
-                approval: entry.approval === "required",
-                available,
-                ...(available
-                  ? {}
-                  : {
-                      unavailableReason: "Write guarantees are not configured.",
-                    }),
-              });
-            }
-          }
-          return {
-            schemaVersion: 1 as const,
-            revision: catalogRevision,
-            operations,
-          };
-        };
-        if (
-          !(
-            options.catalogRead &&
-            options.onReadScope &&
-            auth.beginRead &&
-            auth.enforceRead &&
-            auth.finishRead &&
-            auth.closeRead
-          )
-        ) {
-          return collect();
-        }
-        const scope = await auth.beginRead(identity, request);
-        try {
-          if (
-            "consistency" in scope.authenticationScope &&
-            scope.authenticationScope.consistency !== "before-disclosure"
-          ) {
-            throw failure("SERVICE_UNAVAILABLE", 503);
-          }
-          const result = await collect(scope);
-          const registered: unknown = options.onReadScope(request, scope);
-          if (
-            registered &&
-            typeof (registered as { then?: unknown }).then === "function"
-          ) {
-            void (async () => {
-              try {
-                await registered;
-              } catch {
-                // The invalid async host hook is rejected below; observe its late failure.
-              }
-            })();
-            throw failure("SERVICE_UNAVAILABLE", 503);
-          }
-          // The trusted host finishes this scope after DTO/transport serialization,
-          // freshly verifying identity and replaying every policy before disclosure.
-          return result;
-        } catch (error) {
-          auth.closeRead(scope);
-          // A denied scoped policy retires its scope. Preserve partial/empty catalog
-          // behavior via the fully guarded legacy path, never reuse denied authority.
-          if (denied) {
-            return collect();
-          }
-          throw error;
-        }
-      }
+      async ({ input, context: { request, identity } }) =>
+        metadataRead(request, identity, scopedCatalog, (scope) =>
+          collectCatalog(request, identity, input.targetId, scope)
+        )
     ),
     plugins: implementation.plugins.handler(
       async ({ input, context: { identity } }) => {
@@ -1079,113 +1222,49 @@ export function createConsoleService(
           request.method === "GET" &&
           path === `${prefix}/v1/session`
         ) {
-          let sessionScope: ConsoleReadScope | undefined;
-          try {
-            if (options.sessionRead) {
-              if (
-                !options.onReadScope ||
-                !auth.beginRead ||
-                !auth.sessionRead ||
-                !auth.enforceRead ||
-                !auth.finishRead ||
-                !auth.closeRead
-              ) {
-                throw failure("SERVICE_UNAVAILABLE", 503);
-              }
-              sessionScope = await auth.beginRead(identity, request);
-              if (
-                "consistency" in sessionScope.authenticationScope &&
-                sessionScope.authenticationScope.consistency !==
-                  "before-disclosure"
-              ) {
-                throw failure("SERVICE_UNAVAILABLE", 503);
-              }
-            }
-            let session = sessionScope
-              ? await auth.sessionRead!(identity, sessionScope)
-              : await auth.session(identity);
-            let access = await Promise.all(
-              targets.map(async (target) => {
-                if (!sessionScope) {
-                  return auth.can(identity, resource(target, "session"));
-                }
-                try {
-                  await auth.enforceRead!(
-                    identity,
-                    resource(target, "session"),
-                    sessionScope
-                  );
-                  return true;
-                } catch (error) {
-                  if (
-                    error instanceof ConsoleRequestError &&
-                    error.code === "forbidden"
-                  ) {
-                    return false;
-                  }
-                  throw error;
-                }
-              })
-            );
-            if (sessionScope && access.some((allowed) => !allowed)) {
-              // A denied canRead retires its Auth scope. Preserve the ordinary
-              // session projection (including console_access:false) with fresh checks.
-              auth.closeRead!(sessionScope);
-              sessionScope = undefined;
-              session = await auth.session(identity);
-              access = await Promise.all(
-                targets.map((target) =>
-                  auth.can(identity, resource(target, "session"))
-                )
+          response = Response.json(
+            await metadataRead(
+              request,
+              identity,
+              options.sessionRead === true,
+              (scope) => collectSession(identity, scope)
+            )
+          );
+        } else if (
+          request.method === "GET" &&
+          path === `${prefix}/v1/admission`
+        ) {
+          response = await metadataRead(
+            request,
+            identity,
+            options.sessionRead === true,
+            async (scope) => {
+              const session = await collectSession(identity, scope);
+              const catalogScope = scopedCatalog ? scope : undefined;
+              const pages = session.console_access
+                ? await collectPages(identity, false, catalogScope)
+                : { schema: "console.page-catalog/1" as const, mounts: [] };
+              const catalog =
+                session.console_access &&
+                options.management === true &&
+                new URL(request.url).searchParams.get("catalog") === "1"
+                  ? await collectCatalog(
+                      request,
+                      identity,
+                      undefined,
+                      catalogScope
+                    )
+                  : undefined;
+              return Response.json(
+                consoleAdmissionSchema.parse({
+                  schema: "console.admission/1",
+                  session,
+                  pages,
+                  ...(catalog ? { catalog } : {}),
+                })
               );
             }
-            if (sessionScope) {
-              const registration: unknown = options.onReadScope!(
-                request,
-                sessionScope
-              );
-              if (
-                registration &&
-                typeof (registration as { then?: unknown }).then === "function"
-              ) {
-                // oxlint-disable-next-line promise/prefer-await-to-then, no-empty-function
-                void Promise.resolve(registration).catch(() => {});
-                throw failure("SERVICE_UNAVAILABLE", 503);
-              }
-            }
-            response = Response.json(
-              consoleSessionSchema.parse({
-                mode: "required",
-                authenticated: true,
-                subject: identity.actor.subjectId,
-                ...session,
-                console_access: access.some(Boolean),
-                assistant_enabled: false,
-                human_management_enabled: false,
-                management_enabled: options.management === true,
-                management_protocol: "lenso-console-rpc/2",
-                capabilities: {
-                  locale: options.locale ? "available" : "unavailable",
-                  pluginConfiguration: "read-only",
-                  pluginConfigurationWrite: {
-                    available: false,
-                    reason:
-                      "Startup configuration is read-only here. Change the application-owned source and restart.",
-                  },
-                  agent: {
-                    available: false,
-                    reason:
-                      "No Agent transport is installed in this TypeScript application.",
-                  },
-                },
-              })
-            );
-          } catch (error) {
-            if (sessionScope) {
-              auth.closeRead!(sessionScope);
-            }
-            throw error;
-          }
+          );
         } else if (request.method === "GET" && path === `${prefix}/v1/apps`) {
           const permitted = [];
           for (const target of targets) {
@@ -1211,109 +1290,10 @@ export function createConsoleService(
           request.method === "GET" &&
           [`${prefix}/v1/pages`, `${prefix}/v1/surfaces`].includes(path)
         ) {
-          const visible = [];
-          for (const { target, mount } of mounts.values()) {
-            if (
-              (mount.placement === "global") !==
-              (path === `${prefix}/v1/surfaces`)
-            ) {
-              continue;
-            }
-            if (
-              await auth.can(
-                identity,
-                resource(
-                  target,
-                  mount.descriptor.access === "administrator"
-                    ? "admin"
-                    : "list",
-                  undefined,
-                  mount
-                )
-              )
-            ) {
-              const requirements = [];
-              for (const requirement of mount.descriptor.requirements) {
-                const service = mount.services[requirement.service_id];
-                const methods: string[] = [];
-                const streamingMethods: string[] = [];
-                const declaredStreams = service?.streams ?? [];
-                for (const name of requirement.operations) {
-                  const operation =
-                    service &&
-                    [
-                      ...service.operations,
-                      ...declaredStreams.map((stream) => stream.operation),
-                    ].find(
-                      (candidate) =>
-                        candidate.method ===
-                        mountedOperationMethod(service, name)
-                    );
-                  if (
-                    operation &&
-                    writable(operation, target, mount) &&
-                    (await auth.can(
-                      identity,
-                      resource(target, "invoke", operation, mount)
-                    )) &&
-                    (await auth.can(
-                      identity,
-                      resource(target, "list", operation, mount)
-                    ))
-                  ) {
-                    methods.push(name);
-                    if (
-                      declaredStreams.some(
-                        (stream) => stream.operation === operation
-                      )
-                    ) {
-                      streamingMethods.push(name);
-                    }
-                  }
-                }
-                requirements.push({
-                  ...requirement,
-                  operations: methods,
-                  streaming_operations: streamingMethods,
-                  available:
-                    requirement.available &&
-                    options.management === true &&
-                    methods.length > 0 &&
-                    (!requirement.required ||
-                      requirement.operations.every((method) =>
-                        methods.includes(method)
-                      )),
-                });
-              }
-              const credentials: { issuePath?: string; rotatePath?: string } =
-                {};
-              if (mount.credentials) {
-                for (const operation of ["issue", "rotate"] as const) {
-                  if (
-                    await auth.can(
-                      identity,
-                      mount.credentials.resources[operation]
-                    )
-                  ) {
-                    credentials[`${operation}Path`] =
-                      mount.credentials[`${operation}Path`];
-                  }
-                }
-              }
-              visible.push({
-                ...mount.descriptor,
-                credentials: Object.keys(credentials).length
-                  ? credentials
-                  : undefined,
-                requirements,
-              });
-            }
-          }
           response = Response.json(
-            consolePageCatalogSchema.parse({
-              schema: "console.page-catalog/1",
-              mounts: visible,
-            })
+            await metadataRead(request, identity, scopedCatalog, (scope) =>
+              collectPages(identity, path === `${prefix}/v1/surfaces`, scope)
+            )
           );
         } else if (
           options.management === true &&

@@ -135,6 +135,29 @@ function authentication(authBase = "/auth", readScopeSource = false) {
           );
           return { administrator: false, workspace_ids: ["north"] };
         },
+        ...(readScopeSource
+          ? {
+              sessionRead: async (
+                _actor: unknown,
+                {
+                  scope,
+                  signal,
+                }: { scope: ConsoleReadScope; signal: AbortSignal }
+              ) => {
+                await access.enforceRead!(
+                  scope.authenticationScope,
+                  Object.freeze({
+                    action: "session" as const,
+                    targetId: "north",
+                    tenantId: "north",
+                  }),
+                  ({ membership }) => membership.allowed,
+                  { signal }
+                );
+                return { administrator: false, workspace_ids: ["north"] };
+              },
+            }
+          : {}),
         methodsPath: `${authBase}/methods`,
       });
       return {
@@ -2113,6 +2136,142 @@ test("catalog scope shares entry identity, replays each policy before disclosure
 
 // A finite read must not escape into legacy preparation after scope admission;
 // denial/error paths need a real RPC proof, rather than auth-only scope coverage.
+test("one admission request shares metadata identity but keeps the final revocation fence", async () => {
+  const auth = authentication("/auth", true);
+  const instance = counter("entry-counter", auth.plugin);
+  let opened: ConsoleReadScope | undefined;
+  const plugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [{ ...target("north", instance), mounts: [mount(instance)] }],
+    binding: bound,
+    sessionRead: true,
+    catalogRead: true,
+    onReadScope: (_request, scope) => {
+      opened = scope;
+    },
+  });
+  const app = await startApp({
+    plugins: [auth.plugin, instance.plugin, plugin],
+  });
+  const authenticationService = app.get(auth.plugin);
+  const consoleService = app.get(plugin);
+  const get = (path: string, signal?: AbortSignal) =>
+    consoleService.fetch(
+      new Request(`${origin}/api/console/v1/${path}`, {
+        headers: { authorization: "Bearer alice" },
+        signal,
+      })
+    );
+  const finish = async () => {
+    const scope = opened!;
+    opened = undefined;
+    try {
+      return await authenticationService.finishRead!(scope);
+    } finally {
+      authenticationService.closeRead!(scope);
+    }
+  };
+  try {
+    const separateStarted = performance.now();
+    const session = await (await get("session"))!.json();
+    await finish();
+    const pages = await (await get("pages"))!.json();
+    await finish();
+    const catalog = await client(consoleService).catalog({});
+    await finish();
+    const separateVerifications = auth.state.verifications;
+    const separateElapsedMs = performance.now() - separateStarted;
+    expect(separateVerifications).toBe(6);
+    const combinedStarted = performance.now();
+    const combined = await get("admission?catalog=1");
+    expect(combined!.status).toBe(200);
+    expect(combined!.headers.get("cache-control")).toBe("no-store");
+    expect(await combined!.json()).toEqual({
+      schema: "console.admission/1",
+      session,
+      pages,
+      catalog,
+    });
+    expect(auth.state.verifications - separateVerifications).toBe(1);
+    const entryChecks = [...auth.state.policyDecisions];
+    await finish();
+    expect(auth.state.verifications - separateVerifications).toBe(2);
+    console.info(
+      JSON.stringify({
+        scenario: "console entry metadata",
+        separate: {
+          httpRequests: 3,
+          sourceVerifications: separateVerifications,
+          elapsedMs: separateElapsedMs,
+        },
+        combined: {
+          httpRequests: 1,
+          sourceVerifications: auth.state.verifications - separateVerifications,
+          elapsedMs: performance.now() - combinedStarted,
+        },
+        timingScope:
+          "real Fetch/RPC/Auth, synthetic source; not DB/network latency",
+      })
+    );
+    expect(auth.state.policyDecisions.length).toBeGreaterThan(
+      entryChecks.length
+    );
+    expect(instance.state.calls).toBe(0);
+
+    const minimal = await (await get("admission"))!.json();
+    expect(minimal.catalog).toBeUndefined();
+    await finish();
+    const sessionRead = authenticationService.sessionRead!;
+    delete authenticationService.sessionRead;
+    expect((await get("admission"))!.status).toBe(503);
+    expect(opened).toBeUndefined();
+    authenticationService.sessionRead = sessionRead;
+
+    await get("admission?catalog=1");
+    auth.state.enabled = false;
+    await expect(finish()).rejects.toMatchObject({ status: 401 });
+    expect((await get("admission?catalog=1"))!.status).toBe(401);
+    expect(opened).toBeUndefined();
+    auth.state.enabled = true;
+    await get("admission?catalog=1");
+    auth.state.dispatchDenied = "invoke";
+    await expect(finish()).rejects.toMatchObject({ status: 403 });
+    auth.state.dispatchDenied = undefined;
+
+    auth.state.hiddenMethod = "read";
+    const filtered = await (await get("admission?catalog=1"))!.json();
+    expect(
+      filtered.catalog.operations.some(
+        (item: { method: string }) => item.method === "read"
+      )
+    ).toBe(false);
+    expect(filtered.pages.mounts[0].requirements[0].operations).toEqual([]);
+    expect(opened).toBeUndefined();
+    auth.state.hiddenMethod = undefined;
+
+    auth.state.consoleAccess = false;
+    const denied = await (await get("admission?catalog=1"))!.json();
+    expect(denied.session.console_access).toBe(false);
+    expect(denied.pages.mounts).toEqual([]);
+    expect(denied.catalog).toBeUndefined();
+    auth.state.consoleAccess = true;
+
+    const cancellation = new AbortController();
+    const before = auth.state.verifications;
+    cancellation.abort(new Error("navigation cancelled"));
+    await expect(get("admission", cancellation.signal)).rejects.toThrow(
+      "navigation cancelled"
+    );
+    expect(auth.state.verifications).toBe(before);
+  } finally {
+    if (opened) {
+      authenticationService.closeRead!(opened);
+    }
+    await app.stop();
+  }
+});
+
 test("scoped finite RPC dispatch checks exact operation grants and closes failed preparation", async () => {
   const auth = authentication("/auth", true);
   const instance = counter("scoped-counter", auth.plugin);

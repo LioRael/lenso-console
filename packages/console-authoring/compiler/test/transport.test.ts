@@ -7,6 +7,7 @@ import {
   configureSessionReadScope,
   createSessionWorkspaceServices,
   retireSessionReads,
+  sessionFetch,
 } from "../../src/browser-session-fetch";
 import {
   consoleContract,
@@ -56,6 +57,45 @@ const streamingMount = {
 };
 
 describe("Console SDK Fetch transport", () => {
+  it("anonymous admission and session bootstrap do not broadcast retirement of another admission", async () => {
+    const originalWindow = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "window"
+    );
+    const originalFetch = globalThis.fetch;
+    const browser = new EventTarget() as EventTarget & {
+      location: { origin: string };
+    };
+    browser.location = { origin: "https://console.test" };
+    let retirements = 0;
+    browser.addEventListener("lenso-session-expired", () => {
+      retirements += 1;
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: browser,
+    });
+    globalThis.fetch = (async () =>
+      new Response(null, { status: 401 })) as typeof fetch;
+    try {
+      configureSessionReadScope("a".repeat(64), async () => {});
+      const admission = await sessionFetch("/api/console/v1/admission");
+      const session = await sessionFetch("/api/console/v1/session");
+      expect(admission.status).toBe(401);
+      expect(session.status).toBe(401);
+      expect(retirements).toBe(0);
+      await sessionFetch("/api/console/v1/pages");
+      expect(retirements).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+      retireSessionReads();
+      if (originalWindow) {
+        Object.defineProperty(globalThis, "window", originalWindow);
+      } else {
+        Reflect.deleteProperty(globalThis, "window");
+      }
+    }
+  });
   // Type-only oRPC outputs previously admitted partial catalog DTOs at runtime.
   // The successful transport fixture cannot detect weakened required fields.
   it("rejects incomplete operation and authenticated session projections", () => {

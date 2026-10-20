@@ -137,7 +137,9 @@ export async function sessionFetch(
     (scope
       ? url.pathname.startsWith(`${scope.apiBasePath}/`)
       : isConsoleApiPath(url.pathname) &&
-        url.pathname !== consoleApiPath("/api/console/v1/session"));
+        !["/api/console/v1/session", "/api/console/v1/admission"].some(
+          (path) => url.pathname === consoleApiPath(path)
+        ));
   const lifetime = scopedApi
     ? scope
       ? scope.signal

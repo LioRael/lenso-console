@@ -26,6 +26,10 @@ import {
   withConditionalIdentityTransition,
 } from "./identity-transition";
 import {
+  consoleAdmissionSchema,
+  type ConsoleOperationCatalog,
+} from "./protocol";
+import {
   configureSessionCsrf,
   configureSessionReadScope,
   retireSessionReads,
@@ -46,6 +50,8 @@ export type BrowserAdmission = {
   mounts: readonly BrowserMount[];
   subject: string;
   readScope: string;
+  /** Fresh entry metadata from the same admitted HTTP request, never a permission grant. */
+  catalog?: ConsoleOperationCatalog;
   /** Logical retirement precedes React unmount, including retained page handles. */
   signal?: AbortSignal;
 };
@@ -56,8 +62,10 @@ const allMounts = (mounts: readonly BrowserMount[]) => mounts;
 export function useConsoleAdmission(
   selectMounts: (
     mounts: readonly BrowserMount[]
-  ) => readonly BrowserMount[] = allMounts
+  ) => readonly BrowserMount[] = allMounts,
+  options: { catalog?: boolean } = {}
 ) {
+  const includeCatalog = options.catalog === true;
   const [attempt, setAttempt] = useState(0);
   const [admission, setAdmission] = useState<BrowserAdmission>();
   const [admissionError, setAdmissionError] = useState<Error>();
@@ -137,12 +145,15 @@ export function useConsoleAdmission(
     setDiscovery(undefined);
     setState("loading");
     const sessionPath = `${consoleHttpPaths.api_base_path}/console/v1/session`;
-    const request = async (path: string) => {
+    const request = async (path: string, allowMissing = false) => {
       const response = await sessionFetch(path, {
         credentials: "same-origin",
         cache: "no-store",
         signal: lifetime.signal,
       });
+      if (allowMissing && response.status === 404) {
+        return response;
+      }
       if (!response.ok) {
         let explicitlyExpired = false;
         if (response.status === 401) {
@@ -189,7 +200,11 @@ export function useConsoleAdmission(
     const load = async () => {
       const [methodsResult, sessionResult] = await readAdmissionBootstrap(
         () => request(`${consoleHttpPaths.auth_base_path}/methods`),
-        () => request(sessionPath)
+        () =>
+          request(
+            `${consoleHttpPaths.api_base_path}/console/v1/admission${includeCatalog ? "?catalog=1" : ""}`,
+            true
+          )
       );
       lifetime.signal.throwIfAborted();
       if (methodsResult.status === "rejected") {
@@ -206,8 +221,22 @@ export function useConsoleAdmission(
       if (sessionResult.status === "rejected") {
         throw sessionResult.reason;
       }
-      const sessionResponse = sessionResult.value;
-      const identity = consoleSessionSchema.parse(await sessionResponse.json());
+      const entryResponse = sessionResult.value;
+      // Only an absent protocol permits the older two-request entry. Authentication,
+      // cancellation and service failures never replay admission through another path.
+      const entry =
+        entryResponse.status === 404
+          ? undefined
+          : consoleAdmissionSchema.parse(await entryResponse.json());
+      if (!entry) {
+        await entryResponse.body?.cancel();
+      }
+      const sessionResponse = entry
+        ? entryResponse
+        : await request(sessionPath);
+      const identity =
+        entry?.session ??
+        consoleSessionSchema.parse(await sessionResponse.json());
       lifetime.signal.throwIfAborted();
       setSession(identity);
       const readScope = sessionResponse.headers.get("x-lenso-read-scope");
@@ -248,10 +277,13 @@ export function useConsoleAdmission(
       };
       revalidate = () => (revalidation ??= sharedRevalidate());
       configureSessionReadScope(readScope, revalidate);
-      const pages = await request(
-        `${consoleHttpPaths.api_base_path}/console/v1/pages`
-      );
-      const catalog = consolePageCatalogSchema.parse(await pages.json());
+      let catalog = entry?.pages;
+      if (!catalog) {
+        const pagesResponse = await request(
+          `${consoleHttpPaths.api_base_path}/console/v1/pages`
+        );
+        catalog = consolePageCatalogSchema.parse(await pagesResponse.json());
+      }
       const mounts = catalog.mounts.map((mount): BrowserMount => {
         if (!mount.basePath) {
           throw new Error("Backend mount path is unavailable.");
@@ -268,6 +300,7 @@ export function useConsoleAdmission(
         mounts: selectedMounts,
         subject: identity.subject,
         readScope,
+        ...(entry?.catalog ? { catalog: entry.catalog } : {}),
         signal: lifetime.signal,
       });
     };
@@ -305,7 +338,7 @@ export function useConsoleAdmission(
       stopStorage();
       stopTransitions();
     };
-  }, [attempt, selectMounts]);
+  }, [attempt, selectMounts, includeCatalog]);
   async function act(
     action: string,
     input: unknown,
