@@ -109,3 +109,83 @@ export const consolePageCatalogSchema = z.strictObject({
   mounts: z.array(consolePageDescriptorSchema).readonly(),
 });
 export type ConsolePageCatalog = z.infer<typeof consolePageCatalogSchema>;
+
+/** Static declarations only. They are not live readiness or invocation evidence. */
+export const consoleOperationMetadataSchema = z.strictObject({
+  source: z
+    .strictObject({
+      file: z.string().max(1024),
+      export: z.string().max(128).optional(),
+      line: z.number().int().positive().optional(),
+      column: z.number().int().positive().optional(),
+    })
+    .nullable(),
+  retry: z.enum(["safe", "unsafe", "unknown"]),
+  cancellation: z.enum(["cooperative", "none", "request-only", "unknown"]),
+  destructive: z.boolean().nullable(),
+  outputDescription: z.string().max(4096).nullable(),
+  outputContract: z.discriminatedUnion("availability", [
+    z.strictObject({ availability: z.literal("unavailable") }),
+    z.strictObject({
+      availability: z.enum(["not-declared", "runtime-validation-only"]),
+    }),
+    z.strictObject({
+      availability: z.literal("available"),
+      schema: z.record(z.string(), z.unknown()),
+    }),
+  ]),
+  errorContract: z.discriminatedUnion("availability", [
+    z.strictObject({ availability: z.literal("unavailable") }),
+    z.strictObject({
+      availability: z.literal("declared"),
+      errors: z
+        .array(
+          z.strictObject({
+            code: z.string().min(1).max(128),
+            message: z.string().max(1024),
+          })
+        )
+        .max(32),
+    }),
+  ]),
+});
+export type ConsoleOperationMetadata = z.infer<
+  typeof consoleOperationMetadataSchema
+>;
+
+export const consoleOperationDescriptorSchema = z.strictObject({
+  key: z.string(),
+  targetId: z.string(),
+  pluginId: z.string(),
+  method: z.string(),
+  description: z.string(),
+  effect: z.enum(["read", "write", "unknown"]),
+  schemaAvailability: z.enum(["available", "runtime-validation-only"]),
+  inputSchema: z.record(z.string(), z.unknown()).optional(),
+  confirmation: z.boolean(),
+  approval: z.boolean(),
+  available: z.boolean(),
+  unavailableReason: z.string().optional(),
+  metadata: consoleOperationMetadataSchema.optional(),
+});
+
+export type ConsoleOperationDescriptor = z.infer<
+  typeof consoleOperationDescriptorSchema
+>;
+
+export const consoleOperationCatalogSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  revision: z.string(),
+  operations: z.array(consoleOperationDescriptorSchema),
+});
+export type ConsoleOperationCatalog = z.infer<
+  typeof consoleOperationCatalogSchema
+>;
+/** One finite entry read; current authority is still checked before disclosure. */
+export const consoleAdmissionSchema = z.strictObject({
+  schema: z.literal("console.admission/1"),
+  session: consoleSessionSchema,
+  pages: consolePageCatalogSchema,
+  catalog: consoleOperationCatalogSchema.optional(),
+});
+export type ConsoleAdmission = z.infer<typeof consoleAdmissionSchema>;

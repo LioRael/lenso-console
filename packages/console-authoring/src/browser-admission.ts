@@ -2,6 +2,8 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { readAdmissionBootstrap } from "./admission-bootstrap";
 import {
+  consoleAdmissionSchema,
+  type ConsoleOperationCatalog,
   type consolePageDescriptorSchema,
   consolePageCatalogSchema,
   consoleSessionSchema,
@@ -25,10 +27,6 @@ import {
   withIdentityTransition,
   withConditionalIdentityTransition,
 } from "./identity-transition";
-import {
-  consoleAdmissionSchema,
-  type ConsoleOperationCatalog,
-} from "./protocol";
 import {
   configureSessionCsrf,
   configureSessionReadScope,
