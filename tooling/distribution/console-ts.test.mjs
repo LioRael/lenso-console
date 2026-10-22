@@ -75,10 +75,10 @@ test("candidate SDK authors a typed page and service admitted by the packed Cons
       path.join(temp, "package.json"),
       JSON.stringify({
         dependencies: {
-          "@lenso/api-keys": "0.1.6",
-          "@lenso/audit": "0.3.3",
-          "@lenso/auth": "0.5.5",
-          "@lenso/authorization": "0.3.3",
+          "@lenso/api-keys": "0.1.7",
+          "@lenso/audit": "0.3.4",
+          "@lenso/auth": "0.5.6",
+          "@lenso/authorization": "0.3.4",
           "@lenso/console": backend.spec,
           "@lenso/console-react": react.spec,
           "@lenso/console-sdk": sdk.spec,

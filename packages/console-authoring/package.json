@@ -132,7 +132,7 @@
   },
   "dependencies": {
     "@babel/core": "7.29.7",
-    "@lenso/auth": "0.5.5",
+    "@lenso/auth": "0.5.6",
     "@orpc/client": "2.0.0-beta.42",
     "@orpc/contract": "2.0.0-beta.42",
     "@stylexjs/babel-plugin": "0.19.0",

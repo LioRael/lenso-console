@@ -9,11 +9,11 @@
         "@fontsource-variable/inter": "^5.3.0",
         "@fontsource/roboto-mono": "^5.3.0",
         "@lenso/agent-console": "workspace:*",
-        "@lenso/api-keys": "0.1.6",
-        "@lenso/audit": "0.3.3",
-        "@lenso/auth": "0.5.5",
+        "@lenso/api-keys": "0.1.7",
+        "@lenso/audit": "0.3.4",
+        "@lenso/auth": "0.5.6",
         "@lenso/auth-console": "workspace:*",
-        "@lenso/authorization": "0.3.3",
+        "@lenso/authorization": "0.3.4",
         "@lenso/console": "workspace:*",
         "@lenso/console-react": "workspace:*",
         "@lenso/console-runtime": "workspace:*",
@@ -92,9 +92,9 @@
       "name": "@lenso/auth-console",
       "version": "2.1.2",
       "dependencies": {
-        "@lenso/api-keys": "0.1.6",
-        "@lenso/audit": "0.3.3",
-        "@lenso/authorization": "0.3.3",
+        "@lenso/api-keys": "0.1.7",
+        "@lenso/audit": "0.3.4",
+        "@lenso/authorization": "0.3.4",
         "@lenso/engine": "0.9.0",
         "@lenso/manage": "0.6.0",
         "@lenso/ui": "0.9.1",
@@ -104,7 +104,7 @@
         "zod": "4.6.5",
       },
       "devDependencies": {
-        "@lenso/auth": "0.5.5",
+        "@lenso/auth": "0.5.6",
         "@lenso/console-react": "workspace:*",
         "@lenso/core": "0.4.0",
         "@stylexjs/unplugin": "0.19.0",
@@ -134,7 +134,7 @@
       "name": "@lenso/console",
       "version": "2.3.0",
       "dependencies": {
-        "@lenso/auth": "0.5.5",
+        "@lenso/auth": "0.5.6",
         "@lenso/console-sdk": "workspace:*",
         "@lenso/core": "0.4.0",
         "@lenso/engine": "0.9.0",
@@ -143,9 +143,9 @@
         "zod": "4.6.5",
       },
       "devDependencies": {
-        "@lenso/api-keys": "0.1.6",
-        "@lenso/audit": "0.3.3",
-        "@lenso/authorization": "0.3.3",
+        "@lenso/api-keys": "0.1.7",
+        "@lenso/audit": "0.3.4",
+        "@lenso/authorization": "0.3.4",
         "@lenso/limits": "0.2.1",
         "@lenso/log": "0.2.1",
         "@lenso/otel": "0.3.0",
@@ -158,9 +158,9 @@
         "typescript": "7.0.2",
       },
       "peerDependencies": {
-        "@lenso/api-keys": "^0.1.6",
-        "@lenso/audit": "^0.3.3",
-        "@lenso/authorization": "^0.3.3",
+        "@lenso/api-keys": "^0.1.7",
+        "@lenso/audit": "^0.3.4",
+        "@lenso/authorization": "^0.3.4",
         "@lenso/limits": "^0.2.0",
         "@lenso/scheduler": "^0.3.3",
         "@lenso/tasks": "^0.4.0",
@@ -182,7 +182,7 @@
       },
       "dependencies": {
         "@babel/core": "7.29.7",
-        "@lenso/auth": "0.5.5",
+        "@lenso/auth": "0.5.6",
         "@orpc/client": "2.0.0-beta.42",
         "@orpc/contract": "2.0.0-beta.42",
         "@stylexjs/babel-plugin": "0.19.0",
@@ -265,7 +265,7 @@
         "react-resizable": "3.2.0",
       },
       "devDependencies": {
-        "@lenso/audit": "0.3.3",
+        "@lenso/audit": "0.3.4",
         "@lenso/auth": "0.5.0",
         "@stylexjs/unplugin": "0.19.0",
         "@types/bun": "1.4.3",
@@ -368,7 +368,7 @@
         "zod": "4.6.5",
       },
       "devDependencies": {
-        "@lenso/auth": "0.5.5",
+        "@lenso/auth": "0.5.6",
         "@lenso/console": "workspace:*",
         "@lenso/core": "0.4.0",
         "@lenso/manage": "0.6.0",
@@ -602,15 +602,15 @@
 
     "@lenso/agent-console": ["@lenso/agent-console@workspace:packages/agent-console"],
 
-    "@lenso/api-keys": ["@lenso/api-keys@0.1.6", "", { "peerDependencies": { "@cloudflare/workers-types": "^5.20261008.1", "@lenso/auth": "^0.5.0", "@lenso/core": "^0.3.1", "@lenso/engine": "^0.6.0", "@lenso/manage": "^0.5.2", "drizzle-orm": "^0.45.3", "zod": "^4.6.5" }, "optionalPeers": ["@cloudflare/workers-types", "@lenso/auth", "@lenso/core", "@lenso/engine", "@lenso/manage", "drizzle-orm", "zod"] }, "sha512-PQfe80fQUCVO2+u0tdXJrLyLbY1HXC/hklyn5w0xRxvGdZ1p3cXcZoypuOhU0mKH7/IQPrPjwVTkC63v4fTe0A=="],
+    "@lenso/api-keys": ["@lenso/api-keys@0.1.7", "", { "peerDependencies": { "@cloudflare/workers-types": "^5.20261008.1", "@lenso/auth": "^0.5.6", "@lenso/core": "^0.3.1 || ^0.4.0", "@lenso/engine": "^0.6.0 || ^0.7.0 || ^0.9.0", "@lenso/manage": "^0.5.2 || ^0.6.0", "drizzle-orm": "^0.45.3", "zod": "^4.6.5" }, "optionalPeers": ["@cloudflare/workers-types", "@lenso/auth", "@lenso/core", "@lenso/engine", "@lenso/manage", "drizzle-orm", "zod"] }, "sha512-pI3qnTg9vuvCeYjfMhmvgnG1fHBUI9STZZs0DaCCuB+hyBgW9vzSPqg1Ws+gLabAXVKrF9EbDPUM7h7xxhf/uA=="],
 
-    "@lenso/audit": ["@lenso/audit@0.3.3", "", { "peerDependencies": { "@lenso/auth": "^0.5.0", "@lenso/core": "^0.3.1", "@lenso/engine": "^0.6.0", "@lenso/manage": "^0.5.2", "@lenso/tasks": "^0.4.0", "@opentelemetry/api": "1.9.1", "drizzle-orm": "0.45.3", "zod": "4.6.5" }, "optionalPeers": ["@lenso/auth", "@lenso/core", "@lenso/engine", "@lenso/manage", "@lenso/tasks", "@opentelemetry/api", "drizzle-orm", "zod"] }, "sha512-BJXJNIxAZFBe1aK7dA0kAkrFf520X9lOlO9g/KHA/qkYNSsQD90CiDqzREqwS/HN7Z4J/ecpZZ56+gwIs3M/8g=="],
+    "@lenso/audit": ["@lenso/audit@0.3.4", "", { "peerDependencies": { "@lenso/auth": "^0.5.6", "@lenso/core": "^0.3.1 || ^0.4.0", "@lenso/engine": "^0.6.0 || ^0.7.0 || ^0.9.0", "@lenso/manage": "^0.5.2 || ^0.6.0", "@lenso/tasks": "^0.4.0", "@opentelemetry/api": "1.9.1", "drizzle-orm": "0.45.3", "zod": "4.6.5" }, "optionalPeers": ["@lenso/auth", "@lenso/core", "@lenso/engine", "@lenso/manage", "@lenso/tasks", "@opentelemetry/api", "drizzle-orm", "zod"] }, "sha512-P5KsKKwCjanNBDdL3fmkJBRc5TVp5DgDgPB4YDkW3tdfmWM97Y7O4+omyQhzahruRN5KHzdamuXkROSu+/GMow=="],
 
-    "@lenso/auth": ["@lenso/auth@0.5.5", "", { "peerDependencies": { "@lenso/core": "^0.3.0", "@orpc/server": "2.0.0-beta.42", "drizzle-orm": "^0.45.3" }, "optionalPeers": ["@lenso/core", "@orpc/server", "drizzle-orm"] }, "sha512-1V7QgbsiJZPEqMpCxNLJAi0YU+5FQIRVI7bEE10+1N3ttdnF1l1yPTUy8eL4x1jA3RPbA9FT67z4W2U1ndX2KA=="],
+    "@lenso/auth": ["@lenso/auth@0.5.6", "", { "peerDependencies": { "@lenso/core": "^0.3.0 || ^0.4.0", "@orpc/server": "2.0.0-beta.42", "drizzle-orm": "^0.45.3" }, "optionalPeers": ["@lenso/core", "@orpc/server", "drizzle-orm"] }, "sha512-vNWHK9VrPeMjv8rYxEg+Ub/WLVYqeRGywzRpHNYXqAhKMf5XIbKKRPA24LKeEkpKLd0umjf/AJb9fGxPuhYEgA=="],
 
     "@lenso/auth-console": ["@lenso/auth-console@workspace:packages/auth-console"],
 
-    "@lenso/authorization": ["@lenso/authorization@0.3.3", "", { "peerDependencies": { "@lenso/auth": "^0.5.0", "@lenso/core": "^0.3.1", "@lenso/engine": "^0.6.0", "@lenso/manage": "^0.5.2", "drizzle-orm": "^0.45.3", "zod": "4.6.5" }, "optionalPeers": ["@lenso/auth", "@lenso/core", "@lenso/engine", "@lenso/manage", "drizzle-orm", "zod"] }, "sha512-8qWGD8ZPFCYE5ZU36tyMFTt21YKpsI7t+C2znmWCJb6CCA36fp+ECLW73C9Fzn6Qi6ibKtMlRb0sgt1oCokxJA=="],
+    "@lenso/authorization": ["@lenso/authorization@0.3.4", "", { "peerDependencies": { "@lenso/auth": "^0.5.6", "@lenso/core": "^0.3.1 || ^0.4.0", "@lenso/engine": "^0.6.0 || ^0.7.0 || ^0.9.0", "@lenso/manage": "^0.5.2 || ^0.6.0", "drizzle-orm": "^0.45.3", "zod": "4.6.5" }, "optionalPeers": ["@lenso/auth", "@lenso/core", "@lenso/engine", "@lenso/manage", "drizzle-orm", "zod"] }, "sha512-47JTt2sKoI/7mMeLQAmFIz0yMmvDPT/mg8aSCNfXSXkZrNm1r2WcoWJ4OFeWIubf/u7orgf+bZzLVLciebLqDg=="],
 
     "@lenso/cli": ["@lenso/cli@0.22.1", "", { "dependencies": { "@lenso/core": "^0.4.0", "@lenso/engine": "^0.9.0", "@opentelemetry/api": "1.9.1", "picocolors": "1.1.1" } }, "sha512-iGoDaKbKHgEjyFt7r4akmcZmp5skRRv6+vPbatvd60JfxJKEE9fFk/ElpStttyCHlsS0AOjrpdq8ZVAf/Bk0Kw=="],
 
