@@ -1,0 +1,14 @@
+package.json
+  h_9d56aba080c170 50,53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc855df6ab4c30c2df8bfe729bbdd57bebbd20bf",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
