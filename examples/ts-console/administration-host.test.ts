@@ -629,12 +629,39 @@ test("local administration shares authenticated service policy across Console an
       `/.well-known/oauth-protected-resource${mcpPath}`
     );
     expect(metadata.status).toBe(404);
+    const invalidCredential = await request(mcpPath, {
+      method: "POST",
+      headers: { ...mcpHeaders, authorization: "Bearer invalid-credential" },
+      body: "{}",
+    });
+    expect(invalidCredential.status).toBe(401);
+    expect(invalidCredential.headers.get("www-authenticate")).toContain(
+      'error="invalid_token"'
+    );
+    const verifier = running.get(host.administration!.plugin).apiKeys;
+    const unavailable = spyOn(verifier, "verify").mockRejectedValue(
+      new Error("isolated temporary key-store outage")
+    );
+    try {
+      const response = await rpc("tools/list");
+      expect(response.status).toBe(503);
+      expect(response.headers.get("www-authenticate")).toBeNull();
+      expect(await response.json()).toEqual({
+        error: "authentication-unavailable",
+      });
+      expect(unavailable).toHaveBeenCalledTimes(1);
+    } finally {
+      unavailable.mockRestore();
+    }
     await invoke("tokensRevoke", {
       id: credential.token.id,
       expectedRevision: credential.token.revision,
     });
     const revokedCredential = await rpc("tools/list");
     expect(revokedCredential.status).toBe(401);
+    expect(revokedCredential.headers.get("www-authenticate")).toContain(
+      'error="invalid_token"'
+    );
 
     const audit = await invoke<Page<unknown>>("auditList", {});
     expect(audit.items.length).toBeGreaterThan(0);

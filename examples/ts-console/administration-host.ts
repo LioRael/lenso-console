@@ -5,6 +5,7 @@ import { createAuditService } from "@lenso/audit";
 import { createSqliteAuditRepository } from "@lenso/audit/sqlite";
 import {
   audience,
+  AuthError,
   createAuth,
   defineSource,
   realm,
@@ -38,6 +39,7 @@ import {
 import { definePlugin, type Plugin } from "@lenso/core";
 import type { OperationRuntime } from "@lenso/engine/operations";
 import { createHttpMcp, type McpIdentity } from "@lenso/mcp";
+import { InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
 
@@ -724,14 +726,21 @@ export function createAdministrationHost(
         allowedOrigins: [config.origin],
         async verifyToken(credential, signal) {
           signal.throwIfAborted();
-          const verified = await service.authenticateAgent(credential, signal);
+          const verified = await service
+            .authenticateAgent(credential, signal)
+            .catch((error: unknown) => {
+              if (error instanceof AuthError && error.code === "UNAUTHORIZED") {
+                throw new InvalidTokenError("Invalid token");
+              }
+              throw error;
+            });
           const { key } = verified;
           if (
             !key ||
             key.subject.namespace !== owned.store.scope.id ||
             key.subject.tenantId !== instance.tenantId
           ) {
-            throw new ConsoleRequestError("unauthorized");
+            throw new InvalidTokenError("Invalid token");
           }
           const user = await owned.directory.read(
             key.subject.subjectId,
@@ -744,7 +753,7 @@ export function createAdministrationHost(
               candidate.status === "active"
           );
           if (user?.status !== "active" || !activeMember) {
-            throw new ConsoleRequestError("unauthorized");
+            throw new InvalidTokenError("Invalid token");
           }
           const assignedRole = graph.roles.find(
             (candidate) => candidate.id === activeMember.roleId

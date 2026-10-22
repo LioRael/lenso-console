@@ -84,6 +84,7 @@
     "@lenso/runtime-sdk": "file:.runtime-deps/sdk",
     "@lenso/ui": "0.9.1",
     "@lenso/web": "0.3.2",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@orpc/client": "2.0.0-beta.42",
     "@stylexjs/stylex": "0.19.1",
     "@stylexjs/unplugin": "0.19.0",
