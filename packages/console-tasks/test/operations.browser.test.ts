@@ -38,13 +38,13 @@ test("operations controls preserve revisions, uncertain writes and retired audit
   await server.listen();
   const browser = await chromium.launch({ headless: true });
   let releaseLate: (() => void) | undefined;
+  const consoleMessages: string[] = [],
+    errors: string[] = [];
   try {
     const page = await browser.newPage({
       viewport: { width: 1200, height: 900 },
     });
     page.setDefaultTimeout(15000);
-    const consoleMessages: string[] = [],
-      errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
       if (["error", "warning"].includes(message.type())) {
@@ -357,6 +357,30 @@ test("operations controls preserve revisions, uncertain writes and retired audit
         2
       )
     );
+  } catch (error) {
+    const page = browser.contexts()[0]?.pages()[0];
+    if (page) {
+      await page.screenshot({
+        path: `${directory}/failure.png`,
+        animations: "disabled",
+      });
+      await writeFile(
+        `${directory}/failure.json`,
+        JSON.stringify(
+          {
+            source: process.env.GITHUB_SHA,
+            error: String(error),
+            url: page.url(),
+            pageErrors: errors,
+            consoleMessages,
+            accessibility: await page.locator("body").ariaSnapshot(),
+          },
+          null,
+          2
+        )
+      );
+    }
+    throw error;
   } finally {
     releaseLate?.();
     await browser.close();
