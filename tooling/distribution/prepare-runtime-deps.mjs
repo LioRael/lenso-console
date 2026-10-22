@@ -331,8 +331,8 @@ export const prepareRuntimeDeps = async (
   ) {
     throw new Error("Preparation root must be lenso-console-workspace");
   }
-  if (Bun.version !== "1.4.3") {
-    throw new Error("Runtime dependency preparation requires Bun 1.4.3");
+  if (Bun.version !== "1.4.4") {
+    throw new Error("Runtime dependency preparation requires Bun 1.4.4");
   }
   const snapshots = injected.snapshots ?? pins;
   const output = await ownedOutput(root);
