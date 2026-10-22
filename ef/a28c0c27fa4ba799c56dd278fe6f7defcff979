@@ -1,0 +1,92 @@
+.agents/skills/land/SKILL.md
+  h_9d56aba080c170 89-93,99-101
+.bun-version
+  h_9d56aba080c170 1
+.github/workflows/ci.yml
+  h_9d56aba080c170 20,29-32,58
+.gitignore
+  h_9d56aba080c170 27-29
+CONTRIBUTING.md
+  h_9d56aba080c170 67,78-96
+README.md
+  h_9d56aba080c170 43,45-47,50,146-147
+bun.lock
+  h_9d56aba080c170 15,20-21,84,146,150,178,298-318,555-556,573-576
+examples/ts-console/build-runtime.ts
+  h_9d56aba080c170 1-42
+examples/ts-console/configuration.ts
+  h_9d56aba080c170 30,103
+examples/ts-console/host.ts
+  h_9d56aba080c170 21,50-58,77-85,88,92-99,138,149
+examples/ts-console/local-auth.ts
+  h_9d56aba080c170 130
+examples/ts-console/runtime-mount.ts
+  h_9d56aba080c170 1-108
+examples/ts-console/runtime.browser.test.ts
+  h_9d56aba080c170 1-339
+examples/ts-console/serve.ts
+  h_9d56aba080c170 18-22
+package.json
+  h_9d56aba080c170 10,17-18,34,53,70,75-76,102,104
+packages/console-authoring/README.md
+  h_9d56aba080c170 299
+packages/console-authoring/compiler/compiler.mjs
+  h_9d56aba080c170 84-86,97-107,113-119,159,163-165
+packages/console-authoring/compiler/test/compiler.test.mjs
+  h_9d56aba080c170 24-26,46-54,61-66,87-89
+packages/console-authoring/package.json
+  h_9d56aba080c170 244
+packages/console-runtime/.gitignore
+  h_9d56aba080c170 1-3
+packages/console-runtime/README.md
+  h_9d56aba080c170 1-45
+packages/console-runtime/build.ts
+  h_9d56aba080c170 1-23
+packages/console-runtime/console/page.tsx
+  h_9d56aba080c170 1-172
+packages/console-runtime/console/workspace.ts
+  h_9d56aba080c170 1-9
+packages/console-runtime/package.json
+  h_9d56aba080c170 1-48
+packages/console-runtime/src/client.ts
+  h_9d56aba080c170 1-55
+packages/console-runtime/src/server.ts
+  h_9d56aba080c170 1-84
+packages/console-runtime/test/server.test.ts
+  h_9d56aba080c170 1-171
+packages/console-runtime/tsconfig.build.json
+  h_9d56aba080c170 1-11
+packages/console-runtime/tsconfig.json
+  h_9d56aba080c170 1-15
+packages/console/package.json
+  h_9d56aba080c170 122
+plugins/console/shell/package.json
+  h_9d56aba080c170 44
+tooling/checks/check.mjs
+  h_9d56aba080c170 6-9,21-25
+tooling/checks/prepare-runtime-fixture.mjs
+  h_9d56aba080c170 1-77
+tooling/checks/prepare-runtime-fixture.test.mjs
+  h_9d56aba080c170 1-91
+tooling/distribution/prepare-runtime-deps.mjs
+  h_9d56aba080c170 1-452
+tooling/distribution/prepare-runtime-deps.test.mjs
+  h_9d56aba080c170 1-278
+tooling/distribution/preview-proxy.test.mjs
+  h_9d56aba080c170 12-13,95-98,117-118
+tooling/distribution/runtime-deps.bootstrap.json
+  h_9d56aba080c170 1-55
+tooling/distribution/runtime-deps.json
+  h_9d56aba080c170 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "efa28c0c27fa4ba799c56dd278fe6f7defcff979",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

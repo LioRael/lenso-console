@@ -1,0 +1,30 @@
+packages/console-tasks/README.md
+  h_9d56aba080c170 4-5,28-29,58,63-94
+packages/console-tasks/src/client.ts
+  h_9d56aba080c170 29-32,72-75
+packages/console-tasks/src/react.tsx
+  h_9d56aba080c170 29-33,96,99-103,124,132-175,180,260-262,264-271,274-276,381-385,408-421,462-464,474-476,488-490,563
+packages/console-tasks/test/browser.test.ts
+  h_9d56aba080c170 76,78,106-208
+packages/console-tasks/test/client.test.ts
+  h_9d56aba080c170 27,38-39,74-79,86,125-132
+packages/console-tasks/test/fixture.tsx
+  h_9d56aba080c170 3,5,38-68
+packages/console-tasks/test/managed-queue.ts
+  h_9d56aba080c170 23,36-37,42-48,50,60-65,123-124,184-190,199-200,203-204
+packages/console/src/integrations/tasks.ts
+  h_9d56aba080c170 42-48,250-261,264,342-343
+packages/console/test/tasks.test.ts
+  h_9d56aba080c170 596-722
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33b217df264464c021e801f44081c2a13596f4d6",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

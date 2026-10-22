@@ -1,0 +1,16 @@
+packages/console-authoring/src/session-renewal.ts
+  h_9d56aba080c170 152-156,162
+packages/console-authoring/test/session-renewal.test.ts
+  h_9d56aba080c170 3-4,31-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f8a96da2924182a5483b96b87071b48fa100c45c",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

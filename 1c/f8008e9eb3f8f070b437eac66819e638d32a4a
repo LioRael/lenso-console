@@ -1,0 +1,30 @@
+apps/shell/src/features/extensions/page-contribution-outlet.browser.test.tsx
+  h_9d56aba080c170 4,12-85
+apps/shell/src/features/extensions/page-contribution-outlet.tsx
+  h_9d56aba080c170 242-251
+apps/shell/src/features/plugins/plugin-detail-page.tsx
+  h_9d56aba080c170 162-165,172
+apps/shell/src/features/plugins/plugin-detail.browser.test.tsx
+  h_9d56aba080c170 26,128,133,163-166,216,357-484
+apps/shell/src/features/plugins/plugin-inspector.tsx
+  h_9d56aba080c170 438,453-454,456-462
+apps/shell/src/features/plugins/use-plugin-workbench.ts
+  h_9d56aba080c170 2,150-156,162-180,187,198,211-213,255,272-291,296,312,320,323,325-327,337,346,349,352-402
+docs/design/reviews/2026-10-02-console-slice-remaining-acceptance.md
+  h_9d56aba080c170 1-112
+docs/design/reviews/2026-10-02-generic-plugin-detail.md
+  h_9d56aba080c170 25,39,50,60-61
+docs/design/reviews/2026-10-02-observe-requests.md
+  h_9d56aba080c170 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1cf8008e9eb3f8f070b437eac66819e638d32a4a",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

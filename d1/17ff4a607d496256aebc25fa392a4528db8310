@@ -1,0 +1,14 @@
+examples/ts-console/runtime.browser.test.ts
+  h_9d56aba080c170 133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d117ff4a607d496256aebc25fa392a4528db8310",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

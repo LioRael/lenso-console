@@ -1,0 +1,160 @@
+docs/console-instance-http-paths.md
+  h_9d56aba080c170 7-28
+docs/console-locale.md
+  h_9d56aba080c170 15-38
+docs/console-scoped-reads.md
+  h_9d56aba080c170 49-70
+examples/ts-console/.gitignore
+  h_9d56aba080c170 1
+examples/ts-console/cli.test.ts
+  h_9d56aba080c170 1-218
+examples/ts-console/configuration.ts
+  h_9d56aba080c170 1-120
+examples/ts-console/host.test.ts
+  h_9d56aba080c170 1-288
+examples/ts-console/host.ts
+  h_9d56aba080c170 1-135
+examples/ts-console/lenso.config.ts
+  h_9d56aba080c170 1-7
+examples/ts-console/local-auth.ts
+  h_9d56aba080c170 1-288
+examples/ts-console/locale-store.ts
+  h_9d56aba080c170 1-108
+examples/ts-console/serve.ts
+  h_9d56aba080c170 1-53
+examples/ts-console/shell.ts
+  h_9d56aba080c170 1-129
+examples/ts-console/tsconfig.json
+  h_9d56aba080c170 1-11
+package.json
+  h_9d56aba080c170 17-21,44,66,68,70-74,76,90-91
+packages/console-authoring/compiler/test/transport.test.ts
+  h_9d56aba080c170 52-56,137-337
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 1-6,24-26,43-44,65-68,119,180-189
+packages/console-authoring/src/transport.ts
+  h_9d56aba080c170 80,88-90,105-112,146-147,167-177,215,221-302
+packages/console/README.md
+  h_9d56aba080c170 12-77,119-121,135-174,178-190,209-336
+packages/console/package.json
+  h_9d56aba080c170 14-15,21,26,31,36,41,46,51,56,61,78-80,85-87,91-92,94,104-106,108-109
+packages/console/src/auth.ts
+  h_9d56aba080c170 344-349
+packages/console/src/index.ts
+  h_9d56aba080c170 9-11,18
+packages/console/src/integrations/audit.ts
+  h_9d56aba080c170 6,42
+packages/console/src/integrations/scheduler.ts
+  h_9d56aba080c170 9,48
+packages/console/src/integrations/tasks.ts
+  h_9d56aba080c170 14,351
+packages/console/src/locale.ts
+  h_9d56aba080c170 1-134
+packages/console/src/operation-selection.ts
+  h_9d56aba080c170 1-35
+packages/console/src/plugin.ts
+  h_9d56aba080c170 15,30,35-36
+packages/console/src/service.ts
+  h_9d56aba080c170 16-18,22-27,31,33-34,36,243-247,274-284,290,319-326,352,369-370,401-447,449,452-462,468-472,480-491,496,504-529,551-591,596,600,602-607,609-610,619,686-709,711-714,762-770,809-976,1032-1060,1091-1100,1104-1116,1127-1140,1154,1163,1167-1172,1190-1195,1202-1205,1209-1215,1220-1221,1225-1229
+packages/console/src/subscription.ts
+  h_9d56aba080c170 1-112
+packages/console/src/types.ts
+  h_9d56aba080c170 32-33,49,71,80,87,104-111,132-134,156-179
+packages/console/test/audit.test.ts
+  h_9d56aba080c170 192-210
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 12,15,28,47-54,68,78-81,91,506-513,520,526-532,715-719,722,732-739,847-898,1053,1082-1098,1107-1109,1114-1494
+packages/console/test/subscriptions.test.ts
+  h_9d56aba080c170 1-818
+packages/console/test/tasks.test.ts
+  h_9d56aba080c170 281-284
+plugins/console/shell/package.json
+  h_9d56aba080c170 49
+plugins/console/shell/src/app/console-instance-auth.browser.test.tsx
+  h_9d56aba080c170 7,122-133,142-145,156-157,165-167,194-195,200,263,265-266,268
+plugins/console/shell/src/app/console-locale.browser.test.tsx
+  h_9d56aba080c170 18-31,77,140,197,238-312
+plugins/console/shell/src/app/console-session.browser.test.tsx
+  h_9d56aba080c170 901-1007
+plugins/console/shell/src/app/console-session.tsx
+  h_9d56aba080c170 35-40,122,159,163-181,199,219,225,249-250,265-267,323,337-338,343-356,374,376,381,426-434,436-437,447
+plugins/console/shell/src/app/locales/zh-cn.ts
+  h_9d56aba080c170 554-594
+plugins/console/shell/src/features/extensions/authorized-workspaces.browser.test.tsx
+  h_9d56aba080c170 59,64,130,213
+plugins/console/shell/src/features/extensions/contribution-asset-url.ts
+  h_9d56aba080c170 1,16,18,21
+plugins/console/shell/src/features/extensions/observe-workspace.browser.test.tsx
+  h_9d56aba080c170 347,352-366
+plugins/console/shell/src/features/extensions/page-contribution-catalog.test.ts
+  h_9d56aba080c170 14-227
+plugins/console/shell/src/features/extensions/page-contribution-catalog.ts
+  h_9d56aba080c170 6-9,16,62,79,195-198,211-221,241-246,251-257,276-278,281,338-340,344-346,354-359,420-423,439-441,444-451,493-499,507,538,545-546,551,577
+plugins/console/shell/src/features/extensions/page-deployed-paths.test.ts
+  h_9d56aba080c170 1-120
+plugins/console/shell/src/features/extensions/page-mount-runtime.ts
+  h_9d56aba080c170 8,10,30,66
+plugins/console/shell/src/features/extensions/workspace-read-client.ts
+  h_9d56aba080c170 2,15,18-71,125-130,133-139,143-150,161-169,171-177
+plugins/console/shell/src/features/extensions/workspace-read.browser.test.tsx
+  h_9d56aba080c170 2,14-18,37,41,44-46,98,152-158,174-179,248-368
+plugins/console/shell/src/features/extensions/workspace-service-client.test.ts
+  h_9d56aba080c170 6-10,70-73,79,91,120-123,187-188,317-518
+plugins/console/shell/src/features/extensions/workspace-service-client.ts
+  h_9d56aba080c170 2-6,29,34-39,44-49
+plugins/console/shell/src/features/extensions/workspace-service-legacy.ts
+  h_9d56aba080c170 6,53
+plugins/console/shell/src/features/extensions/workspace-source-session.browser.test.tsx
+  h_9d56aba080c170 5,210-312
+plugins/console/shell/src/features/extensions/workspace-source-session.ts
+  h_9d56aba080c170 272-277,279-318,326,328
+plugins/console/shell/src/features/management/management-operation-link.ts
+  h_9d56aba080c170 1-27
+plugins/console/shell/src/features/management/management-v2-directory.browser.test.tsx
+  h_9d56aba080c170 1-201
+plugins/console/shell/src/features/management/management-v2-directory.test.ts
+  h_9d56aba080c170 1-93
+plugins/console/shell/src/features/management/management-v2-directory.tsx
+  h_9d56aba080c170 8,12,44,46,90-95,120,156,160-166
+plugins/console/shell/src/features/plugins/plugin-detail-page.tsx
+  h_9d56aba080c170 8,20,98,130-137,301,329,347,353-354
+plugins/console/shell/src/features/plugins/plugin-inspector.stylex.ts
+  h_9d56aba080c170 1-247
+plugins/console/shell/src/features/plugins/plugin-inspector.tsx
+  h_9d56aba080c170 27
+plugins/console/shell/src/features/plugins/plugin-workbench-page.stylex.ts
+  h_9d56aba080c170 1-118
+plugins/console/shell/src/features/plugins/plugin-workbench-page.tsx
+  h_9d56aba080c170 12,38-39,50,92-102,529
+plugins/console/shell/src/features/plugins/typescript-plugin-inspector.browser.test.tsx
+  h_9d56aba080c170 1-598
+plugins/console/shell/src/features/plugins/typescript-plugin-inspector.tsx
+  h_9d56aba080c170 1-483
+plugins/console/shell/src/lib/console-http-paths.test.ts
+  h_9d56aba080c170 46-61
+plugins/console/shell/src/lib/console-http-paths.ts
+  h_9d56aba080c170 277-282
+plugins/console/shell/src/lib/session-fetch.ts
+  h_9d56aba080c170 12-14,17-43,79-80,92-136,155,159-184,186-192
+plugins/console/shell/vitest.browser.config.ts
+  h_9d56aba080c170 32-36,45
+pnpm-lock.yaml
+  h_9d56aba080c170 166-179,189-193,197-199,204-205,207-208,210-211,213-217,221-223,266-268,273-274,276-277,279-280,282-283,288-289,291-292,294-295,297-298,300-301,303-304,313-314,316-317,321-323,560-562,1045-1047,1051-1053,1072-1074,1077-1080,1102-1103,1117-1119,1122-1124,1145-1147,1149-1151,1153-1154,1162-1163,1166-1168,1178-1179,1197-1199,1202-1205,1224-1226,1245-1247,4915,4917-4920,4924,4926-4930,4935,4937,4941,4943-4946,4952,4957,4959,4963,4965,4970,4976,4978-4979,4982,4985,5009,5014-5018,5022,5024,5079,5081,7987
+pnpm-workspace.yaml
+  h_9d56aba080c170 11-24
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 121,127,158,179-181,186-198,201,206,215-223,232-242
+tooling/distribution/framework-source.json
+  h_9d56aba080c170 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3cec1ba95f0d8e8de3e411fee11b9b9bb6c01a0",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

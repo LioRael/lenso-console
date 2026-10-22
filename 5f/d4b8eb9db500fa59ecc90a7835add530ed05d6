@@ -1,0 +1,24 @@
+packages/console-runtime/README.md
+  h_9d56aba080c170 132-146
+packages/console-runtime/src/operation-context.ts
+  h_9d56aba080c170 6
+packages/console-runtime/src/server.ts
+  h_9d56aba080c170 6
+packages/console/build.ts
+  h_9d56aba080c170 9
+packages/console/package.json
+  h_9d56aba080c170 63-67
+packages/console/src/service.ts
+  h_9d56aba080c170 15,704-706
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5fd4b8eb9db500fa59ecc90a7835add530ed05d6",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

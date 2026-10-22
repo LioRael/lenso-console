@@ -1,0 +1,20 @@
+bun.lock
+  h_9d56aba080c170 29
+examples/ts-console/administration-host.test.ts
+  h_9d56aba080c170 632-655,662-664
+examples/ts-console/administration-host.ts
+  h_9d56aba080c170 8,42,729-736,743,756
+package.json
+  h_9d56aba080c170 87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c8124c51463b49d3e4a15ac5a9cb1d1d6699ae5",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

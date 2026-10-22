@@ -1,0 +1,60 @@
+.github/workflows/console-sdk-npm.yml
+  h_9d56aba080c170 22
+bun.lock
+  h_9d56aba080c170 23,69,111,155,234,267,290,314,335,589,1553-1554
+examples/ts-console/README.md
+  h_9d56aba080c170 92,118-131,154-161
+examples/ts-console/administration-host.test.ts
+  h_9d56aba080c170 241-250,427-455,465-467,475-489,501-503,513-516,635-647
+examples/ts-console/administration-host.ts
+  h_9d56aba080c170 650-653,682-684,778
+package.json
+  h_9d56aba080c170 78
+packages/auth-console/CHANGELOG.md
+  h_9d56aba080c170 3-20
+packages/auth-console/package.json
+  h_9d56aba080c170 3,76-77
+packages/console-authoring/CHANGELOG.md
+  h_9d56aba080c170 3-18
+packages/console-authoring/package.json
+  h_9d56aba080c170 3,166
+packages/console-dashboard/CHANGELOG.md
+  h_9d56aba080c170 3-9
+packages/console-dashboard/package.json
+  h_9d56aba080c170 3
+packages/console-plugin-manager/CHANGELOG.md
+  h_9d56aba080c170 3-11
+packages/console-plugin-manager/package.json
+  h_9d56aba080c170 3
+packages/console-react/CHANGELOG.md
+  h_9d56aba080c170 3-10
+packages/console-react/package.json
+  h_9d56aba080c170 3
+packages/console-runtime/CHANGELOG.md
+  h_9d56aba080c170 1-9
+packages/console-runtime/package.json
+  h_9d56aba080c170 3
+packages/console/CHANGELOG.md
+  h_9d56aba080c170 3-15
+packages/console/package.json
+  h_9d56aba080c170 3
+plugins/console/shell/CHANGELOG.md
+  h_9d56aba080c170 3-11
+plugins/console/shell/package.json
+  h_9d56aba080c170 3
+tooling/distribution/console-npm.mjs
+  h_9d56aba080c170 21
+tooling/distribution/console-npm.test.mjs
+  h_9d56aba080c170 72-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a2072d4f47021ffc984b8bb6f2b288b65becbf6",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+packages/agent-console/README.md
+  h_9d56aba080c170 82-83,86-129
+packages/agent-console/package.json
+  h_9d56aba080c170 8-9,13
+packages/agent-console/src/conversation.ts
+  h_9d56aba080c170 11,14,68-71,89-94,98-101,129-211,328,361-374,459,514-532
+packages/agent-console/src/react.tsx
+  h_9d56aba080c170 7,287-288,290-299,321,420,574-578,597-638
+packages/agent-console/src/session-resume.ts
+  h_9d56aba080c170 1-152
+packages/agent-console/test/session-resume.test.ts
+  h_9d56aba080c170 1-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4bfb5b311df31f4a2b6c52c27a811e62390f7055",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+bun.lock
+  h_9d56aba080c170 133,177,312
+packages/console-authoring/CHANGELOG.md
+  h_9d56aba080c170 3-6
+packages/console-authoring/package.json
+  h_9d56aba080c170 3,166
+packages/console-react/CHANGELOG.md
+  h_9d56aba080c170 3-6
+packages/console-react/package.json
+  h_9d56aba080c170 3
+packages/console/CHANGELOG.md
+  h_9d56aba080c170 3-6
+packages/console/package.json
+  h_9d56aba080c170 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e2f0d62613079ede0ad334c8ebcf812855391be",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

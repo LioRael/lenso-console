@@ -1,0 +1,14 @@
+tooling/distribution/preview-proxy.test.mjs
+  h_9d56aba080c170 12-13,95-98,117-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2e27e67e30f170214337af23c1fd95d83ded016",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

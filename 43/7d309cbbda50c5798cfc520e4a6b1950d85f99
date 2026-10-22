@@ -1,0 +1,30 @@
+examples/ts-console/administration.browser.test.ts
+  h_9d56aba080c170 531-562,571,573-628,632-633,644-713
+packages/auth-console/README.md
+  h_9d56aba080c170 16-23
+packages/auth-console/src/administration-pages.tsx
+  h_9d56aba080c170 12,495,497-502,513,549,555-556,568-583,596,605-612,617-621,639,661,689,1774-1780,1785,2161,2169-2173,2199-2208,2210-2217,2219-2423,2433-2436,2438-2441,2450-2452,2459-2471,2473-2475,2477-2535
+packages/console-authoring/README.md
+  h_9d56aba080c170 248-255
+packages/console-authoring/compiler/test/transport.test.ts
+  h_9d56aba080c170 39-41,115-134,244-258
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 28-33
+packages/console-authoring/src/transport.ts
+  h_9d56aba080c170 10,42-43,50-51,63-65,391-398,416-418
+packages/console/src/boundary.ts
+  h_9d56aba080c170 2,21,26-27,35,43-44,46-52,61-65,147,160-176
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 428-437,513,871-874,877-893
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "437d309cbbda50c5798cfc520e4a6b1950d85f99",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
