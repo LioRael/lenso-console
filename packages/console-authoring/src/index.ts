@@ -5,7 +5,11 @@ import type { WorkspaceReads } from "./read";
 import type { ReadRefreshPolicy } from "./read-refresh";
 import type { WorkspaceServices } from "./service-types";
 
-export type { WorkspaceServices } from "./service-types";
+export type {
+  WorkspaceServices,
+  WorkspaceInvocationOptions,
+} from "./service-types";
+export type { OperationExecutionEvidence } from "./execution-evidence";
 
 export type {
   ReadValue,

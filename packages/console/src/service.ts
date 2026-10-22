@@ -8,6 +8,9 @@ import {
   consolePluginDescriptorSchema,
   consoleSessionSchema,
   consoleTargetDescriptorSchema,
+  executionEvidenceHeader,
+  executionEvidenceHeaderValue,
+  projectExecutionEvidence,
   type ConsoleOperationDescriptor,
 } from "@lenso/console-sdk/protocol";
 import { environmentSecrets, redact } from "@lenso/engine/diagnostics";
@@ -22,6 +25,7 @@ import {
 import { createManageAdapter } from "@lenso/manage";
 import { COMMON_ERROR_STATUS_MAP, implement, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
+import { ResponseHeadersHandlerPlugin } from "@orpc/server/plugins";
 
 import {
   admitTargets,
@@ -53,6 +57,29 @@ import type {
   ConsoleService,
   ConsoleTarget,
 } from "./types";
+
+function captureExecutionEvidence(headers: Headers | undefined) {
+  headers?.delete(executionEvidenceHeader);
+  return (actual: unknown) => {
+    if (!headers) {
+      return;
+    }
+    try {
+      // Only the canonical public identifiers enter metadata. Never serialize
+      // invocation input, context, credentials, baggage or span attributes.
+      const value = executionEvidenceHeaderValue(
+        redact(projectExecutionEvidence(actual), environmentSecrets())
+      );
+      if (value) {
+        headers.set(executionEvidenceHeader, value);
+      } else {
+        headers.delete(executionEvidenceHeader);
+      }
+    } catch {
+      // Optional evidence must not replace the business result or error.
+    }
+  };
+}
 
 function resource(
   target: ConsoleTarget,
@@ -239,7 +266,8 @@ export function createConsoleService(
     identity: ConsoleIdentity,
     operations?: readonly Operation[],
     mount?: ConsoleMount,
-    readScope?: ConsoleReadScope
+    readScope?: ConsoleReadScope,
+    capture?: (actual: unknown) => void
   ) => {
     const prepared = new Set<Operation>();
     return createManageAdapter({
@@ -283,8 +311,8 @@ export function createConsoleService(
           ? auth.canRead!(identity, visible, readScope)
           : auth.can(identity, visible);
       },
-      binding: (operation, input) =>
-        bindInvocation(
+      binding: async (operation, input) => {
+        const binding = await bindInvocation(
           target,
           request,
           identity,
@@ -293,7 +321,22 @@ export function createConsoleService(
           mount,
           prepared,
           readScope
-        ),
+        );
+        if (!capture) {
+          return binding;
+        }
+        return {
+          ...binding,
+          onExecutionEvidence(actual: unknown) {
+            capture(actual);
+            // Keep host observers, including their async rejection isolation.
+            const observer = Reflect.get(binding, "onExecutionEvidence");
+            if (typeof observer === "function") {
+              return Reflect.apply(observer, undefined, [actual]);
+            }
+          },
+        };
+      },
     });
   };
   async function invoke(
@@ -305,7 +348,8 @@ export function createConsoleService(
     identity: ConsoleIdentity,
     operations?: readonly Operation[],
     mount?: ConsoleMount,
-    readScope?: ConsoleReadScope
+    readScope?: ConsoleReadScope,
+    capture?: (actual: unknown) => void
   ) {
     checkAbort(request);
     jsonInput(input);
@@ -315,7 +359,8 @@ export function createConsoleService(
       identity,
       operations,
       mount,
-      readScope
+      readScope,
+      capture
     ).invoke(pluginId, method, input);
     checkAbort(request);
     return result;
@@ -621,6 +666,7 @@ export function createConsoleService(
     request: Request;
     identity: ConsoleIdentity;
     responseHeaders: Headers;
+    resHeaders?: Headers;
   }>();
   const router = implementation.router({
     targets: implementation.targets.handler(
@@ -690,7 +736,7 @@ export function createConsoleService(
       }
     ),
     invoke: implementation.invoke.handler(
-      async ({ input, context: { request, identity } }) => {
+      async ({ input, context: { request, identity, resHeaders } }) => {
         const target = findTarget(input.targetId);
         if ("key" in input) {
           const keyPrefix = `${catalogRevision}:${target.id}:`;
@@ -699,10 +745,15 @@ export function createConsoleService(
           }
           checkAbort(request);
           jsonInput(input.input);
-          const result = await adapter(target, request, identity).invokeEntry(
-            input.key.slice(keyPrefix.length),
-            input.input
-          );
+          const result = await adapter(
+            target,
+            request,
+            identity,
+            undefined,
+            undefined,
+            undefined,
+            captureExecutionEvidence(resHeaders)
+          ).invokeEntry(input.key.slice(keyPrefix.length), input.input);
           checkAbort(request);
           return result;
         }
@@ -759,7 +810,8 @@ export function createConsoleService(
             identity,
             undefined,
             undefined,
-            readScope
+            readScope,
+            captureExecutionEvidence(resHeaders)
           );
         } catch (error) {
           if (readScope) {
@@ -1083,7 +1135,10 @@ export function createConsoleService(
         }
       ),
       invoke: implementation.workspace.invoke.handler(
-        async ({ input, context: { request, identity, responseHeaders } }) => {
+        async ({
+          input,
+          context: { request, identity, responseHeaders, resHeaders },
+        }) => {
           try {
             const { target, mount } = workspace(input.mountId, request);
             const requirement = mount.descriptor.requirements.find(
@@ -1109,7 +1164,9 @@ export function createConsoleService(
               request,
               identity,
               service.operations,
-              mount
+              mount,
+              undefined,
+              captureExecutionEvidence(resHeaders)
             );
           } catch (error) {
             request.signal.throwIfAborted();
@@ -1121,16 +1178,25 @@ export function createConsoleService(
     },
   });
   const rpc = new RPCHandler(router, {
+    plugins: [new ResponseHeadersHandlerPlugin()],
     errorStatusMap: { ...COMMON_ERROR_STATUS_MAP, OUTCOME_UNKNOWN: 503 },
     clientInterceptors: [
       async ({ next, context }) => {
         try {
           return await next();
         } catch (error) {
-          if (error instanceof ORPCError && error.code !== "BAD_REQUEST") {
-            throw error;
+          const mapped =
+            error instanceof ORPCError && error.code !== "BAD_REQUEST"
+              ? error
+              : rpcFailure(safeError(error), context.responseHeaders);
+          if (
+            ["UNAUTHORIZED", "FORBIDDEN", "PRECONDITION_FAILED"].includes(
+              mapped.code
+            )
+          ) {
+            context.resHeaders?.delete(executionEvidenceHeader);
           }
-          throw rpcFailure(safeError(error), context.responseHeaders);
+          throw mapped;
         }
       },
     ],

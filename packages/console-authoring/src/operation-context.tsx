@@ -1,6 +1,8 @@
+import { Accordion } from "@lenso/ui/accordion";
 import { Button } from "@lenso/ui/button";
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { OperationExecutionEvidence } from "./execution-evidence";
 import { useWorkspace } from "./navigation";
 import type {
   ConsolePageOperationContext,
@@ -8,6 +10,63 @@ import type {
   ConsoleOperationMetadata,
 } from "./protocol";
 import type { WorkspaceServices } from "./service-types";
+
+/** Controlled evidence from this invocation only; never infer a task or business outcome. */
+export function WorkspaceExecutionEvidence({
+  evidence,
+  pending = false,
+}: {
+  evidence?: OperationExecutionEvidence | undefined;
+  pending?: boolean;
+}) {
+  return (
+    <Accordion.Root>
+      <Accordion.Item value="execution">
+        <Accordion.Heading>
+          <Accordion.Trigger>
+            Latest call evidence
+            <Accordion.Indicator />
+          </Accordion.Trigger>
+        </Accordion.Heading>
+        <Accordion.Panel>
+          <Accordion.Body>
+            <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+              {pending ? (
+                <output>Waiting for this call…</output>
+              ) : evidence ? (
+                <>
+                  <dl>
+                    <dt>Instance</dt>
+                    <dd>{evidence.instanceId}</dd>
+                    <dt>Operation</dt>
+                    <dd>
+                      {evidence.operation.pluginId}.{evidence.operation.method}
+                    </dd>
+                    {evidence.trace && (
+                      <>
+                        <dt>Trace ID</dt>
+                        <dd>{evidence.trace.traceId}</dd>
+                        <dt>Span ID</dt>
+                        <dd>{evidence.trace.spanId}</dd>
+                      </>
+                    )}
+                  </dl>
+                  {!evidence.trace && <p>Trace not provided.</p>}
+                  <p>
+                    Execution identity only. This does not confirm export,
+                    success or durable effects.
+                  </p>
+                </>
+              ) : (
+                <p>Execution evidence not provided.</p>
+              )}
+            </div>
+          </Accordion.Body>
+        </Accordion.Panel>
+      </Accordion.Item>
+    </Accordion.Root>
+  );
+}
 
 /** Opt-in inline inspection. UI and agents consume the same services.inspect result. */
 export function WorkspaceOperationContext({

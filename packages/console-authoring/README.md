@@ -514,3 +514,27 @@ Compiled pages can opt into `PageProps.services.inspect` and the
 `WorkspaceOperationContext` reader from `@lenso/console-sdk/react`. See
 [page operation context](../../docs/page-operation-context.md) for the bounded
 query, authorization boundary and explicit Runtime/collector limitations.
+
+### Same-call execution evidence
+
+`services.invoke` accepts an optional `onExecutionEvidence(evidence)` observer.
+The result and declared business output remain unchanged. `evidence` uses the
+Engine `OperationExecutionEvidence` fields: `instanceId`,
+`operation: { pluginId, method }`, and `trace: { traceId, spanId } | null`.
+`WorkspaceExecutionEvidence` from the React entry renders this controlled value
+inside a disclosure; the local Authorization page demonstrates it.
+
+Console uses oRPC's Response Headers plugin and a per-call client context, with
+`x-lenso-execution` limited to 1024 UTF-8 bytes. Identifiers are bounded to 128
+ASCII identifier characters; trace/span IDs are nonzero lowercase hex of 32/16
+characters. Unknown fields are discarded and known environment secrets are
+redacted before transport. No invocation input, credentials, baggage or span
+attributes are included. No task/AI relationship is inferred.
+
+Older Engines/hosts or omitted/invalid metadata yield `undefined`; an observed
+dispatch without valid telemetry has `trace: null`. A failed dispatched call may
+still provide evidence; authorization/session rejection removes it. Aborted
+calls do not notify retired observers. Observer failures cannot change results
+or cause retries. Evidence does not prove sampling/export, success or durable
+business effects. Real tracing requires a matching Engine/Manage implementation
+of the optional execution observer; its absence remains backward compatible.

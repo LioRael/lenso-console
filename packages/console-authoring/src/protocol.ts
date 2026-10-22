@@ -13,6 +13,15 @@ import {
 } from "./admission-protocol";
 
 export {
+  executionEvidenceHeader,
+  executionEvidenceHeaderValue,
+  maxExecutionEvidenceBytes,
+  projectExecutionEvidence,
+  readExecutionEvidenceHeader,
+  type OperationExecutionEvidence,
+} from "./execution-evidence";
+
+export {
   consolePageDescriptorSchema,
   consoleSessionSchema,
   consolePageCatalogSchema,

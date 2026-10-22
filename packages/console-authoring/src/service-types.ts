@@ -1,7 +1,16 @@
+import type { OperationExecutionEvidence } from "./execution-evidence";
 import type {
   ConsolePageDescriptor,
   ConsolePageOperationContext,
 } from "./protocol";
+
+export interface WorkspaceInvocationOptions {
+  signal?: AbortSignal;
+  /** Same-dispatch, optional metadata. Not a receipt, history query or retry trigger. */
+  onExecutionEvidence?: (
+    evidence: OperationExecutionEvidence | undefined
+  ) => void;
+}
 
 /** A browser-local alias admitted by the owning service and transport. */
 export interface WorkspaceServices {
@@ -15,7 +24,7 @@ export interface WorkspaceServices {
     service: string,
     operation: string,
     input: Request,
-    options?: { signal?: AbortSignal }
+    options?: WorkspaceInvocationOptions
   ): Promise<Response>;
   subscribe<Request = unknown, Item = unknown>(
     service: string,

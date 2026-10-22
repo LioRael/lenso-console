@@ -6,9 +6,19 @@ import {
 } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 
+import {
+  executionEvidenceHeader,
+  readExecutionEvidenceHeader,
+  type OperationExecutionEvidence,
+} from "./execution-evidence";
 import type { ConsoleClient, ConsolePageDescriptor } from "./protocol";
 import { consoleInputIssuesSchema } from "./protocol";
-import type { WorkspaceServices } from "./service-types";
+import type {
+  WorkspaceServices,
+  WorkspaceInvocationOptions,
+} from "./service-types";
+
+const executionCapture = Symbol("console execution evidence");
 
 export type ConsoleClientOptions = Pick<
   ConstructorParameters<typeof RPCLink>[0],
@@ -109,10 +119,10 @@ export function createConsoleWorkspaceServices(
   const { mount } = options;
   const client = createConsoleClient({
     ...options,
-    fetch: async (url, init, ...args) => {
+    fetch: async (url, init, call, path) => {
       init.signal?.throwIfAborted();
       const response = await (options.fetch
-        ? options.fetch(url, init, ...args)
+        ? options.fetch(url, init, call, path)
         : globalThis.fetch(url, init));
       try {
         init.signal?.throwIfAborted();
@@ -121,6 +131,12 @@ export function createConsoleWorkspaceServices(
         // the body. Do not leave that unclaimed stream open.
         await response.body?.cancel();
         throw error;
+      }
+      const capture = call.context[executionCapture];
+      if (capture && path.join("/") === "workspace/invoke") {
+        capture.evidence = readExecutionEvidenceHeader(
+          response.headers.get(executionEvidenceHeader)
+        );
       }
       return response;
     },
@@ -217,9 +233,12 @@ export function createConsoleWorkspaceServices(
       service: string,
       operation: string,
       input: Request,
-      callOptions?: { signal?: AbortSignal }
+      callOptions?: WorkspaceInvocationOptions
     ) {
       const signal = prepare(service, operation, input, callOptions?.signal);
+      const capture: { evidence: OperationExecutionEvidence | undefined } = {
+        evidence: undefined,
+      };
       try {
         const result = await client.workspace.invoke(
           {
@@ -228,13 +247,24 @@ export function createConsoleWorkspaceServices(
             operation,
             input,
           },
-          { signal }
+          { signal, context: { [executionCapture]: capture } }
         );
         signal?.throwIfAborted();
         return result as Response;
       } catch (error) {
         signal?.throwIfAborted();
         throw mapWorkspaceError(error, service, operation);
+      } finally {
+        if (!signal?.aborted && callOptions?.onExecutionEvidence) {
+          const observe = callOptions.onExecutionEvidence;
+          void (async () => {
+            try {
+              await observe(capture.evidence);
+            } catch {
+              // Optional observation cannot change a settled result or invite a retry.
+            }
+          })();
+        }
       }
     },
     subscribe<Request, Item>(

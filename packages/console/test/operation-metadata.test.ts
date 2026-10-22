@@ -18,6 +18,7 @@ const operation = defineOperation({
 
 test("metadata permits inert relative source references and rejects local paths, URLs and traversal", () => {
   const entry = describeOperation(operation, "");
+  const declaredContracts = Object.hasOwn(entry, "outputSchemaAvailability");
   for (const file of [
     "/Users/alice/private.ts",
     "https://example.test/file.ts?key=secret",
@@ -39,8 +40,12 @@ test("metadata permits inert relative source references and rejects local paths,
     source: { file: "src/read.ts", export: "read", line: 8 },
     retry: "safe",
     cancellation: "cooperative",
-    outputContract: { availability: "unavailable" },
-    errorContract: { availability: "unavailable" },
+    outputContract: {
+      availability: declaredContracts ? "not-declared" : "unavailable",
+    },
+    errorContract: declaredContracts
+      ? { availability: "declared", errors: [] }
+      : { availability: "unavailable" },
   });
 });
 

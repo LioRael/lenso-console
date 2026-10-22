@@ -17,10 +17,8 @@ export function projectOperationMetadata(
       "source" | "retry" | "cancellation" | "destructive" | "outputDescription"
     >
   > & {
-    outputSchemaAvailability?:
-      | "not-declared"
-      | "available"
-      | "runtime-validation-only";
+    // Runtime projection below still accepts only the supported values.
+    outputSchemaAvailability?: string;
     outputSchema?: Record<string, unknown> | null;
     errors?: readonly { code: string; message: string }[];
   }

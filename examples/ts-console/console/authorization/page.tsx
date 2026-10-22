@@ -4,25 +4,58 @@ import {
   ConsoleLayout,
   ConsolePageScope,
 } from "@lenso/console-react";
-import { definePage } from "@lenso/console-sdk";
-import { useWorkspaceRead } from "@lenso/console-sdk/react";
+import {
+  definePage,
+  type OperationExecutionEvidence,
+} from "@lenso/console-sdk";
+import {
+  useWorkspaceRead,
+  WorkspaceExecutionEvidence,
+} from "@lenso/console-sdk/react";
 import { ThemeScope } from "@lenso/ui";
 import { Popover } from "@lenso/ui/popover";
 import { Table } from "@lenso/ui/table";
 import * as stylex from "@stylexjs/stylex";
 import { Info, RefreshCw } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { styles } from "./page.styles";
 
 export default definePage(({ services, activation, mount }) => {
+  const [execution, setExecution] = useState<{
+    services: typeof services;
+    activationKey: string | undefined;
+    value: OperationExecutionEvidence | undefined;
+  }>();
+  const invocation = useRef(0);
   const inspection = useWorkspaceRead({
     key: "authorization.inspect",
     params: {},
-    read: ({ signal }) =>
-      services.invoke<
+    read: ({ signal }) => {
+      invocation.current += 1;
+      const { current } = invocation;
+      setExecution(undefined);
+      return services.invoke<
         Record<string, never>,
         RoleSnapshot<"access" | "configure">
-      >("authorization", "inspect", {}, { signal }),
+      >(
+        "authorization",
+        "inspect",
+        {},
+        {
+          signal,
+          onExecutionEvidence(value) {
+            if (
+              !signal.aborted &&
+              current === invocation.current &&
+              (!activation || activation.isCurrent())
+            ) {
+              setExecution({ services, activationKey: activation?.key, value });
+            }
+          },
+        }
+      );
+    },
   });
   return (
     <main aria-label="Authorization" {...stylex.props(styles.page)}>
@@ -56,6 +89,15 @@ export default definePage(({ services, activation, mount }) => {
                       Policy revision: {inspection.data.revision}
                     </p>
                   )}
+                  <WorkspaceExecutionEvidence
+                    evidence={
+                      execution?.services === services &&
+                      execution.activationKey === activation?.key
+                        ? execution.value
+                        : undefined
+                    }
+                    pending={inspection.blocking || inspection.refreshing}
+                  />
                 </Popover.Popup>
               </Popover.Positioner>
             </Popover.Portal>

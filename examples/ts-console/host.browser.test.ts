@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+import { readExecutionEvidenceHeader } from "@lenso/console-sdk/protocol";
 import { startApp, valuesSource } from "@lenso/core";
 import { chromium } from "playwright";
 
+import { executionTelemetry } from "../../packages/console/test/fixtures/telemetry";
 import { resolveHostConfiguration } from "./configuration";
 import { createHost } from "./host";
 import { csrfCookie } from "./local-auth";
@@ -19,7 +21,9 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
   let app: Awaited<ReturnType<typeof startApp>> | undefined;
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   let provider: ReturnType<typeof Bun.serve> | undefined;
+  let telemetry: Awaited<ReturnType<typeof executionTelemetry>> | undefined;
   try {
+    telemetry = await executionTelemetry();
     const token = "isolated-browser-operator-token";
     const config = await resolveHostConfiguration(directory, [
       valuesSource({
@@ -246,8 +250,124 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     );
     await page.getByRole("button", { name: "Sign in", exact: true }).focus();
     await page.keyboard.press("Enter");
-    await admitted;
+    const invocationResponse = await admitted;
     await page.getByText("local-operator", { exact: true }).waitFor();
+    const evidence = readExecutionEvidenceHeader(
+      await invocationResponse.headerValue("x-lenso-execution")
+    );
+    if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
+      expect(evidence?.trace).toBeTruthy();
+    }
+    await page
+      .getByRole("button", { name: "Authorization information", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Latest call evidence", exact: true })
+      .click();
+    const executionPanel = page.getByRole("region", {
+      name: "Latest call evidence",
+      exact: true,
+    });
+    if (evidence?.trace) {
+      await executionPanel
+        .getByText(evidence.trace.traceId, { exact: true })
+        .waitFor();
+      await executionPanel
+        .getByText(evidence.trace.spanId, { exact: true })
+        .waitFor();
+      await telemetry.forceFlush();
+      expect(
+        telemetry.spans.filter(
+          (span) =>
+            span.traceId === evidence.trace?.traceId &&
+            span.spanId === evidence.trace?.spanId &&
+            span.instanceId === evidence.instanceId &&
+            span.pluginId === evidence.operation.pluginId &&
+            span.method === evidence.operation.method
+        )
+      ).toHaveLength(1);
+      if (process.env.LENSO_EXECUTION_SCREENSHOTS) {
+        await mkdir(process.env.LENSO_EXECUTION_SCREENSHOTS, {
+          recursive: true,
+        });
+        await Bun.write(
+          path.join(process.env.LENSO_EXECUTION_SCREENSHOTS, "span-proof.json"),
+          JSON.stringify(
+            {
+              evidence,
+              matchingSpans: telemetry.spans.filter(
+                (span) =>
+                  span.traceId === evidence.trace?.traceId &&
+                  span.spanId === evidence.trace?.spanId
+              ),
+              url: page.url(),
+              title: await page.title(),
+            },
+            null,
+            2
+          )
+        );
+      }
+    } else {
+      await executionPanel
+        .getByText("Execution evidence not provided.", { exact: true })
+        .waitFor();
+    }
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 800 });
+      await executionPanel.click({ trial: true });
+      expect(
+        await executionPanel.evaluate((node) => {
+          const box = node.getBoundingClientRect();
+          return box.left >= 0 && box.right <= innerWidth;
+        })
+      ).toBe(true);
+      if (process.env.LENSO_EXECUTION_SCREENSHOTS) {
+        await mkdir(process.env.LENSO_EXECUTION_SCREENSHOTS, {
+          recursive: true,
+        });
+        await page.screenshot({
+          path: path.join(
+            process.env.LENSO_EXECUTION_SCREENSHOTS,
+            `execution-${width}.png`
+          ),
+          animations: "disabled",
+        });
+      }
+    }
+    await page.keyboard.press("Escape");
+    await telemetry.shutdown();
+    const unavailable = page.waitForResponse(
+      (response) =>
+        response.url().includes("/rpc/workspace/invoke") &&
+        response.status() === 200
+    );
+    await page
+      .getByRole("button", { name: "Refresh authorization", exact: true })
+      .click();
+    const unavailableResponse = await unavailable;
+    const unavailableEvidence = readExecutionEvidenceHeader(
+      await unavailableResponse.headerValue("x-lenso-execution")
+    );
+    if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
+      expect(unavailableEvidence?.trace).toBeNull();
+    }
+    await page
+      .getByRole("button", { name: "Authorization information", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Latest call evidence", exact: true })
+      .click();
+    await executionPanel
+      .getByText(
+        unavailableEvidence
+          ? "Trace not provided."
+          : "Execution evidence not provided.",
+        { exact: true }
+      )
+      .waitFor();
+    await page.keyboard.press("Escape");
+    await page.setViewportSize({ width: 1280, height: 800 });
     expect(
       await page
         .getByRole("main", { name: "Authorization", exact: true })
@@ -467,6 +587,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     await browser?.close();
     provider?.stop(true);
     await app?.stop();
+    await telemetry?.shutdown();
     await rm(directory, { recursive: true, force: true });
   }
 }, 30_000);

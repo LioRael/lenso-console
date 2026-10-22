@@ -57,6 +57,74 @@ const streamingMount = {
 };
 
 describe("Console SDK Fetch transport", () => {
+  it("execution metadata is bounded, whitelisted and discarded after retirement", async () => {
+    const value = {
+      instanceId: "instance",
+      operation: { pluginId: "notes", method: "echo", secret: "private" },
+      trace: { traceId: "a".repeat(32), spanId: "b".repeat(16) },
+      credentials: "private",
+    };
+    let raw: string | null = JSON.stringify(value);
+    let hold = false;
+    const release = Promise.withResolvers<undefined>();
+    const started = Promise.withResolvers<undefined>();
+    const controller = new AbortController();
+    const observed: unknown[] = [];
+    const services = createConsoleWorkspaceServices({
+      origin: "https://console.test",
+      mount,
+      signal: controller.signal,
+      async fetch() {
+        if (hold) {
+          started.resolve(undefined);
+          await release.promise;
+        }
+        return Response.json(
+          { json: "unchanged" },
+          { headers: raw === null ? {} : { "x-lenso-execution": raw } }
+        );
+      },
+    });
+    const call = () =>
+      services.invoke(
+        "notes",
+        "echo",
+        {},
+        {
+          onExecutionEvidence(evidence) {
+            observed.push(evidence);
+          },
+        }
+      );
+    expect(await call()).toBe("unchanged");
+    expect(observed[0]).toEqual({
+      instanceId: "instance",
+      operation: { pluginId: "notes", method: "echo" },
+      trace: value.trace,
+    });
+    for (const invalid of [
+      null,
+      "x".repeat(1025),
+      JSON.stringify({ ...value, padding: "é".repeat(500) }),
+      JSON.stringify({
+        ...value,
+        trace: { traceId: "0".repeat(32), spanId: "b".repeat(16) },
+      }),
+    ]) {
+      raw = invalid;
+      expect(await call()).toBe("unchanged");
+      expect(observed.at(-1)).toBeUndefined();
+    }
+    raw = JSON.stringify(value);
+    hold = true;
+    const pending = call();
+    await started.promise;
+    controller.abort();
+    release.resolve(undefined);
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(observed).toHaveLength(5);
+  });
+
   it("anonymous admission and session bootstrap do not broadcast retirement of another admission", async () => {
     const originalWindow = Object.getOwnPropertyDescriptor(
       globalThis,

@@ -8,7 +8,10 @@ import {
   realm,
   type Access,
 } from "@lenso/auth";
-import type { ConsoleClient } from "@lenso/console-sdk/protocol";
+import type {
+  ConsoleClient,
+  OperationExecutionEvidence,
+} from "@lenso/console-sdk/protocol";
 import { WorkspaceServiceError } from "@lenso/console-sdk/server";
 import { createConsoleWorkspaceServices } from "@lenso/console-sdk/transport";
 import {
@@ -19,7 +22,11 @@ import {
   type Plugin,
 } from "@lenso/core";
 import { EngineError } from "@lenso/engine/diagnostics";
-import { defineOperation, type Operation } from "@lenso/engine/operations";
+import {
+  defineOperation,
+  describeOperation,
+  type Operation,
+} from "@lenso/engine/operations";
 import { defineManage } from "@lenso/manage";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -40,6 +47,7 @@ import type {
   ConsoleService,
   ConsoleTarget,
 } from "../src/types";
+import { executionTelemetry } from "./fixtures/telemetry";
 
 const origin = "https://console.test";
 type FixtureAccess = Access<
@@ -188,6 +196,7 @@ function counter(
     value: number;
     calls: number;
     failure?: unknown;
+    beforeRead?: (label: string) => Promise<void>;
   } = { setups: 0, cleanups: 0, value: 0, calls: 0 };
   const plugin = {
     id,
@@ -204,6 +213,7 @@ function counter(
           evidence: { identity: ConsoleIdentity; resource: ConsoleResource }
         ) {
           await auth.enforce(evidence.identity, evidence.resource);
+          await state.beforeRead?.(input.label);
           state.calls += 1;
           return {
             id,
@@ -366,6 +376,257 @@ function mount(
       path === "page.mjs" ? new Response("export default {}") : undefined,
   };
 }
+
+test("same-call execution evidence preserves results, observers and concurrent request isolation", async () => {
+  const telemetry = await executionTelemetry();
+  const auth = authentication();
+  const instance = counter("counter", auth.plugin);
+  const original = mount(instance);
+  const operations = instance.manage.operations.filter(
+    (entry) => entry.method !== "write"
+  );
+  const page: ConsoleMount = {
+    ...original,
+    descriptor: {
+      ...original.descriptor,
+      requirements: original.descriptor.requirements.map((entry) => ({
+        ...entry,
+        operations: operations.map((operation) => operation.method),
+      })),
+    },
+    services: {
+      ...original.services,
+      counter: { manage: instance.manage, operations },
+    },
+  };
+  const observed: unknown[] = [];
+  const consolePlugin = createConsolePlugin({
+    authentication: auth.plugin,
+    management: true,
+    targets: [{ ...target("north", instance), mounts: [page] }],
+    binding: (...args) => ({
+      ...bound(...args),
+      onExecutionEvidence(value: unknown) {
+        observed.push(value);
+        throw new Error("optional host observer failure");
+      },
+    }),
+  });
+  const app = await startApp({
+    plugins: [auth.plugin, instance.plugin, consolePlugin],
+  });
+  try {
+    const responses: Response[] = [];
+    const services = createConsoleWorkspaceServices({
+      origin,
+      mount: page.descriptor,
+      headers: { authorization: "Bearer alice" },
+      expectedSubject: "alice",
+      async fetch(url, init) {
+        const response = (await app
+          .get(consolePlugin)
+          .fetch(new Request(url, init)))!;
+        responses.push(response.clone());
+        return response;
+      },
+    });
+    const first = Promise.withResolvers<undefined>();
+    const started = Promise.withResolvers<undefined>();
+    instance.state.beforeRead = async (label) => {
+      if (label === "slow") {
+        started.resolve(undefined);
+        await first.promise;
+      }
+    };
+    const evidence: Record<string, OperationExecutionEvidence | undefined> = {};
+    const order: string[] = [];
+    const slow = services.invoke(
+      "counter",
+      "read",
+      { label: "slow" },
+      {
+        onExecutionEvidence(value) {
+          evidence.slow = value;
+          order.push("slow");
+          throw new Error("optional client observer");
+        },
+      }
+    );
+    await started.promise;
+    const fast = await services.invoke(
+      "counter",
+      "read",
+      { label: "fast" },
+      {
+        async onExecutionEvidence(value) {
+          evidence.fast = value;
+          order.push("fast");
+          throw new Error("optional async client observer");
+        },
+      }
+    );
+    first.resolve(undefined);
+    expect(await slow).toEqual({
+      id: "counter",
+      value: 0,
+      label: "slow",
+      subject: "alice",
+    });
+    expect(fast).toEqual({
+      id: "counter",
+      value: 0,
+      label: "fast",
+      subject: "alice",
+    });
+    expect(instance.state.calls).toBe(2);
+    expect(order).toEqual(["fast", "slow"]);
+    await expect(
+      services.invoke(
+        "counter",
+        "fail",
+        {},
+        {
+          onExecutionEvidence(value) {
+            evidence.failure = value;
+          },
+        }
+      )
+    ).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE", status: 503 });
+    await telemetry.forceFlush();
+    for (const name of ["slow", "fast", "failure"]) {
+      const value = evidence[name];
+      if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
+        expect(value?.trace).toBeTruthy();
+      }
+      // Older Engines do not emit the optional callback.
+      if (!value) {
+        continue;
+      }
+      expect(Object.keys(value).sort()).toEqual([
+        "instanceId",
+        "operation",
+        "trace",
+      ]);
+      expect(
+        telemetry.spans.filter(
+          (span) =>
+            span.traceId === value.trace?.traceId &&
+            span.spanId === value.trace?.spanId &&
+            span.instanceId === value.instanceId &&
+            span.pluginId === value.operation.pluginId &&
+            span.method === value.operation.method
+        )
+      ).toHaveLength(1);
+    }
+    if (evidence.slow && evidence.fast) {
+      expect(evidence.slow).not.toEqual(evidence.fast);
+      expect(observed).toHaveLength(3);
+    }
+    await expect(
+      services.invoke(
+        "counter",
+        "forbidden",
+        {},
+        {
+          onExecutionEvidence(value) {
+            evidence.serviceDenied = value;
+          },
+        }
+      )
+    ).rejects.toMatchObject({ status: 403 });
+    expect(evidence.serviceDenied).toBeUndefined();
+    await expect(
+      client(
+        app.get(consolePlugin),
+        undefined,
+        "/api",
+        undefined,
+        responses
+      ).invoke({
+        targetId: "north",
+        pluginId: "counter",
+        method: "forbidden",
+        input: {},
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(responses.at(-1)?.headers.get("x-lenso-execution")).toBeNull();
+    const beforeDenial = observed.length;
+    auth.state.dispatchDenied = "invoke";
+    await expect(
+      services.invoke(
+        "counter",
+        "read",
+        { label: "denied" },
+        {
+          onExecutionEvidence(value) {
+            evidence.denied = value;
+          },
+        }
+      )
+    ).rejects.toMatchObject({ status: 403 });
+    expect(evidence.denied).toBeUndefined();
+    expect(observed).toHaveLength(beforeDenial);
+    auth.state.dispatchDenied = undefined;
+    await expect(
+      services.invoke(
+        "counter",
+        "read",
+        { label: "" },
+        {
+          onExecutionEvidence(value) {
+            evidence.invalid = value;
+          },
+        }
+      )
+    ).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT", status: 422 });
+    expect(evidence.invalid).toBeUndefined();
+    expect(observed).toHaveLength(beforeDenial);
+    const secret = process.env.LENSO_EXECUTION_HEADER_SECRET;
+    process.env.LENSO_EXECUTION_HEADER_SECRET = app.instanceId;
+    try {
+      await services.invoke(
+        "counter",
+        "read",
+        { label: "redacted" },
+        {
+          onExecutionEvidence(value) {
+            evidence.redacted = value;
+          },
+        }
+      );
+      expect(evidence.redacted).toBeUndefined();
+    } finally {
+      if (secret === undefined) {
+        delete process.env.LENSO_EXECUTION_HEADER_SECRET;
+      } else {
+        process.env.LENSO_EXECUTION_HEADER_SECRET = secret;
+      }
+    }
+    await telemetry.shutdown();
+    await services.invoke(
+      "counter",
+      "read",
+      { label: "without telemetry" },
+      {
+        onExecutionEvidence(value) {
+          evidence.unavailable = value;
+        },
+      }
+    );
+    if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
+      expect(evidence.unavailable).toMatchObject({ trace: null });
+    }
+    for (const response of responses) {
+      const header = response.headers.get("x-lenso-execution");
+      expect(header?.length ?? 0).toBeLessThanOrEqual(1024);
+      expect(header ?? "").not.toContain("private-database-password");
+      expect(header ?? "").not.toContain("Bearer alice");
+    }
+  } finally {
+    await app.stop();
+    await telemetry.shutdown();
+  }
+});
 
 test("a stalled Fetch body read aborts and releases its stream with the exact caller reason", async () => {
   let pulled!: () => void;
@@ -748,13 +1009,21 @@ test("same-type instances and selected lists dispatch exact services with curren
     const read = catalog.operations.find(
       (entry) => entry.targetId === "right" && entry.method === "read"
     )!;
+    const declaredContracts = Object.hasOwn(
+      describeOperation(right.read, "lenso.config.ts"),
+      "outputSchemaAvailability"
+    );
     expect(read.metadata).toMatchObject({
       source: { file: "src/counter.ts", export: "read", line: 12 },
       retry: "safe",
       cancellation: "cooperative",
       outputDescription: "Counter state.",
-      outputContract: { availability: "unavailable" },
-      errorContract: { availability: "unavailable" },
+      outputContract: {
+        availability: declaredContracts ? "not-declared" : "unavailable",
+      },
+      errorContract: declaredContracts
+        ? { availability: "declared", errors: [] }
+        : { availability: "unavailable" },
     });
     expect(
       catalog.operations.some((entry) => entry.method === "unselected")
