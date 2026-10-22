@@ -63,7 +63,7 @@
     "sdk:prepare": "bun run sdk:build && bun run service:web-build && bun run sdk:preview && bun run sdk:stage",
     "sdk:preview": "bun tooling/distribution/prepare-sdk-preview.mjs",
     "check:operations": "bun run --cwd packages/console-tasks typecheck && bun run --cwd packages/console-audit typecheck && bun test ./packages/console-tasks/test/client.test.ts ./packages/console-audit/test/client.test.ts ./packages/console/test/tasks.test.ts ./packages/console/test/audit.test.ts",
-    "dev:operations": "bun run --bun vite --config examples/composed-console/operations-fixture/vite.config.ts"
+    "dev:operations": "bun run --bun vite --configLoader native --config examples/composed-console/operations-fixture/vite.config.ts"
   },
   "devDependencies": {
     "@changesets/cli": "2.31.1",

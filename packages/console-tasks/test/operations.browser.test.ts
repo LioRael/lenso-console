@@ -29,6 +29,7 @@ const visibleControl = async (locator: Locator) => {
 test("operations controls preserve revisions, uncertain writes and retired audit views", async () => {
   const directory = "/tmp/lenso-operations-proof";
   const server = await createServer({
+    configLoader: "native",
     configFile: new URL(
       "../../../examples/composed-console/operations-fixture/vite.config.ts",
       import.meta.url
