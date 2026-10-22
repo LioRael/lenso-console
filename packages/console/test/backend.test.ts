@@ -495,10 +495,8 @@ test("same-call execution evidence preserves results, observers and concurrent r
     await telemetry.forceFlush();
     for (const name of ["slow", "fast", "failure"]) {
       const value = evidence[name];
-      if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
-        expect(value?.trace).toBeTruthy();
-      }
-      // Older Engines do not emit the optional callback.
+      // The published framework cohort used by this gate provides the callback.
+      expect(value?.trace).toBeTruthy();
       if (!value) {
         continue;
       }
@@ -613,9 +611,7 @@ test("same-call execution evidence preserves results, observers and concurrent r
         },
       }
     );
-    if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
-      expect(evidence.unavailable).toMatchObject({ trace: null });
-    }
+    expect(evidence.unavailable).toMatchObject({ trace: null });
     for (const response of responses) {
       const header = response.headers.get("x-lenso-execution");
       expect(header?.length ?? 0).toBeLessThanOrEqual(1024);

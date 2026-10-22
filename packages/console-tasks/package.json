@@ -19,11 +19,11 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@lenso/auth": "0.5.4",
+    "@lenso/auth": "0.5.5",
     "@lenso/console": "workspace:*",
-    "@lenso/core": "0.3.1",
-    "@lenso/manage": "0.5.2",
-    "@lenso/tasks": "0.4.0",
+    "@lenso/core": "0.4.0",
+    "@lenso/manage": "0.6.0",
+    "@lenso/tasks": "0.4.1",
     "@lenso/tokens": "0.9.1"
   },
   "peerDependencies": {

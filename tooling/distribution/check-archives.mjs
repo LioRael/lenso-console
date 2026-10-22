@@ -45,7 +45,7 @@ try {
   fs.mkdirSync(consumer);
   const dependencies = {
     "@lenso/audit": "0.3.3",
-    "@lenso/auth": "0.5.4",
+    "@lenso/auth": "0.5.5",
     "@lenso/auth-console": pack("packages/auth-console", "@lenso/auth-console"),
     "@lenso/console-dashboard": pack(
       "packages/console-dashboard",
@@ -60,7 +60,7 @@ try {
       "@lenso/console-react"
     ),
     "@lenso/console-sdk": env.LENSO_AUTHOR_ARCHIVE,
-    "@lenso/core": "0.3.1",
+    "@lenso/core": "0.4.0",
     "@types/bun": "1.4.3",
     "@types/react": "^19.2.18",
     react: "19.2.8",

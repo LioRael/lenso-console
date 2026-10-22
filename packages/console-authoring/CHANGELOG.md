@@ -1,5 +1,12 @@
 # @lenso/console-sdk
 
+## 1.5.0
+
+### Minor Changes
+
+- Expose bounded same-call execution evidence from real operation spans, preserving per-request isolation, unavailable fallback and authorization fences.
+- Align published Auth/Core/Engine/Manage dependencies used by archive consumers.
+
 ## 1.4.0
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @lenso/auth-console
 
+## 2.1.2
+
+### Patch Changes
+
+- Preserve recoverable Auth administration confirmation and show bounded operation evidence with the verified framework cohort.
+- Align published Auth/Core/Engine/Manage dependencies used by archive consumers.
+
 ## 2.1.1
 
 ### Patch Changes

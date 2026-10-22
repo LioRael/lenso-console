@@ -1,5 +1,12 @@
 # @lenso/console
 
+## 2.3.0
+
+### Minor Changes
+
+- Expose bounded same-call execution evidence from real operation spans, preserving per-request isolation, unavailable fallback and authorization fences.
+- Align published Auth/Core/Engine/Manage dependencies used by archive consumers.
+
 ## 2.2.0
 
 Project admitted plugin Settings through the TypeScript Console host and compatible SDK protocol. Retain existing authorization, instance and revision boundaries.

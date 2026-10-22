@@ -1,6 +1,6 @@
 {
   "name": "@lenso/auth-console",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Optional capability-driven Auth Console adapter",
   "license": "MIT",
   "repository": {
@@ -63,8 +63,8 @@
     "@lenso/api-keys": "0.1.6",
     "@lenso/audit": "0.3.3",
     "@lenso/authorization": "0.3.3",
-    "@lenso/engine": "0.6.0",
-    "@lenso/manage": "0.5.2",
+    "@lenso/engine": "0.9.0",
+    "@lenso/manage": "0.6.0",
     "@lenso/ui": "0.9.1",
     "@stylexjs/stylex": "0.19.1",
     "drizzle-orm": "0.45.3",
@@ -72,9 +72,9 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@lenso/auth": "0.5.4",
+    "@lenso/auth": "0.5.5",
     "@lenso/console-react": "workspace:*",
-    "@lenso/core": "0.3.1",
+    "@lenso/core": "0.4.0",
     "@stylexjs/unplugin": "0.19.0",
     "@types/bun": "1.4.3",
     "@types/react": "^19.2.18",
@@ -87,7 +87,7 @@
     "@lenso/auth": "^0.5.2",
     "@lenso/console-react": "^0.3.4",
     "@lenso/console-sdk": "^1.2.2",
-    "@lenso/core": "^0.3.1",
+    "@lenso/core": "^0.3.1 || ^0.4.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {

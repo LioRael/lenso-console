@@ -255,9 +255,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     const evidence = readExecutionEvidenceHeader(
       await invocationResponse.headerValue("x-lenso-execution")
     );
-    if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
-      expect(evidence?.trace).toBeTruthy();
-    }
+    expect(evidence?.trace).toBeTruthy();
     await page
       .getByRole("button", { name: "Authorization information", exact: true })
       .click();
@@ -349,9 +347,7 @@ test("Shell login restores sessions and retires pages on expiry and cross-tab lo
     const unavailableEvidence = readExecutionEvidenceHeader(
       await unavailableResponse.headerValue("x-lenso-execution")
     );
-    if (process.env.LENSO_EXECUTION_EVIDENCE_REQUIRED === "1") {
-      expect(unavailableEvidence?.trace).toBeNull();
-    }
+    expect(unavailableEvidence?.trace).toBeNull();
     await page
       .getByRole("button", { name: "Authorization information", exact: true })
       .click();
