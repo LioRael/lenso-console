@@ -49,6 +49,10 @@ export default defineConfig({
   resolve: { dedupe: ["react", "react-dom"] },
   optimizeDeps: {
     include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "motion/react",
       "@lenso/ui",
       "use-sync-external-store/shim",
       "use-sync-external-store/shim/with-selector",

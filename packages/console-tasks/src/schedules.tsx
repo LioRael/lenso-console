@@ -94,7 +94,7 @@ export function SchedulePanel({
     try {
       const result = await services.changeSchedule(
         snapshot.action,
-        snapshot.schedule,
+        { id: snapshot.schedule.id, revision: snapshot.schedule.revision },
         signal
       );
       if (current()) {
