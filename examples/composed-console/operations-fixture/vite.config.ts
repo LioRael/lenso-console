@@ -47,4 +47,13 @@ export default defineConfig({
   ],
   server: { host: "127.0.0.1", port: 18462, strictPort: true },
   resolve: { dedupe: ["react", "react-dom"] },
+  optimizeDeps: {
+    include: [
+      "@lenso/ui",
+      "use-sync-external-store/shim",
+      "use-sync-external-store/shim/with-selector",
+      "react-grid-layout",
+      "react-resizable",
+    ],
+  },
 });
