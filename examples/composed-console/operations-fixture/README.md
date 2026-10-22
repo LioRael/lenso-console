@@ -30,6 +30,7 @@ Current local evidence: build and targeted types/tests pass. Listener startup
 reported port in use, while read-only lsof found no listener. No alternate
 listener, browser launch or file-URL route was attempted. Browser geometry,
 keyboard/focus, theme, double-click, retirement and narrow-width acceptance remain
-unverified. Build output is not browser evidence. The unrelated composed-wide
-check currently fails in review-workspace.tsx because its navigation object lacks
-openSettings. This task does not change that file.
+unverified. Build output is not browser evidence. The composed-wide check exposed
+a baseline omission: review-workspace.tsx lacked the SDK's required openSettings
+method. The isolated integration now explicitly rejects that unsupported sample
+navigation, matching its existing cross-workspace behavior.

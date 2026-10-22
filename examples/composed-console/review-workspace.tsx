@@ -160,6 +160,11 @@ export function ReviewWorkspace({
           navigate(href(parts));
         }
       },
+      openSettings() {
+        throw new Error(
+          "Settings navigation is not installed in this sample host"
+        );
+      },
       openWorkspace() {
         throw new Error(
           "Cross-workspace handoff is not installed in this sample host"
