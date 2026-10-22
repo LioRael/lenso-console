@@ -38,7 +38,7 @@ import { Table } from "@lenso/ui/table";
 import { TextField } from "@lenso/ui/textfield";
 import { Toolbar } from "@lenso/ui/toolbar";
 import * as stylex from "@stylexjs/stylex";
-import { Copy, Info, Plus, X } from "lucide-react";
+import { ChevronFirst, Copy, Info, Plus, X } from "lucide-react";
 import {
   createContext,
   Fragment,
@@ -393,12 +393,16 @@ function Next({
   cursor,
   next,
   count,
+  firstPage,
+  busy = false,
 }: {
   cursor: string | null | undefined;
   next: (cursor: string) => void;
-  count?: number;
+  count?: number | undefined;
+  firstPage?: (() => void) | undefined;
+  busy?: boolean;
 }) {
-  const disabled = !cursor;
+  const disabled = busy || !cursor;
   return (
     <Pagination aria-label="Cursor pagination" xstyle={s.pagination}>
       {count !== undefined && (
@@ -406,19 +410,41 @@ function Next({
       )}
       <Pagination.Content>
         <Pagination.Item>
-          <ConsoleIconButton
-            label="Next page"
-            tooltip={disabled ? "No next page" : "Next page"}
-            variant="secondary"
-            disabled={disabled}
-            onClick={() => {
-              if (cursor) {
-                return next(cursor);
-              }
-            }}
-          >
-            <Pagination.NextIcon />
-          </ConsoleIconButton>
+          <Toolbar.Root aria-label="Page navigation" isAttached>
+            <Toolbar.Group>
+              {firstPage && (
+                <ConsoleIconButton
+                  render={
+                    <Toolbar.Button variant="secondary" size="sm" isIconOnly />
+                  }
+                  label="First page"
+                  tooltip="Return to first page"
+                  variant="secondary"
+                  onClick={firstPage}
+                >
+                  <ChevronFirst size={18} aria-hidden="true" />
+                </ConsoleIconButton>
+              )}
+              <ConsoleIconButton
+                render={
+                  <Toolbar.Button variant="secondary" size="sm" isIconOnly />
+                }
+                label="Next page"
+                tooltip={
+                  busy ? "Loading page" : cursor ? "Next page" : "No next page"
+                }
+                variant="secondary"
+                disabled={disabled}
+                onClick={() => {
+                  if (cursor && !busy) {
+                    return next(cursor);
+                  }
+                }}
+              >
+                <Pagination.NextIcon />
+              </ConsoleIconButton>
+            </Toolbar.Group>
+          </Toolbar.Root>
         </Pagination.Item>
       </Pagination.Content>
     </Pagination>
@@ -1036,6 +1062,7 @@ function IdentityMembership({
 
 function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
   const workspace = useWorkspace();
+  const results = useRef<HTMLElement>(null);
   const initial = directoryLocation(workspace.location.search);
   const [search, setSearch] = useState(initial.search);
   const [conditions, setConditions] = useState<
@@ -1069,7 +1096,12 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
     );
   }
   return (
-    <div {...stylex.props(s.section, s.identityContent)}>
+    <section
+      ref={results}
+      tabIndex={-1}
+      aria-label="Identity results"
+      {...stylex.props(s.section, s.identityContent)}
+    >
       {writes.controls}
       <ConsolePageScope
         scopeKey={workspace.activation?.key ?? workspace.mount.id}
@@ -1119,7 +1151,7 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
               />
             ),
           },
-          ...(read.data && !read.error
+          ...(cursor || (read.data && !read.error)
             ? [
                 {
                   id: "navigation",
@@ -1127,9 +1159,18 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
                   label: "Pagination",
                   children: (
                     <Next
-                      cursor={read.data.nextCursor}
+                      cursor={read.error ? undefined : read.data?.nextCursor}
                       next={setCursor}
-                      count={read.data.items.length}
+                      count={read.error ? undefined : read.data?.items.length}
+                      busy={read.blocking || read.refreshing}
+                      firstPage={
+                        cursor
+                          ? () => {
+                              setCursor(undefined);
+                              results.current?.focus({ preventScroll: true });
+                            }
+                          : undefined
+                      }
                     />
                   ),
                 },
@@ -1143,18 +1184,22 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
               {read.data.items.length === 0 ? (
                 <div {...stylex.props(s.identityEmpty)}>
                   <h2 {...stylex.props(s.subheading)}>
-                    {search.trim() ||
-                    conditions.length ||
-                    filter.children.length
-                      ? "No identities match"
-                      : "No identities yet"}
+                    {cursor
+                      ? "No identities on this page"
+                      : search.trim() ||
+                          conditions.length ||
+                          filter.children.length
+                        ? "No identities match"
+                        : "No identities yet"}
                   </h2>
                   <p {...stylex.props(s.description)}>
-                    {search.trim() ||
-                    conditions.length ||
-                    filter.children.length
-                      ? "Try another name or remove a filter. Your directory is unchanged."
-                      : "This identity source has not returned any people."}
+                    {cursor
+                      ? "The directory may have changed. Return to the first page to continue with the same search and filters."
+                      : search.trim() ||
+                          conditions.length ||
+                          filter.children.length
+                        ? "Try another name or remove a filter. Your directory is unchanged."
+                        : "This identity source has not returned any people."}
                   </p>
                   {(search.trim() ||
                     conditions.length > 0 ||
@@ -1256,7 +1301,7 @@ function IdentityList(props: IdentityPageProps & { info: AdministrationInfo }) {
           )}
         </ReadState>
       </ConsoleTableContext>
-    </div>
+    </section>
   );
 }
 function IdentityDetail(
@@ -2278,6 +2323,7 @@ function DirectoryPicker({
   value: string;
   change: (value: string) => void;
 }) {
+  const results = useRef<HTMLElement>(null);
   const [search, setSearch] = useState("");
   const [cursor, setCursor] = useState<string>();
   const read = useRead(client, "usersList", {
@@ -2287,6 +2333,8 @@ function DirectoryPicker({
   });
   return (
     <section
+      ref={results}
+      tabIndex={-1}
       aria-label="Select existing identity"
       {...stylex.props(s.membershipForm)}
     >
@@ -2316,13 +2364,31 @@ function DirectoryPicker({
                 })),
               ]}
             />
-            {!read.data.items.length && <p>No identities match this search.</p>}
-            {read.data.nextCursor && (
-              <Next cursor={read.data.nextCursor} next={setCursor} />
+            {!read.data.items.length && (
+              <p>
+                {cursor
+                  ? "No identities on this page. Return to the first page to continue."
+                  : "No identities match this search."}
+              </p>
             )}
           </>
         )}
       </ReadState>
+      {(cursor || read.data?.nextCursor) && (
+        <Next
+          cursor={read.error ? undefined : read.data?.nextCursor}
+          next={setCursor}
+          busy={read.blocking || read.refreshing}
+          firstPage={
+            cursor
+              ? () => {
+                  setCursor(undefined);
+                  results.current?.focus({ preventScroll: true });
+                }
+              : undefined
+          }
+        />
+      )}
     </section>
   );
 }

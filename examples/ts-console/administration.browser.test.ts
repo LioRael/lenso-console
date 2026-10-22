@@ -36,6 +36,16 @@ async function settledAgentContext(page: Page) {
     .click({ trial: true });
 }
 
+async function capturePaging(page: Page, name: string) {
+  if (process.env.LENSO_ADMIN_SCREENSHOTS) {
+    await mkdir(process.env.LENSO_ADMIN_SCREENSHOTS, { recursive: true });
+    await page.screenshot({
+      path: path.join(process.env.LENSO_ADMIN_SCREENSHOTS, `${name}.png`),
+      animations: "disabled",
+    });
+  }
+}
+
 // Package/server tests cannot prove compiled React contexts, portal focus,
 // one-time secret retirement or reachable controls inside the real Shell.
 test("compiled administration pages manage real isolated data and retire one-time credentials", async () => {
@@ -192,12 +202,16 @@ test("compiled administration pages manage real isolated data and retire one-tim
         .querySelector<HTMLButtonElement>('button[aria-label="Next page"]')
         ?.matches(":disabled, [aria-disabled=true]")
     );
+    await page
+      .getByRole("table", { name: "Identities", exact: true })
+      .waitFor();
     expect(
       await page
         .getByRole("table", { name: "Identities", exact: true })
         .getByRole("row")
         .count()
     ).toBe(3);
+    await page.getByRole("button", { name: "First page", exact: true }).focus();
     await page.getByRole("button", { name: "Next page", exact: true }).focus();
     await page
       .getByRole("tooltip")
@@ -427,6 +441,115 @@ test("compiled administration pages manage real isolated data and retire one-tim
         .getByRole("row")
         .count()
     ).toBe(26);
+    // Forward-only cursors must still offer a way out of a final or failed page
+    // without clearing the operator's search and conditions.
+    const nextPage = page.getByRole("button", {
+      name: "Next page",
+      exact: true,
+    });
+    const firstPage = page.getByRole("button", {
+      name: "First page",
+      exact: true,
+    });
+    const filterSummary = await applied.textContent();
+    await nextPage.click();
+    await page
+      .getByRole("link", { name: "Paging fixture 9", exact: true })
+      .waitFor();
+    expect(await nextPage.isDisabled()).toBe(true);
+    expect(await firstPage.count()).toBe(1);
+    await nextPage.focus();
+    await page.keyboard.press("ArrowLeft");
+    expect(
+      await firstPage.evaluate((node) => node === document.activeElement)
+    ).toBe(true);
+    await page
+      .getByRole("tooltip")
+      .filter({ hasText: "Return to first page" })
+      .waitFor();
+    await capturePaging(page, "identity-terminal-mobile");
+    await page.keyboard.press("Enter");
+    await page
+      .getByRole("link", { name: "Fixture member", exact: true })
+      .waitFor();
+    expect(await applied.textContent()).toBe(filterSummary);
+    expect(await firstPage.count()).toBe(0);
+    expect(
+      await page
+        .getByRole("region", { name: "Identity results", exact: true })
+        .evaluate((node) => node === document.activeElement)
+    ).toBe(true);
+
+    // A malformed cursor exercises the real service error response. The page
+    // must return to the first page without retrying the failed cursor.
+    if (!(await expandedSearch.isVisible())) {
+      await page
+        .getByRole("button", { name: "Search identities", exact: true })
+        .click();
+    }
+    await expandedSearch.fill("fixture ");
+    await nextPage.click({ trial: true });
+    let failedCursorReads = 0;
+    let rejectCursor = true;
+    await page.route("**/rpc/workspace/invoke", async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.json?.operation === "usersList" && body.json.input.cursor) {
+        if (rejectCursor) {
+          failedCursorReads += 1;
+        }
+        body.json.input.cursor = rejectCursor ? "" : "zzzz";
+        return route.continue({ postData: JSON.stringify(body) });
+      }
+      return route.continue();
+    });
+    await nextPage.click();
+    await page.getByRole("alert").waitFor();
+    const failedAttempts = failedCursorReads;
+    expect(failedAttempts).toBeGreaterThan(0);
+    expect(await nextPage.isDisabled()).toBe(true);
+    await capturePaging(page, "identity-error-mobile");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await firstPage.click({ trial: true });
+    await page
+      .getByRole("button", { name: "Console access", exact: true })
+      .click({ trial: true });
+    await capturePaging(page, "identity-error-desktop");
+    await firstPage.focus();
+    await page.keyboard.press("Enter");
+    await page
+      .getByRole("link", { name: "Fixture member", exact: true })
+      .waitFor();
+    if (!(await expandedSearch.isVisible())) {
+      await page
+        .getByRole("button", { name: "Search identities", exact: true })
+        .click();
+    }
+    expect(await expandedSearch.inputValue()).toBe("fixture ");
+    expect(await applied.textContent()).toBe(filterSummary);
+    expect(failedCursorReads).toBe(failedAttempts);
+    // A directory can shrink between pages. An empty later page is not an
+    // empty directory, and must retain the same first-page recovery.
+    rejectCursor = false;
+    await nextPage.click();
+    await page
+      .getByRole("heading", { name: "No identities on this page", exact: true })
+      .waitFor();
+    await capturePaging(page, "identity-empty-page-desktop");
+    await firstPage.focus();
+    await page.keyboard.press("Enter");
+    await page
+      .getByRole("link", { name: "Fixture member", exact: true })
+      .waitFor();
+    await page.unroute("**/rpc/workspace/invoke");
+    if (!(await expandedSearch.isVisible())) {
+      await page
+        .getByRole("button", { name: "Search identities", exact: true })
+        .click();
+    }
+    await expandedSearch.fill("");
+    await page
+      .getByRole("button", { name: "Collapse search identities", exact: true })
+      .click();
     for (const field of ["Name", "Status"]) {
       await editCondition(field);
       await page
@@ -466,6 +589,32 @@ test("compiled administration pages manage real isolated data and retire one-tim
       .getByRole("combobox", { name: "Existing identity", exact: true })
       .click();
     await page.getByRole("option", { name: /Fixture member/ }).click();
+    const picker = page.getByRole("region", {
+      name: "Select existing identity",
+      exact: true,
+    });
+    await picker
+      .getByRole("button", { name: "Next page", exact: true })
+      .click();
+    await picker
+      .getByRole("button", { name: "First page", exact: true })
+      .focus();
+    expect(
+      await picker
+        .getByRole("combobox", { name: "Existing identity", exact: true })
+        .textContent()
+    ).toContain("fixture-member@localhost.test");
+    await page.keyboard.press("Enter");
+    expect(
+      await picker
+        .getByRole("button", { name: "First page", exact: true })
+        .count()
+    ).toBe(0);
+    expect(
+      await picker
+        .getByRole("combobox", { name: "Existing identity", exact: true })
+        .textContent()
+    ).toContain("Fixture member");
     await page
       .getByRole("combobox", { name: "Membership role", exact: true })
       .click();
