@@ -13,6 +13,7 @@ import { definePlugin, startApp } from "@lenso/core";
 import { createManageAdapter } from "@lenso/manage";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 
+import { createAuditClient } from "../../console-audit/src/client";
 import { createConsoleAuthentication } from "../src/auth";
 import { createConsoleAuditIntegration } from "../src/integrations/audit";
 import { createConsolePlugin } from "../src/plugin";
@@ -267,7 +268,55 @@ test("Audit binding isolates trusted target scope, pages real rows and rechecks 
         input: { limit: 2 },
       })
     ).toEqual(first);
+    // Public page adapter consumes the actual Console Fetch transport, retaining scope fences.
+    const browser = createAuditClient({
+      service: integration.plugin.id,
+      async invoke(serviceId, method, input, signal) {
+        const entry = catalog.operations.find(
+          (value) => value.pluginId === serviceId && value.method === method
+        )!;
+        return client.invoke(
+          { targetId: "north-app", key: entry.key, input },
+          { signal }
+        );
+      },
+    });
+    const { signal } = new AbortController();
+    const browserPage = await browser.query(
+      { action: "document.update", correlationId: "trace-1" },
+      signal
+    );
+    expect(browserPage.events).toHaveLength(2);
+    expect(browserPage.events[0]).not.toHaveProperty("scope");
+    expect(browserPage.events[0]).not.toHaveProperty("actor");
+    await expect(
+      browser.query({ tenantId: "south" } as never, signal)
+    ).rejects.toBeDefined();
+    const correctionId = crypto.randomUUID();
+    await service.append(
+      {
+        id: correctionId,
+        occurredAt: 20,
+        scope,
+        action: "document.update",
+        target: { type: "document", id: "doc-1" },
+        result: "unknown",
+        reasonCode: "corrected",
+        correlationId: "trace-1",
+        relation: { kind: "correction", eventId: ids[2]! },
+      },
+      principal
+    );
+    const correction = await browser.get(correctionId, signal);
+    expect(correction?.relation).toEqual({
+      kind: "correction",
+      eventId: ids[2],
+    });
+    const related = await browser.get(correction!.relation!.eventId, signal);
+    expect(related?.id).toBe(ids[2]);
     allowed = false;
+    await expect(browser.query({}, signal)).rejects.toBeDefined();
+    await expect(browser.get(correctionId, signal)).rejects.toBeDefined();
     await expect(
       adapter.invoke(integration.plugin.id, "query", {})
     ).rejects.toBeDefined();

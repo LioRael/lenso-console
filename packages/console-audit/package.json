@@ -1,0 +1,24 @@
+{
+  "name": "@lenso/console-audit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/client.ts",
+    "./react": "./src/react.tsx"
+  },
+  "scripts": {
+    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "test": "bun test test"
+  },
+  "dependencies": {
+    "@lenso/ui": "0.9.1",
+    "@stylexjs/stylex": "0.19.1",
+    "lucide-react": "^1.28.0",
+    "zod": "4.6.5"
+  },
+  "peerDependencies": {
+    "@lenso/console-react": "*",
+    "react": "^19.0.0"
+  }
+}
