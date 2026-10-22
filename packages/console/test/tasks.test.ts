@@ -17,6 +17,7 @@ import {
 import { drizzle } from "drizzle-orm/d1";
 import { z } from "zod";
 
+import { createTaskClient } from "../../console-tasks/src/client";
 import { ConsoleOperationError } from "../src/errors";
 import { createConsoleSchedulerIntegration } from "../src/integrations/scheduler";
 import { createConsoleTasksIntegration } from "../src/integrations/tasks";
@@ -501,6 +502,14 @@ test("Scheduler uses its authentic scoped companion and mapped Auth actor throug
     });
     const invoke = (method: string, input: unknown) =>
       adapter.invoke(integration.plugin.id, method, input);
+    const browserClient = createTaskClient({
+      tasks: "unused",
+      scheduler: integration.plugin.id,
+      scheduleControls: true,
+      invoke: (service, method, input) =>
+        adapter.invoke(service, method, input),
+    });
+    const browserSignal = new AbortController().signal;
     const definition = {
       task: task.name,
       input: { reportId: "private-report" },
@@ -541,10 +550,11 @@ test("Scheduler uses its authentic scoped companion and mapped Auth actor throug
       )
     ).toEqual([created.id]);
     await expect(invoke("get", { id: otherSchedule.id })).rejects.toBeDefined();
-    const paused = (await invoke("pause", {
-      id: created.id,
-      revision: 1,
-    })) as ScheduleSummary;
+    const paused = await browserClient.changeSchedule!(
+      "pause",
+      { id: created.id, revision: 1 },
+      browserSignal
+    );
     expect(paused.state).toBe("paused");
     expect(paused.revision).toBe(2);
     await expect(
@@ -568,20 +578,46 @@ test("Scheduler uses its authentic scoped companion and mapped Auth actor throug
     expect(
       await invoke("occurrences", { id: created.id, limit: 10 })
     ).toHaveLength(1);
+    await scheduler.tick();
     schedulerAllowed = false;
     await expect(invoke("list", {})).rejects.toBeDefined();
     await expect(
       invoke("cancel", { id: created.id, revision: 3 })
     ).rejects.toBeDefined();
     schedulerAllowed = true;
-    expect(
-      (
-        (await invoke("cancel", {
-          id: created.id,
-          revision: 3,
-        })) as ScheduleSummary
-      ).state
-    ).toBe("cancelled");
+    let loseAck = true;
+    const uncertainClient = createTaskClient({
+      tasks: "unused",
+      scheduler: integration.plugin.id,
+      scheduleControls: true,
+      async invoke(service, method, input) {
+        const value = await adapter.invoke(service, method, input);
+        if (method === "cancel" && loseAck) {
+          loseAck = false;
+          throw new Error("lost ACK");
+        }
+        return value;
+      },
+    });
+    await expect(
+      uncertainClient.changeSchedule!(
+        "cancel",
+        { id: created.id, revision: 3 },
+        browserSignal
+      )
+    ).rejects.toThrow("lost ACK");
+    const checked = await uncertainClient.getSchedule!(
+      created.id,
+      browserSignal
+    );
+    expect(checked.state).toBe("cancelled");
+    expect(checked.revision).toBe(4);
+    const occurrences = await scheduler.occurrences(created.id, schedulerActor);
+    expect(occurrences[0]!.job!.state).toBe("pending");
+    expect(await browserClient.schedules!(browserSignal)).toHaveLength(1);
+    await expect(
+      browserClient.getSchedule!(otherSchedule.id, browserSignal)
+    ).rejects.toBeDefined();
     security.revoke();
     const before = mapped;
     await expect(invoke("get", { id: created.id })).rejects.toBeDefined();

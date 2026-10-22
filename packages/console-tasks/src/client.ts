@@ -21,6 +21,7 @@ export const scheduleSchema = z.object({
   nextAt: z.number().nullable(),
 });
 export type Schedule = z.infer<typeof scheduleSchema>;
+export type ScheduleAction = "pause" | "resume" | "cancel";
 export interface TaskClient {
   list(
     signal: AbortSignal,
@@ -36,6 +37,12 @@ export interface TaskClient {
     signal: AbortSignal
   ) => Promise<"cancelled" | "requested" | "terminal">;
   schedules?: (signal: AbortSignal) => Promise<Schedule[]>;
+  getSchedule?: (id: string, signal: AbortSignal) => Promise<Schedule>;
+  changeSchedule?: (
+    action: ScheduleAction,
+    schedule: Pick<Schedule, "id" | "revision">,
+    signal: AbortSignal
+  ) => Promise<Schedule>;
 }
 /** Bind the host's existing authorized Manage transport. No endpoints or credentials are created. */
 export function createTaskClient(options: {
@@ -47,6 +54,8 @@ export function createTaskClient(options: {
   ) => Promise<unknown>;
   tasks: string;
   scheduler?: string;
+  /** Explicitly opt in only when these exact operations are admitted by the host. */
+  scheduleControls?: boolean;
   retry?: boolean;
   cancel?: boolean;
 }): TaskClient {
@@ -96,6 +105,53 @@ export function createTaskClient(options: {
                 outcome: z.enum(["cancelled", "requested", "terminal"]),
               })
               .parse(await call("cancel", { jobId }, signal)).outcome;
+          },
+        }
+      : {}),
+    ...(options.scheduler && options.scheduleControls
+      ? {
+          async getSchedule(id: string, signal: AbortSignal) {
+            return scheduleSchema
+              .extend({ id: z.literal(id) })
+              .parse(
+                await options.invoke(options.scheduler!, "get", { id }, signal)
+              );
+          },
+          async changeSchedule(
+            action: ScheduleAction,
+            schedule: Pick<Schedule, "id" | "revision">,
+            signal: AbortSignal
+          ) {
+            const input = z
+              .object({
+                id: z.string().uuid(),
+                revision: z
+                  .number()
+                  .int()
+                  .positive()
+                  .max(Number.MAX_SAFE_INTEGER),
+              })
+              .strict()
+              .parse(schedule);
+            const method = z.enum(["pause", "resume", "cancel"]).parse(action);
+            const result = scheduleSchema
+              .extend({
+                id: z.literal(input.id),
+                state: z.literal(
+                  method === "pause"
+                    ? "paused"
+                    : method === "resume"
+                      ? "active"
+                      : "cancelled"
+                ),
+              })
+              .parse(
+                await options.invoke(options.scheduler!, method, input, signal)
+              );
+            if (result.revision <= input.revision) {
+              throw new Error("Unconfirmed schedule revision");
+            }
+            return result;
           },
         }
       : {}),

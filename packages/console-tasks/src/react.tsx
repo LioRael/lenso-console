@@ -11,7 +11,8 @@ import * as stylex from "@stylexjs/stylex";
 import { ListTodo } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { Job, Schedule, TaskClient } from "./client";
+import type { Job, TaskClient } from "./client";
+import { SchedulePanel } from "./schedules";
 
 function TasksContent({
   services,
@@ -22,9 +23,7 @@ function TasksContent({
     items: Job[];
     nextCursor: string | null;
   }>();
-  const [schedules, setSchedules] = useState<Schedule[]>();
   const [error, setError] = useState("");
-  const [scheduleError, setScheduleError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] =
     useState<Awaited<ReturnType<TaskClient["get"]>>>();
@@ -76,23 +75,9 @@ function TasksContent({
     },
     [current, services, signal]
   );
-  const loadSchedules = useCallback(async () => {
-    setScheduleError(false);
-    try {
-      const data = await services.schedules?.(signal);
-      if (current()) {
-        setSchedules(data);
-      }
-    } catch {
-      if (current()) {
-        setScheduleError(true);
-      }
-    }
-  }, [current, services, signal]);
   useEffect(() => {
     void load();
-    void loadSchedules();
-  }, [load, loadSchedules]);
+  }, [load]);
   async function inspect(job: Job, background = false) {
     detailVersion.current += 1;
     const version = detailVersion.current;
@@ -330,29 +315,12 @@ function TasksContent({
         </Toolbar>
       )}
       {services.schedules && (
-        <section aria-label="Schedules">
-          <h2>Schedules</h2>
-          <p>Up to 50 authorized schedules.</p>
-          {scheduleError ? (
-            <div role="alert">
-              Schedules could not be loaded.{" "}
-              <Button onClick={() => void loadSchedules()}>
-                Try schedules again
-              </Button>
-            </div>
-          ) : (
-            !schedules && <output>Loading schedules…</output>
-          )}
-          {schedules?.length === 0 && <p>No schedules.</p>}
-          {schedules?.map((schedule) => (
-            <p key={schedule.id}>
-              {schedule.task} · {schedule.state} · Next trigger:{" "}
-              {schedule.nextAt === null
-                ? "None"
-                : new Date(schedule.nextAt).toLocaleString()}
-            </p>
-          ))}
-        </section>
+        <SchedulePanel
+          services={services}
+          signal={signal}
+          current={current}
+          offline={offline}
+        />
       )}
       <Modal
         open={!!selected}

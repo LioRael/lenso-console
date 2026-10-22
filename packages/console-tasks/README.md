@@ -92,3 +92,14 @@ The long-task browser fixture executes a real deferred handler via Tasks with
 SQLite-backed D1 SQL and real Manage, toggles Chromium offline while execution
 finishes, then recovers the result after reconnect, reload and synthetic sign-in.
 The client fixture additionally reopens SQLite and verifies persisted output.
+
+## Revisioned schedule controls
+
+Pass `scheduler` and explicitly set `scheduleControls: true` only after the host
+admits Scheduler `get`, `pause`, `resume` and `cancel`. Omitting the opt-in leaves
+older hosts read-only. Controls use the existing service, snapshot ID/revision
+for confirmation, validate acknowledgements, and never edit rules or create cron.
+An unconfirmed write disables further schedule writes until **Check schedule
+status** successfully reads the exact target plus the current list. A list omission
+alone cannot reconcile an uncertain write. A cancelled schedule stops future
+triggers; jobs already accepted by Tasks continue independently.

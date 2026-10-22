@@ -135,3 +135,53 @@ test("client observes failed, retried and cancelled jobs after SQLite reopen", a
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+// Prevents old hosts exposing writes, and accepting stale/mismatched schedule acknowledgements.
+test("schedule controls require explicit admission and validate ID, state and revision", async () => {
+  const id = crypto.randomUUID();
+  const { signal } = new AbortController();
+  const schedule = {
+    id,
+    task: "fixture",
+    revision: 2,
+    state: "paused",
+    nextAt: null,
+    input: "private",
+  };
+  const calls: unknown[] = [];
+  let reply: unknown = schedule;
+  const client = createTaskClient({
+    tasks: "jobs",
+    scheduler: "schedules",
+    scheduleControls: true,
+    async invoke(service, method, input) {
+      calls.push({ service, method, input });
+      return reply;
+    },
+  });
+  expect(
+    createTaskClient({
+      tasks: "jobs",
+      scheduler: "old",
+      invoke: async () => [],
+    }).changeSchedule
+  ).toBeUndefined();
+  expect(
+    await client.changeSchedule!("pause", { id, revision: 1 }, signal)
+  ).not.toHaveProperty("input");
+  expect(calls[0]).toEqual({
+    service: "schedules",
+    method: "pause",
+    input: { id, revision: 1 },
+  });
+  for (const invalid of [
+    { ...schedule, id: crypto.randomUUID() },
+    { ...schedule, revision: 1 },
+    { ...schedule, state: "active" },
+  ]) {
+    reply = invalid;
+    await expect(
+      client.changeSchedule!("pause", { id, revision: 1 }, signal)
+    ).rejects.toBeDefined();
+  }
+});
