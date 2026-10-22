@@ -30,3 +30,6 @@ packages/console-authoring/dev/favicon.svg
 
 # Local task-page browser evidence
 packages/console-tasks/output/
+
+# Per-checkout tools and disposable fixtures; never sync credentials.
+/.agents/state/

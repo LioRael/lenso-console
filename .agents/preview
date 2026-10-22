@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+[ "$#" -eq 0 ] || exit 64
+. .agents/env
+port=${PREVIEW_PORT:-4312}
+case $port in ''|*[!0-9]*) echo 'Invalid PREVIEW_PORT' >&2; exit 64;; esac
+[ "$port" -gt 0 ] && [ "$port" -le 65535 ] && [ "$port" -ne 49983 ] || exit 64
+if command -v delta-runner >/dev/null 2>&1; then
+    echo 'This existing preview/auth entry is loopback-only. Cloud preview is not supported; do not widen its origin policy.' >&2
+    exit 78
+fi
+bun --no-env-file run sdk:build
+bun --no-env-file run plugins:build
+bun --no-env-file run sdk:preview
+exec bun --no-env-file packages/console-authoring/author.mjs dev --entry examples/app-console/app/orders/console --port "$port"

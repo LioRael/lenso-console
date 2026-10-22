@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+. .agents/env
+port=${PREVIEW_PORT:-4312}
+case $port in ''|*[!0-9]*) echo 'Invalid PREVIEW_PORT' >&2; exit 64;; esac
+[ "$port" -gt 0 ] && [ "$port" -le 65535 ] && [ "$port" -ne 49983 ] || exit 64
+curl --fail --silent --show-error --max-time 5 -o /dev/null http://127.0.0.1:$port/
+if command -v delta-runner >/dev/null 2>&1; then delta-runner preview url "$port"; else echo "http://127.0.0.1:$port/"; fi
