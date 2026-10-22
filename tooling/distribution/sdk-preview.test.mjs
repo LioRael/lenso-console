@@ -499,6 +499,8 @@ export default function Page(props:PageProps) {return <ConsolePageScope scopeKey
         await current
           .getByRole("searchbox", { name: "Search commands" })
           .press("Escape");
+        // Escape starts modal retirement; wait before the next keyboard action.
+        await surface.waitFor({ state: "hidden" });
       }
     };
     await exerciseSurface(productionPage, "admitted");
