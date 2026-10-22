@@ -58,3 +58,11 @@ jobs:
           LENSO_REQUIRE_POSTGRES: "1"
           LENSO_REQUIRE_RUNTIME: "1"
         run: bun run check
+      - name: Retain isolated operations browser proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: operations-browser-proof
+          path: /tmp/lenso-operations-proof
+          if-no-files-found: warn
+          retention-days: 1
