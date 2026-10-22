@@ -1,0 +1,5 @@
+{
+  "extends": "../../../packages/console-tasks/tsconfig.json",
+  "include": ["fixture.tsx", "vite.config.ts"],
+  "compilerOptions": { "types": ["bun", "vite/client"] }
+}
