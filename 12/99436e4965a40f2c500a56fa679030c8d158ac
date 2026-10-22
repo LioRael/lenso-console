@@ -1,0 +1,58 @@
+bun.lock
+  h_9d56aba080c170 86
+docs/page-operation-context.md
+  h_9d56aba080c170 3-9,11,15,19-29,32-125
+packages/agent-console/README.md
+  h_9d56aba080c170 183-211
+packages/agent-console/package.json
+  h_9d56aba080c170 9-10,26
+packages/agent-console/src/context-tools.ts
+  h_9d56aba080c170 1-235
+packages/console-authoring/src/operation-context.tsx
+  h_9d56aba080c170 5-9,38-117,219,231-235,237-242,244,248,250-251
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 48-71,77-176,197,202-215
+packages/console-authoring/test/operation-context.browser.test.ts
+  h_9d56aba080c170 139
+packages/console-runtime/src/operation-context.ts
+  h_9d56aba080c170 1-174
+packages/console-runtime/src/server.ts
+  h_9d56aba080c170 95-96,184-251,257-263,270-272,361-365
+packages/console-runtime/test/dev-context-fixture.ts
+  h_9d56aba080c170 1-113
+packages/console-runtime/test/page-context.test.ts
+  h_9d56aba080c170 1-623
+packages/console-runtime/test/server.test.ts
+  h_9d56aba080c170 86,91-92,115-134,138-142,144,151-169,628-686
+packages/console/build.ts
+  h_9d56aba080c170 9
+packages/console/package.json
+  h_9d56aba080c170 58-62
+packages/console/src/index.ts
+  h_9d56aba080c170 15-16
+packages/console/src/integrations/dev-context.ts
+  h_9d56aba080c170 1-338
+packages/console/src/operation-metadata.ts
+  h_9d56aba080c170 6-10,19-26,37,63-81,86-87
+packages/console/src/operation-selection.ts
+  h_9d56aba080c170 3-26,28,31-39,55-60
+packages/console/src/plugin.ts
+  h_9d56aba080c170 15
+packages/console/src/service.ts
+  h_9d56aba080c170 6,133-135,704-720,730,749-760,765-766
+packages/console/src/types.ts
+  h_9d56aba080c170 2-5,144-160,162-163
+packages/console/test/operation-metadata.test.ts
+  h_9d56aba080c170 70-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1299436e4965a40f2c500a56fa679030c8d158ac",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

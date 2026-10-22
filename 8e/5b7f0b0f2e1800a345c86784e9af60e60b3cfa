@@ -1,0 +1,16 @@
+examples/ts-console/administration.browser.test.ts
+  h_9d56aba080c170 531-534
+packages/auth-console/src/administration-pages.tsx
+  h_9d56aba080c170 458-461
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e5b7f0b0f2e1800a345c86784e9af60e60b3cfa",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

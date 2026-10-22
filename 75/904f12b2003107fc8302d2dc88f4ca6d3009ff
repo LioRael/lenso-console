@@ -1,0 +1,22 @@
+examples/composed-console/agent-replay.ts
+  h_9d56aba080c170 314-332
+packages/agent-console/src/client.ts
+  h_9d56aba080c170 63-86,89
+packages/agent-console/src/react.tsx
+  h_9d56aba080c170 315-319
+packages/agent-console/test/browser.test.ts
+  h_9d56aba080c170 303-307
+packages/agent-console/test/client.test.ts
+  h_9d56aba080c170 259-288
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75904f12b2003107fc8302d2dc88f4ca6d3009ff",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

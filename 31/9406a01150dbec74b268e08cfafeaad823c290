@@ -1,0 +1,104 @@
+.agents/skills/console-dashboard-widgets/SKILL.md
+  h_9d56aba080c170 3,14-19
+.agents/skills/console-dashboard-widgets/references/presentation.md
+  h_9d56aba080c170 1-90
+.agents/skills/console-page-authoring/SKILL.md
+  h_9d56aba080c170 32-34
+.agents/skills/console-page-interactions/SKILL.md
+  h_9d56aba080c170 3,15
+.agents/skills/console-page-interactions/references/composition.md
+  h_9d56aba080c170 18-20,31-52
+.agents/skills/console-page-interactions/references/presentation.md
+  h_9d56aba080c170 1-161
+.agents/skills/console-page-interactions/references/recipes.md
+  h_9d56aba080c170 4-6,14,30,33,58,83,95,139-140,153
+.agents/skills/console-page-interactions/references/safety.md
+  h_9d56aba080c170 13-19,34-37
+.agents/skills/console-page-interactions/references/validation.md
+  h_9d56aba080c170 23-26,30-31
+.agents/skills/console-plugin-development/SKILL.md
+  h_9d56aba080c170 5-7,16-19,72-74
+bun.lock
+  h_9d56aba080c170 65,71,74,77
+docs/design/console-interaction-direction.md
+  h_9d56aba080c170 3,35-38,43-46,67-73,160
+examples/composed-console/README.md
+  h_9d56aba080c170 40-43,99
+examples/composed-console/composition.tsx
+  h_9d56aba080c170 20-22,24-28,40,47-49
+examples/composed-console/dashboard-drag.browser.mjs
+  h_9d56aba080c170 1-221
+examples/composed-console/dashboard-lifetime.browser.mjs
+  h_9d56aba080c170 1-287
+examples/composed-console/orders-pages.styles.ts
+  h_9d56aba080c170 1-67
+examples/composed-console/orders-pages.tsx
+  h_9d56aba080c170 1-540
+examples/composed-console/preview.tsx
+  h_9d56aba080c170 5-6,8-11,33-136,242-246,263-264,270-275
+examples/composed-console/sample-clients.ts
+  h_9d56aba080c170 102-103
+examples/composed-console/verify-browser.mjs
+  h_9d56aba080c170 27-256,362,374,421-427,432-607,609-626,628,636-638,705-720,815-817,898-902,906-907,917-921,924-925,928-932,935,937-971,1041-1043,1046,1055,1063-1066,1085-1121,1123-1126,1128-1138,1140-1150,1152-1182,1188-1241,1244-1284,1286-1324,1327-1331,1340-1346,1355-1362,1364-1373,1376-1378,1401-1406,1412,1419,1422,1424,1429-1430,1504,1562,1565,1583-1586,1590,1593-1595,1598,1602,1604,1612-1613,1647,1649,1658,1663-1664,1673,1681,1683,1701-1703,1708-1711,1713,1808-1809,1816-1817,1820-1854,1856-1857,1871-1874,1880-1882,1903-1904,1906,2104,2153-2254
+examples/composed-console/vite.config.ts
+  h_9d56aba080c170 16-19
+packages/auth-console/README.md
+  h_9d56aba080c170 134-137,144-155,164-197
+packages/auth-console/build.ts
+  h_9d56aba080c170 1-5,8-29
+packages/auth-console/bunfig.toml
+  h_9d56aba080c170 1-2
+packages/auth-console/package.json
+  h_9d56aba080c170 16-18,28,43-44,50,53,55-56
+packages/auth-console/src/pages.styles.ts
+  h_9d56aba080c170 1-217
+packages/auth-console/src/pages.tsx
+  h_9d56aba080c170 1-8,10,12-16,25-30,38-44,73,76-80,85,89,95-107,109-144,160-162,166-168,176,220-232,234-324,326-416,418-453,457,463,475-478,484,487,490-491,494-499,506,508-510,526-555,559,562-659,663-669,671-689,691-694,699-783,785,789-791,793-798,817-821,825,827-889
+packages/auth-console/src/react.ts
+  h_9d56aba080c170 57-65,154
+packages/auth-console/test/stylex-preload.ts
+  h_9d56aba080c170 1-26
+packages/console-dashboard/README.md
+  h_9d56aba080c170 37-55,138-147
+packages/console-dashboard/src/dashboard.styles.ts
+  h_9d56aba080c170 4-20,22-36,38-40,44,48-51,59,62-63,65,67-68,72-73,75-97
+packages/console-dashboard/src/dashboard.tsx
+  h_9d56aba080c170 5,13,23,32,151,153-155,160,162-164,180,305-306,319-320,336-360,439-480,541-543,550-628,630-640,643-646,650-666,670-672,674-678,685-703,707-709,727-738,741-827,834,875,879-887,895,899-905,907-908,911-913,917,949-984
+packages/console-dashboard/src/pointer-grid-layout.tsx
+  h_9d56aba080c170 1-130
+packages/console-plugin-manager/README.md
+  h_9d56aba080c170 7-8,24-37,40-42
+packages/console-plugin-manager/build.ts
+  h_9d56aba080c170 10,16
+packages/console-plugin-manager/src/plugin-manager.tsx
+  h_9d56aba080c170 1,8-9,51-72,82-85,159-166,169-188,194,199-229,237-238,246-251,255-259,261-344,349-358,366-372,377-380,385-491,494,497-501,504-506,508-510,512-545,547-558,560-570,572
+packages/console-plugin-manager/test/catalog.test.ts
+  h_9d56aba080c170 10,45-72
+packages/console-react/src/console-context-bar.tsx
+  h_9d56aba080c170 6,30,32-63,67-77,82-84,87-88,90-92,95-106,109,111-116,121-122,124-133,138-160,165,167,178-187,190-191,212,215,218-227,229-234,236,239,243,250,253,264,286
+packages/console-react/src/console-icon-button.styles.ts
+  h_9d56aba080c170 4
+packages/console-react/src/console-icon-button.tsx
+  h_9d56aba080c170 1,4,23,26-37,71-85
+packages/console-react/src/console-navigation-editor.tsx
+  h_9d56aba080c170 49,54,64-65,69-71
+packages/console-react/src/console-shell.styles.ts
+  h_9d56aba080c170 68,88-101,106,299,302-303,366-367,461-468,561,566-568,570
+packages/console-react/src/console-shell.tsx
+  h_9d56aba080c170 1-2,13,284-294,955-957,963-967,987,992,994,996,1003-1004,1006,1012-1013
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 347-349,613-615,842-853,926-928,933-937,941,954-958,964-971,973-974,1000,1006-1009,1014-1016,1020-1024,1065,1115
+packages/console-react/test/browser/fixture.tsx
+  h_9d56aba080c170 10,599-602
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "319406a01150dbec74b268e08cfafeaad823c290",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

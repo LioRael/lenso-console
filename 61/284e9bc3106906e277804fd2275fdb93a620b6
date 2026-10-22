@@ -1,0 +1,26 @@
+apps/shell/src/app/locales/zh-cn.ts
+  h_9d56aba080c170 28-60
+apps/shell/src/features/plugins/plugin-detail-page.tsx
+  h_9d56aba080c170 17,159,190-192,205,213,256,264,289-290,293-294,298,301-302
+apps/shell/src/features/plugins/plugin-detail.browser.test.tsx
+  h_9d56aba080c170 1-440
+apps/shell/src/features/plugins/plugin-inspector.tsx
+  h_9d56aba080c170 8-14,23-27,97-100,102-108,129-130,138,147,153-156,221,228-234,248,251,318-326,330,338,341,349,353-372,437,446-453,456-466,480-488,492-493,497-500,634-635,860-885
+apps/shell/src/features/plugins/plugin-overview.tsx
+  h_9d56aba080c170 1-232
+apps/shell/src/features/plugins/plugin-scope.browser.test.tsx
+  h_9d56aba080c170 137,139-143,145-147,149-152
+docs/design/reviews/2026-10-02-generic-plugin-detail.md
+  h_9d56aba080c170 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61284e9bc3106906e277804fd2275fdb93a620b6",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

@@ -1,0 +1,70 @@
+examples/ts-console/settings.browser.test.ts
+  h_9d56aba080c170 1-389
+packages/console-authoring/README.md
+  h_9d56aba080c170 219-261
+packages/console-authoring/compiler/compiler.mjs
+  h_9d56aba080c170 190-192
+packages/console-authoring/compiler/page-discovery.mjs
+  h_9d56aba080c170 173-184
+packages/console-authoring/compiler/test/compiler.test.mjs
+  h_9d56aba080c170 280,327-344,407-426
+packages/console-authoring/compiler/workspace-discovery.mjs
+  h_9d56aba080c170 6,9-17,35,173-181,189
+packages/console-authoring/dev/preview-module.mjs
+  h_9d56aba080c170 10-12
+packages/console-authoring/dev/preview-shell.tsx
+  h_9d56aba080c170 5,26,39,67,82-91,123-125,163-181,214-218,251,262-267
+packages/console-authoring/src/admission-protocol.ts
+  h_9d56aba080c170 3-4,38
+packages/console-authoring/src/browser-admission.ts
+  h_9d56aba080c170 527-529
+packages/console-authoring/src/browser.tsx
+  h_9d56aba080c170 58-99
+packages/console-authoring/src/index.ts
+  h_9d56aba080c170 20,35,67-68
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 110
+packages/console-authoring/src/server.ts
+  h_9d56aba080c170 398-400
+packages/console-authoring/src/settings.ts
+  h_9d56aba080c170 1-35
+packages/console-authoring/src/workspace.ts
+  h_9d56aba080c170 1-2,14-15
+packages/console-react/README.md
+  h_9d56aba080c170 58-92
+packages/console-react/src/composition.ts
+  h_9d56aba080c170 80-96
+packages/console-react/src/console-interaction-host.tsx
+  h_9d56aba080c170 13,41,47-48,205
+packages/console-react/src/console-model.ts
+  h_9d56aba080c170 33-40,100,189-213,261-275
+packages/console-react/src/console-settings.tsx
+  h_9d56aba080c170 1-253
+packages/console-react/src/console-shell.tsx
+  h_9d56aba080c170 36,41,64,76-80,98-99,324,333-346,353-354,400-401,405,408-409,456-468,558-601,786-788,861,1190-1194
+packages/console-react/src/index.ts
+  h_9d56aba080c170 23-27
+packages/console-react/test/browser/console-shell.browser.test.ts
+  h_9d56aba080c170 23-58
+packages/console-react/test/browser/fixture.tsx
+  h_9d56aba080c170 55,619-636,644,662
+packages/console-react/test/console-model.test.ts
+  h_9d56aba080c170 12,48-104
+plugins/console/shell/src/app/console-admission.tsx
+  h_9d56aba080c170 8,14,19,111,139-154,196-211,217,242-252,255,257-271,275,429-433
+plugins/console/shell/src/features/home/home-page.tsx
+  h_9d56aba080c170 3-4,15-19
+tooling/distribution/console-ts.test.mjs
+  h_9d56aba080c170 126,154-155,264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0aa2857ed4e736a8946efe8a04b6498a4ebb8e25",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

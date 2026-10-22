@@ -1,0 +1,16 @@
+package.json
+  h_9d56aba080c170 66
+packages/console-tasks/test/operations.browser.test.ts
+  h_9d56aba080c170 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0d2083fe7a3632945eae99df21dab2334a269b86",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}

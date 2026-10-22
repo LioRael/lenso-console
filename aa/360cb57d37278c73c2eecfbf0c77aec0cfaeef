@@ -1,0 +1,24 @@
+packages/console-authoring/compiler/test/transport.test.ts
+  h_9d56aba080c170 10,60-98
+packages/console-authoring/src/browser-admission.ts
+  h_9d56aba080c170 28-31,53-54,65-66,68,148,154-156,203-207,224-239,280-286,303,341
+packages/console-authoring/src/protocol.ts
+  h_9d56aba080c170 9-13,245-261,341-343
+packages/console-authoring/src/session-fetch.ts
+  h_9d56aba080c170 140-142
+packages/console/src/service.ts
+  h_9d56aba080c170 3,340-619,647-650,1225-1264,1267,1294-1296
+packages/console/test/backend.test.ts
+  h_9d56aba080c170 138-160,2139-2274
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa360cb57d37278c73c2eecfbf0c77aec0cfaeef",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
