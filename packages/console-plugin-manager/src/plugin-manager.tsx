@@ -15,6 +15,8 @@ import { Table } from "@lenso/ui/table";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 
+import { loadCatalog } from "./catalog-loader";
+
 type Target = Awaited<ReturnType<ConsoleClient["targets"]>>["targets"][number];
 type Plugin = Awaited<ReturnType<ConsoleClient["plugins"]>>["plugins"][number];
 type Operation = Awaited<
@@ -106,28 +108,7 @@ export function pluginManagerConsole({
       setLoadError(undefined);
       void (async () => {
         try {
-          const { targets } = await services.targets(undefined, {
-            signal: controller.signal,
-          });
-          const pluginResponses = await Promise.all(
-            targets.map((target) =>
-              services.plugins(
-                { targetId: target.id },
-                { signal: controller.signal }
-              )
-            )
-          );
-          const plugins = pluginResponses.flatMap(
-            (response) => response.plugins
-          );
-          const operationResponses = await Promise.all(
-            targets.map((target) =>
-              services.catalog(
-                { targetId: target.id },
-                { signal: controller.signal }
-              )
-            )
-          );
+          const snapshot = await loadCatalog(services, controller.signal);
           if (
             !isCurrentCatalogRequest(current, activation, controller.signal)
           ) {
@@ -135,9 +116,9 @@ export function pluginManagerConsole({
           }
           setSnapshot(
             projectCatalog(
-              targets,
-              plugins,
-              operationResponses.flatMap((response) => response.operations)
+              snapshot.targets,
+              snapshot.plugins,
+              snapshot.operations
             )
           );
         } catch (error) {

@@ -9,6 +9,7 @@ import {
 
 import { findCatalogPlugin } from "../src/plugin-manager";
 import { isCurrentCatalogRequest, projectCatalog } from "../src/react";
+import { loadCatalog } from "../src/catalog-loader";
 
 const target: ConsoleTargetDescriptor = { id: "app-a", label: "Application A" };
 const plugin: ConsolePluginDescriptor = {
@@ -93,5 +94,168 @@ describe("catalog projection", () => {
         controller.signal
       )
     ).toBe(false);
+  });
+});
+
+type CatalogClient = Parameters<typeof loadCatalog>[0];
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((accept) => {
+    resolve = accept;
+  });
+  return { promise, resolve };
+}
+
+function client(overrides: Partial<CatalogClient> = {}): CatalogClient {
+  return {
+    targets: async () => ({ schemaVersion: 1, targets: [target] }),
+    plugins: async () => ({ schemaVersion: 1, plugins: [plugin] }),
+    catalog: async () => ({
+      schemaVersion: 1,
+      revision: "test",
+      operations: [operation],
+    }),
+    ...overrides,
+  };
+}
+
+describe("catalog loading", () => {
+  test("a malformed target list cannot become an empty successful catalog", async () => {
+    const malformed = {} as unknown as ConsoleTargetDescriptor[];
+    await expect(
+      loadCatalog(
+        client({
+          targets: async () => ({ schemaVersion: 1, targets: malformed }),
+        }),
+        new AbortController().signal
+      )
+    ).rejects.toBeInstanceOf(TypeError);
+  });
+
+  test("starts catalog before plugins finish and preserves target order", async () => {
+    const pending = deferred<void>();
+    const catalogStarted = deferred<void>();
+    const otherTarget = { id: "app-b", label: "Application B" };
+    const loading = loadCatalog(
+      client({
+        targets: async () => ({
+          schemaVersion: 1,
+          targets: [target, otherTarget],
+        }),
+        plugins: async ({ targetId }) => {
+          if (targetId === target.id) {
+            await pending.promise;
+          }
+          return {
+            schemaVersion: 1,
+            plugins: [{ ...plugin, targetId }],
+          };
+        },
+        catalog: async ({ targetId }) => {
+          catalogStarted.resolve();
+          return {
+            schemaVersion: 1,
+            revision: "test",
+            operations: [{ ...operation, targetId: targetId! }],
+          };
+        },
+      }),
+      new AbortController().signal
+    );
+    await catalogStarted.promise;
+    pending.resolve();
+    const snapshot = await loading;
+    expect(snapshot.targets).toEqual([target, otherTarget]);
+    expect(snapshot.plugins.map((item) => item.targetId)).toEqual([
+      target.id,
+      otherTarget.id,
+    ]);
+    expect(snapshot.operations.map((item) => item.targetId)).toEqual([
+      target.id,
+      otherTarget.id,
+    ]);
+  });
+
+  test("bounds fan-out and does not start queued targets after cancellation", async () => {
+    const pending = deferred<void>();
+    const full = deferred<void>();
+    const signals: AbortSignal[] = [];
+    const started: string[] = [];
+    let active = 0;
+    let peak = 0;
+    const read = async (id: string, signal: AbortSignal) => {
+      started.push(id);
+      signals.push(signal);
+      active++;
+      peak = Math.max(peak, active);
+      if (active === 8) {
+        full.resolve();
+      }
+      await pending.promise;
+      active--;
+    };
+    const controller = new AbortController();
+    const loading = loadCatalog(
+      client({
+        targets: async () => ({
+          schemaVersion: 1,
+          targets: Array.from({ length: 9 }, (_, i) => ({
+            id: `app-${i}`,
+            label: `Application ${i}`,
+          })),
+        }),
+        plugins: async ({ targetId }, options) => {
+          await read(targetId, options!.signal!);
+          return { schemaVersion: 1, plugins: [] };
+        },
+        catalog: async ({ targetId }, options) => {
+          await read(targetId!, options!.signal!);
+          return { schemaVersion: 1, revision: "test", operations: [] };
+        },
+      }),
+      controller.signal
+    ).catch((error: unknown) => error);
+    await full.promise;
+    const reason = new Error("retired page");
+    controller.abort(reason);
+    pending.resolve();
+    expect(await loading).toBe(reason);
+    expect(peak).toBe(8);
+    expect(started).toHaveLength(8);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
+
+  test("a synchronous read failure cancels its sibling without hiding the page error", async () => {
+    const siblingAborted = deferred<void>();
+    const failure = new Error("plugin read failed");
+    const scope = new AbortController();
+    const loading = loadCatalog(
+      client({
+        plugins: () => {
+          throw failure;
+        },
+        catalog: async (_, options) => {
+          const signal = options!.signal!;
+          return new Promise((_, reject) => {
+            signal.addEventListener(
+              "abort",
+              () => {
+                siblingAborted.resolve();
+                reject(signal.reason);
+              },
+              { once: true }
+            );
+          });
+        },
+      }),
+      scope.signal
+    );
+    await expect(loading).rejects.toBe(failure);
+    await siblingAborted.promise;
+    expect(scope.signal.aborted).toBe(false);
+    expect(
+      isCurrentCatalogRequest(true, { isCurrent: () => true }, scope.signal)
+    ).toBe(true);
   });
 });

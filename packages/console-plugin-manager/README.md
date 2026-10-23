@@ -35,6 +35,11 @@ inspection, not selection, and never replaces the Dock with artificial actions.
 Failed catalog requests offer an inline retry; an unlisted target/plugin pair
 shows a not-found state without claiming unsupported permissions.
 
+After targets resolve, each target's plugin and operation reads start together.
+At most four targets (eight service calls) run concurrently per load. Results keep
+target order. Cancellation or a failed read stops queued work and aborts sibling
+reads. The existing activation checks still discard results from retired pages.
+
 The package build lowers StyleX at build time and emits `dist/styles.css`; it
 does not rely on runtime `stylex.create` evaluation.
 Import the stylesheet when consuming built output. The composed preview resolves

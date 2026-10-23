@@ -133,12 +133,13 @@ actual archive consumption and pinned-browser validation where applicable. The
 gate records the source SHA and tool versions; the Linux candidate run remains
 authoritative. A focused check or preflight alone is not the complete gate.
 
-Rust/Cargo validation, native Hosts, Agent binaries and development kits are
-retired Console requirements. The supported scripts and CI use only TS owners.
-If a future change reintroduces a native step, migrate the pipeline before landing
-rather than installing the old stack, skipping required checks or weakening
-branch protection. In particular, verify the implementation of `bun run check`
-before treating it as the shared TS gate.
+The retired native Console Host, Agent binaries and development kits are not
+prerequisites for the TypeScript application. Rust/Cargo remain required for the
+pinned external Runtime fixture in the complete gate described above. Do not
+restore the old stack or skip that fixture to simplify setup. Any additional
+native requirement must be wired into the reviewed pipeline without weakening
+branch protection. Inspect the full `bun run check` chain before treating it as
+the shared gate.
 
 Browser fixtures retain real StyleX CSS loading and geometry assertions, plus
 the existing file-level isolation. Run
