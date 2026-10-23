@@ -108,18 +108,14 @@ export function pluginManagerConsole({
       setLoadError(undefined);
       void (async () => {
         try {
-          const snapshot = await loadCatalog(services, controller.signal);
+          const loaded = await loadCatalog(services, controller.signal);
           if (
             !isCurrentCatalogRequest(current, activation, controller.signal)
           ) {
             return;
           }
           setSnapshot(
-            projectCatalog(
-              snapshot.targets,
-              snapshot.plugins,
-              snapshot.operations
-            )
+            projectCatalog(loaded.targets, loaded.plugins, loaded.operations)
           );
         } catch (error) {
           if (isCurrentCatalogRequest(current, activation, controller.signal)) {

@@ -7,9 +7,9 @@ import {
   type ConsoleOperationDescriptor,
 } from "@lenso/console-sdk/protocol";
 
+import { loadCatalog } from "../src/catalog-loader";
 import { findCatalogPlugin } from "../src/plugin-manager";
 import { isCurrentCatalogRequest, projectCatalog } from "../src/react";
-import { loadCatalog } from "../src/catalog-loader";
 
 const target: ConsoleTargetDescriptor = { id: "app-a", label: "Application A" };
 const plugin: ConsolePluginDescriptor = {
@@ -99,12 +99,12 @@ describe("catalog projection", () => {
 
 type CatalogClient = Parameters<typeof loadCatalog>[0];
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((accept) => {
-    resolve = accept;
+function deferred() {
+  let complete!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    complete = resolve;
   });
-  return { promise, resolve };
+  return { promise, resolve: complete };
 }
 
 function client(overrides: Partial<CatalogClient> = {}): CatalogClient {
@@ -134,8 +134,8 @@ describe("catalog loading", () => {
   });
 
   test("starts catalog before plugins finish and preserves target order", async () => {
-    const pending = deferred<void>();
-    const catalogStarted = deferred<void>();
+    const pending = deferred();
+    const catalogStarted = deferred();
     const otherTarget = { id: "app-b", label: "Application B" };
     const loading = loadCatalog(
       client({
@@ -178,8 +178,8 @@ describe("catalog loading", () => {
   });
 
   test("bounds fan-out and does not start queued targets after cancellation", async () => {
-    const pending = deferred<void>();
-    const full = deferred<void>();
+    const pending = deferred();
+    const full = deferred();
     const signals: AbortSignal[] = [];
     const started: string[] = [];
     let active = 0;
@@ -187,13 +187,13 @@ describe("catalog loading", () => {
     const read = async (id: string, signal: AbortSignal) => {
       started.push(id);
       signals.push(signal);
-      active++;
+      active += 1;
       peak = Math.max(peak, active);
       if (active === 8) {
         full.resolve();
       }
       await pending.promise;
-      active--;
+      active -= 1;
     };
     const controller = new AbortController();
     const loading = loadCatalog(
@@ -215,19 +215,19 @@ describe("catalog loading", () => {
         },
       }),
       controller.signal
-    ).catch((error: unknown) => error);
+    );
     await full.promise;
     const reason = new Error("retired page");
     controller.abort(reason);
     pending.resolve();
-    expect(await loading).toBe(reason);
+    await expect(loading).rejects.toBe(reason);
     expect(peak).toBe(8);
     expect(started).toHaveLength(8);
     expect(signals.every((signal) => signal.aborted)).toBe(true);
   });
 
   test("a synchronous read failure cancels its sibling without hiding the page error", async () => {
-    const siblingAborted = deferred<void>();
+    const siblingAborted = deferred();
     const failure = new Error("plugin read failed");
     const scope = new AbortController();
     const loading = loadCatalog(
@@ -237,7 +237,7 @@ describe("catalog loading", () => {
         },
         catalog: async (_, options) => {
           const signal = options!.signal!;
-          return new Promise((_, reject) => {
+          return new Promise((_resolve, reject) => {
             signal.addEventListener(
               "abort",
               () => {

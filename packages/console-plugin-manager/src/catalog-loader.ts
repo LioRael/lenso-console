@@ -17,10 +17,10 @@ export async function loadCatalog(
     abort();
   }
   const requestSignal = controller.signal;
-  const request = async <T>(read: () => Promise<T>) => {
+  async function request<T>(read: () => Promise<T>) {
     requestSignal.throwIfAborted();
     return read();
-  };
+  }
   try {
     const { targets } = await request(() =>
       services.targets(undefined, { signal: requestSignal })
@@ -35,7 +35,8 @@ export async function loadCatalog(
       try {
         while (next < targets.length) {
           requestSignal.throwIfAborted();
-          const index = next++;
+          const index = next;
+          next += 1;
           const targetId = targets[index].id;
           const [plugins, catalog] = await Promise.all([
             request(() =>
